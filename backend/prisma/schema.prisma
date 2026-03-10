@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+/// A physical venue (café, bar, etc.) where games can be played.
+model Venue {
+  id          String   @id @default(uuid())
+  name        String
+  address     String?
+  latitude    Float
+  longitude   Float
+  radiusMeters Int     @default(50)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  gameSessions GameSession[]
+}
+
+/// A user profile inside Cafe Social.
+model Player {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  username  String   @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions  GameSession[]
+  rewards   PlayerReward[]
+}
+
+/// A single play session of the mini-game.
+model GameSession {
+  id        String   @id @default(uuid())
+  venueId   String
+  playerId  String
+
+  score     Int
+  startedAt DateTime @default(now())
+  endedAt   DateTime?
+
+  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+/// A reward the system can grant (e.g. free coffee, hoodie).
+model Reward {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  imageUrl    String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  playerRewards PlayerReward[]
+}
+
+/// A concrete reward that a player has earned.
+model PlayerReward {
+  id        String   @id @default(uuid())
+  playerId  String
+  rewardId  String
+  redeemed  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  redeemedAt DateTime?
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  reward Reward @relation(fields: [rewardId], references: [id], onDelete: Cascade)
+}
+
