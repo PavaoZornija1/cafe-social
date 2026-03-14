@@ -1,42 +1,30 @@
-import React from 'react';
-import { SafeAreaView, Text } from 'react-native';
+import { DarkTheme, NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
+import React from 'react';
+
+import RootStack from './src/navigation/RootStack';
+
+const navigationTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: '#050816',
+    card: '#18181b',
+    text: '#f4f4f5',
+    border: '#27272a',
+    notification: '#f4f4f5',
+    primary: '#f4f4f5',
+    secondary: '#e4e4e7',
+    tertiary: '#d4d4d8',
+  },
+}
 
 export default function App() {
   return (
-    <SafeAreaView
-      style={{
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#050816',
-      }}
-    >
-      <Text
-        style={{
-          color: '#ffffff',
-          fontSize: 24,
-          fontWeight: '600',
-          textAlign: 'center',
-          paddingHorizontal: 24,
-        }}
-      >
-        Cafe Social
-      </Text>
-      <Text
-        style={{
-          color: '#9ca3af',
-          fontSize: 14,
-          textAlign: 'center',
-          marginTop: 12,
-          paddingHorizontal: 24,
-        }}
-      >
-        Location-locked social gaming for cafés. This is the starter shell for
-        the player app.
-      </Text>
+    <NavigationContainer theme={navigationTheme}>
       <StatusBar style="light" />
-    </SafeAreaView>
+      <RootStack />
+    </NavigationContainer>
   );
 }
 
