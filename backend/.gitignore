@@ -1,3 +1,46 @@
-.node_modules/
+# dependencies
+/node_modules
 
+# build output
+/dist
+/build
+
+# logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# dotenv environment variables
 .env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+
+# testing
+/coverage
+
+# temp
+.tmp
+.temp
+
+# misc
+*.swp
+
+# Nest CLI
+nest-cli.json
