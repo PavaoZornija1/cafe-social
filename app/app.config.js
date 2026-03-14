@@ -4,7 +4,6 @@ export default {
     slug: 'cafe-social',
     version: '0.1.0',
     orientation: 'portrait',
-    icon: './assets/icon.png',
     scheme: 'cafesocial',
     userInterfaceStyle: 'automatic',
     newArchEnabled: true,
@@ -14,7 +13,6 @@ export default {
     },
     android: {
       adaptiveIcon: {
-        foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#ffffff',
       },
       edgeToEdgeEnabled: true,
@@ -22,8 +20,7 @@ export default {
     },
     web: {
       bundler: 'metro',
-      output: 'static',
-      favicon: './assets/favicon.png',
+      output: 'single',
     },
     plugins: [],
     runtimeVersion: {
@@ -31,11 +28,6 @@ export default {
     },
     updates: {
       checkAutomatically: 'ON_LOAD',
-    },
-    extra: {
-      eas: {
-        projectId: '00000000-0000-0000-0000-000000000000',
-      },
     },
   },
 };
