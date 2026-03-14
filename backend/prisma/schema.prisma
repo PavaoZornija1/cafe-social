@@ -2,6 +2,10 @@ generator client {
   provider = "prisma-client-js"
 }
 
+datasource db {
+  provider = "postgresql"
+}
+
 /// A physical venue (café, bar, etc.) where games can be played.
 model Venue {
   id          String   @id @default(uuid())
