@@ -1,4 +1,4 @@
-import { useAuth, useSignIn } from '@clerk/expo';
+import { useAuth, useSignUp } from '@clerk/expo';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import {
@@ -15,81 +15,66 @@ import {
 import { SocialSignInButtons } from '../components/SocialSignInButtons';
 import { RootStackParamList } from '../navigation/type';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'SignUp'>;
 
-export default function LoginScreen({ navigation }: Props) {
+export default function SignUpScreen({ navigation }: Props) {
     const { isLoaded, isSignedIn } = useAuth();
-    const { signIn, errors, fetchStatus } = useSignIn();
+    const { signUp, errors, fetchStatus } = useSignUp();
 
     const [emailAddress, setEmailAddress] = useState('');
     const [password, setPassword] = useState('');
-    const [verificationCode, setVerificationCode] = useState('');
-    const [needsMfa, setNeedsMfa] = useState(false);
+    const [code, setCode] = useState('');
+    const [needsVerification, setNeedsVerification] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
 
-    // Redirect to Home when already signed in
     useEffect(() => {
         if (isLoaded && isSignedIn) {
             navigation.replace('Home');
         }
     }, [isLoaded, isSignedIn, navigation]);
 
-    const handleSignIn = async () => {
-        if (!signIn) return;
+    const handleSignUp = async () => {
+        if (!signUp) return;
 
         setSubmitError(null);
-        setNeedsMfa(false);
-        const { error } = await signIn.password({ identifier: emailAddress, password });
-
+        const { error } = await signUp.password({ emailAddress, password });
         if (error) {
-            setSubmitError(error.message || 'Sign-in failed. Check your email and password.');
+            setSubmitError(error.message || 'Sign-up failed. Please try again.');
             return;
         }
 
-        if (signIn.status === 'complete') {
-            await signIn.finalize();
-            navigation.replace('Home');
+        try {
+            const sendResult = await signUp.verifications.sendEmailCode();
+            if (sendResult?.error) {
+                setSubmitError(sendResult.error.message || 'Could not send verification code.');
+                return;
+            }
+        } catch (err) {
+            setSubmitError((err as Error)?.message || 'Could not send verification code. Please try again.');
             return;
         }
-
-        if (signIn.status === 'needs_second_factor') {
-            const emailCodeFactor = signIn.supportedSecondFactors?.find(
-                (f) => f.strategy === 'email_code'
-            );
-            if (emailCodeFactor) {
-                await signIn.mfa.sendEmailCode();
-                setNeedsMfa(true);
-            }
-        } else if (signIn.status === 'needs_client_trust') {
-            const emailCodeFactor = signIn.supportedSecondFactors?.find(
-                (f) => f.strategy === 'email_code'
-            );
-            if (emailCodeFactor) {
-                await signIn.mfa.sendEmailCode();
-                setNeedsMfa(true);
-            }
-        }
+        setNeedsVerification(true);
     };
 
-    const handleVerifyMfa = async () => {
-        if (!signIn) return;
+    const handleVerify = async () => {
+        if (!signUp) return;
 
         setSubmitError(null);
-        const { error } = await signIn.mfa.verifyEmailCode({ code: verificationCode });
+        const { error } = await signUp.verifications.verifyEmailCode({ code });
         if (error) {
             setSubmitError(error.message || 'Verification failed. Please try again.');
             return;
         }
 
-        if (signIn.status === 'complete') {
-            await signIn.finalize();
+        if (signUp.status === 'complete') {
+            await signUp.finalize();
             navigation.replace('Home');
         }
     };
 
     const isLoading = !isLoaded || fetchStatus === 'fetching';
-    const isPasswordFormValid = emailAddress.trim().length > 0 && password.length > 0;
-    const isMfaFormValid = verificationCode.trim().length > 0;
+    const isSignUpFormValid = emailAddress.trim().length > 0 && password.length >= 8;
+    const isVerifyFormValid = code.trim().length > 0;
 
     if (!isLoaded) {
         return (
@@ -99,7 +84,7 @@ export default function LoginScreen({ navigation }: Props) {
         );
     }
 
-    if (needsMfa) {
+    if (needsVerification) {
         return (
             <KeyboardAvoidingView
                 style={styles.screen}
@@ -110,16 +95,17 @@ export default function LoginScreen({ navigation }: Props) {
                     keyboardShouldPersistTaps="handled"
                 >
                     <View style={styles.card}>
-                        <Text style={styles.title}>Verify your identity</Text>
+                        <Text style={styles.title}>Verify your email</Text>
                         <Text style={styles.subtitle}>
-                            We sent a code to your email. Enter it below.
+                            We sent a code to {emailAddress}. Enter it below.
                         </Text>
+                        <Text style={styles.label}>Verification code</Text>
                         <TextInput
                             style={styles.input}
-                            placeholder="Verification code"
+                            placeholder="123456"
                             placeholderTextColor="#6b7280"
-                            value={verificationCode}
-                            onChangeText={setVerificationCode}
+                            value={code}
+                            onChangeText={setCode}
                             keyboardType="number-pad"
                             autoComplete="one-time-code"
                         />
@@ -129,10 +115,10 @@ export default function LoginScreen({ navigation }: Props) {
                         <Pressable
                             style={[
                                 styles.button,
-                                (!isMfaFormValid || isLoading) && styles.buttonDisabled,
+                                (!isVerifyFormValid || isLoading) && styles.buttonDisabled,
                             ]}
-                            onPress={handleVerifyMfa}
-                            disabled={!isMfaFormValid || isLoading}
+                            onPress={handleVerify}
+                            disabled={!isVerifyFormValid || isLoading}
                         >
                             {isLoading ? (
                                 <ActivityIndicator color="#fff" />
@@ -142,13 +128,18 @@ export default function LoginScreen({ navigation }: Props) {
                         </Pressable>
                         <Pressable
                             style={styles.linkButton}
+                            onPress={() => signUp?.verifications.sendEmailCode()}
+                        >
+                            <Text style={styles.linkText}>Resend code</Text>
+                        </Pressable>
+                        <Pressable
+                            style={[styles.linkButton, { marginTop: 8 }]}
                             onPress={() => {
-                                setNeedsMfa(false);
-                                setVerificationCode('');
-                                setSubmitError(null);
+                                setNeedsVerification(false);
+                                setCode('');
                             }}
                         >
-                            <Text style={styles.linkText}>← Back to sign in</Text>
+                            <Text style={styles.linkText}>← Back</Text>
                         </Pressable>
                     </View>
                 </ScrollView>
@@ -166,9 +157,9 @@ export default function LoginScreen({ navigation }: Props) {
                 keyboardShouldPersistTaps="handled"
             >
                 <View style={styles.card}>
-                    <Text style={styles.title}>Cafe Social</Text>
+                    <Text style={styles.title}>Create account</Text>
                     <Text style={styles.subtitle}>
-                        Location-locked social gaming for cafés.
+                        Sign up with your email or a social account.
                     </Text>
 
                     <SocialSignInButtons onSuccess={() => navigation.replace('Home')} />
@@ -185,7 +176,7 @@ export default function LoginScreen({ navigation }: Props) {
                         autoComplete="email"
                     />
 
-                    <Text style={styles.label}>Password</Text>
+                    <Text style={styles.label}>Password (min 8 characters)</Text>
                     <TextInput
                         style={styles.input}
                         placeholder="••••••••"
@@ -193,7 +184,7 @@ export default function LoginScreen({ navigation }: Props) {
                         value={password}
                         onChangeText={setPassword}
                         secureTextEntry
-                        autoComplete="password"
+                        autoComplete="new-password"
                     />
 
                     {submitError && (
@@ -203,24 +194,26 @@ export default function LoginScreen({ navigation }: Props) {
                     <Pressable
                         style={[
                             styles.button,
-                            (!isPasswordFormValid || isLoading) && styles.buttonDisabled,
+                            (!isSignUpFormValid || isLoading) && styles.buttonDisabled,
                         ]}
-                        onPress={handleSignIn}
-                        disabled={!isPasswordFormValid || isLoading}
+                        onPress={handleSignUp}
+                        disabled={!isSignUpFormValid || isLoading}
                     >
                         {isLoading ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
-                            <Text style={styles.buttonText}>Sign in</Text>
+                            <Text style={styles.buttonText}>Sign up</Text>
                         )}
                     </Pressable>
 
                     <View style={styles.footer}>
-                        <Text style={styles.footerText}>Don't have an account? </Text>
-                        <Pressable onPress={() => navigation.navigate('SignUp')}>
-                            <Text style={styles.footerLink}>Sign up</Text>
+                        <Text style={styles.footerText}>Already have an account? </Text>
+                        <Pressable onPress={() => navigation.navigate('Login')}>
+                            <Text style={styles.footerLink}>Sign in</Text>
                         </Pressable>
                     </View>
+                    {/* Required for Clerk bot sign-up protection */}
+                    <View nativeID="clerk-captcha" style={styles.captcha} />
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>
@@ -323,5 +316,9 @@ const styles = StyleSheet.create({
         color: '#a78bfa',
         fontSize: 14,
         fontWeight: '600',
+    },
+    captcha: {
+        minHeight: 1,
+        marginTop: 16,
     },
 });
