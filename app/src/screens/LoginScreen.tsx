@@ -13,7 +13,7 @@ export default function LoginScreen({ navigation }: Props) {
     const isFormValid = username.trim().length > 0 && password.length > 0;
 
     const handleLogin = () => {
-        const trimmedUsername = username.trim();
+        const trimmedUsername = username.trim().toLowerCase();
 
         if (trimmedUsername === 'admin' && password === '123') {
             setError("");
