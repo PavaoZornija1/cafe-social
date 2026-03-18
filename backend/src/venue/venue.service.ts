@@ -22,6 +22,13 @@ export class VenueService {
     return this.venues.findAll();
   }
 
+  async findDefaultVenue(): Promise<Venue | null> {
+    return (
+      (await this.venues.findDefaultNonPremium()) ??
+      this.venues.findFallbackVenue()
+    );
+  }
+
   async findOne(id: string): Promise<Venue> {
     const venue = await this.venues.findById(id);
     if (!venue) {

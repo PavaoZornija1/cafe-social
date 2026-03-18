@@ -1,6 +1,14 @@
 import { PrismaClient, WordCategory } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error('DATABASE_URL is not set');
+}
+
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString }),
+});
 
 async function main() {
   const words = [
@@ -373,6 +381,82 @@ async function main() {
         ...word,
         language: 'en',
       },
+    });
+  }
+
+  // Seed a couple of venues so the app can detect a default context.
+  // In v1 detection is placeholder (default venue from DB), so we need at least one row.
+  const venues = [
+    {
+      id: '8ac7d2f6-9a5a-4d2b-8f5c-3c7bd3e7d5c1',
+      name: 'Default Café',
+      address: 'Main Street',
+      latitude: 43.8563,
+      longitude: 18.4131,
+      radiusMeters: 80,
+      isPremium: false,
+    },
+    {
+      id: '1c6e7e2a-2a1d-4f61-9d31-2b5b3c1b0b7a',
+      name: 'Premium Roastery',
+      address: 'Neon District',
+      latitude: 43.8613,
+      longitude: 18.4162,
+      radiusMeters: 80,
+      isPremium: true,
+    },
+  ];
+
+  for (const v of venues) {
+    await prisma.venue.upsert({
+      where: { id: v.id },
+      update: {
+        name: v.name,
+        address: v.address,
+        latitude: v.latitude,
+        longitude: v.longitude,
+        radiusMeters: v.radiusMeters,
+        isPremium: v.isPremium,
+      },
+      create: v,
+    });
+  }
+
+  // MVP challenges for the Word Game.
+  // Stable IDs so the seed is idempotent.
+  const challenges = [
+    {
+      id: 'c3c4db0e-1a4a-4e1c-9d0f-9f6a4b5a0d01',
+      venueId: venues[0].id,
+      title: '1 in-venue Word Session',
+      description: 'Complete a Word Game session while at the café.',
+      rewardVenueSpecific: true,
+      locationRequired: true,
+      targetCount: 1,
+    },
+    {
+      id: 'a7f2a6b9-3b8d-4a1c-8f6b-5d2a1b0c9e02',
+      venueId: venues[0].id,
+      title: 'Play 3 Word Games',
+      description: 'Progress your Word Game streak (works from home).',
+      rewardVenueSpecific: false,
+      locationRequired: false,
+      targetCount: 3,
+    },
+  ];
+
+  for (const c of challenges) {
+    await prisma.challenge.upsert({
+      where: { id: c.id },
+      update: {
+        venueId: c.venueId,
+        title: c.title,
+        description: c.description ?? null,
+        rewardVenueSpecific: c.rewardVenueSpecific,
+        locationRequired: c.locationRequired,
+        targetCount: c.targetCount,
+      },
+      create: c,
     });
   }
 }

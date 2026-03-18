@@ -56,8 +56,16 @@ PODS:
     - Yoga
   - EXApplication (7.0.8):
     - ExpoModulesCore
+  - EXBarCodeScanner (13.0.1):
+    - EXImageLoader
+    - ExpoModulesCore
+    - ZXingObjC/OneD
+    - ZXingObjC/PDF417
   - EXConstants (18.0.13):
     - ExpoModulesCore
+  - EXImageLoader (4.7.0):
+    - ExpoModulesCore
+    - React-Core
   - Expo (54.0.33):
     - ExpoModulesCore
     - hermes-engine
@@ -87,6 +95,10 @@ PODS:
     - ExpoModulesCore
   - ExpoAsset (12.0.12):
     - ExpoModulesCore
+  - ExpoCamera (55.0.10):
+    - ExpoModulesCore
+    - ZXingObjC/OneD
+    - ZXingObjC/PDF417
   - ExpoCrypto (15.0.8):
     - ExpoModulesCore
   - ExpoFileSystem (19.0.21):
@@ -1893,15 +1905,23 @@ PODS:
     - ReactNativeDependencies
     - Yoga
   - Yoga (0.0.0)
+  - ZXingObjC/Core (3.6.9)
+  - ZXingObjC/OneD (3.6.9):
+    - ZXingObjC/Core
+  - ZXingObjC/PDF417 (3.6.9):
+    - ZXingObjC/Core
 
 DEPENDENCIES:
   - "ClerkExpo (from `../node_modules/@clerk/expo/ios`)"
   - "ClerkGoogleSignIn (from `../node_modules/@clerk/expo/ios`)"
   - EXApplication (from `../node_modules/expo-auth-session/node_modules/expo-application/ios`)
+  - EXBarCodeScanner (from `../node_modules/expo-barcode-scanner/ios`)
   - EXConstants (from `../node_modules/expo-constants/ios`)
+  - EXImageLoader (from `../node_modules/expo-image-loader/ios`)
   - Expo (from `../node_modules/expo`)
   - ExpoAppleAuthentication (from `../node_modules/expo-apple-authentication/ios`)
   - ExpoAsset (from `../node_modules/expo-asset/ios`)
+  - ExpoCamera (from `../node_modules/expo-camera/ios`)
   - ExpoCrypto (from `../node_modules/expo-crypto/ios`)
   - ExpoFileSystem (from `../node_modules/expo-file-system/ios`)
   - ExpoFont (from `../node_modules/expo-font/ios`)
@@ -1990,6 +2010,7 @@ SPEC REPOS:
     - GTMAppAuth
     - GTMSessionFetcher
     - PromisesObjC
+    - ZXingObjC
 
 EXTERNAL SOURCES:
   ClerkExpo:
@@ -1998,14 +2019,20 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@clerk/expo/ios"
   EXApplication:
     :path: "../node_modules/expo-auth-session/node_modules/expo-application/ios"
+  EXBarCodeScanner:
+    :path: "../node_modules/expo-barcode-scanner/ios"
   EXConstants:
     :path: "../node_modules/expo-constants/ios"
+  EXImageLoader:
+    :path: "../node_modules/expo-image-loader/ios"
   Expo:
     :path: "../node_modules/expo"
   ExpoAppleAuthentication:
     :path: "../node_modules/expo-apple-authentication/ios"
   ExpoAsset:
     :path: "../node_modules/expo-asset/ios"
+  ExpoCamera:
+    :path: "../node_modules/expo-camera/ios"
   ExpoCrypto:
     :path: "../node_modules/expo-crypto/ios"
   ExpoFileSystem:
@@ -2168,10 +2195,13 @@ SPEC CHECKSUMS:
   ClerkExpo: f425c7a2448255e09aa121d1d6c4730fe4f7a40e
   ClerkGoogleSignIn: 5726d0ee68cca0663acef96705805e81110779a8
   EXApplication: 1e98d4b1dccdf30627f92917f4b2c5a53c330e5f
+  EXBarCodeScanner: 6415603150dd5989a139570bb5af19b7f169fe49
   EXConstants: fce59a631a06c4151602843667f7cfe35f81e271
+  EXImageLoader: 1fe96c70cdc78bedc985ec4b1fab5dd8e67dc38b
   Expo: aadbcc8c6c14ff3105a9154f1683cb1424ff0d2a
   ExpoAppleAuthentication: 9413ae9a5e631a424cc04c1b13b0694dbab7d594
   ExpoAsset: f867e55ceb428aab99e1e8c082b5aee7c159ea18
+  ExpoCamera: 902c2dd5f3eff8d0388686fa75f22272aca459d4
   ExpoCrypto: b6105ebaa15d6b38a811e71e43b52cd934945322
   ExpoFileSystem: 858a44267a3e6e9057e0888ad7c7cfbf55d52063
   ExpoFont: f543ce20a228dd702813668b1a07b46f51878d47
@@ -2254,6 +2284,7 @@ SPEC CHECKSUMS:
   ReactNativeDependencies: 71ce9c28beb282aa720ea7b46980fff9669f428a
   RNScreens: d8d6f1792f6e7ac12b0190d33d8d390efc0c1845
   Yoga: 5934998fbeaef7845dbf698f698518695ab4cd1a
+  ZXingObjC: 8898711ab495761b2dbbdec76d90164a6d7e14c5
 
 PODFILE CHECKSUM: a5288c7e51162e24d51476d8f218a3f0e13bf8b7
 

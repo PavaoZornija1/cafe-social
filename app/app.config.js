@@ -16,7 +16,7 @@ export default {
     ios: {
       supportsTablet: false,
       bundleIdentifier: 'com.cafesocial.app',
-      usesAppleSignIn: true,
+      usesAppleSignIn: false,
       ...(googleIosUrlScheme && {
         infoPlist: {
           CFBundleURLTypes: [
@@ -48,4 +48,3 @@ export default {
     },
   },
 };
-

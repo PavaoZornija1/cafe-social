@@ -5,6 +5,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { VenueModule } from './venue/venue.module';
 import { PlayerModule } from './player/player.module';
 import { AuthModule } from './auth/auth.module';
+import { ChallengeModule } from './challenge/challenge.module';
+import { WordModule } from './word/word.module';
 
 @Module({
   imports: [
@@ -15,6 +17,8 @@ import { AuthModule } from './auth/auth.module';
     AuthModule,
     VenueModule,
     PlayerModule,
+    ChallengeModule,
+    WordModule,
   ],
   controllers: [HealthController],
   providers: [],

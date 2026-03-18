@@ -14,6 +14,18 @@ export class VenueRepository {
     return this.prisma.venue.findMany({ orderBy: { createdAt: 'desc' } });
   }
 
+  findDefaultNonPremium(): Promise<Venue | null> {
+    // Default venue for MVP "locationRequired" gating: prefer non-premium.
+    return this.prisma.venue.findFirst({
+      where: { isPremium: false },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  findFallbackVenue(): Promise<Venue | null> {
+    return this.prisma.venue.findFirst({ orderBy: { createdAt: 'desc' } });
+  }
+
   findById(id: string): Promise<Venue | null> {
     return this.prisma.venue.findUnique({ where: { id } });
   }

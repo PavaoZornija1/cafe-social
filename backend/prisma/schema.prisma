@@ -14,6 +14,10 @@ model Venue {
   latitude     Float
   longitude    Float
   radiusMeters Int    @default(50)
+  isPremium    Boolean @default(false)
+
+  playerVenues PlayerVenue[]
+  challenges   Challenge[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -25,10 +29,39 @@ model Player {
   email    String @unique
   username String @unique
 
+  playerVenues PlayerVenue[]
+  subscriptions Subscription[]
+  challengeProgress ChallengeProgress[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([email, username])
+}
+
+/// QR-unlock / membership for a physical venue (café).
+model PlayerVenue {
+  id        String   @id @default(uuid())
+  playerId  String
+  venueId   String
+  createdAt DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, venueId])
+}
+
+/// User subscription entitlements (e.g. “season pass”).
+model Subscription {
+  id        String   @id @default(uuid())
+  playerId  String   @unique
+  active    Boolean  @default(true)
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 }
 
 /// Categories for word game vocabulary.
@@ -58,6 +91,51 @@ model Word {
   updatedAt DateTime @updatedAt
 
   @@unique([text, language], name: "text_language")
+}
+
+/// A single venue-scoped challenge that can be progressed by a player.
+model Challenge {
+  id                   String   @id @default(uuid())
+  venueId              String
+  title                String
+  description          String?
+
+  /// If true, rewards/claims require venue membership (QR-unlock) in addition to location rules.
+  rewardVenueSpecific Boolean @default(true)
+
+  /// If true, physical presence (detected venue match) is required to progress/complete.
+  locationRequired    Boolean @default(false)
+
+  /// For MVP, we model a simple "do X actions" challenge.
+  targetCount         Int      @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  progress ChallengeProgress[]
+
+  @@index([venueId])
+}
+
+/// Per-player progress for a challenge.
+model ChallengeProgress {
+  id          String   @id @default(uuid())
+  playerId    String
+  challengeId String
+
+  progressCount Int     @default(0)
+  completedAt   DateTime?
+  rewardClaimedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, challengeId])
+  @@index([challengeId])
 }
 
 

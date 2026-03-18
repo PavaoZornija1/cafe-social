@@ -19,6 +19,19 @@ export class PlayerService {
     });
   }
 
+  async findOrCreateByEmail(email: string): Promise<Player> {
+    const existing = await this.players.findByEmail(email);
+    if (existing) return existing;
+
+    // Simple default username for new accounts.
+    // Can be expanded later once we store more user profile data.
+    const username = email.split('@')[0] || 'player';
+    return this.players.create({
+      email,
+      username,
+    });
+  }
+
   findAll(): Promise<Player[]> {
     return this.players.findAll();
   }
