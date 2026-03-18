@@ -8,22 +8,40 @@
 
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		1B1A26998FDBD49BED9F28D8 /* libPods-CafeSocial.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8FEC5F489BA6A49F21802994 /* libPods-CafeSocial.a */; };
+		274AC30765D1491E83C11C87 /* ClerkViewFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E471B7C89604302ACDA37E7 /* ClerkViewFactory.swift */; };
+		2923D61692E045D2BE130DAD /* ClerkViewFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3087005A9A554F93AF439C8F /* ClerkViewFactory.swift */; };
+		307CF262908C1D0AC8428AEF /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B65CAC699CD3DA7568A0B183 /* PrivacyInfo.xcprivacy */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
+		A24E1B17181345D89AED5B51 /* ClerkViewFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C73B74DBFE6480BBF07AAD7 /* ClerkViewFactory.swift */; };
+		AE32C863D2C9473F92F35F39 /* ClerkViewFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EEE16E1F32E451DB65DF1DD /* ClerkViewFactory.swift */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
+		C373095E39D547B4B34333D2 /* ClerkViewFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEB279F981A743D88302735D /* ClerkViewFactory.swift */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
-		8737CCAEB53649BCAFCCD6DE = {isa = PBXBuildFile; fileRef = 819B152B35A2495297ED636B /* ClerkViewFactory.swift */; };
+		F77C105EFDF6E9EF71732125 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33E804071DB7C4A38C5CD284 /* ExpoModulesProvider.swift */; };
+		F9BC549A35F0461790CE8DA6 /* ClerkViewFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ECAFF7DB0F64F13A2949137 /* ClerkViewFactory.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0E471B7C89604302ACDA37E7 /* ClerkViewFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClerkViewFactory.swift; path = CafeSocial/ClerkViewFactory.swift; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* CafeSocial.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CafeSocial.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = CafeSocial/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = CafeSocial/Info.plist; sourceTree = "<group>"; };
+		3087005A9A554F93AF439C8F /* ClerkViewFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClerkViewFactory.swift; path = CafeSocial/ClerkViewFactory.swift; sourceTree = "<group>"; };
+		33E804071DB7C4A38C5CD284 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-CafeSocial/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		57FA4FB21140036562B68599 /* Pods-CafeSocial.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-CafeSocial.release.xcconfig"; path = "Target Support Files/Pods-CafeSocial/Pods-CafeSocial.release.xcconfig"; sourceTree = "<group>"; };
+		5ECAFF7DB0F64F13A2949137 /* ClerkViewFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClerkViewFactory.swift; path = CafeSocial/ClerkViewFactory.swift; sourceTree = "<group>"; };
+		5EEE16E1F32E451DB65DF1DD /* ClerkViewFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClerkViewFactory.swift; path = CafeSocial/ClerkViewFactory.swift; sourceTree = "<group>"; };
+		79E5BCD165D2517C4C2524DC /* Pods-CafeSocial.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-CafeSocial.debug.xcconfig"; path = "Target Support Files/Pods-CafeSocial/Pods-CafeSocial.debug.xcconfig"; sourceTree = "<group>"; };
+		8C73B74DBFE6480BBF07AAD7 /* ClerkViewFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClerkViewFactory.swift; path = CafeSocial/ClerkViewFactory.swift; sourceTree = "<group>"; };
+		8FEC5F489BA6A49F21802994 /* libPods-CafeSocial.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-CafeSocial.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = CafeSocial/SplashScreen.storyboard; sourceTree = "<group>"; };
+		AEB279F981A743D88302735D /* ClerkViewFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClerkViewFactory.swift; path = CafeSocial/ClerkViewFactory.swift; sourceTree = "<group>"; };
+		B65CAC699CD3DA7568A0B183 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = CafeSocial/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = CafeSocial/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* CafeSocial-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "CafeSocial-Bridging-Header.h"; path = "CafeSocial/CafeSocial-Bridging-Header.h"; sourceTree = "<group>"; };
-		819B152B35A2495297ED636B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClerkViewFactory.swift; path = CafeSocial/ClerkViewFactory.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -31,12 +49,23 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1B1A26998FDBD49BED9F28D8 /* libPods-CafeSocial.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0A3F77297B5BC6ED00A11321 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				79E5BCD165D2517C4C2524DC /* Pods-CafeSocial.debug.xcconfig */,
+				57FA4FB21140036562B68599 /* Pods-CafeSocial.release.xcconfig */,
+			);
+			name = Pods;
+			path = Pods;
+			sourceTree = "<group>";
+		};
 		13B07FAE1A68108700A75B9A /* CafeSocial */ = {
 			isa = PBXGroup;
 			children = (
@@ -46,7 +75,13 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				819B152B35A2495297ED636B /* ClerkViewFactory.swift */,
+				5ECAFF7DB0F64F13A2949137 /* ClerkViewFactory.swift */,
+				3087005A9A554F93AF439C8F /* ClerkViewFactory.swift */,
+				8C73B74DBFE6480BBF07AAD7 /* ClerkViewFactory.swift */,
+				B65CAC699CD3DA7568A0B183 /* PrivacyInfo.xcprivacy */,
+				AEB279F981A743D88302735D /* ClerkViewFactory.swift */,
+				5EEE16E1F32E451DB65DF1DD /* ClerkViewFactory.swift */,
+				0E471B7C89604302ACDA37E7 /* ClerkViewFactory.swift */,
 			);
 			name = CafeSocial;
 			sourceTree = "<group>";
@@ -55,6 +90,7 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
+				8FEC5F489BA6A49F21802994 /* libPods-CafeSocial.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -73,6 +109,8 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
+				0A3F77297B5BC6ED00A11321 /* Pods */,
+				F46EC58CE1C30710B9E27B12 /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -96,6 +134,22 @@
 			path = CafeSocial/Supporting;
 			sourceTree = "<group>";
 		};
+		C78FB05CE27476C340E0D1D6 /* CafeSocial */ = {
+			isa = PBXGroup;
+			children = (
+				33E804071DB7C4A38C5CD284 /* ExpoModulesProvider.swift */,
+			);
+			name = CafeSocial;
+			sourceTree = "<group>";
+		};
+		F46EC58CE1C30710B9E27B12 /* ExpoModulesProviders */ = {
+			isa = PBXGroup;
+			children = (
+				C78FB05CE27476C340E0D1D6 /* CafeSocial */,
+			);
+			name = ExpoModulesProviders;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -104,24 +158,36 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "CafeSocial" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
+				C669AC5E633ABF4F12970B10 /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
+				0C6C8FAC157ABF561A753E8D /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			name = CafeSocial;
+			packageProductDependencies = (
+				41B38D30C4DA42438FBA200F /* ClerkKit */,
+				4D4F8F95FEC5451BA322FD11 /* ClerkKitUI */,
+				71091EC769AF425384AB9875 /* ClerkKit */,
+				8A477F9FCE944EB381F11ED9 /* ClerkKitUI */,
+				7352EFBB64414E97A22CC2FF /* ClerkKit */,
+				6E0D4150380B4750B0D101C6 /* ClerkKitUI */,
+				C641B47F52CB4394AB0FC07E /* ClerkKit */,
+				594FDD3E3FDD4B5E9F06DA23 /* ClerkKitUI */,
+				51CD98CDAB9A4AC7AFE99E11 /* ClerkKit */,
+				8F41AB2DF68348BB9D4D36DA /* ClerkKitUI */,
+				E225E86D30E24BC6B2C36425 /* ClerkKit */,
+				A4E35D07F058475693E843C4 /* ClerkKitUI */,
+			);
 			productName = CafeSocial;
 			productReference = 13B07F961A680F5B00A75B9A /* CafeSocial.app */;
 			productType = "com.apple.product-type.application";
-			packageProductDependencies = (
-				B609CEF0E9604A47805C4524 /* ClerkKit */,
-				7AC156FD44EF40729D352A1F /* ClerkKitUI */,
-			);
 		};
 /* End PBXNativeTarget section */
 
@@ -132,7 +198,9 @@
 				LastUpgradeCheck = 1130;
 				TargetAttributes = {
 					13B07F861A680F5B00A75B9A = {
+						DevelopmentTeam = R9N67Z64S3;
 						LastSwiftMigration = 1250;
+						ProvisioningStyle = Automatic;
 					};
 				};
 			};
@@ -145,14 +213,15 @@
 				Base,
 			);
 			mainGroup = 83CBB9F61A601CBA00E9B192;
+			packageReferences = (
+				D605BEE0857B497A910D317E /* XCRemoteSwiftPackageReference "clerk-ios" */,
+				6471C68A59944E3F9CE3638E /* XCRemoteSwiftPackageReference "clerk-ios" */,
+			);
 			productRefGroup = 83CBBA001A601CBA00E9B192 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				13B07F861A680F5B00A75B9A /* CafeSocial */,
-			);
-			packageReferences = (
-				3DF891AFC884449EB3633108 /* clerk-ios */,
 			);
 		};
 /* End PBXProject section */
@@ -165,6 +234,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
+				307CF262908C1D0AC8428AEF /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -210,6 +280,28 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
+		0C6C8FAC157ABF561A753E8D /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-CafeSocial/Pods-CafeSocial-frameworks.sh",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/React-Core-prebuilt/React.framework/React",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ReactNativeDependencies.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-CafeSocial/Pods-CafeSocial-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
 		800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -217,20 +309,62 @@
 			);
 			inputPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-CafeSocial/Pods-CafeSocial-resources.sh",
+				"${PODS_CONFIGURATION_BUILD_DIR}/AppAuth/AppAuthCore_Privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/EXApplication/ExpoApplication_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/EXConstants.bundle",
-				"${PODS_CONFIGURATION_BUILD_DIR}/EXUpdates/EXUpdates.bundle",
-				"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/RCTI18nStrings.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/ExpoConstants_privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoFileSystem/ExpoFileSystem_privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/GTMAppAuth/GTMAppAuth_Privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/GTMSessionFetcher/GTMSessionFetcher_Core_Privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/GoogleSignIn/GoogleSignIn.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/GoogleUtilities/GoogleUtilities_Privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/PromisesObjC/FBLPromises_Privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React-Core_privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/React-cxxreact/React-cxxreact_privacy.bundle",
 			);
 			name = "[CP] Copy Pods Resources";
 			outputPaths = (
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/AppAuthCore_Privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoApplication_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXConstants.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXUpdates.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RCTI18nStrings.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoConstants_privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoFileSystem_privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GTMAppAuth_Privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GTMSessionFetcher_Core_Privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleSignIn.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleUtilities_Privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/FBLPromises_Privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-Core_privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-cxxreact_privacy.bundle",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-CafeSocial/Pods-CafeSocial-resources.sh\"\n";
 			showEnvVarsInLog = 0;
+		};
+		C669AC5E633ABF4F12970B10 /* [Expo] Configure project */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/.xcode.env",
+				"$(SRCROOT)/.xcode.env.local",
+				"$(SRCROOT)/CafeSocial/CafeSocial.entitlements",
+				"$(SRCROOT)/Pods/Target Support Files/Pods-CafeSocial/expo-configure-project.sh",
+			);
+			name = "[Expo] Configure project";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/Pods/Target Support Files/Pods-CafeSocial/ExpoModulesProvider.swift",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-CafeSocial/expo-configure-project.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -240,7 +374,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				8737CCAEB53649BCAFCCD6DE /* ClerkViewFactory.swift */,
+				F9BC549A35F0461790CE8DA6 /* ClerkViewFactory.swift in Sources */,
+				2923D61692E045D2BE130DAD /* ClerkViewFactory.swift in Sources */,
+				A24E1B17181345D89AED5B51 /* ClerkViewFactory.swift in Sources */,
+				F77C105EFDF6E9EF71732125 /* ExpoModulesProvider.swift in Sources */,
+				C373095E39D547B4B34333D2 /* ClerkViewFactory.swift in Sources */,
+				AE32C863D2C9473F92F35F39 /* ClerkViewFactory.swift in Sources */,
+				274AC30765D1491E83C11C87 /* ClerkViewFactory.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -249,10 +389,15 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 79E5BCD165D2517C4C2524DC /* Pods-CafeSocial.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = CafeSocial/CafeSocial.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = R9N67Z64S3;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
@@ -270,23 +415,28 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.cafesocial.app";
-				PRODUCT_NAME = "CafeSocial";
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
+				PRODUCT_BUNDLE_IDENTIFIER = com.pavaozornija.cafesocial.app;
+				PRODUCT_NAME = CafeSocial;
 				SWIFT_OBJC_BRIDGING_HEADER = "CafeSocial/CafeSocial-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
 				VERSIONING_SYSTEM = "apple-generic";
-				TARGETED_DEVICE_FAMILY = "1";
-				CODE_SIGN_ENTITLEMENTS = CafeSocial/CafeSocial.entitlements;
 			};
 			name = Debug;
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 57FA4FB21140036562B68599 /* Pods-CafeSocial.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = CafeSocial/CafeSocial.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = R9N67Z64S3;
 				INFOPLIST_FILE = CafeSocial/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -299,13 +449,13 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.cafesocial.app";
-				PRODUCT_NAME = "CafeSocial";
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
+				PRODUCT_BUNDLE_IDENTIFIER = com.pavaozornija.cafesocial.app;
+				PRODUCT_NAME = CafeSocial;
 				SWIFT_OBJC_BRIDGING_HEADER = "CafeSocial/CafeSocial-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
 				VERSIONING_SYSTEM = "apple-generic";
-				TARGETED_DEVICE_FAMILY = "1";
-				CODE_SIGN_ENTITLEMENTS = CafeSocial/CafeSocial.entitlements;
 			};
 			name = Release;
 		};
@@ -361,10 +511,14 @@
 					/usr/lib/swift,
 					"$(inherited)",
 				);
-				LIBRARY_SEARCH_PATHS = "\"$(inherited)\"";
+				LIBRARY_SEARCH_PATHS = "$(SDKROOT)/usr/lib/swift\"$(inherited)\"";
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
+				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
+				USE_HERMES = true;
 			};
 			name = Debug;
 		};
@@ -413,9 +567,12 @@
 					/usr/lib/swift,
 					"$(inherited)",
 				);
-				LIBRARY_SEARCH_PATHS = "\"$(inherited)\"";
+				LIBRARY_SEARCH_PATHS = "$(SDKROOT)/usr/lib/swift\"$(inherited)\"";
 				MTL_ENABLE_DEBUG_INFO = NO;
+				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
+				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
+				USE_HERMES = true;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
@@ -444,9 +601,49 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		3DF891AFC884449EB3633108 = {
+		1F4E66948E09408688388C29 /* XCRemoteSwiftPackageReference "clerk-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = https://github.com/clerk/clerk-ios.git;
+			repositoryURL = "https://github.com/clerk/clerk-ios.git";
+			requirement = {
+				kind = exactVersion;
+				version = 1.0.0;
+			};
+		};
+		27597620720F46A5AD8EEBCF /* XCRemoteSwiftPackageReference "clerk-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/clerk/clerk-ios.git";
+			requirement = {
+				kind = exactVersion;
+				version = 1.0.0;
+			};
+		};
+		6471C68A59944E3F9CE3638E /* XCRemoteSwiftPackageReference "clerk-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/clerk/clerk-ios.git";
+			requirement = {
+				kind = exactVersion;
+				version = 1.0.0;
+			};
+		};
+		7351809195C94C459B44B5D0 /* XCRemoteSwiftPackageReference "clerk-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/clerk/clerk-ios.git";
+			requirement = {
+				kind = exactVersion;
+				version = 1.0.0;
+			};
+		};
+		78F9627399BF46D8A2025485 /* XCRemoteSwiftPackageReference "clerk-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/clerk/clerk-ios.git";
+			requirement = {
+				kind = exactVersion;
+				version = 1.0.0;
+			};
+		};
+		D605BEE0857B497A910D317E /* XCRemoteSwiftPackageReference "clerk-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/clerk/clerk-ios.git";
 			requirement = {
 				kind = exactVersion;
 				version = 1.0.0;
@@ -455,15 +652,65 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		B609CEF0E9604A47805C4524 = {
+		41B38D30C4DA42438FBA200F /* ClerkKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 3DF891AFC884449EB3633108;
+			package = D605BEE0857B497A910D317E /* XCRemoteSwiftPackageReference "clerk-ios" */;
 			productName = ClerkKit;
 		};
-		7AC156FD44EF40729D352A1F = {
+		4D4F8F95FEC5451BA322FD11 /* ClerkKitUI */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 3DF891AFC884449EB3633108;
+			package = D605BEE0857B497A910D317E /* XCRemoteSwiftPackageReference "clerk-ios" */;
 			productName = ClerkKitUI;
+		};
+		51CD98CDAB9A4AC7AFE99E11 /* ClerkKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7351809195C94C459B44B5D0 /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			productName = ClerkKit;
+		};
+		594FDD3E3FDD4B5E9F06DA23 /* ClerkKitUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6471C68A59944E3F9CE3638E /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			productName = ClerkKitUI;
+		};
+		6E0D4150380B4750B0D101C6 /* ClerkKitUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 78F9627399BF46D8A2025485 /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			productName = ClerkKitUI;
+		};
+		71091EC769AF425384AB9875 /* ClerkKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1F4E66948E09408688388C29 /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			productName = ClerkKit;
+		};
+		7352EFBB64414E97A22CC2FF /* ClerkKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 78F9627399BF46D8A2025485 /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			productName = ClerkKit;
+		};
+		8A477F9FCE944EB381F11ED9 /* ClerkKitUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1F4E66948E09408688388C29 /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			productName = ClerkKitUI;
+		};
+		8F41AB2DF68348BB9D4D36DA /* ClerkKitUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7351809195C94C459B44B5D0 /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			productName = ClerkKitUI;
+		};
+		A4E35D07F058475693E843C4 /* ClerkKitUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 27597620720F46A5AD8EEBCF /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			productName = ClerkKitUI;
+		};
+		C641B47F52CB4394AB0FC07E /* ClerkKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6471C68A59944E3F9CE3638E /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			productName = ClerkKit;
+		};
+		E225E86D30E24BC6B2C36425 /* ClerkKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 27597620720F46A5AD8EEBCF /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			productName = ClerkKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
