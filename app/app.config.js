@@ -45,7 +45,6 @@ export default {
       '@clerk/expo',
       'expo-secure-store',
       'expo-web-browser',
-      'expo-barcode-scanner',
     ],
     runtimeVersion: {
       policy: 'appVersion',

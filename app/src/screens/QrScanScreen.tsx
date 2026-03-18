@@ -10,8 +10,6 @@ import {
   View,
 } from 'react-native';
 import { useAuth } from '@clerk/expo';
-import { useCameraPermissions } from 'expo-camera';
-import { BarCodeScanner } from 'expo-barcode-scanner';
 import type { RootStackParamList } from '../navigation/type';
 import { apiPost } from '../lib/api';
 
@@ -19,25 +17,12 @@ type Props = NativeStackScreenProps<RootStackParamList, 'QrScan'>;
 
 export default function QrScanScreen({ navigation, route }: Props) {
   const { getToken, isLoaded } = useAuth();
-  const [permission, requestPermission] = useCameraPermissions();
   const [loading, setLoading] = useState(false);
   const [qrVenueId, setQrVenueId] = useState<string>(route.params?.venueId ?? '');
   const [error, setError] = useState<string | null>(null);
-  const [scanned, setScanned] = useState(false);
-
-  // Prevent onBarCodeScanned from firing repeatedly.
-  const hasScannedRef = React.useRef(false);
 
   useEffect(() => {
     if (route.params?.venueId) setQrVenueId(route.params.venueId);
-  }, [route.params?.venueId]);
-
-  useEffect(() => {
-    // If we were passed a venueId, consider it "scanned" so the camera can be optional.
-    if (route.params?.venueId) {
-      hasScannedRef.current = true;
-      setScanned(true);
-    }
   }, [route.params?.venueId]);
 
   const handleRegister = async () => {
@@ -64,51 +49,21 @@ export default function QrScanScreen({ navigation, route }: Props) {
     }
   };
 
-  const handleBarCodeScanned = (result: { data?: string }) => {
-    if (hasScannedRef.current) return;
-    const data = result?.data;
-    if (!data) return;
-
-    hasScannedRef.current = true;
-    setScanned(true);
-    setQrVenueId(String(data));
-  };
-
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
         <Text style={styles.title}>Unlock Venue</Text>
         <Text style={styles.subtitle}>
-          Scan the café QR to unlock this venue for your account (MVP QR contains the `venueId`).
+          Enter the venue code from the café QR to unlock this venue for your account (MVP QR contains the
+          `venueId`).
         </Text>
 
         <View style={styles.scannerWrap}>
-          {!permission ? (
-            <View style={styles.scanner}>
-              <ActivityIndicator color="#a78bfa" />
-              <Text style={styles.scannerText}>Requesting camera…</Text>
-            </View>
-          ) : permission.granted ? (
-            <BarCodeScanner
-              style={styles.scanner}
-              onBarCodeScanned={handleBarCodeScanned as any}
-              barCodeTypes={['qr']}
-            />
-          ) : (
-            <View style={styles.scanner}>
-              <Text style={styles.scannerText}>Camera permission is required.</Text>
-              <Pressable
-                onPress={async () => {
-                  hasScannedRef.current = false;
-                  setScanned(false);
-                  await requestPermission();
-                }}
-                style={styles.button}
-              >
-                <Text style={styles.buttonText}>Enable camera</Text>
-              </Pressable>
-            </View>
-          )}
+          <View style={styles.scanner}>
+            <Text style={styles.scannerText}>
+              Camera QR scanning is temporarily disabled. Paste the `venueId` below and press Unlock.
+            </Text>
+          </View>
         </View>
 
         <Text style={styles.label}>Venue code</Text>
@@ -121,20 +76,6 @@ export default function QrScanScreen({ navigation, route }: Props) {
           autoCapitalize="none"
           autoCorrect={false}
         />
-
-        {scanned && (
-          <Pressable
-            style={styles.link}
-            onPress={() => {
-              hasScannedRef.current = false;
-              setScanned(false);
-              setQrVenueId('');
-              setError(null);
-            }}
-          >
-            <Text style={styles.linkText}>Scan another QR</Text>
-          </Pressable>
-        )}
 
         {error && <Text style={styles.error}>{error}</Text>}
 
@@ -178,7 +119,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scannerText: { color: '#9ca3af', fontWeight: '700', fontSize: 13, marginTop: 8, paddingHorizontal: 16, textAlign: 'center' },
+  scannerText: {
+    color: '#9ca3af',
+    fontWeight: '700',
+    fontSize: 13,
+    marginTop: 8,
+    paddingHorizontal: 16,
+    textAlign: 'center',
+  },
   input: {
     backgroundColor: '#0f172a',
     borderWidth: 1,
