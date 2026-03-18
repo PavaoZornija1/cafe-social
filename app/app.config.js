@@ -15,6 +15,7 @@ export default {
     newArchEnabled: true,
     ios: {
       supportsTablet: false,
+      // Use the original identifier to reuse any existing dev profiles.
       bundleIdentifier: 'com.cafesocial.app',
       usesAppleSignIn: false,
       ...(googleIosUrlScheme && {
@@ -39,7 +40,8 @@ export default {
       bundler: 'metro',
       output: 'single',
     },
-    plugins: ['@clerk/expo', 'expo-secure-store', 'expo-web-browser', 'expo-apple-authentication'],
+    // plugins: ['@clerk/expo', 'expo-secure-store', 'expo-web-browser', 'expo-apple-authentication'],
+    plugins: ['@clerk/expo', 'expo-secure-store', 'expo-web-browser'],
     runtimeVersion: {
       policy: 'appVersion',
     },
