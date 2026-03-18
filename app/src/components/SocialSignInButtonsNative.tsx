@@ -23,6 +23,9 @@ export function SocialSignInButtonsNative({
     onSuccess,
     showDivider = true,
 }: SocialSignInButtonsNativeProps) {
+    // Personal iOS dev teams cannot provision the "Sign in with Apple" capability.
+    // Until we have a proper Apple developer team + signing, we hide the Apple button.
+    const ENABLE_APPLE_SIGN_IN = false;
     const [loading, setLoading] = useState<'google' | 'apple' | null>(null);
 
     return (
@@ -34,7 +37,7 @@ export function SocialSignInButtonsNative({
                     onLoadingChange={(v) => setLoading(v ? 'google' : null)}
                 />
             )}
-            {Platform.OS === 'ios' && (
+            {Platform.OS === 'ios' && ENABLE_APPLE_SIGN_IN && (
                 <AppleSignInButton
                     onSuccess={onSuccess}
                     loading={loading === 'apple'}

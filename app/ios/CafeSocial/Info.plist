@@ -29,13 +29,6 @@
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-          <string>cafesocial</string>
-          <string>com.cafesocial.app</string>
-        </array>
-      </dict>
-      <dict>
-        <key>CFBundleURLSchemes</key>
-        <array>
           <string>com.googleusercontent.apps.154111605485-h6m4k9rsl0pejkjk0d4gq82hci246vu0</string>
         </array>
         <key>CFBundleURLName</key>
@@ -55,8 +48,12 @@
       <key>NSAllowsLocalNetworking</key>
       <true/>
     </dict>
+    <key>NSCameraUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your camera</string>
     <key>NSFaceIDUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your Face ID biometric data.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your microphone</string>
     <key>RCTNewArchEnabled</key>
     <true/>
     <key>UILaunchStoryboardName</key>
