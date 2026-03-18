@@ -1,6 +1,7 @@
-import React, { useRef } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View, Animated } from 'react-native';
+import { useClerk, useUser } from '@clerk/expo';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import React, { useRef } from 'react';
+import { Alert, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { RootStackParamList } from '../navigation/type';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
@@ -14,9 +15,13 @@ const MENU_ITEMS = [
     'Logout',
 ] as const;
 
-
-export default function HomeScreen({ navigation, route }: Props) {
-    const username = route.params.username;
+export default function HomeScreen({ navigation }: Props) {
+    const { user } = useUser();
+    const { signOut } = useClerk();
+    const displayName =
+        user?.firstName ||
+        user?.primaryEmailAddress?.emailAddress ||
+        'Player';
 
     const scale = useRef(new Animated.Value(1)).current;
     const animateIn = () => {
@@ -39,8 +44,9 @@ export default function HomeScreen({ navigation, route }: Props) {
     const handlePlay = () => {
         Alert.alert('Coming soon', 'Game entry will be connected next.');
     };
-    const handleMenuPress = (item: (typeof MENU_ITEMS)[number]) => {
+    const handleMenuPress = async (item: (typeof MENU_ITEMS)[number]) => {
         if (item === 'Logout') {
+            await signOut();
             navigation.replace('Login');
             return;
         }
@@ -48,7 +54,7 @@ export default function HomeScreen({ navigation, route }: Props) {
     };
     return (
         <View style={styles.screen}>
-            <Text style={styles.welcome}>Welcome, {username}</Text>
+            <Text style={styles.welcome}>Welcome, {displayName}</Text>
             <View style={styles.centerArea}>
                 <AnimatedPressable
                     onPress={handlePlay}

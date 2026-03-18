@@ -53,6 +53,27 @@ target 'CafeSocial' do
   )
 
   post_install do |installer|
+    # Clerk: Resolve SPM packages synchronously during pod install
+    # This ensures packages are downloaded before the user opens Xcode
+    # We wait until the end of post_install to ensure workspace is fully written
+    at_exit do
+      workspace_path = File.join(__dir__, 'CafeSocial.xcworkspace')
+      if File.exist?(workspace_path)
+        puts ""
+        puts "📦 [Clerk] Resolving Swift Package dependencies..."
+        puts "   This may take a minute on first run..."
+        # Use backticks to capture output and check exit status
+        output = `xcodebuild -resolvePackageDependencies -workspace "#{workspace_path}" -scheme "CafeSocial" 2>&1`
+        if $?.success?
+          puts "✅ [Clerk] Swift Package dependencies resolved successfully"
+        else
+          puts "⚠️  [Clerk] SPM resolution output:"
+          puts output.lines.last(10).join
+        end
+        puts ""
+      end
+    end
+
     react_native_post_install(
       installer,
       config[:reactNativePath],

@@ -1,3 +1,9 @@
+// Google Sign-In iOS: URL scheme is the "reversed" client ID (required for OAuth redirect)
+const googleIosClientId = process.env.EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID || '';
+const googleIosUrlScheme = googleIosClientId
+  ? `com.googleusercontent.apps.${googleIosClientId.split('.apps.googleusercontent.com')[0]}`
+  : null;
+
 export default {
   expo: {
     name: 'Cafe Social',
@@ -10,6 +16,17 @@ export default {
     ios: {
       supportsTablet: false,
       bundleIdentifier: 'com.cafesocial.app',
+      usesAppleSignIn: true,
+      ...(googleIosUrlScheme && {
+        infoPlist: {
+          CFBundleURLTypes: [
+            {
+              CFBundleURLSchemes: [googleIosUrlScheme],
+              CFBundleURLName: 'Google Sign-In',
+            },
+          ],
+        },
+      }),
     },
     android: {
       adaptiveIcon: {
@@ -22,7 +39,7 @@ export default {
       bundler: 'metro',
       output: 'single',
     },
-    plugins: [],
+    plugins: ['@clerk/expo', 'expo-secure-store', 'expo-web-browser', 'expo-apple-authentication'],
     runtimeVersion: {
       policy: 'appVersion',
     },
