@@ -1,0 +1,128 @@
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { PanResponder, StyleSheet, View } from 'react-native';
+
+const OUTER_RADIUS = 72;
+const KNOB_RADIUS = 28;
+/** Normalized stick magnitude below this snaps to 0 */
+const DEADZONE = 0.14;
+
+export type StickVector = { x: number; y: number };
+
+type Props = {
+  /** Mutable stick output — read each frame in game loop (-1..1 each axis). */
+  stickRef: React.MutableRefObject<StickVector>;
+  size?: number;
+};
+
+/**
+ * Touch joystick: updates `stickRef` on drag; vertical is available for future
+ * use (e.g. aim); arena currently uses horizontal only.
+ */
+export function VirtualJoystick({ stickRef, size = OUTER_RADIUS * 2 }: Props) {
+  const [knob, setKnob] = useState({ x: 0, y: 0 });
+  const layoutRef = useRef({ w: size, h: size });
+  const maxTravel = Math.max(10, size / 2 - KNOB_RADIUS - 6);
+
+  const applyTouch = useCallback(
+    (locationX: number, locationY: number) => {
+      const w = layoutRef.current.w;
+      const h = layoutRef.current.h;
+      const cx = locationX - w / 2;
+      const cy = locationY - h / 2;
+      const dist = Math.hypot(cx, cy);
+      const scale = dist > maxTravel && dist > 0 ? maxTravel / dist : 1;
+      const kx = cx * scale;
+      const ky = cy * scale;
+      let nx = kx / maxTravel;
+      let ny = ky / maxTravel;
+      if (Math.hypot(nx, ny) < DEADZONE) {
+        nx = 0;
+        ny = 0;
+        setKnob({ x: 0, y: 0 });
+      } else {
+        setKnob({ x: kx, y: ky });
+      }
+      stickRef.current.x = nx;
+      stickRef.current.y = ny;
+    },
+    [maxTravel, stickRef],
+  );
+
+  const release = useCallback(() => {
+    stickRef.current.x = 0;
+    stickRef.current.y = 0;
+    setKnob({ x: 0, y: 0 });
+  }, [stickRef]);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: (e) => {
+          applyTouch(e.nativeEvent.locationX, e.nativeEvent.locationY);
+        },
+        onPanResponderMove: (e) => {
+          applyTouch(e.nativeEvent.locationX, e.nativeEvent.locationY);
+        },
+        onPanResponderRelease: release,
+        onPanResponderTerminate: release,
+      }),
+    [applyTouch, release],
+  );
+
+  return (
+    <View
+      style={[styles.outer, { width: size, height: size, borderRadius: size / 2 }]}
+      onLayout={(e) => {
+        layoutRef.current.w = e.nativeEvent.layout.width;
+        layoutRef.current.h = e.nativeEvent.layout.height;
+      }}
+      {...panResponder.panHandlers}
+    >
+      <View
+        style={[
+          styles.ring,
+          {
+            width: size - 12,
+            height: size - 12,
+            borderRadius: (size - 12) / 2,
+          },
+        ]}
+      />
+      <View
+        style={[
+          styles.knob,
+          {
+            width: KNOB_RADIUS * 2,
+            height: KNOB_RADIUS * 2,
+            borderRadius: KNOB_RADIUS,
+            transform: [{ translateX: knob.x }, { translateY: knob.y }],
+          },
+        ]}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  outer: {
+    backgroundColor: '#1e293b',
+    borderWidth: 2,
+    borderColor: '#334155',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ring: {
+    position: 'absolute',
+    borderWidth: 2,
+    borderColor: '#475569',
+    backgroundColor: '#0f172a',
+  },
+  knob: {
+    position: 'absolute',
+    backgroundColor: '#7c3aed',
+    borderWidth: 2,
+    borderColor: '#a78bfa',
+  },
+});

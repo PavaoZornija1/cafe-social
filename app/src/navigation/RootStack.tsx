@@ -17,6 +17,9 @@ import PartiesScreen from "../screens/PartiesScreen";
 import PartyDetailScreen from "../screens/PartyDetailScreen";
 import RedeemInviteScreen from "../screens/RedeemInviteScreen";
 import PeopleHereScreen from "../screens/PeopleHereScreen";
+import ChooseGameScreen from "../screens/ChooseGameScreen";
+import BrawlerLobbyScreen from "../screens/BrawlerLobbyScreen";
+import BrawlerArenaScreen from "../screens/BrawlerArenaScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -32,6 +35,9 @@ export default function RootStack() {
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="SignUp" component={SignUpScreen} />
             <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="ChooseGame" component={ChooseGameScreen} />
+            <Stack.Screen name="BrawlerLobby" component={BrawlerLobbyScreen} />
+            <Stack.Screen name="BrawlerArena" component={BrawlerArenaScreen} />
             <Stack.Screen name="Challenges" component={ChallengesScreen} />
             <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />

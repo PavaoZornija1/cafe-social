@@ -10,6 +10,7 @@ import { WordModule } from './word/word.module';
 import { SocialModule } from './social/social.module';
 import { InvitesModule } from './invites/invites.module';
 import { PartyModule } from './party/party.module';
+import { BrawlerModule } from './brawler/brawler.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { PartyModule } from './party/party.module';
     SocialModule,
     InvitesModule,
     PartyModule,
+    BrawlerModule,
   ],
   controllers: [HealthController],
   providers: [],

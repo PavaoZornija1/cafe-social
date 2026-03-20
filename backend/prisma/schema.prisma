@@ -24,6 +24,8 @@ model Venue {
   playerVenues     PlayerVenue[]
   playerVenueStats PlayerVenueStats[]
   challenges       Challenge[]
+  gameSessions         GameSession[]
+  playerGameVenueStats PlayerGameVenueStats[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -47,6 +49,10 @@ model Player {
   playerVenueStats    PlayerVenueStats[]
   subscriptions       Subscription[]
   challengeProgress   ChallengeProgress[]
+
+  gameParticipants     GameParticipant[]
+  gameStats      PlayerGameStats[]
+  gameVenueStats PlayerGameVenueStats[]
 
   partiesCreated    Party[]       @relation("PartyCreator")
   partiesLed        Party[]       @relation("PartyLeader")
@@ -140,6 +146,7 @@ model Party {
 
   members     PartyMember[]
   inviteLinks InviteLink[]
+  gameSessions GameSession[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -260,4 +267,250 @@ model ChallengeProgress {
 
   @@unique([playerId, challengeId])
   @@index([challengeId])
+}
+
+enum GameType {
+  WORD_GAME
+  BRAWLER
+}
+
+enum GameSessionStatus {
+  ACTIVE
+  PENDING
+  FINISHED
+  CANCELLED
+}
+
+enum GameParticipantResult {
+  WIN
+  LOSS
+  DRAW
+}
+
+enum GameEventType {
+  SESSION_STARTED
+  SESSION_ENDED
+  PHASE_CHANGED
+  ELIMINATION
+  SCORE_CHANGED
+  POWERUP_PICKED
+  CUSTOM
+}
+
+enum BrawlerPhase {
+  CHAOS
+  ENDGAME
+  SUDDEN_DEATH
+}
+
+model GameSession {
+  id          String            @id @default(uuid())
+  gameType    GameType
+  status      GameSessionStatus @default(PENDING)
+  /// Optional context links for your existing ecosystem.
+  venueId     String?
+  partyId     String?
+  /// Version + optional snapshot for balance/config reproducibility.
+  configVersion Int             @default(1)
+  config        Json?
+  startedAt   DateTime?
+  endedAt     DateTime?
+  /// Winner stored at participant level (supports bots + non-player entities).
+  winnerParticipantId String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  venue       Venue?            @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  party       Party?            @relation(fields: [partyId], references: [id], onDelete: SetNull)
+  participants GameParticipant[]
+  events       GameEvent[]
+  /// 1:1 extensions (nullable unless that gameType applies)
+  brawlerSession BrawlerSession?
+  wordSession    WordSession?
+  @@index([gameType, status, createdAt])
+  @@index([startedAt])
+  @@index([endedAt])
+  @@index([venueId, gameType, createdAt])
+  @@index([partyId, createdAt])
+}
+
+model GameParticipant {
+  id           String  @id @default(uuid())
+  sessionId    String
+  /// Either playerId set OR isBot=true (+ bot fields), depending on participant kind.
+  playerId     String?
+  isBot        Boolean @default(false)
+  botName      String?
+  /// Snapshot fields prevent historical drift if user profile changes.
+  displayNameSnapshot String?
+  characterSnapshot   String? // e.g., selected hero/skin identifier
+  brawlerHeroId       String?
+  /// Optional immutable snapshot of hero tuning at match start.
+  heroSnapshot        Json?
+  joinedAt     DateTime @default(now())
+  leftAt       DateTime?
+  placement    Int?
+  score        Int      @default(0)
+  result       GameParticipantResult?
+  /// Generic combat/participation counters useful across many games.
+  kills        Int      @default(0)
+  deaths       Int      @default(0)
+  assists      Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  session      GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  player       Player?     @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  brawlerHero  BrawlerHero? @relation(fields: [brawlerHeroId], references: [id], onDelete: SetNull)
+  /// Event links (participant-centric)
+  actorEvents  GameEvent[] @relation("GameEventActor")
+  targetEvents GameEvent[] @relation("GameEventTarget")
+  /// 1:1 extensions
+  brawlerStats BrawlerParticipantStats?
+  wordStats    WordParticipantStats?
+  @@index([sessionId])
+  @@index([playerId, createdAt])
+  @@index([sessionId, placement])
+  @@index([sessionId, score])
+  @@index([brawlerHeroId])
+  @@unique([sessionId, playerId], map: "unique_player_per_session")
+}
+
+model GameEvent {
+  id           String        @id @default(uuid())
+  sessionId    String
+  gameType     GameType
+  eventType    GameEventType
+  /// Timestamp relative to match start, useful for deterministic ordering.
+  atMs         Int
+  actorParticipantId  String?
+  targetParticipantId String?
+  payload      Json?
+  createdAt    DateTime @default(now())
+  session      GameSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  actor        GameParticipant? @relation("GameEventActor", fields: [actorParticipantId], references: [id], onDelete: SetNull)
+  target       GameParticipant? @relation("GameEventTarget", fields: [targetParticipantId], references: [id], onDelete: SetNull)
+  @@index([sessionId, atMs])
+  @@index([gameType, eventType, createdAt])
+  @@index([actorParticipantId])
+  @@index([targetParticipantId])
+}
+
+model PlayerGameStats {
+  playerId       String
+  gameType       GameType
+  matchesPlayed  Int      @default(0)
+  wins           Int      @default(0)
+  losses         Int      @default(0)
+  draws          Int      @default(0)
+  dnfs           Int      @default(0)
+  totalKills     Int      @default(0)
+  totalDeaths    Int      @default(0)
+  totalAssists   Int      @default(0)
+  totalScore     Int      @default(0)
+  bestPlacement  Int?
+  winRate        Float    @default(0)
+  firstPlayedAt  DateTime?
+  lastPlayedAt   DateTime?
+  updatedAt      DateTime @updatedAt
+  player         Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  @@id([playerId, gameType])
+  @@index([gameType, wins])
+  @@index([gameType, winRate])
+  @@index([gameType, lastPlayedAt])
+}
+
+model PlayerGameVenueStats {
+  playerId       String
+  venueId        String
+  gameType       GameType
+  matchesPlayed  Int      @default(0)
+  wins           Int      @default(0)
+  totalScore     Int      @default(0)
+  updatedAt      DateTime @updatedAt
+  player         Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue          Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  @@id([playerId, venueId, gameType])
+  @@index([venueId, gameType, wins])
+  @@index([venueId, gameType, totalScore])
+}
+
+model BrawlerSession {
+  sessionId            String @id
+  chaosDurationMs      Int    @default(45000)
+  endgameDurationMs    Int    @default(15000)
+  suddenDeathMaxMs     Int    @default(15000)
+  respawnDelayMs       Int    @default(3000)
+  lavaStartsAtMs       Int    @default(45000)
+  platformsCollapseAtMs Int   @default(45000)
+  /// Optional seed for deterministic simulation/replay.
+  rngSeed              String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  session              GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model BrawlerHero {
+  id               String  @id
+  name             String
+  isActive         Boolean @default(true)
+  /// Optional role/archetype label, e.g. "Bruiser", "Trickster".
+  archetype        String?
+  /// UI avatar used in menus, profiles, and leaderboard rows.
+  avatarImageUrl   String?
+  /// Optional larger portrait for hero select and detail views.
+  portraitImageUrl String?
+  /// Sprite sheet/atlas URL for in-game animations.
+  spriteSheetUrl   String?
+  /// Frame and animation metadata (frame size, fps, animation map, etc).
+  spriteMeta       Json?
+
+  baseHp           Int
+  moveSpeed        Float
+  dashCooldownMs   Int
+  attackDamage     Int
+  attackKnockback  Float
+
+  version          Int      @default(1)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  gameParticipants GameParticipant[]
+
+  @@index([isActive])
+  @@index([name])
+}
+
+model BrawlerParticipantStats {
+  participantId        String @id
+  damageDealt          Int    @default(0)
+  damageTaken          Int    @default(0)
+  ringOuts             Int    @default(0)
+  falls                Int    @default(0)
+  respawns             Int    @default(0)
+  powerupsPicked       Int    @default(0)
+  powerupsUsed         Int    @default(0)
+  longestSurvivalMs    Int    @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  participant          GameParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  @@index([damageDealt])
+  @@index([ringOuts])
+}
+
+model WordSession {
+  sessionId            String @id
+  roundCount           Int    @default(1)
+  language             String @default("en")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  session              GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+model WordParticipantStats {
+  participantId        String @id
+  correctAnswers       Int    @default(0)
+  wrongAnswers         Int    @default(0)
+  streakBest           Int    @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  participant          GameParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  @@index([correctAnswers])
 }

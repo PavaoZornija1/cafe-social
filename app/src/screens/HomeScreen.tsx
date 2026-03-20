@@ -231,13 +231,10 @@ export default function HomeScreen({ navigation }: Props) {
     }, [detectedVenue?.id, isLoaded]);
 
     const handlePlay = () => {
-        if (locked) return;
-        if (!detectedVenue?.id) return;
-
         const activeChallenge = venueChallenges.find((c) => !c.isCompleted) ?? venueChallenges[0];
-        navigation.navigate('WordLobby', {
-            venueId: detectedVenue.id,
-            challengeId: activeChallenge?.id,
+        navigation.navigate('ChooseGame', {
+          venueId: detectedVenue?.id,
+          challengeId: activeChallenge?.id,
         });
     };
 
@@ -353,14 +350,14 @@ export default function HomeScreen({ navigation }: Props) {
                         {locked
                             ? t('home.unlockToStart')
                             : loadingChallenges
-                              ? t('home.loadingChallenge')
-                              : venueChallenges[0]
-                                ? t('home.challengeProgress', {
-                                      title: venueChallenges[0].title,
-                                      current: venueChallenges[0].progressCount,
-                                      target: venueChallenges[0].targetCount,
-                                  })
-                                : t('home.noChallenges')}
+                                ? t('home.loadingChallenge')
+                                : venueChallenges[0]
+                                    ? t('home.challengeProgress', {
+                                        title: venueChallenges[0].title,
+                                        current: venueChallenges[0].progressCount,
+                                        target: venueChallenges[0].targetCount,
+                                    })
+                                    : t('home.noChallenges')}
                     </Text>
                 </View>
 
@@ -369,15 +366,15 @@ export default function HomeScreen({ navigation }: Props) {
                         onPress={handlePlay}
                         onPressIn={animateIn}
                         onPressOut={animateOut}
-                        disabled={loadingVenue || locked}
+                        disabled={loadingVenue}
                         style={[
                             styles.playButton,
                             { transform: [{ scale }] },
-                            (loadingVenue || locked) && styles.playButtonDisabled,
+                            loadingVenue && styles.playButtonDisabled,
                         ]}
                     >
                         <Text style={styles.playText}>
-                            {locked ? t('home.unlock') : t('home.play')}
+                            {t('home.play')}
                         </Text>
                     </AnimatedPressable>
 
