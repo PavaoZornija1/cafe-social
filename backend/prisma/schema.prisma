@@ -8,16 +8,22 @@ datasource db {
 
 /// A physical venue (café, bar, etc.) where games can be played.
 model Venue {
-  id           String @id @default(uuid())
+  id           String  @id @default(uuid())
   name         String
   address      String?
   latitude     Float
   longitude    Float
-  radiusMeters Int    @default(50)
+  radiusMeters Int     @default(50)
   isPremium    Boolean @default(false)
 
-  playerVenues PlayerVenue[]
-  challenges   Challenge[]
+  /// Geo ladder (venue → city → country → region → global)
+  city    String?
+  country String?
+  region  String?
+
+  playerVenues     PlayerVenue[]
+  playerVenueStats PlayerVenueStats[]
+  challenges       Challenge[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -29,9 +35,27 @@ model Player {
   email    String @unique
   username String @unique
 
-  playerVenues PlayerVenue[]
-  subscriptions Subscription[]
-  challengeProgress ChallengeProgress[]
+  /// Open to being seen / challenged (default on). Subscribers get extra remote discoverability when this is on.
+  discoverable Boolean @default(true)
+  /// Total privacy: invisible to everyone for social/presence surfaces.
+  totalPrivacy Boolean @default(false)
+
+  lastPresenceVenueId String?
+  lastPresenceAt      DateTime?
+
+  playerVenues        PlayerVenue[]
+  playerVenueStats    PlayerVenueStats[]
+  subscriptions       Subscription[]
+  challengeProgress   ChallengeProgress[]
+
+  partiesCreated    Party[]       @relation("PartyCreator")
+  partiesLed        Party[]       @relation("PartyLeader")
+  partyMemberships  PartyMember[]
+
+  friendshipsAsLow  Friendship[] @relation("FriendshipLow")
+  friendshipsAsHigh Friendship[] @relation("FriendshipHigh")
+
+  inviteLinksCreated InviteLink[] @relation("InviteCreatedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -52,16 +76,116 @@ model PlayerVenue {
   @@unique([playerId, venueId])
 }
 
-/// User subscription entitlements (e.g. “season pass”).
-model Subscription {
-  id        String   @id @default(uuid())
-  playerId  String   @unique
-  active    Boolean  @default(true)
-  expiresAt DateTime?
-  createdAt DateTime @default(now())
+/// Per-venue XP; global XP = sum(venueXp) in queries.
+model PlayerVenueStats {
+  playerId String
+  venueId  String
+  venueXp  Int      @default(0)
   updatedAt DateTime @updatedAt
 
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, venueId])
+  @@index([venueId])
+}
+
+/// User subscription entitlements (e.g. “season pass”).
+model Subscription {
+  id        String    @id @default(uuid())
+  playerId  String    @unique
+  active    Boolean   @default(true)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+}
+
+/// Canonical friendship edge: playerLowId < playerHighId lexicographically.
+model Friendship {
+  id           String            @id @default(uuid())
+  playerLowId  String
+  playerHighId String
+  status       FriendshipStatus
+  /// Who initiated (must equal playerLowId or playerHighId).
+  requestedById String
+
+  playerLow  Player @relation("FriendshipLow", fields: [playerLowId], references: [id], onDelete: Cascade)
+  playerHigh Player @relation("FriendshipHigh", fields: [playerHighId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([playerLowId, playerHighId])
+  @@index([playerLowId])
+  @@index([playerHighId])
+}
+
+model Party {
+  id        String @id @default(uuid())
+  name      String?
+  creatorId String
+  leaderId  String
+  /// Max members from creator subscription at party creation (4 free, 200 subscriber).
+  maxMembers Int
+
+  creator Player @relation("PartyCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  leader  Player @relation("PartyLeader", fields: [leaderId], references: [id], onDelete: Cascade)
+
+  members     PartyMember[]
+  inviteLinks InviteLink[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leaderId])
+  @@index([creatorId])
+}
+
+model PartyMember {
+  partyId  String
+  playerId String
+  joinedAt DateTime @default(now())
+
+  party  Party  @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([partyId, playerId])
+  @@index([playerId])
+}
+
+enum InviteLinkKind {
+  PARTY
+  FRIEND
+}
+
+model InviteLink {
+  id        String         @id @default(uuid())
+  kind      InviteLinkKind
+  tokenHash String         @unique
+
+  partyId String?
+  party   Party?  @relation(fields: [partyId], references: [id], onDelete: Cascade)
+
+  /// Leader (party) or inviter (friend): used for rate limits and auditing.
+  createdById String
+  createdBy   Player @relation("InviteCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  expiresAt DateTime
+  maxUses   Int
+  useCount  Int       @default(0)
+  revokedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([createdById])
+  @@index([partyId])
 }
 
 /// Categories for word game vocabulary.
@@ -95,10 +219,10 @@ model Word {
 
 /// A single venue-scoped challenge that can be progressed by a player.
 model Challenge {
-  id                   String   @id @default(uuid())
-  venueId              String
-  title                String
-  description          String?
+  id                  String  @id @default(uuid())
+  venueId             String
+  title               String
+  description         String?
 
   /// If true, rewards/claims require venue membership (QR-unlock) in addition to location rules.
   rewardVenueSpecific Boolean @default(true)
@@ -107,12 +231,12 @@ model Challenge {
   locationRequired    Boolean @default(false)
 
   /// For MVP, we model a simple "do X actions" challenge.
-  targetCount         Int      @default(1)
+  targetCount Int @default(1)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  venue    Venue               @relation(fields: [venueId], references: [id], onDelete: Cascade)
   progress ChallengeProgress[]
 
   @@index([venueId])
@@ -120,22 +244,20 @@ model Challenge {
 
 /// Per-player progress for a challenge.
 model ChallengeProgress {
-  id          String   @id @default(uuid())
-  playerId    String
-  challengeId String
+  id              String    @id @default(uuid())
+  playerId        String
+  challengeId     String
 
-  progressCount Int     @default(0)
-  completedAt   DateTime?
+  progressCount   Int       @default(0)
+  completedAt     DateTime?
   rewardClaimedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  player    Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
   challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
 
   @@unique([playerId, challengeId])
   @@index([challengeId])
 }
-
-

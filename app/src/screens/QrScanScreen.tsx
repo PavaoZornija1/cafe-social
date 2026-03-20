@@ -10,12 +10,14 @@ import {
   View,
 } from 'react-native';
 import { useAuth } from '@clerk/expo';
+import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiPost } from '../lib/api';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'QrScan'>;
 
 export default function QrScanScreen({ navigation, route }: Props) {
+  const { t } = useTranslation();
   const { getToken, isLoaded } = useAuth();
   const [loading, setLoading] = useState(false);
   const [qrVenueId, setQrVenueId] = useState<string>(route.params?.venueId ?? '');
@@ -29,7 +31,7 @@ export default function QrScanScreen({ navigation, route }: Props) {
     setError(null);
 
     if (!qrVenueId.trim()) {
-      setError('QR code is empty. Paste a valid venue code.');
+      setError(t('qr.emptyCode'));
       return;
     }
 
@@ -38,12 +40,12 @@ export default function QrScanScreen({ navigation, route }: Props) {
     try {
       setLoading(true);
       const token = await getToken();
-      if (!token) throw new Error('Not authenticated');
+      if (!token) throw new Error(t('qr.notAuthenticated'));
 
       await apiPost(`/venue-context/${encodeURIComponent(qrVenueId)}/register`, undefined, token);
       navigation.replace('Home');
     } catch (e) {
-      setError((e as Error).message || 'Failed to unlock venue');
+      setError((e as Error).message || t('qr.unlockError'));
     } finally {
       setLoading(false);
     }
@@ -52,24 +54,19 @@ export default function QrScanScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
-        <Text style={styles.title}>Unlock Venue</Text>
-        <Text style={styles.subtitle}>
-          Enter the venue code from the café QR to unlock this venue for your account (MVP QR contains the
-          `venueId`).
-        </Text>
+        <Text style={styles.title}>{t('qr.title')}</Text>
+        <Text style={styles.subtitle}>{t('qr.subtitle')}</Text>
 
         <View style={styles.scannerWrap}>
           <View style={styles.scanner}>
-            <Text style={styles.scannerText}>
-              Camera QR scanning is temporarily disabled. Paste the `venueId` below and press Unlock.
-            </Text>
+            <Text style={styles.scannerText}>{t('qr.cameraDisabled')}</Text>
           </View>
         </View>
 
-        <Text style={styles.label}>Venue code</Text>
+        <Text style={styles.label}>{t('qr.venueCode')}</Text>
         <TextInput
           style={styles.input}
-          placeholder="e.g. 0a1b2c3d-.... (venueId)"
+          placeholder={t('qr.venuePlaceholder')}
           placeholderTextColor="#6b7280"
           value={qrVenueId}
           onChangeText={setQrVenueId}
@@ -84,15 +81,11 @@ export default function QrScanScreen({ navigation, route }: Props) {
           onPress={handleRegister}
           disabled={loading || !isLoaded}
         >
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Unlock</Text>}
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{t('qr.unlock')}</Text>}
         </Pressable>
 
-        <Pressable
-          style={styles.link}
-          onPress={() => navigation.goBack()}
-          disabled={loading}
-        >
-          <Text style={styles.linkText}>Cancel</Text>
+        <Pressable style={styles.link} onPress={() => navigation.goBack()} disabled={loading}>
+          <Text style={styles.linkText}>{t('common.cancel')}</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -150,4 +143,3 @@ const styles = StyleSheet.create({
   link: { marginTop: 14, alignItems: 'center' },
   linkText: { color: '#a5b4fc', fontWeight: '600', fontSize: 14 },
 });
-

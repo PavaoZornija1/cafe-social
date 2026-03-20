@@ -3,9 +3,11 @@ import { PlayerController } from './player.controller';
 import { PlayerService } from './player.service';
 import { PlayerRepository } from './player.repository';
 import { PrismaModule } from '../prisma/prisma.module';
+import { AuthModule } from '../auth/auth.module';
+import { StatsModule } from '../stats/stats.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AuthModule, StatsModule],
   controllers: [PlayerController],
   providers: [PlayerService, PlayerRepository],
   exports: [PlayerService],

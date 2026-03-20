@@ -5,6 +5,7 @@
 import { useSignInWithApple } from '@clerk/expo/apple';
 import { useSSO } from '@clerk/expo';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     Alert,
     Platform,
@@ -23,6 +24,7 @@ export function SocialSignInButtonsNative({
     onSuccess,
     showDivider = true,
 }: SocialSignInButtonsNativeProps) {
+    const { t } = useTranslation();
     // Personal iOS dev teams cannot provision the "Sign in with Apple" capability.
     // Until we have a proper Apple developer team + signing, we hide the Apple button.
     const ENABLE_APPLE_SIGN_IN = false;
@@ -47,7 +49,7 @@ export function SocialSignInButtonsNative({
             {showDivider && (Platform.OS === 'ios' || Platform.OS === 'android') && (
                 <View style={styles.divider}>
                     <View style={styles.dividerLine} />
-                    <Text style={styles.dividerText}>or</Text>
+                    <Text style={styles.dividerText}>{t('social.or')}</Text>
                     <View style={styles.dividerLine} />
                 </View>
             )}
@@ -64,6 +66,7 @@ function GoogleSignInButton({
     loading: boolean;
     onLoadingChange: (loading: boolean) => void;
 }) {
+    const { t } = useTranslation();
     const { startSSOFlow } = useSSO();
 
     const handlePress = async () => {
@@ -80,8 +83,8 @@ function GoogleSignInButton({
             const code = (err as { code?: string })?.code;
             if (code === 'SIGN_IN_CANCELLED' || code === '-5') return;
             Alert.alert(
-                'Error',
-                (err as { message?: string })?.message || 'Google sign-in failed'
+                t('common.error'),
+                (err as { message?: string })?.message || t('social.googleSignInFailed')
             );
         } finally {
             onLoadingChange(false);
@@ -95,7 +98,7 @@ function GoogleSignInButton({
             disabled={loading}
         >
             <Text style={styles.googleButtonText}>
-                {loading ? 'Signing in…' : 'Continue with Google'}
+                {loading ? t('social.signingIn') : t('social.continueWithGoogle')}
             </Text>
         </Pressable>
     );

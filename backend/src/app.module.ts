@@ -7,6 +7,9 @@ import { PlayerModule } from './player/player.module';
 import { AuthModule } from './auth/auth.module';
 import { ChallengeModule } from './challenge/challenge.module';
 import { WordModule } from './word/word.module';
+import { SocialModule } from './social/social.module';
+import { InvitesModule } from './invites/invites.module';
+import { PartyModule } from './party/party.module';
 
 @Module({
   imports: [
@@ -19,6 +22,9 @@ import { WordModule } from './word/word.module';
     PlayerModule,
     ChallengeModule,
     WordModule,
+    SocialModule,
+    InvitesModule,
+    PartyModule,
   ],
   controllers: [HealthController],
   providers: [],

@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import type { Challenge, ChallengeProgress } from '@prisma/client';
 import { PlayerService } from '../player/player.service';
 import { ChallengeRepository } from './challenge.repository';
+import { PlayerVenueStatsRepository } from '../stats/player-venue-stats.repository';
 
 export type VenueChallengeDto = {
   id: string;
@@ -18,6 +20,7 @@ export class ChallengeService {
   constructor(
     private readonly challenges: ChallengeRepository,
     private readonly players: PlayerService,
+    private readonly venueStats: PlayerVenueStatsRepository,
   ) {}
 
   async getVenueChallengesForPlayer(venueId: string, email: string): Promise<VenueChallengeDto[]> {
@@ -110,6 +113,7 @@ export class ChallengeService {
     const newCount = currentCount + increment;
     const isCompleted = newCount >= challenge.targetCount;
     const completedAt = isCompleted ? new Date() : null;
+    const newlyCompleted = isCompleted && !existingProgress?.completedAt;
 
     const updated = await this.challenges.upsertProgressCount({
       playerId: player.id,
@@ -117,6 +121,9 @@ export class ChallengeService {
       newCount,
       completedAt,
     });
+
+    const xpGain = increment * 10 + (newlyCompleted ? 50 : 0);
+    await this.venueStats.addVenueXp(player.id, challenge.venueId, xpGain);
 
     return {
       challengeId: updated.challengeId,

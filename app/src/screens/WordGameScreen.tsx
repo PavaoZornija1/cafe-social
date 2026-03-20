@@ -2,8 +2,10 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuth } from '@clerk/expo';
+import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiGet, apiPost } from '../lib/api';
+import { fetchDetectedVenue } from '../lib/venueDetectClient';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WordGame'>;
 type Difficulty = 'easy' | 'normal' | 'hard';
@@ -18,8 +20,6 @@ type WordRow = {
   emojiHints: string[];
 };
 
-type Venue = { id: string; name: string; isPremium: boolean };
-
 function normalizeGuess(s: string): string {
   return s
     .trim()
@@ -29,6 +29,7 @@ function normalizeGuess(s: string): string {
 }
 
 export default function WordGameScreen({ navigation, route }: Props) {
+  const { t } = useTranslation();
   const { venueId, challengeId, difficulty, sessionWordsCount = 5 } = route.params;
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
@@ -51,6 +52,12 @@ export default function WordGameScreen({ navigation, route }: Props) {
     if (difficulty === 'normal') return currentWord.wordHints.join(', ');
     return currentWord.emojiHints.join(' ');
   }, [currentWord, difficulty]);
+
+  const difficultyShort = useMemo(() => {
+    if (difficulty === 'easy') return t('wordLobby.easy');
+    if (difficulty === 'normal') return t('wordLobby.normal');
+    return t('wordLobby.hard');
+  }, [difficulty, t]);
 
   const deckLoadedRef = useRef(false);
 
@@ -77,7 +84,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
         setDeck(res.words);
       } catch (e) {
         if (cancelled) return;
-        setError((e as Error).message || 'Failed to load word deck');
+        setError((e as Error).message || t('wordGame.loadError'));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -87,7 +94,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [isLoaded, sessionWordsCount]);
+  }, [isLoaded, sessionWordsCount, t]);
 
   const finishSession = async (solvedAtLeastOne: boolean) => {
     // MVP: only update challenge when the player actually solved something.
@@ -102,7 +109,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
 
       // For MVP, the server enforces locationRequired presence using detected venue id.
       // We'll fetch the current detected venue context from the backend.
-      const detected = await apiGet<Venue | null>('/venue-context/detect');
+      const detected = await fetchDetectedVenue();
 
       await apiPost<void>(
         `/venue-context/${encodeURIComponent(venueId)}/challenges/${encodeURIComponent(challengeId)}/progress`,
@@ -146,7 +153,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
           <ActivityIndicator color="#a78bfa" />
-          <Text style={styles.sub}>Loading words…</Text>
+          <Text style={styles.sub}>{t('wordGame.loadingWords')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -158,7 +165,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
         <View style={styles.center}>
           <Text style={styles.error}>{error}</Text>
           <Pressable style={styles.playBtn} onPress={() => navigation.replace('Home')}>
-            <Text style={styles.playBtnText}>Back</Text>
+            <Text style={styles.playBtnText}>{t('wordGame.back')}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -168,22 +175,28 @@ export default function WordGameScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
-        <Text style={styles.title}>Word Game</Text>
+        <Text style={styles.title}>{t('wordGame.title')}</Text>
         <Text style={styles.sub}>
-          {idx + 1}/{deck.length} • Difficulty: {difficulty}
+          {t('wordGame.progressLine', { current: idx + 1, total: deck.length, difficulty: difficultyShort })}
         </Text>
 
         <View style={styles.wordCard}>
-          <Text style={styles.wordTitle}>Guess the word</Text>
+          <Text style={styles.wordTitle}>{t('wordGame.guessTitle')}</Text>
           <Text style={styles.categoryText}>
-            {currentWord ? `Category: ${currentWord.category}` : ''}
+            {currentWord
+              ? t('wordGame.category', {
+                  category: t(`categories.${currentWord.category}`, {
+                    defaultValue: currentWord.category,
+                  }),
+                })
+              : ''}
           </Text>
 
           {hintRevealed ? <Text style={styles.hint}>{hintText}</Text> : null}
 
           <TextInput
             style={styles.input}
-            placeholder="Type your guess…"
+            placeholder={t('wordGame.guessPlaceholder')}
             placeholderTextColor="#6b7280"
             value={guess}
             onChangeText={setGuess}
@@ -207,12 +220,12 @@ export default function WordGameScreen({ navigation, route }: Props) {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.score}>Correct: {correctCount}</Text>
+          <Text style={styles.score}>{t('wordGame.correct', { count: correctCount })}</Text>
           <Pressable
             style={styles.secondaryBtn}
             onPress={() => navigation.replace('Home')}
           >
-            <Text style={styles.secondaryBtnText}>Exit</Text>
+            <Text style={styles.secondaryBtnText}>{t('wordGame.exit')}</Text>
           </Pressable>
         </View>
       </View>

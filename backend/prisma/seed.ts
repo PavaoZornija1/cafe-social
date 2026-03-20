@@ -395,6 +395,9 @@ async function main() {
       longitude: 18.4131,
       radiusMeters: 80,
       isPremium: false,
+      city: 'Sarajevo',
+      country: 'BA',
+      region: 'Europe',
     },
     {
       id: '1c6e7e2a-2a1d-4f61-9d31-2b5b3c1b0b7a',
@@ -404,6 +407,9 @@ async function main() {
       longitude: 18.4162,
       radiusMeters: 80,
       isPremium: true,
+      city: 'Sarajevo',
+      country: 'BA',
+      region: 'Europe',
     },
   ];
 
@@ -417,6 +423,9 @@ async function main() {
         longitude: v.longitude,
         radiusMeters: v.radiusMeters,
         isPremium: v.isPremium,
+        city: v.city,
+        country: v.country,
+        region: v.region,
       },
       create: v,
     });

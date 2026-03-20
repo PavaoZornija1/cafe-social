@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { VenueAccessService } from './venue-access.service';
@@ -22,8 +22,14 @@ export class VenueAccessController {
   }
 
   @Get('detect')
-  detect() {
-    return this.access.detectVenue();
+  detect(@Query('lat') latRaw?: string, @Query('lng') lngRaw?: string) {
+    const lat = latRaw !== undefined && latRaw !== '' ? Number(latRaw) : NaN;
+    const lng = lngRaw !== undefined && lngRaw !== '' ? Number(lngRaw) : NaN;
+    const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+    return this.access.detectVenue(
+      hasCoords ? lat : undefined,
+      hasCoords ? lng : undefined,
+    );
   }
 
   @UseGuards(JwtAuthGuard)

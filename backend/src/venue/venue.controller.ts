@@ -17,6 +17,11 @@ export class VenueController {
     return this.venueService.findAll();
   }
 
+  @Get(':id/leaderboard/xp')
+  venueXpLeaderboard(@Param('id') id: string) {
+    return this.venueService.venueXpLeaderboard(id);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.venueService.findOne(id);

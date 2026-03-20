@@ -11,5 +11,13 @@ export class SubscriptionRepository {
       where: { playerId },
     });
   }
+
+  /** Active subscription with optional unexpired `expiresAt`. */
+  async isActiveSubscriber(playerId: string): Promise<boolean> {
+    const s = await this.findByPlayerId(playerId);
+    if (!s?.active) return false;
+    if (s.expiresAt != null && s.expiresAt < new Date()) return false;
+    return true;
+  }
 }
 

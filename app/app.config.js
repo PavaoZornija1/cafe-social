@@ -18,16 +18,18 @@ export default {
       // Must be a unique identifier registered to your development team.
       bundleIdentifier: 'com.pavaozornija.cafesocial.app',
       usesAppleSignIn: false,
-      ...(googleIosUrlScheme && {
-        infoPlist: {
+      infoPlist: {
+        NSLocationWhenInUseUsageDescription:
+          'Cafe Social uses your location to detect when you are at a partner café.',
+        ...(googleIosUrlScheme && {
           CFBundleURLTypes: [
             {
               CFBundleURLSchemes: [googleIosUrlScheme],
               CFBundleURLName: 'Google Sign-In',
             },
           ],
-        },
-      }),
+        }),
+      },
     },
     android: {
       adaptiveIcon: {
@@ -35,6 +37,7 @@ export default {
       },
       edgeToEdgeEnabled: true,
       package: 'com.cafesocial.app',
+      permissions: ['ACCESS_COARSE_LOCATION', 'ACCESS_FINE_LOCATION'],
     },
     web: {
       bundler: 'metro',

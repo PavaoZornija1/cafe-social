@@ -12,12 +12,14 @@ import {
     TextInput,
     View,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { SocialSignInButtons } from '../components/SocialSignInButtons';
 import { RootStackParamList } from '../navigation/type';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SignUp'>;
 
 export default function SignUpScreen({ navigation }: Props) {
+    const { t } = useTranslation();
     const { isLoaded, isSignedIn } = useAuth();
     const { signUp, errors, fetchStatus } = useSignUp();
 
@@ -39,7 +41,7 @@ export default function SignUpScreen({ navigation }: Props) {
         setSubmitError(null);
         const { error } = await signUp.password({ emailAddress, password });
         if (error) {
-            setSubmitError(error.message || 'Sign-up failed. Please try again.');
+            setSubmitError(error.message || t('signUp.signUpFailed'));
             return;
         }
 
@@ -62,7 +64,7 @@ export default function SignUpScreen({ navigation }: Props) {
         setSubmitError(null);
         const { error } = await signUp.verifications.verifyEmailCode({ code });
         if (error) {
-            setSubmitError(error.message || 'Verification failed. Please try again.');
+            setSubmitError(error.message || t('signUp.verifyFailed'));
             return;
         }
 
@@ -95,14 +97,14 @@ export default function SignUpScreen({ navigation }: Props) {
                     keyboardShouldPersistTaps="handled"
                 >
                     <View style={styles.card}>
-                        <Text style={styles.title}>Verify your email</Text>
+                        <Text style={styles.title}>{t('signUp.verifyTitle')}</Text>
                         <Text style={styles.subtitle}>
-                            We sent a code to {emailAddress}. Enter it below.
+                            {t('signUp.verifySubtitle', { email: emailAddress })}
                         </Text>
-                        <Text style={styles.label}>Verification code</Text>
+                        <Text style={styles.label}>{t('signUp.verificationCode')}</Text>
                         <TextInput
                             style={styles.input}
-                            placeholder="123456"
+                            placeholder={t('signUp.codePlaceholder')}
                             placeholderTextColor="#6b7280"
                             value={code}
                             onChangeText={setCode}
@@ -123,14 +125,14 @@ export default function SignUpScreen({ navigation }: Props) {
                             {isLoading ? (
                                 <ActivityIndicator color="#fff" />
                             ) : (
-                                <Text style={styles.buttonText}>Verify</Text>
+                                <Text style={styles.buttonText}>{t('signUp.verify')}</Text>
                             )}
                         </Pressable>
                         <Pressable
                             style={styles.linkButton}
                             onPress={() => signUp?.verifications.sendEmailCode()}
                         >
-                            <Text style={styles.linkText}>Resend code</Text>
+                            <Text style={styles.linkText}>{t('signUp.resendCode')}</Text>
                         </Pressable>
                         <Pressable
                             style={[styles.linkButton, { marginTop: 8 }]}
@@ -139,7 +141,7 @@ export default function SignUpScreen({ navigation }: Props) {
                                 setCode('');
                             }}
                         >
-                            <Text style={styles.linkText}>← Back</Text>
+                            <Text style={styles.linkText}>{t('signUp.back')}</Text>
                         </Pressable>
                     </View>
                 </ScrollView>
@@ -157,17 +159,15 @@ export default function SignUpScreen({ navigation }: Props) {
                 keyboardShouldPersistTaps="handled"
             >
                 <View style={styles.card}>
-                    <Text style={styles.title}>Create account</Text>
-                    <Text style={styles.subtitle}>
-                        Sign up with your email or a social account.
-                    </Text>
+                    <Text style={styles.title}>{t('signUp.title')}</Text>
+                    <Text style={styles.subtitle}>{t('signUp.subtitle')}</Text>
 
                     <SocialSignInButtons onSuccess={() => navigation.replace('Home')} />
 
-                    <Text style={styles.label}>Email</Text>
+                    <Text style={styles.label}>{t('signUp.email')}</Text>
                     <TextInput
                         style={styles.input}
-                        placeholder="you@example.com"
+                        placeholder={t('login.emailPlaceholder')}
                         placeholderTextColor="#6b7280"
                         value={emailAddress}
                         onChangeText={setEmailAddress}
@@ -176,7 +176,7 @@ export default function SignUpScreen({ navigation }: Props) {
                         autoComplete="email"
                     />
 
-                    <Text style={styles.label}>Password (min 8 characters)</Text>
+                    <Text style={styles.label}>{t('signUp.password')}</Text>
                     <TextInput
                         style={styles.input}
                         placeholder="••••••••"
@@ -202,14 +202,14 @@ export default function SignUpScreen({ navigation }: Props) {
                         {isLoading ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
-                            <Text style={styles.buttonText}>Sign up</Text>
+                            <Text style={styles.buttonText}>{t('signUp.signUp')}</Text>
                         )}
                     </Pressable>
 
                     <View style={styles.footer}>
-                        <Text style={styles.footerText}>Already have an account? </Text>
+                        <Text style={styles.footerText}>{t('signUp.haveAccount')} </Text>
                         <Pressable onPress={() => navigation.navigate('Login')}>
-                            <Text style={styles.footerLink}>Sign in</Text>
+                            <Text style={styles.footerLink}>{t('signUp.signInLink')}</Text>
                         </Pressable>
                     </View>
                     {/* Required for Clerk bot sign-up protection */}

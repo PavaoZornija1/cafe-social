@@ -8,10 +8,15 @@ import HomeScreen from "../screens/HomeScreen";
 import ChallengesScreen from "../screens/ChallengesScreen";
 import LeaderboardScreen from "../screens/LeaderboardScreen";
 import ProfileScreen from "../screens/ProfileScreen";
+import FriendsScreen from "../screens/FriendsScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import QrScanScreen from "../screens/QrScanScreen";
 import WordLobbyScreen from "../screens/WordLobbyScreen";
 import WordGameScreen from "../screens/WordGameScreen";
+import PartiesScreen from "../screens/PartiesScreen";
+import PartyDetailScreen from "../screens/PartyDetailScreen";
+import RedeemInviteScreen from "../screens/RedeemInviteScreen";
+import PeopleHereScreen from "../screens/PeopleHereScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -30,7 +35,12 @@ export default function RootStack() {
             <Stack.Screen name="Challenges" component={ChallengesScreen} />
             <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="Friends" component={FriendsScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
+            <Stack.Screen name="Parties" component={PartiesScreen} />
+            <Stack.Screen name="PartyDetail" component={PartyDetailScreen} />
+            <Stack.Screen name="RedeemInvite" component={RedeemInviteScreen} />
+            <Stack.Screen name="PeopleHere" component={PeopleHereScreen} />
             <Stack.Screen name="QrScan" component={QrScanScreen} />
             <Stack.Screen name="WordLobby" component={WordLobbyScreen} />
             <Stack.Screen name="WordGame" component={WordGameScreen} />

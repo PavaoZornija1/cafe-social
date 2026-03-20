@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useMemo, useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WordLobby'>;
@@ -8,22 +9,23 @@ type Props = NativeStackScreenProps<RootStackParamList, 'WordLobby'>;
 type Difficulty = 'easy' | 'normal' | 'hard';
 
 export default function WordLobbyScreen({ navigation, route }: Props) {
+  const { t } = useTranslation();
   const { venueId, challengeId } = route.params;
   const [difficulty, setDifficulty] = useState<Difficulty>('easy');
 
   const difficultyLabel = useMemo(() => {
-    if (difficulty === 'easy') return 'Easy: sentence hint';
-    if (difficulty === 'normal') return 'Normal: word hints';
-    return 'Hard: emoji hints';
-  }, [difficulty]);
+    if (difficulty === 'easy') return t('wordLobby.easyDesc');
+    if (difficulty === 'normal') return t('wordLobby.normalDesc');
+    return t('wordLobby.hardDesc');
+  }, [difficulty, t]);
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
-        <Text style={styles.title}>Word Game</Text>
-        <Text style={styles.subtitle}>Venue: {venueId}</Text>
+        <Text style={styles.title}>{t('wordLobby.title')}</Text>
+        <Text style={styles.subtitle}>{t('wordLobby.venueLine', { venueId })}</Text>
 
-        <Text style={styles.sectionTitle}>Choose difficulty</Text>
+        <Text style={styles.sectionTitle}>{t('wordLobby.difficultyTitle')}</Text>
         <View style={styles.segmentRow}>
           <Pressable
             onPress={() => setDifficulty('easy')}
@@ -33,7 +35,7 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
               difficulty === 'easy' && styles.segmentActive,
             ]}
           >
-            <Text style={styles.segmentText}>Easy</Text>
+            <Text style={styles.segmentText}>{t('wordLobby.easy')}</Text>
           </Pressable>
           <Pressable
             onPress={() => setDifficulty('normal')}
@@ -43,7 +45,7 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
               difficulty === 'normal' && styles.segmentActive,
             ]}
           >
-            <Text style={styles.segmentText}>Normal</Text>
+            <Text style={styles.segmentText}>{t('wordLobby.normal')}</Text>
           </Pressable>
           <Pressable
             onPress={() => setDifficulty('hard')}
@@ -53,15 +55,13 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
               difficulty === 'hard' && styles.segmentActive,
             ]}
           >
-            <Text style={styles.segmentText}>Hard</Text>
+            <Text style={styles.segmentText}>{t('wordLobby.hard')}</Text>
           </Pressable>
         </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{difficultyLabel}</Text>
-          <Text style={styles.cardSub}>
-            Solo mode for MVP. When you finish the session, we’ll update your in-venue challenge.
-          </Text>
+          <Text style={styles.cardSub}>{t('wordLobby.cardSub')}</Text>
         </View>
 
         <Pressable
@@ -76,7 +76,7 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
           }}
           style={styles.playBtn}
         >
-          <Text style={styles.playBtnText}>Start Solo</Text>
+          <Text style={styles.playBtnText}>{t('wordLobby.startSolo')}</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -121,4 +121,3 @@ const styles = StyleSheet.create({
   },
   playBtnText: { color: '#fff', fontWeight: '900', fontSize: 16 },
 });
-

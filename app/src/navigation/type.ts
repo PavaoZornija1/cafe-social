@@ -5,7 +5,12 @@ export type RootStackParamList = {
     Challenges: undefined;
     Leaderboard: undefined;
     Profile: undefined;
+    Friends: undefined;
     Settings: undefined;
+    Parties: undefined;
+    PartyDetail: { partyId: string };
+    RedeemInvite: { token?: string } | undefined;
+    PeopleHere: { venueId: string; venueName?: string };
     QrScan: { venueId?: string };
     WordLobby: { venueId: string; challengeId?: string };
     WordGame: {

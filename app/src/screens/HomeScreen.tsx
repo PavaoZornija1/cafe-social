@@ -1,6 +1,7 @@
 import { useAuth, useUser } from '@clerk/expo';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Animated,
@@ -11,8 +12,10 @@ import {
     Text,
     View,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
-import { apiGet } from '../lib/api';
+import { apiGet, apiPost } from '../lib/api';
+import { fetchDetectedVenue } from '../lib/venueDetectClient';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -37,7 +40,16 @@ type VenueChallenge = {
     isCompleted: boolean;
 };
 
+type MeSummary = {
+    playerId?: string;
+    xp: number;
+    tier: string;
+    completedChallenges: number;
+    venuesUnlocked: number;
+};
+
 export default function HomeScreen({ navigation }: Props) {
+    const { t } = useTranslation();
     const { user } = useUser();
     const { isLoaded, getToken } = useAuth();
     const getTokenRef = useRef(getToken);
@@ -46,7 +58,7 @@ export default function HomeScreen({ navigation }: Props) {
     const displayName =
         user?.firstName ||
         user?.primaryEmailAddress?.emailAddress ||
-        'Player';
+        t('home.guestName');
 
     const [detectedVenue, setDetectedVenue] = useState<Venue | null>(null);
     const [access, setAccess] = useState<VenueAccess | null>(null);
@@ -55,6 +67,8 @@ export default function HomeScreen({ navigation }: Props) {
     const qrPromptShownRef = useRef(false);
     const [venueChallenges, setVenueChallenges] = useState<VenueChallenge[]>([]);
     const [loadingChallenges, setLoadingChallenges] = useState(false);
+    const [meSummary, setMeSummary] = useState<MeSummary | null>(null);
+    const [loadingSummary, setLoadingSummary] = useState(false);
 
     const scale = useRef(new Animated.Value(1)).current;
     const animateIn = () => {
@@ -79,6 +93,30 @@ export default function HomeScreen({ navigation }: Props) {
         return !access.canEnterVenueContext;
     }, [access]);
 
+    const loadMeSummary = useCallback(async () => {
+        if (!isLoaded) return;
+        setLoadingSummary(true);
+        try {
+            const token = await getTokenRef.current();
+            if (!token) {
+                setMeSummary(null);
+                return;
+            }
+            const s = await apiGet<MeSummary>('/players/me/summary', token);
+            setMeSummary(s);
+        } catch {
+            setMeSummary(null);
+        } finally {
+            setLoadingSummary(false);
+        }
+    }, [isLoaded]);
+
+    useFocusEffect(
+        useCallback(() => {
+            void loadMeSummary();
+        }, [loadMeSummary]),
+    );
+
     useEffect(() => {
         let cancelled = false;
 
@@ -87,7 +125,7 @@ export default function HomeScreen({ navigation }: Props) {
             setVenueError(null);
 
             try {
-                const detected = await apiGet<Venue | null>('/venue-context/detect');
+                const detected = await fetchDetectedVenue();
                 if (cancelled) return;
                 setDetectedVenue(detected);
 
@@ -114,7 +152,7 @@ export default function HomeScreen({ navigation }: Props) {
                 }
             } catch (e) {
                 if (cancelled) return;
-                setVenueError((e as Error).message || 'Failed to load venue context');
+                setVenueError((e as Error).message || t('home.loadVenueError'));
             } finally {
                 if (!cancelled) setLoadingVenue(false);
             }
@@ -124,7 +162,7 @@ export default function HomeScreen({ navigation }: Props) {
         return () => {
             cancelled = true;
         };
-    }, [isLoaded, navigation]);
+    }, [isLoaded, navigation, t]);
 
     useEffect(() => {
         let cancelled = false;
@@ -169,6 +207,29 @@ export default function HomeScreen({ navigation }: Props) {
         };
     }, [access?.canEnterVenueContext, detectedVenue?.id, isLoaded]);
 
+    useEffect(() => {
+        let cancelled = false;
+        async function presence() {
+            if (!isLoaded) return;
+            try {
+                const token = await getTokenRef.current();
+                if (!token || cancelled) return;
+                const venueId = detectedVenue?.id ?? null;
+                await apiPost(
+                    '/social/me/presence',
+                    { venueId: venueId ?? null },
+                    token,
+                );
+            } catch {
+                /* non-blocking */
+            }
+        }
+        void presence();
+        return () => {
+            cancelled = true;
+        };
+    }, [detectedVenue?.id, isLoaded]);
+
     const handlePlay = () => {
         if (locked) return;
         if (!detectedVenue?.id) return;
@@ -193,8 +254,10 @@ export default function HomeScreen({ navigation }: Props) {
                             </View>
                         )}
                         <View style={styles.headerText}>
-                            <Text style={styles.appTitle}>Cafe Social</Text>
-                            <Text style={styles.welcome}>Welcome, {displayName}</Text>
+                            <Text style={styles.appTitle}>{t('home.appTitle')}</Text>
+                            <Text style={styles.welcome}>
+                                {t('home.welcome', { name: displayName })}
+                            </Text>
                         </View>
                     </View>
 
@@ -208,21 +271,25 @@ export default function HomeScreen({ navigation }: Props) {
 
                 <View style={styles.statsRow}>
                     <View style={styles.statCard}>
-                        <Text style={styles.statLabel}>XP</Text>
-                        <Text style={styles.statValue}>0</Text>
+                        <Text style={styles.statLabel}>{t('home.statXp')}</Text>
+                        <Text style={styles.statValue}>
+                            {loadingSummary ? '…' : meSummary?.xp ?? '—'}
+                        </Text>
                     </View>
                     <View style={styles.statCard}>
-                        <Text style={styles.statLabel}>Tier</Text>
-                        <Text style={styles.statValue}>Bronze</Text>
+                        <Text style={styles.statLabel}>{t('home.statTier')}</Text>
+                        <Text style={styles.statValue}>
+                            {loadingSummary ? '…' : meSummary?.tier ?? '—'}
+                        </Text>
                     </View>
                 </View>
 
                 <View style={styles.contextCard}>
-                    <Text style={styles.cardTitle}>Current venue</Text>
+                    <Text style={styles.cardTitle}>{t('home.currentVenue')}</Text>
                     {loadingVenue ? (
                         <View style={styles.contextLoading}>
                             <ActivityIndicator color="#a78bfa" />
-                            <Text style={styles.cardSub}>Detecting…</Text>
+                            <Text style={styles.cardSub}>{t('home.detectingVenue')}</Text>
                         </View>
                     ) : venueError ? (
                         <Text style={styles.cardSubError}>{venueError}</Text>
@@ -230,33 +297,70 @@ export default function HomeScreen({ navigation }: Props) {
                         <View>
                             <Text style={styles.contextName}>
                                 {detectedVenue.name}
-                                {detectedVenue.isPremium ? ' • Premium' : ''}
+                                {detectedVenue.isPremium ? t('home.premiumSuffix') : ''}
                             </Text>
                             {locked ? (
-                                <Text style={styles.lockedHint}>
-                                    Locked. Scan the QR code to unlock play + challenges.
-                                </Text>
+                                <Text style={styles.lockedHint}>{t('home.lockedHint')}</Text>
                             ) : (
-                                <Text style={styles.unlockedHint}>
-                                    Unlocked. Challenges are available.
-                                </Text>
+                                <Text style={styles.unlockedHint}>{t('home.unlockedHint')}</Text>
                             )}
                         </View>
                     ) : (
-                        <Text style={styles.cardSub}>No venue detected yet.</Text>
+                        <Text style={styles.cardSub}>{t('home.noVenueYet')}</Text>
                     )}
                 </View>
 
+                <View style={styles.quickLinks}>
+                    <Pressable
+                        style={({ pressed }) => [styles.quickLink, pressed && styles.quickLinkPressed]}
+                        onPress={() => navigation.navigate('Friends')}
+                    >
+                        <Text style={styles.quickLinkText}>{t('home.linkFriends')}</Text>
+                    </Pressable>
+                    <Pressable
+                        style={({ pressed }) => [styles.quickLink, pressed && styles.quickLinkPressed]}
+                        onPress={() => navigation.navigate('Parties')}
+                    >
+                        <Text style={styles.quickLinkText}>{t('home.linkParties')}</Text>
+                    </Pressable>
+                    <Pressable
+                        style={({ pressed }) => [
+                            styles.quickLink,
+                            pressed && styles.quickLinkPressed,
+                            !detectedVenue && styles.quickLinkDisabled,
+                        ]}
+                        disabled={!detectedVenue}
+                        onPress={() =>
+                            navigation.navigate('PeopleHere', {
+                                venueId: detectedVenue!.id,
+                                venueName: detectedVenue!.name,
+                            })
+                        }
+                    >
+                        <Text style={styles.quickLinkText}>{t('home.linkPeopleHere')}</Text>
+                    </Pressable>
+                    <Pressable
+                        style={({ pressed }) => [styles.quickLink, pressed && styles.quickLinkPressed]}
+                        onPress={() => navigation.navigate('RedeemInvite', {})}
+                    >
+                        <Text style={styles.quickLinkText}>{t('home.linkRedeemInvite')}</Text>
+                    </Pressable>
+                </View>
+
                 <View style={styles.challengeBar}>
-                    <Text style={styles.challengeTitle}>Your challenge</Text>
+                    <Text style={styles.challengeTitle}>{t('home.challengeTitle')}</Text>
                     <Text style={styles.challengeText}>
                         {locked
-                            ? 'Unlock the venue to start.'
+                            ? t('home.unlockToStart')
                             : loadingChallenges
-                              ? 'Loading challenge…'
+                              ? t('home.loadingChallenge')
                               : venueChallenges[0]
-                                ? `${venueChallenges[0].title} (${venueChallenges[0].progressCount}/${venueChallenges[0].targetCount})`
-                                : 'No challenges available yet.'}
+                                ? t('home.challengeProgress', {
+                                      title: venueChallenges[0].title,
+                                      current: venueChallenges[0].progressCount,
+                                      target: venueChallenges[0].targetCount,
+                                  })
+                                : t('home.noChallenges')}
                     </Text>
                 </View>
 
@@ -272,7 +376,9 @@ export default function HomeScreen({ navigation }: Props) {
                             (loadingVenue || locked) && styles.playButtonDisabled,
                         ]}
                     >
-                        <Text style={styles.playText}>{locked ? 'UNLOCK' : 'PLAY'}</Text>
+                        <Text style={styles.playText}>
+                            {locked ? t('home.unlock') : t('home.play')}
+                        </Text>
                     </AnimatedPressable>
 
                     {locked && detectedVenue?.id && (
@@ -280,7 +386,7 @@ export default function HomeScreen({ navigation }: Props) {
                             onPress={() => navigation.navigate('QrScan', { venueId: detectedVenue.id })}
                             style={styles.scanBtn}
                         >
-                            <Text style={styles.scanBtnText}>Scan QR to unlock</Text>
+                            <Text style={styles.scanBtnText}>{t('home.scanQrUnlock')}</Text>
                         </Pressable>
                     )}
                 </View>
@@ -290,25 +396,25 @@ export default function HomeScreen({ navigation }: Props) {
                         style={({ pressed }) => [styles.navItem, pressed && styles.navItemPressed]}
                         onPress={() => navigation.navigate('Challenges')}
                     >
-                        <Text style={styles.navText}>Challenges</Text>
+                        <Text style={styles.navText}>{t('home.navChallenges')}</Text>
                     </Pressable>
                     <Pressable
                         style={({ pressed }) => [styles.navItem, pressed && styles.navItemPressed]}
                         onPress={() => navigation.navigate('Leaderboard')}
                     >
-                        <Text style={styles.navText}>Leaderboard</Text>
+                        <Text style={styles.navText}>{t('home.navLeaderboard')}</Text>
                     </Pressable>
                     <Pressable
                         style={({ pressed }) => [styles.navItem, pressed && styles.navItemPressed]}
                         onPress={() => navigation.navigate('Profile')}
                     >
-                        <Text style={styles.navText}>Profile</Text>
+                        <Text style={styles.navText}>{t('home.navProfile')}</Text>
                     </Pressable>
                     <Pressable
                         style={({ pressed }) => [styles.navItem, pressed && styles.navItemPressed]}
                         onPress={() => navigation.navigate('Settings')}
                     >
-                        <Text style={styles.navText}>Settings</Text>
+                        <Text style={styles.navText}>{t('home.navSettings')}</Text>
                     </Pressable>
                 </View>
             </View>
@@ -378,6 +484,26 @@ const styles = StyleSheet.create({
     contextName: { color: '#fff', fontSize: 18, fontWeight: '900', marginTop: 10 },
     lockedHint: { marginTop: 8, color: '#fca5a5', fontSize: 13, fontWeight: '700' },
     unlockedHint: { marginTop: 8, color: '#a78bfa', fontSize: 13, fontWeight: '700' },
+    quickLinks: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 12,
+    },
+    quickLink: {
+        flexGrow: 1,
+        minWidth: '30%',
+        backgroundColor: '#0b1220',
+        borderWidth: 1,
+        borderColor: '#1e3a5f',
+        borderRadius: 12,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        alignItems: 'center',
+    },
+    quickLinkPressed: { opacity: 0.88 },
+    quickLinkDisabled: { opacity: 0.45 },
+    quickLinkText: { color: '#93c5fd', fontWeight: '800', fontSize: 11, textAlign: 'center' },
     challengeBar: {
         backgroundColor: '#0b1220',
         borderWidth: 1,

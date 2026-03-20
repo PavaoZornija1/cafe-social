@@ -12,12 +12,14 @@ import {
     TextInput,
     View,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { SocialSignInButtons } from '../components/SocialSignInButtons';
 import { RootStackParamList } from '../navigation/type';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation }: Props) {
+    const { t } = useTranslation();
     const { isLoaded, isSignedIn } = useAuth();
     const { signIn, errors, fetchStatus } = useSignIn();
 
@@ -42,7 +44,7 @@ export default function LoginScreen({ navigation }: Props) {
         const { error } = await signIn.password({ identifier: emailAddress, password });
 
         if (error) {
-            setSubmitError(error.message || 'Sign-in failed. Check your email and password.');
+            setSubmitError(error.message || t('login.signInFailed'));
             return;
         }
 
@@ -77,7 +79,7 @@ export default function LoginScreen({ navigation }: Props) {
         setSubmitError(null);
         const { error } = await signIn.mfa.verifyEmailCode({ code: verificationCode });
         if (error) {
-            setSubmitError(error.message || 'Verification failed. Please try again.');
+            setSubmitError(error.message || t('login.verifyFailed'));
             return;
         }
 
@@ -110,13 +112,11 @@ export default function LoginScreen({ navigation }: Props) {
                     keyboardShouldPersistTaps="handled"
                 >
                     <View style={styles.card}>
-                        <Text style={styles.title}>Verify your identity</Text>
-                        <Text style={styles.subtitle}>
-                            We sent a code to your email. Enter it below.
-                        </Text>
+                        <Text style={styles.title}>{t('login.verifyTitle')}</Text>
+                        <Text style={styles.subtitle}>{t('login.verifySubtitle')}</Text>
                         <TextInput
                             style={styles.input}
-                            placeholder="Verification code"
+                            placeholder={t('login.verificationCode')}
                             placeholderTextColor="#6b7280"
                             value={verificationCode}
                             onChangeText={setVerificationCode}
@@ -137,7 +137,7 @@ export default function LoginScreen({ navigation }: Props) {
                             {isLoading ? (
                                 <ActivityIndicator color="#fff" />
                             ) : (
-                                <Text style={styles.buttonText}>Verify</Text>
+                                <Text style={styles.buttonText}>{t('login.verify')}</Text>
                             )}
                         </Pressable>
                         <Pressable
@@ -148,7 +148,7 @@ export default function LoginScreen({ navigation }: Props) {
                                 setSubmitError(null);
                             }}
                         >
-                            <Text style={styles.linkText}>← Back to sign in</Text>
+                            <Text style={styles.linkText}>{t('login.backToSignIn')}</Text>
                         </Pressable>
                     </View>
                 </ScrollView>
@@ -166,17 +166,15 @@ export default function LoginScreen({ navigation }: Props) {
                 keyboardShouldPersistTaps="handled"
             >
                 <View style={styles.card}>
-                    <Text style={styles.title}>Cafe Social</Text>
-                    <Text style={styles.subtitle}>
-                        Location-locked social gaming for cafés.
-                    </Text>
+                    <Text style={styles.title}>{t('login.title')}</Text>
+                    <Text style={styles.subtitle}>{t('login.subtitle')}</Text>
 
                     <SocialSignInButtons onSuccess={() => navigation.replace('Home')} />
 
-                    <Text style={styles.label}>Email</Text>
+                    <Text style={styles.label}>{t('login.email')}</Text>
                     <TextInput
                         style={styles.input}
-                        placeholder="you@example.com"
+                        placeholder={t('login.emailPlaceholder')}
                         placeholderTextColor="#6b7280"
                         value={emailAddress}
                         onChangeText={setEmailAddress}
@@ -185,7 +183,7 @@ export default function LoginScreen({ navigation }: Props) {
                         autoComplete="email"
                     />
 
-                    <Text style={styles.label}>Password</Text>
+                    <Text style={styles.label}>{t('login.password')}</Text>
                     <TextInput
                         style={styles.input}
                         placeholder="••••••••"
@@ -211,14 +209,14 @@ export default function LoginScreen({ navigation }: Props) {
                         {isLoading ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
-                            <Text style={styles.buttonText}>Sign in</Text>
+                            <Text style={styles.buttonText}>{t('login.signIn')}</Text>
                         )}
                     </Pressable>
 
                     <View style={styles.footer}>
-                        <Text style={styles.footerText}>Don't have an account? </Text>
+                        <Text style={styles.footerText}>{t('login.noAccount')} </Text>
                         <Pressable onPress={() => navigation.navigate('SignUp')}>
-                            <Text style={styles.footerLink}>Sign up</Text>
+                            <Text style={styles.footerLink}>{t('login.signUpLink')}</Text>
                         </Pressable>
                     </View>
                 </View>

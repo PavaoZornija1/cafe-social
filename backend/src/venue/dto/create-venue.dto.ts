@@ -18,5 +18,17 @@ export class CreateVenueDto {
   @IsNumber()
   @Min(10)
   radiusMeters = 50;
+
+  @IsString()
+  @IsOptional()
+  city?: string;
+
+  @IsString()
+  @IsOptional()
+  country?: string;
+
+  @IsString()
+  @IsOptional()
+  region?: string;
 }
 

@@ -20,7 +20,7 @@ import { AuthModule } from '../auth/auth.module';
     PlayerVenueRepository,
     SubscriptionRepository,
   ],
-  exports: [VenueService],
+  exports: [VenueService, SubscriptionRepository, PlayerVenueRepository],
 })
 export class VenueModule {}
 

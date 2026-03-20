@@ -22,9 +22,22 @@ export class VenueAccessService {
     private readonly subscriptions: SubscriptionRepository,
   ) {}
 
-  async detectVenue(): Promise<Venue | null> {
-    // Placeholder detection: pick the default venue from DB.
-    // Later we will replace this with real geofencing.
+  /**
+   * If latitude/longitude are provided, returns the venue geofence that contains the point
+   * (closest match if multiple). If outside all fences, returns null.
+   * If coordinates are omitted (simulator / no permission), falls back to default venue.
+   */
+  async detectVenue(latitude?: number, longitude?: number): Promise<Venue | null> {
+    const hasCoords =
+      typeof latitude === 'number' &&
+      typeof longitude === 'number' &&
+      Number.isFinite(latitude) &&
+      Number.isFinite(longitude);
+
+    if (hasCoords) {
+      return this.venues.findVenueAtCoordinates(latitude!, longitude!);
+    }
+
     return this.venues.findDefaultVenue();
   }
 

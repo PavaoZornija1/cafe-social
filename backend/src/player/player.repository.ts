@@ -25,5 +25,18 @@ export class PlayerRepository {
   update(id: string, data: Prisma.PlayerUpdateInput): Promise<Player> {
     return this.prisma.player.update({ where: { id }, data });
   }
+
+  async getSummary(playerId: string): Promise<{
+    completedChallenges: number;
+    venuesUnlocked: number;
+  }> {
+    const [completedChallenges, venuesUnlocked] = await Promise.all([
+      this.prisma.challengeProgress.count({
+        where: { playerId, completedAt: { not: null } },
+      }),
+      this.prisma.playerVenue.count({ where: { playerId } }),
+    ]);
+    return { completedChallenges, venuesUnlocked };
+  }
 }
 

@@ -5,9 +5,10 @@ import { ChallengeService } from './challenge.service';
 import { PlayerModule } from '../player/player.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
+import { StatsModule } from '../stats/stats.module';
 
 @Module({
-  imports: [PrismaModule, PlayerModule, AuthModule],
+  imports: [PrismaModule, PlayerModule, AuthModule, StatsModule],
   controllers: [ChallengeController],
   providers: [ChallengeRepository, ChallengeService],
 })
