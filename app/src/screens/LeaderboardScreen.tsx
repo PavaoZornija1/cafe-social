@@ -23,6 +23,8 @@ type Row = {
   player: { id: string; username: string };
 };
 
+type Scope = 'venue' | 'city' | 'country' | 'global';
+
 export default function LeaderboardScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const { isLoaded, getToken } = useAuth();
@@ -30,53 +32,118 @@ export default function LeaderboardScreen({ navigation }: Props) {
   getTokenRef.current = getToken;
 
   const [loading, setLoading] = useState(true);
+  const [scope, setScope] = useState<Scope>('venue');
   const [venueName, setVenueName] = useState<string | null>(null);
   const [venueId, setVenueId] = useState<string | null>(null);
+  const [detectedCity, setDetectedCity] = useState<string | null>(null);
+  const [detectedCountry, setDetectedCountry] = useState<string | null>(null);
   const [meId, setMeId] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
+  const [hint, setHint] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!isLoaded) return;
     setLoading(true);
+    setHint(null);
     try {
       const detected = await fetchDetectedVenue();
-      if (!detected) {
-        setVenueId(null);
-        setVenueName(null);
-        setRows([]);
-        setMeId(null);
-        return;
-      }
-      setVenueId(detected.id);
-      setVenueName(detected.name);
+      setVenueId(detected?.id ?? null);
+      setVenueName(detected?.name ?? null);
+      setDetectedCity(detected?.city?.trim() || null);
+      setDetectedCountry(detected?.country?.trim() || null);
 
       const token = await getTokenRef.current();
       if (!token) {
         setRows([]);
         setMeId(null);
+        setHint(t('leaderboard.signInForRankings'));
         return;
       }
-      const [board, summary] = await Promise.all([
-        apiGet<Row[]>(
+
+      const summary = await apiGet<{ playerId: string }>('/players/me/summary', token);
+      setMeId(summary.playerId);
+
+      if (scope === 'venue') {
+        if (!detected?.id) {
+          setRows([]);
+          setHint(t('leaderboard.emptyVenue'));
+          return;
+        }
+        const board = await apiGet<Row[]>(
           `/venues/${encodeURIComponent(detected.id)}/leaderboard/xp`,
           token,
-        ),
-        apiGet<{ playerId: string }>('/players/me/summary', token),
-      ]);
+        );
+        setRows(board);
+        return;
+      }
+
+      if (scope === 'global') {
+        const board = await apiGet<Row[]>('/venues/leaderboard/xp/global', token);
+        setRows(board);
+        return;
+      }
+
+      if (scope === 'country') {
+        const cc = detected?.country?.trim();
+        if (!cc) {
+          setRows([]);
+          setHint(t('leaderboard.needCountry'));
+          return;
+        }
+        const board = await apiGet<Row[]>(
+          `/venues/leaderboard/xp/country/${encodeURIComponent(cc)}`,
+          token,
+        );
+        setRows(board);
+        return;
+      }
+
+      const city = detected?.city?.trim();
+      const country = detected?.country?.trim();
+      if (!city || !country) {
+        setRows([]);
+        setHint(t('leaderboard.needCityCountry'));
+        return;
+      }
+      const board = await apiGet<Row[]>(
+        `/venues/leaderboard/xp/city?city=${encodeURIComponent(city)}&country=${encodeURIComponent(country)}`,
+        token,
+      );
       setRows(board);
-      setMeId(summary.playerId);
     } catch {
       setRows([]);
+      setHint(t('leaderboard.loadError'));
     } finally {
       setLoading(false);
     }
-  }, [isLoaded]);
+  }, [isLoaded, scope, t]);
 
   useFocusEffect(
     useCallback(() => {
       void load();
     }, [load]),
   );
+
+  const scopes: { key: Scope; label: string }[] = [
+    { key: 'venue', label: t('leaderboard.scopeVenue') },
+    { key: 'city', label: t('leaderboard.scopeCity') },
+    { key: 'country', label: t('leaderboard.scopeCountry') },
+    { key: 'global', label: t('leaderboard.scopeGlobal') },
+  ];
+
+  const scopeDescription = () => {
+    if (scope === 'venue') return t('leaderboard.subtitleVenue');
+    if (scope === 'global') return t('leaderboard.subtitleGlobal');
+    if (scope === 'country') {
+      return detectedCountry
+        ? t('leaderboard.subtitleCountry', { country: detectedCountry })
+        : t('leaderboard.subtitleCountryGeneric');
+    }
+    if (detectedCity && detectedCountry) {
+      return t('leaderboard.subtitleCity', { city: detectedCity, country: detectedCountry });
+    }
+    return t('leaderboard.subtitleCityGeneric');
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -86,46 +153,62 @@ export default function LeaderboardScreen({ navigation }: Props) {
         </Pressable>
         <Text style={styles.title}>{t('leaderboard.title')}</Text>
       </View>
-      <Text style={styles.subtitle}>{t('leaderboard.subtitle')}</Text>
 
-      {!venueId ? (
-        <Text style={styles.placeholder}>{t('leaderboard.emptyVenue')}</Text>
-      ) : loading ? (
+      <Text style={styles.subtitle}>{scopeDescription()}</Text>
+
+      <View style={styles.tabs}>
+        {scopes.map(({ key, label }) => (
+          <Pressable
+            key={key}
+            onPress={() => setScope(key)}
+            style={[styles.tab, scope === key && styles.tabActive]}
+          >
+            <Text style={[styles.tabText, scope === key && styles.tabTextActive]} numberOfLines={1}>
+              {label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {scope === 'venue' && venueId ? (
+        <Text style={styles.venueLine}>{venueName ?? venueId}</Text>
+      ) : null}
+
+      {hint && !loading ? <Text style={styles.placeholder}>{hint}</Text> : null}
+
+      {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color="#a78bfa" />
         </View>
-      ) : (
-        <>
-          <Text style={styles.venueLine}>
-            {venueName ?? venueId}
-          </Text>
-          <FlatList
-            data={rows}
-            keyExtractor={(item) => item.player.id}
-            contentContainerStyle={styles.list}
-            ListEmptyComponent={
+      ) : !hint || rows.length > 0 ? (
+        <FlatList
+          data={rows}
+          keyExtractor={(item) => item.player.id}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            !hint ? (
               <Text style={styles.placeholder}>{t('leaderboard.emptyBoard')}</Text>
-            }
-            renderItem={({ item, index }) => {
-              const isMe = meId != null && item.player.id === meId;
-              return (
-                <View style={[styles.row, isMe && styles.rowMe]}>
-                  <Text style={styles.rank}>#{index + 1}</Text>
-                  <View style={styles.rowMid}>
-                    <Text style={styles.name}>
-                      {item.player.username}
-                      {isMe ? ` (${t('leaderboard.you')})` : ''}
-                    </Text>
-                  </View>
-                  <Text style={styles.xp}>
-                    {item.venueXp} {t('leaderboard.xp')}
+            ) : null
+          }
+          renderItem={({ item, index }) => {
+            const isMe = meId != null && item.player.id === meId;
+            return (
+              <View style={[styles.row, isMe && styles.rowMe]}>
+                <Text style={styles.rank}>#{index + 1}</Text>
+                <View style={styles.rowMid}>
+                  <Text style={styles.name}>
+                    {item.player.username}
+                    {isMe ? ` (${t('leaderboard.you')})` : ''}
                   </Text>
                 </View>
-              );
-            }}
-          />
-        </>
-      )}
+                <Text style={styles.xp}>
+                  {item.venueXp} {t('leaderboard.xp')}
+                </Text>
+              </View>
+            );
+          }}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -151,10 +234,31 @@ const styles = StyleSheet.create({
   subtitle: {
     color: '#9ca3af',
     paddingHorizontal: 24,
-    marginBottom: 12,
+    marginBottom: 10,
     fontSize: 14,
     lineHeight: 20,
   },
+  tabs: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingHorizontal: 24,
+    marginBottom: 12,
+  },
+  tab: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#111827',
+    borderWidth: 1,
+    borderColor: '#1f2937',
+  },
+  tabActive: {
+    borderColor: '#7c3aed',
+    backgroundColor: '#1e1b4b',
+  },
+  tabText: { color: '#9ca3af', fontWeight: '700', fontSize: 12 },
+  tabTextActive: { color: '#e9d5ff' },
   venueLine: {
     color: '#a78bfa',
     fontWeight: '800',
@@ -163,7 +267,7 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     color: '#9ca3af',
-    marginTop: 10,
+    marginTop: 4,
     paddingHorizontal: 24,
     fontSize: 14,
     lineHeight: 20,

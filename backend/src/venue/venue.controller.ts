@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { VenueService } from './venue.service';
 import { CreateVenueDto } from './dto/create-venue.dto';
 import { UpdateVenueDto } from './dto/update-venue.dto';
@@ -15,6 +25,41 @@ export class VenueController {
   @Get()
   findAll() {
     return this.venueService.findAll();
+  }
+
+  @Get('leaderboard/xp/global')
+  globalXpLeaderboard(@Query('limit') limit?: string) {
+    const n = limit ? Number(limit) : 50;
+    return this.venueService.globalXpLeaderboard(Number.isFinite(n) ? n : 50);
+  }
+
+  @Get('leaderboard/xp/country/:country')
+  countryXpLeaderboard(
+    @Param('country') country: string,
+    @Query('limit') limit?: string,
+  ) {
+    const n = limit ? Number(limit) : 50;
+    return this.venueService.countryXpLeaderboard(
+      country,
+      Number.isFinite(n) ? n : 50,
+    );
+  }
+
+  @Get('leaderboard/xp/city')
+  cityXpLeaderboard(
+    @Query('city') city?: string,
+    @Query('country') country?: string,
+    @Query('limit') limit?: string,
+  ) {
+    if (!city?.trim() || !country?.trim()) {
+      throw new BadRequestException('city and country query params are required');
+    }
+    const n = limit ? Number(limit) : 50;
+    return this.venueService.cityXpLeaderboard(
+      city,
+      country,
+      Number.isFinite(n) ? n : 50,
+    );
   }
 
   @Get(':id/leaderboard/xp')

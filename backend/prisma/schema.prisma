@@ -63,10 +63,25 @@ model Player {
 
   inviteLinksCreated InviteLink[] @relation("InviteCreatedBy")
 
+  expoPushTokens PlayerExpoPushToken[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([email, username])
+}
+
+/// Expo push notification token (one row per device token; reassigned on login).
+model PlayerExpoPushToken {
+  id        String   @id @default(uuid())
+  playerId  String
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId])
 }
 
 /// QR-unlock / membership for a physical venue (café).
@@ -307,6 +322,8 @@ model GameSession {
   id          String            @id @default(uuid())
   gameType    GameType
   status      GameSessionStatus @default(PENDING)
+  /// Short code so friends can join a pending word match (co-op / versus).
+  inviteCode  String?           @unique
   /// Optional context links for your existing ecosystem.
   venueId     String?
   partyId     String?
@@ -500,6 +517,8 @@ model WordSession {
   sessionId            String @id
   roundCount           Int    @default(1)
   language             String @default("en")
+  /// Co-op: shared progress index into the ordered word list (server-authoritative).
+  sharedWordIndex      Int    @default(0)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
   session              GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)

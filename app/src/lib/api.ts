@@ -24,7 +24,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return body as T;
 }
 
-export async function apiGet<T>(path: string, token?: string | null): Promise<T> {
+export async function apiGet<T>(path: string, token?: string | null | undefined): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     method: 'GET',
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -35,7 +35,7 @@ export async function apiGet<T>(path: string, token?: string | null): Promise<T>
 export async function apiPost<T>(
   path: string,
   body?: unknown,
-  token?: string | null,
+  token?: string | null | undefined,
 ): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     method: 'POST',
@@ -51,7 +51,7 @@ export async function apiPost<T>(
 export async function apiPatch<T>(
   path: string,
   body?: unknown,
-  token?: string | null,
+  token?: string | null | undefined,
 ): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     method: 'PATCH',

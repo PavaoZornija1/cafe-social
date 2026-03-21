@@ -1,7 +1,13 @@
 import { apiGet } from './api';
 import { buildDetectQuery, getCoordinatesForVenueDetect } from './locationForDetect';
 
-export type DetectedVenue = { id: string; name: string; isPremium: boolean };
+export type DetectedVenue = {
+  id: string;
+  name: string;
+  isPremium: boolean;
+  city?: string | null;
+  country?: string | null;
+};
 
 export async function fetchDetectedVenue(): Promise<DetectedVenue | null> {
   const coords = await getCoordinatesForVenueDetect();

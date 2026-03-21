@@ -1,10 +1,13 @@
 import {
+  BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
   Post,
+  Query,
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
@@ -15,10 +18,15 @@ import { PlayerService } from './player.service';
 import { CreatePlayerDto } from './dto/create-player.dto';
 import { UpdatePlayerDto } from './dto/update-player.dto';
 import { UpdateMeSettingsDto } from './dto/update-me-settings.dto';
+import { RegisterExpoPushTokenDto } from './dto/register-expo-push-token.dto';
+import { PushService } from '../push/push.service';
 
 @Controller('players')
 export class PlayerController {
-  constructor(private readonly playerService: PlayerService) {}
+  constructor(
+    private readonly playerService: PlayerService,
+    private readonly pushService: PushService,
+  ) {}
 
   private normalizeEmail(user: unknown): string | null {
     return normalizeUserEmail(user);
@@ -48,6 +56,36 @@ export class PlayerController {
     const email = this.normalizeEmail(user);
     if (!email) throw new UnauthorizedException('Missing user email');
     return this.playerService.updateMeSettings(email, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('me/push-token')
+  async registerExpoPushToken(
+    @CurrentUser() user: unknown,
+    @Body() dto: RegisterExpoPushTokenDto,
+  ) {
+    const email = this.normalizeEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    const p = await this.playerService.findOrCreateByEmail(email);
+    await this.pushService.registerPlayerToken(p.id, dto.expoPushToken);
+    return { ok: true };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('me/push-token')
+  async removeExpoPushToken(
+    @CurrentUser() user: unknown,
+    @Query('expoPushToken') expoPushToken?: string,
+  ) {
+    const token = expoPushToken?.trim();
+    if (!token) {
+      throw new BadRequestException('Query param expoPushToken is required');
+    }
+    const email = this.normalizeEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    const p = await this.playerService.findOrCreateByEmail(email);
+    await this.pushService.removeToken(p.id, token);
+    return { ok: true };
   }
 
   @Get(':id')

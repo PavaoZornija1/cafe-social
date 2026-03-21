@@ -1,5 +1,6 @@
 import { PrismaClient, WordCategory } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { seedWordLocales } from './seed-word-locales';
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -371,6 +372,48 @@ async function main() {
       wordHints: ['deck', 'table', 'play'],
       emojiHints: ['🃏', '🪑'],
     },
+    {
+      text: 'cold brew',
+      category: WordCategory.DRINK_FOOD,
+      sentenceHint: 'Coffee steeped in cold water for hours, served chilled.',
+      wordHints: ['iced', 'slow', 'smooth'],
+      emojiHints: ['🧊', '☕'],
+    },
+    {
+      text: 'matcha',
+      category: WordCategory.DRINK_FOOD,
+      sentenceHint: 'Bright green powdered tea whisked into hot water or milk.',
+      wordHints: ['green', 'whisk', 'Japanese'],
+      emojiHints: ['🍵', '🟩'],
+    },
+    {
+      text: 'scone',
+      category: WordCategory.DRINK_FOOD,
+      sentenceHint: 'A crumbly baked good often served with jam and cream.',
+      wordHints: ['tea', 'jam', 'British'],
+      emojiHints: ['🥐', '🫖'],
+    },
+    {
+      text: 'wifi password',
+      category: WordCategory.MOMENTS_ACTIONS,
+      sentenceHint: 'What you ask the barista for to get online on your laptop.',
+      wordHints: ['internet', 'network', 'login'],
+      emojiHints: ['📶', '🔑'],
+    },
+    {
+      text: 'brunch',
+      category: WordCategory.MOMENTS_ACTIONS,
+      sentenceHint: 'A late morning meal that mixes breakfast and lunch.',
+      wordHints: ['weekend', 'eggs', 'mimosas'],
+      emojiHints: ['🍳', '🥂'],
+    },
+    {
+      text: 'open mic night',
+      category: WordCategory.MUSIC_CULTURE,
+      sentenceHint: 'An evening where anyone can sign up to perform.',
+      wordHints: ['stage', 'signup', 'talent'],
+      emojiHints: ['🎤', '🌙'],
+    },
   ];
 
   for (const word of words) {
@@ -383,6 +426,8 @@ async function main() {
       },
     });
   }
+
+  await seedWordLocales(prisma);
 
   // Seed a couple of venues so the app can detect a default context.
   // In v1 detection is placeholder (default venue from DB), so we need at least one row.

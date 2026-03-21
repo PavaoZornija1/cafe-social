@@ -1,15 +1,19 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React from 'react';
-import { Alert, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChooseGame'>;
 
 export default function ChooseGameScreen({ navigation, route }: Props) {
+    const { t } = useTranslation();
     const venueId = route.params?.venueId;
+    const challengeId = route.params?.challengeId;
 
     const onOpenWordGame = () => {
-        Alert.alert('Word Game', 'Development in progres');
+        if (!venueId) return;
+        navigation.navigate('WordLobby', { venueId, challengeId });
     };
 
     const onOpenBrawler = () => {
@@ -91,6 +95,7 @@ const styles = StyleSheet.create({
         borderColor: '#374151',
     },
     cardPressed: { opacity: 0.88 },
+    cardDisabled: { opacity: 0.45 },
     cardEmoji: { fontSize: 32 },
     cardBody: { flex: 1, gap: 4 },
     cardTitle: { color: '#fff', fontSize: 18, fontWeight: '900' },

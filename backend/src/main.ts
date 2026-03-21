@@ -2,12 +2,23 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { ValidationPipe } from '@nestjs/common';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { AppModule } from './app.module';
+import { RedisIoAdapter } from './redis-io.adapter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
   const configService = app.get(ConfigService);
+  const redisUrl = configService.get<string>('REDIS_URL')?.trim();
+  if (redisUrl) {
+    const redisAdapter = new RedisIoAdapter(app, redisUrl);
+    await redisAdapter.connectToRedis();
+    app.useWebSocketAdapter(redisAdapter);
+    // eslint-disable-next-line no-console
+    console.log('Socket.IO using Redis adapter');
+  } else {
+    app.useWebSocketAdapter(new IoAdapter(app));
+  }
   const port = configService.get<number>('PORT') ?? 3001;
 
   app.setGlobalPrefix('api');

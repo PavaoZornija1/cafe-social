@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { HealthController } from './health.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { VenueModule } from './venue/venue.module';
@@ -14,6 +15,7 @@ import { BrawlerModule } from './brawler/brawler.module';
 
 @Module({
   imports: [
+    EventEmitterModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
     }),

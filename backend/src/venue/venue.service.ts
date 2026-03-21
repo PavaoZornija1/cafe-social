@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import type { Venue } from '@prisma/client';
 import { CreateVenueDto } from './dto/create-venue.dto';
 import { UpdateVenueDto } from './dto/update-venue.dto';
@@ -101,6 +102,81 @@ export class VenueService {
         player: { select: { id: true, username: true } },
       },
     });
+  }
+
+  private clampLeaderboardLimit(limit?: number) {
+    return Math.min(Math.max(limit ?? 50, 1), 100);
+  }
+
+  /** Sum of `venueXp` across all venues per player (global ladder). */
+  async globalXpLeaderboard(limit = 50) {
+    const take = this.clampLeaderboardLimit(limit);
+    const rows = await this.prisma.$queryRaw<
+      { playerId: string; totalXp: number; username: string }[]
+    >(Prisma.sql`
+      SELECT p.id AS "playerId", SUM(pvs."venueXp")::int AS "totalXp", p.username AS "username"
+      FROM "PlayerVenueStats" pvs
+      INNER JOIN "Player" p ON p.id = pvs."playerId"
+      GROUP BY p.id, p.username
+      ORDER BY "totalXp" DESC
+      LIMIT ${take}
+    `);
+    return rows.map((r) => ({
+      venueXp: r.totalXp,
+      player: { id: r.playerId, username: r.username },
+    }));
+  }
+
+  /** Sum of venue XP for venues in a given country (ISO-style code, e.g. BA). */
+  async countryXpLeaderboard(country: string, limit = 50) {
+    const take = this.clampLeaderboardLimit(limit);
+    const c = country.trim().toUpperCase();
+    if (!c || c.length > 3) {
+      return [];
+    }
+    const rows = await this.prisma.$queryRaw<
+      { playerId: string; totalXp: number; username: string }[]
+    >(Prisma.sql`
+      SELECT p.id AS "playerId", SUM(pvs."venueXp")::int AS "totalXp", p.username AS "username"
+      FROM "PlayerVenueStats" pvs
+      INNER JOIN "Venue" v ON v.id = pvs."venueId"
+      INNER JOIN "Player" p ON p.id = pvs."playerId"
+      WHERE TRIM(UPPER(v.country)) = ${c}
+      GROUP BY p.id, p.username
+      ORDER BY "totalXp" DESC
+      LIMIT ${take}
+    `);
+    return rows.map((r) => ({
+      venueXp: r.totalXp,
+      player: { id: r.playerId, username: r.username },
+    }));
+  }
+
+  /** Sum of venue XP for venues in a city + country (case-insensitive city match). */
+  async cityXpLeaderboard(city: string, country: string, limit = 50) {
+    const take = this.clampLeaderboardLimit(limit);
+    const cityNorm = city.trim().toLowerCase();
+    const c = country.trim().toUpperCase();
+    if (!cityNorm || !c || c.length > 3) {
+      return [];
+    }
+    const rows = await this.prisma.$queryRaw<
+      { playerId: string; totalXp: number; username: string }[]
+    >(Prisma.sql`
+      SELECT p.id AS "playerId", SUM(pvs."venueXp")::int AS "totalXp", p.username AS "username"
+      FROM "PlayerVenueStats" pvs
+      INNER JOIN "Venue" v ON v.id = pvs."venueId"
+      INNER JOIN "Player" p ON p.id = pvs."playerId"
+      WHERE LOWER(TRIM(COALESCE(v.city, ''))) = ${cityNorm}
+        AND TRIM(UPPER(v.country)) = ${c}
+      GROUP BY p.id, p.username
+      ORDER BY "totalXp" DESC
+      LIMIT ${take}
+    `);
+    return rows.map((r) => ({
+      venueXp: r.totalXp,
+      player: { id: r.playerId, username: r.username },
+    }));
   }
 }
 

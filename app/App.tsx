@@ -10,7 +10,10 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
+import { ExpoPushRegistrar } from './src/components/ExpoPushRegistrar';
+import { NotificationNavigationEffect } from './src/components/NotificationNavigationEffect';
 import RootStack from './src/navigation/RootStack';
+import { navigationRef } from './src/navigation/navigationRef';
 import type { RootStackParamList } from './src/navigation/type';
 import { initI18n } from './src/i18n';
 
@@ -81,7 +84,9 @@ export default function App() {
 
   return (
     <ClerkProvider publishableKey={publishableKey!} tokenCache={tokenCache}>
-      <NavigationContainer theme={navigationTheme} linking={linking}>
+      <NavigationContainer ref={navigationRef} theme={navigationTheme} linking={linking}>
+        <NotificationNavigationEffect />
+        <ExpoPushRegistrar />
         <StatusBar style="light" />
         <RootStack />
       </NavigationContainer>

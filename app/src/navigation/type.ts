@@ -16,11 +16,21 @@ export type RootStackParamList = {
     PeopleHere: { venueId: string; venueName?: string };
     QrScan: { venueId?: string };
     WordLobby: { venueId: string; challengeId?: string };
+    WordMatchJoin: { venueId: string; challengeId?: string };
+    WordMatchWait: {
+      venueId: string;
+      challengeId?: string;
+      mode: 'coop' | 'versus';
+      difficulty: 'easy' | 'normal' | 'hard';
+      create?: boolean;
+      sessionId?: string;
+    };
     WordGame: {
       venueId: string;
       challengeId?: string;
       difficulty: 'easy' | 'normal' | 'hard';
-      mode: 'solo';
+      mode: 'solo' | 'coop' | 'versus';
+      matchSessionId?: string;
       sessionWordsCount?: number;
     };
 };

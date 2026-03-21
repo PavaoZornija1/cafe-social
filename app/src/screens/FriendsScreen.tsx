@@ -15,6 +15,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiGet, apiPost } from '../lib/api';
+import { createAndShareFriendInviteLink } from '../lib/friendInviteShare';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Friends'>;
 
@@ -26,6 +27,8 @@ type IncomingRow = {
   playerLow: { id: string; username: string };
   playerHigh: { id: string; username: string };
 };
+
+type OutgoingRow = { id: string; target: { id: string; username: string } };
 
 function requesterFromRow(row: IncomingRow): { id: string; username: string } {
   return row.requestedById === row.playerLow.id ? row.playerLow : row.playerHigh;
@@ -40,6 +43,8 @@ export default function FriendsScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [incoming, setIncoming] = useState<IncomingRow[]>([]);
+  const [outgoing, setOutgoing] = useState<OutgoingRow[]>([]);
+  const [sharing, setSharing] = useState(false);
 
   const load = useCallback(async () => {
     if (!isLoaded) return;
@@ -49,18 +54,22 @@ export default function FriendsScreen({ navigation }: Props) {
       if (!token) {
         setFriends([]);
         setIncoming([]);
+        setOutgoing([]);
         return;
       }
-      const [f, inc] = await Promise.all([
+      const [f, inc, out] = await Promise.all([
         apiGet<Friend[]>('/social/friends', token),
         apiGet<IncomingRow[]>('/social/friends/incoming', token),
+        apiGet<OutgoingRow[]>('/social/friends/outgoing', token),
       ]);
       setFriends(f);
       setIncoming(inc);
+      setOutgoing(out);
     } catch {
       Alert.alert(t('common.error'), t('friends.loadError'));
       setFriends([]);
       setIncoming([]);
+      setOutgoing([]);
     } finally {
       setLoading(false);
     }
@@ -71,6 +80,18 @@ export default function FriendsScreen({ navigation }: Props) {
       void load();
     }, [load]),
   );
+
+  const shareInvite = async () => {
+    setSharing(true);
+    try {
+      const token = await getTokenRef.current();
+      await createAndShareFriendInviteLink(token, t);
+    } catch (e) {
+      Alert.alert(t('common.error'), (e as Error).message ?? t('friends.friendLinkFailed'));
+    } finally {
+      setSharing(false);
+    }
+  };
 
   const accept = async (otherPlayerId: string) => {
     const token = await getTokenRef.current();
@@ -93,13 +114,39 @@ export default function FriendsScreen({ navigation }: Props) {
         <Text style={styles.title}>{t('friends.title')}</Text>
       </View>
 
+      <View style={styles.toolbar}>
+        <Pressable
+          style={[styles.toolbarBtn, sharing && styles.toolbarBtnDisabled]}
+          disabled={sharing}
+          onPress={() => void shareInvite()}
+        >
+          <Text style={styles.toolbarBtnText}>
+            {sharing ? '…' : t('friends.inviteShare')}
+          </Text>
+        </Pressable>
+      </View>
+
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color="#a78bfa" />
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll}>
-          <Text style={styles.section}>{t('friends.incoming')}</Text>
+          <Text style={styles.section}>{t('friends.outgoing')}</Text>
+          {outgoing.length === 0 ? (
+            <Text style={styles.muted}>{t('friends.noOutgoing')}</Text>
+          ) : (
+            outgoing.map((row) => (
+              <View key={row.id} style={styles.cardMuted}>
+                <Text style={styles.name}>
+                  {row.target.username}{' '}
+                  <Text style={styles.mutedSmall}>{t('friends.pendingTheirAccept')}</Text>
+                </Text>
+              </View>
+            ))
+          )}
+
+          <Text style={[styles.section, styles.sectionSpacer]}>{t('friends.incoming')}</Text>
           {incoming.length === 0 ? (
             <Text style={styles.muted}>{t('friends.noIncoming')}</Text>
           ) : (
@@ -158,6 +205,18 @@ const styles = StyleSheet.create({
   },
   backText: { color: '#cbd5e1', fontWeight: '600' },
   title: { color: '#fff', fontSize: 22, fontWeight: '800', flex: 1 },
+  toolbar: { paddingHorizontal: 24, marginBottom: 12 },
+  toolbarBtn: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#1e1b4b',
+    borderWidth: 1,
+    borderColor: '#4c1d95',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  toolbarBtnDisabled: { opacity: 0.6 },
+  toolbarBtnText: { color: '#c4b5fd', fontWeight: '800' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { paddingHorizontal: 24, paddingBottom: 32 },
   section: { color: '#fff', fontSize: 16, fontWeight: '900' },
@@ -172,6 +231,14 @@ const styles = StyleSheet.create({
     borderColor: '#1f2937',
     padding: 14,
     gap: 12,
+  },
+  cardMuted: {
+    marginTop: 12,
+    backgroundColor: '#0b1220',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1f2937',
+    padding: 14,
   },
   name: { color: '#f9fafb', fontWeight: '700', fontSize: 15 },
   acceptBtn: {

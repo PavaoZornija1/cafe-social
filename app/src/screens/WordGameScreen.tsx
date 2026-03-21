@@ -1,14 +1,23 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useAuth } from '@clerk/expo';
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiGet, apiPost } from '../lib/api';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
+import { useWordMatchSocket } from '../lib/useWordMatchSocket';
+import { toApiWordLanguage } from '../lib/wordDeckLanguage';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WordGame'>;
-type Difficulty = 'easy' | 'normal' | 'hard';
 
 type WordRow = {
   id: string;
@@ -20,17 +29,49 @@ type WordRow = {
   emojiHints: string[];
 };
 
+type MatchParticipant = {
+  id: string;
+  playerId: string | null;
+  username: string;
+  score: number;
+  result: string | null;
+  isYou: boolean;
+};
+
+type MatchState = {
+  sessionId: string;
+  status: string;
+  mode: 'coop' | 'versus';
+  difficulty: string;
+  venueId?: string | null;
+  hostPlayerId: string;
+  inviteCode: string | null;
+  targetWordCount: number;
+  sharedWordIndex: number;
+  deckLanguage?: string;
+  participants: MatchParticipant[];
+};
+
 function normalizeGuess(s: string): string {
   return s
     .trim()
     .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
     .replace(/[^a-z0-9\s]/g, '')
     .replace(/\s+/g, ' ');
 }
 
 export default function WordGameScreen({ navigation, route }: Props) {
-  const { t } = useTranslation();
-  const { venueId, challengeId, difficulty, sessionWordsCount = 5 } = route.params;
+  const { t, i18n } = useTranslation();
+  const {
+    venueId,
+    challengeId,
+    difficulty,
+    sessionWordsCount = 5,
+    mode = 'solo',
+    matchSessionId,
+  } = route.params;
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
@@ -43,8 +84,17 @@ export default function WordGameScreen({ navigation, route }: Props) {
   const [hintRevealed, setHintRevealed] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [wrongFeedback, setWrongFeedback] = useState<string | null>(null);
+  const [matchState, setMatchState] = useState<MatchState | null>(null);
 
-  const currentWord = deck[idx];
+  const deckLoadedRef = useRef(false);
+
+  const matchMode = matchSessionId ? mode : 'solo';
+  const coopIdx = matchState?.sharedWordIndex ?? 0;
+  const versusOrSoloIdx = idx;
+
+  const currentWord =
+    matchMode === 'coop' ? deck[coopIdx] : deck[versusOrSoloIdx];
 
   const hintText = useMemo(() => {
     if (!currentWord) return '';
@@ -59,9 +109,46 @@ export default function WordGameScreen({ navigation, route }: Props) {
     return t('wordLobby.hard');
   }, [difficulty, t]);
 
-  const deckLoadedRef = useRef(false);
+  const progressCurrent =
+    matchMode === 'coop' ? Math.min(coopIdx + 1, Math.max(deck.length, 1)) : idx + 1;
+  const progressTotal = Math.max(deck.length, 1);
 
   useEffect(() => {
+    if (matchMode === 'coop') setHintRevealed(false);
+  }, [coopIdx, matchMode]);
+
+  const fetchMatchState = useCallback(async () => {
+    const sid = matchSessionId;
+    if (!sid) return;
+    try {
+      const token = await getTokenRef.current();
+      if (!token) return;
+      const s = await apiGet<MatchState>(
+        `/words/matches/${encodeURIComponent(sid)}/state`,
+        token,
+      );
+      setMatchState(s);
+    } catch {
+      /* non-fatal */
+    }
+  }, [matchSessionId]);
+
+  useEffect(() => {
+    if (!matchSessionId || !isLoaded) return;
+    void fetchMatchState();
+  }, [matchSessionId, isLoaded, fetchMatchState]);
+
+  const { socketStatus } = useWordMatchSocket({
+    sessionId: matchSessionId ?? null,
+    enabled: !!matchSessionId && isLoaded,
+    getToken: async () => (await getTokenRef.current?.()) ?? null,
+    onRefresh: fetchMatchState,
+    fallbackPollMs: 30000,
+  });
+
+  /** Solo deck */
+  useEffect(() => {
+    if (matchSessionId) return;
     let cancelled = false;
 
     async function run() {
@@ -76,11 +163,62 @@ export default function WordGameScreen({ navigation, route }: Props) {
         const token = await getTokenRef.current();
         if (!token) throw new Error('Not authenticated');
 
-        const res = await apiGet<{ words: WordRow[] }>(
-          `/words/session?language=en&count=${encodeURIComponent(String(sessionWordsCount))}`,
+        const primary = toApiWordLanguage(i18n.language);
+        let res = await apiGet<{ words: WordRow[] }>(
+          `/words/session?language=${encodeURIComponent(primary)}&count=${encodeURIComponent(String(sessionWordsCount))}`,
           token,
         );
         if (cancelled) return;
+        if (!res.words?.length && primary !== 'en') {
+          res = await apiGet<{ words: WordRow[] }>(
+            `/words/session?language=en&count=${encodeURIComponent(String(sessionWordsCount))}`,
+            token,
+          );
+        }
+        if (cancelled) return;
+        if (!res.words?.length) {
+          setError(t('wordGame.emptyDeck'));
+          setDeck([]);
+          return;
+        }
+        setDeck(res.words);
+      } catch (e) {
+        if (cancelled) return;
+        deckLoadedRef.current = false;
+        setError((e as Error).message || t('wordGame.loadError'));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded, sessionWordsCount, t, matchSessionId, i18n.language]);
+
+  /** Multiplayer deck (match must be ACTIVE) */
+  useEffect(() => {
+    const sid = matchSessionId;
+    if (!sid || !isLoaded) return;
+    let cancelled = false;
+
+    async function run() {
+      try {
+        setLoading(true);
+        setError(null);
+        const token = await getTokenRef.current();
+        if (!token) throw new Error('Not authenticated');
+        const res = await apiGet<{ words: WordRow[] }>(
+          `/words/matches/${encodeURIComponent(sid as string)}/deck`,
+          token,
+        );
+        if (cancelled) return;
+        if (!res.words?.length) {
+          setError(t('wordGame.matchDeckError'));
+          setDeck([]);
+          return;
+        }
         setDeck(res.words);
       } catch (e) {
         if (cancelled) return;
@@ -90,15 +228,14 @@ export default function WordGameScreen({ navigation, route }: Props) {
       }
     }
 
-    run();
+    void run();
     return () => {
       cancelled = true;
     };
-  }, [isLoaded, sessionWordsCount, t]);
+  }, [matchSessionId, isLoaded, t]);
 
-  const finishSession = async (solvedAtLeastOne: boolean) => {
-    // MVP: only update challenge when the player actually solved something.
-    if (!challengeId || !solvedAtLeastOne) {
+  const finishSession = async (opts: { claimChallenge: boolean }) => {
+    if (!opts.claimChallenge || !challengeId) {
       navigation.replace('Home');
       return;
     }
@@ -106,18 +243,14 @@ export default function WordGameScreen({ navigation, route }: Props) {
     try {
       const token = await getTokenRef.current();
       if (!token) throw new Error('Not authenticated');
-
-      // For MVP, the server enforces locationRequired presence using detected venue id.
-      // We'll fetch the current detected venue context from the backend.
       const detected = await fetchDetectedVenue();
-
       await apiPost<void>(
         `/venue-context/${encodeURIComponent(venueId)}/challenges/${encodeURIComponent(challengeId)}/progress`,
         { increment: 1, detectedVenueId: detected?.id ?? null },
         token,
       );
     } catch {
-      // MVP: ignore claim failure; player can try again later in Challenges.
+      /* ignore */
     } finally {
       navigation.replace('Home');
     }
@@ -129,24 +262,88 @@ export default function WordGameScreen({ navigation, route }: Props) {
 
     setSubmitting(true);
     try {
-      const isCorrect = normalizeGuess(guess) === normalizeGuess(currentWord.text);
-      if (!isCorrect) return;
+      if (matchMode === 'coop' && matchSessionId) {
+        const token = await getTokenRef.current();
+        if (!token) throw new Error('Not authenticated');
+        const res = await apiPost<{
+          done: boolean;
+          correct: boolean;
+          newIndex: number;
+        }>(
+          `/words/matches/${encodeURIComponent(matchSessionId)}/coop-guess`,
+          { guess },
+          token,
+        );
+        if (!res.correct) {
+          setWrongFeedback(t('wordGame.wrongGuess'));
+          return;
+        }
+        setWrongFeedback(null);
+        setHintRevealed(false);
+        setGuess('');
+        if (res.done && token) {
+          try {
+            const s = await apiGet<MatchState>(
+              `/words/matches/${encodeURIComponent(matchSessionId)}/state`,
+              token,
+            );
+            setMatchState(s);
+          } catch {
+            /* socket refresh will catch up */
+          }
+        }
+        return;
+      }
 
+      const isCorrect = normalizeGuess(guess) === normalizeGuess(currentWord.text);
+      if (!isCorrect) {
+        setWrongFeedback(t('wordGame.wrongGuess'));
+        return;
+      }
+
+      setWrongFeedback(null);
       setCorrectCount((c) => c + 1);
       setHintRevealed(false);
       setGuess('');
 
-      const nextIdx = idx + 1;
-      if (nextIdx >= deck.length) {
-        await finishSession(true);
+      if (matchMode === 'versus' && matchSessionId) {
+        const token = await getTokenRef.current();
+        if (!token) throw new Error('Not authenticated');
+        const res = await apiPost<{ finished: boolean; yourScore: number; winner: boolean }>(
+          `/words/matches/${encodeURIComponent(matchSessionId)}/versus-score`,
+          { increment: 1 },
+          token,
+        );
+        const nextIdx = idx + 1;
+        if (res.finished) {
+          try {
+            const s = await apiGet<MatchState>(
+              `/words/matches/${encodeURIComponent(matchSessionId)}/state`,
+              token,
+            );
+            setMatchState(s);
+          } catch {
+            /* socket refresh */
+          }
+          return;
+        }
+        setIdx(nextIdx);
         return;
       }
 
+      const nextIdx = idx + 1;
+      if (nextIdx >= deck.length) {
+        await finishSession({ claimChallenge: true });
+        return;
+      }
       setIdx(nextIdx);
     } finally {
       setSubmitting(false);
     }
   };
+
+  const showFinished = matchState?.status === 'FINISHED';
+  const myResult = matchState?.participants.find((p) => p.isYou)?.result ?? null;
 
   if (loading) {
     return (
@@ -172,13 +369,80 @@ export default function WordGameScreen({ navigation, route }: Props) {
     );
   }
 
+  if (showFinished) {
+    const won = matchMode === 'coop' || myResult === 'WIN';
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.center}>
+          <Text style={styles.title}>{t('wordGame.matchOver')}</Text>
+          <Text style={styles.sub}>
+            {won ? t('wordGame.matchWon') : t('wordGame.matchLost')}
+          </Text>
+          {matchMode === 'versus' && matchState ? (
+            <View style={styles.scoresBox}>
+              {matchState.participants.map((p) => (
+                <Text key={p.id} style={styles.scoreRow}>
+                  {p.username}: {p.score}
+                  {p.result === 'WIN' ? ' 🏆' : ''}
+                  {p.isYou ? ` (${t('wordGame.you')})` : ''}
+                </Text>
+              ))}
+            </View>
+          ) : null}
+          <Pressable
+            style={styles.playBtn}
+            onPress={() =>
+              void finishSession({
+                claimChallenge: !!challengeId && won,
+              })
+            }
+          >
+            <Text style={styles.playBtnText}>{t('wordGame.back')}</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
         <Text style={styles.title}>{t('wordGame.title')}</Text>
         <Text style={styles.sub}>
-          {t('wordGame.progressLine', { current: idx + 1, total: deck.length, difficulty: difficultyShort })}
+          {matchMode === 'coop'
+            ? t('wordGame.coopProgress', { current: progressCurrent, total: progressTotal })
+            : t('wordGame.progressLine', {
+                current: progressCurrent,
+                total: progressTotal,
+                difficulty: difficultyShort,
+              })}
         </Text>
+        {matchSessionId && matchState?.deckLanguage ? (
+          <Text style={styles.deckLang}>
+            {t('wordMatch.deckLanguage', {
+              lang: t(`wordMatch.lang.${matchState.deckLanguage.toLowerCase()}`, {
+                defaultValue: matchState.deckLanguage.toUpperCase(),
+              }),
+            })}
+          </Text>
+        ) : null}
+        {matchSessionId &&
+        (socketStatus === 'reconnecting' || socketStatus === 'connecting') ? (
+          <Text style={styles.socketBanner}>{t('wordMatch.socketReconnecting')}</Text>
+        ) : null}
+        {matchMode === 'versus' && matchState ? (
+          <View style={styles.versusBar}>
+            {matchState.participants.map((p) => (
+              <Text key={p.id} style={styles.versusRow}>
+                {p.username}: {p.score}
+                {p.isYou ? ` (${t('wordGame.you')})` : ''}
+              </Text>
+            ))}
+          </View>
+        ) : null}
+        {matchMode === 'coop' ? (
+          <Text style={styles.coopHint}>{t('wordGame.coopHint')}</Text>
+        ) : null}
 
         <View style={styles.wordCard}>
           <Text style={styles.wordTitle}>{t('wordGame.guessTitle')}</Text>
@@ -199,11 +463,15 @@ export default function WordGameScreen({ navigation, route }: Props) {
             placeholder={t('wordGame.guessPlaceholder')}
             placeholderTextColor="#6b7280"
             value={guess}
-            onChangeText={setGuess}
+            onChangeText={(text) => {
+              setWrongFeedback(null);
+              setGuess(text);
+            }}
             autoCorrect={false}
             autoCapitalize="none"
             editable={!submitting}
           />
+          {wrongFeedback ? <Text style={styles.wrongHint}>{wrongFeedback}</Text> : null}
 
           <View style={styles.row}>
             <Pressable
@@ -211,20 +479,21 @@ export default function WordGameScreen({ navigation, route }: Props) {
               onPress={() => setHintRevealed(true)}
               disabled={hintRevealed}
             >
-              <Text style={styles.btnText}>{hintRevealed ? 'Hint shown' : 'Bot hint'}</Text>
+              <Text style={styles.btnText}>
+                {hintRevealed ? t('wordGame.hintShown') : t('wordGame.botHint')}
+              </Text>
             </Pressable>
-            <Pressable style={styles.btnPrimary} onPress={handleSubmitGuess} disabled={submitting}>
-              <Text style={styles.btnPrimaryText}>{submitting ? 'Checking…' : 'Submit'}</Text>
+            <Pressable style={styles.btnPrimary} onPress={() => void handleSubmitGuess()} disabled={submitting}>
+              <Text style={styles.btnPrimaryText}>
+                {submitting ? t('wordGame.checking') : t('wordGame.submit')}
+              </Text>
             </Pressable>
           </View>
         </View>
 
         <View style={styles.footer}>
           <Text style={styles.score}>{t('wordGame.correct', { count: correctCount })}</Text>
-          <Pressable
-            style={styles.secondaryBtn}
-            onPress={() => navigation.replace('Home')}
-          >
+          <Pressable style={styles.secondaryBtn} onPress={() => navigation.replace('Home')}>
             <Text style={styles.secondaryBtnText}>{t('wordGame.exit')}</Text>
           </Pressable>
         </View>
@@ -238,8 +507,33 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 24, paddingTop: 24 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
   title: { color: '#fff', fontSize: 22, fontWeight: '900' },
-  sub: { color: '#9ca3af', marginTop: 8, fontSize: 13 },
+  sub: { color: '#9ca3af', marginTop: 8, fontSize: 13, textAlign: 'center' },
+  deckLang: { color: '#6b7280', marginTop: 4, fontSize: 11, fontWeight: '700', textAlign: 'center' },
+  socketBanner: {
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: '#422006',
+    color: '#fcd34d',
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'center',
+    overflow: 'hidden',
+  },
   error: { color: '#f87171', fontWeight: '800', textAlign: 'center' },
+  coopHint: { color: '#a5b4fc', fontSize: 12, marginTop: 6, fontWeight: '700' },
+  versusBar: {
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: '#111827',
+    borderWidth: 1,
+    borderColor: '#1f2937',
+  },
+  versusRow: { color: '#e5e7eb', fontSize: 12, fontWeight: '700', marginVertical: 2 },
+  scoresBox: { marginTop: 12, alignSelf: 'stretch', gap: 6 },
+  scoreRow: { color: '#d1d5db', fontSize: 14, fontWeight: '700' },
   wordCard: {
     marginTop: 18,
     backgroundColor: '#111827',
@@ -251,6 +545,7 @@ const styles = StyleSheet.create({
   wordTitle: { color: '#fff', fontWeight: '900', fontSize: 16 },
   categoryText: { color: '#a5b4fc', marginTop: 6, fontWeight: '800', fontSize: 12 },
   hint: { color: '#c4b5fd', marginTop: 12, fontSize: 13, lineHeight: 18, fontWeight: '700' },
+  wrongHint: { color: '#fbbf24', marginTop: 8, fontSize: 13, fontWeight: '700' },
   input: {
     marginTop: 14,
     borderRadius: 14,
@@ -308,4 +603,3 @@ const styles = StyleSheet.create({
   },
   playBtnText: { color: '#fff', fontWeight: '900' },
 });
-

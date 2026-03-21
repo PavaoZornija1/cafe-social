@@ -48,6 +48,10 @@
     </dict>
     <key>NSFaceIDUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your Face ID biometric data.</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Cafe Social uses your location to detect when you are at a partner café.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Cafe Social uses the camera to scan venue QR codes for unlocking.</string>
     <key>RCTNewArchEnabled</key>
     <true/>
     <key>UILaunchStoryboardName</key>

@@ -72,6 +72,12 @@ export class SocialController {
     return this.friendships.listIncomingPending(p.id);
   }
 
+  @Get('friends/outgoing')
+  async outgoing(@CurrentUser() user: unknown) {
+    const p = await this.players.findOrCreateByEmail(this.email(user));
+    return this.friendships.listOutgoingPending(p.id);
+  }
+
   @Post('friends/request')
   async request(
     @CurrentUser() user: unknown,

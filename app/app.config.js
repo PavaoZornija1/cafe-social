@@ -1,3 +1,5 @@
+const easProjectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID || '';
+
 // Google Sign-In iOS: URL scheme is the "reversed" client ID (required for OAuth redirect)
 const googleIosClientId = process.env.EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID || '';
 const googleIosUrlScheme = googleIosClientId
@@ -19,6 +21,8 @@ export default {
       bundleIdentifier: 'com.pavaozornija.cafesocial.app',
       usesAppleSignIn: false,
       infoPlist: {
+        NSCameraUsageDescription:
+          'Cafe Social uses the camera to scan venue QR codes for unlocking.',
         NSLocationWhenInUseUsageDescription:
           'Cafe Social uses your location to detect when you are at a partner café.',
         ...(googleIosUrlScheme && {
@@ -37,7 +41,7 @@ export default {
       },
       edgeToEdgeEnabled: true,
       package: 'com.cafesocial.app',
-      permissions: ['ACCESS_COARSE_LOCATION', 'ACCESS_FINE_LOCATION'],
+      permissions: ['ACCESS_COARSE_LOCATION', 'ACCESS_FINE_LOCATION', 'CAMERA'],
     },
     web: {
       bundler: 'metro',
@@ -48,7 +52,23 @@ export default {
       '@clerk/expo',
       'expo-secure-store',
       'expo-web-browser',
+      'expo-location',
+      [
+        'expo-camera',
+        {
+          cameraPermission: 'Allow Cafe Social to scan venue QR codes.',
+        },
+      ],
+      [
+        'expo-notifications',
+        {
+          sounds: [],
+        },
+      ],
     ],
+    extra: {
+      eas: easProjectId ? { projectId: easProjectId } : {},
+    },
     runtimeVersion: {
       policy: 'appVersion',
     },

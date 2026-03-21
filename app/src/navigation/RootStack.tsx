@@ -12,6 +12,8 @@ import FriendsScreen from "../screens/FriendsScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import QrScanScreen from "../screens/QrScanScreen";
 import WordLobbyScreen from "../screens/WordLobbyScreen";
+import WordMatchJoinScreen from "../screens/WordMatchJoinScreen";
+import WordMatchWaitScreen from "../screens/WordMatchWaitScreen";
 import WordGameScreen from "../screens/WordGameScreen";
 import PartiesScreen from "../screens/PartiesScreen";
 import PartyDetailScreen from "../screens/PartyDetailScreen";
@@ -49,6 +51,8 @@ export default function RootStack() {
             <Stack.Screen name="PeopleHere" component={PeopleHereScreen} />
             <Stack.Screen name="QrScan" component={QrScanScreen} />
             <Stack.Screen name="WordLobby" component={WordLobbyScreen} />
+            <Stack.Screen name="WordMatchJoin" component={WordMatchJoinScreen} />
+            <Stack.Screen name="WordMatchWait" component={WordMatchWaitScreen} />
             <Stack.Screen name="WordGame" component={WordGameScreen} />
         </Stack.Navigator>
     );

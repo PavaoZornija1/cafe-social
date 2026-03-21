@@ -1,7 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -9,19 +10,25 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useAuth } from '@clerk/expo';
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiPost } from '../lib/api';
+import { parseVenueIdFromQr } from '../lib/parseVenueQr';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'QrScan'>;
 
 export default function QrScanScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const { getToken, isLoaded } = useAuth();
+  const [permission, requestPermission] = useCameraPermissions();
   const [loading, setLoading] = useState(false);
   const [qrVenueId, setQrVenueId] = useState<string>(route.params?.venueId ?? '');
   const [error, setError] = useState<string | null>(null);
+  const [scanEnabled, setScanEnabled] = useState(true);
+
+  const canUseCamera = Platform.OS !== 'web';
 
   useEffect(() => {
     if (route.params?.venueId) setQrVenueId(route.params.venueId);
@@ -42,13 +49,32 @@ export default function QrScanScreen({ navigation, route }: Props) {
       const token = await getToken();
       if (!token) throw new Error(t('qr.notAuthenticated'));
 
-      await apiPost(`/venue-context/${encodeURIComponent(qrVenueId)}/register`, undefined, token);
+      await apiPost(`/venue-context/${encodeURIComponent(qrVenueId.trim())}/register`, undefined, token);
       navigation.replace('Home');
     } catch (e) {
       setError((e as Error).message || t('qr.unlockError'));
     } finally {
       setLoading(false);
     }
+  };
+
+  const onBarcodeScanned = useCallback(
+    ({ data }: { data: string }) => {
+      if (!scanEnabled) return;
+      const id = parseVenueIdFromQr(data);
+      if (id) {
+        setScanEnabled(false);
+        setQrVenueId(id);
+        setError(null);
+      } else {
+        setError(t('qr.scanUnrecognized'));
+      }
+    },
+    [scanEnabled, t],
+  );
+
+  const askCamera = () => {
+    void requestPermission();
   };
 
   return (
@@ -58,10 +84,42 @@ export default function QrScanScreen({ navigation, route }: Props) {
         <Text style={styles.subtitle}>{t('qr.subtitle')}</Text>
 
         <View style={styles.scannerWrap}>
-          <View style={styles.scanner}>
-            <Text style={styles.scannerText}>{t('qr.cameraDisabled')}</Text>
-          </View>
+          {canUseCamera && permission?.granted ? (
+            <CameraView
+              style={styles.camera}
+              facing="back"
+              barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+              onBarcodeScanned={scanEnabled ? onBarcodeScanned : undefined}
+            />
+          ) : (
+            <View style={styles.scannerFallback}>
+              <Text style={styles.scannerText}>
+                {!canUseCamera
+                  ? t('qr.webNoCamera')
+                  : permission?.granted === false
+                    ? t('qr.cameraDenied')
+                    : t('qr.cameraPrompt')}
+              </Text>
+              {canUseCamera && permission && !permission.granted ? (
+                <Pressable style={styles.permBtn} onPress={askCamera}>
+                  <Text style={styles.permBtnText}>{t('qr.allowCamera')}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          )}
         </View>
+
+        {canUseCamera && permission?.granted ? (
+          <Pressable
+            style={styles.secondarySmall}
+            onPress={() => {
+              setScanEnabled(true);
+              setError(null);
+            }}
+          >
+            <Text style={styles.secondarySmallText}>{t('qr.scanAgain')}</Text>
+          </Pressable>
+        ) : null}
 
         <Text style={styles.label}>{t('qr.venueCode')}</Text>
         <TextInput
@@ -78,7 +136,7 @@ export default function QrScanScreen({ navigation, route }: Props) {
 
         <Pressable
           style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleRegister}
+          onPress={() => void handleRegister()}
           disabled={loading || !isLoaded}
         >
           {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{t('qr.unlock')}</Text>}
@@ -105,21 +163,32 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1f2937',
     backgroundColor: '#0b1220',
+    height: 260,
   },
-  scanner: {
-    width: '100%',
-    height: 240,
+  camera: { flex: 1, width: '100%' },
+  scannerFallback: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 16,
   },
   scannerText: {
     color: '#9ca3af',
     fontWeight: '700',
     fontSize: 13,
-    marginTop: 8,
-    paddingHorizontal: 16,
     textAlign: 'center',
+    lineHeight: 18,
   },
+  permBtn: {
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: '#7c3aed',
+  },
+  permBtnText: { color: '#fff', fontWeight: '800' },
+  secondarySmall: { marginTop: 8, alignSelf: 'center' },
+  secondarySmallText: { color: '#a5b4fc', fontWeight: '700', fontSize: 13 },
   input: {
     backgroundColor: '#0f172a',
     borderWidth: 1,

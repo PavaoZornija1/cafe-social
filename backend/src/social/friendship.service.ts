@@ -119,4 +119,25 @@ export class FriendshipService {
       },
     });
   }
+
+  /** Pending requests you sent (waiting for the other person to accept). */
+  async listOutgoingPending(playerId: string) {
+    const rows = await this.prisma.friendship.findMany({
+      where: {
+        status: FriendshipStatus.PENDING,
+        requestedById: playerId,
+      },
+      include: {
+        playerLow: { select: { id: true, username: true } },
+        playerHigh: { select: { id: true, username: true } },
+      },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      target:
+        r.playerLowId === playerId
+          ? r.playerHigh
+          : r.playerLow,
+    }));
+  }
 }
