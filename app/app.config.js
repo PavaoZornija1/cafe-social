@@ -11,7 +11,8 @@ export default {
     name: 'Cafe Social',
     slug: 'cafe-social',
     version: '0.1.0',
-    orientation: 'portrait',
+    // Allow rotation so Brawler can lock landscape via expo-screen-orientation
+    orientation: 'default',
     scheme: 'cafesocial',
     userInterfaceStyle: 'automatic',
     newArchEnabled: true,
@@ -65,6 +66,7 @@ export default {
           sounds: [],
         },
       ],
+      'expo-screen-orientation',
     ],
     extra: {
       eas: easProjectId ? { projectId: easProjectId } : {},

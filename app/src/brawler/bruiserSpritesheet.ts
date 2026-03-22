@@ -7,38 +7,8 @@ export const BRUISER_SHEET_PX = { width: 1152, height: 4224 } as const;
 /** Base cell size for idle/walk/jump/dash clips (64×64 grid). */
 export const BRUISER_FRAME_PX = { w: 64, h: 64 } as const;
 
-/**
- * Heavy club swing rows (bottom band, e.g. 62–65 on full sheet = Down, Right, Up, Left).
- *
- * **Not the same grid as walk/dash:** Those use a tight 64×64 (or 6×64-wide) strip.
- * Each weapon row is **1152px wide** with **5** wide frames (big padding for the club trail).
- * Stepping by 192×6 was wrong — that lands in empty padding / wrong frames.
- *
- * Horizontal layout: `230 + 230 + 230 + 230 + 232 === 1152` (full row).
- * If your export differs, retune `frameStarts` / `frameWidths`.
- */
-export const BRUISER_WEAPON_HIT = {
-  rowRight: 65,
-  rowLeft: 63,
-  frameHeight: 64,
-  frameCount: 5,
-  /** Left edge of each frame in sheet pixels (same row). */
-  frameStarts: [0, 230, 460, 690, 920] as const,
-  /** Width of each frame; must sum to sheet width 1152. */
-  frameWidths: [230, 230, 230, 230, 232] as const,
-} as const;
-
-/** Widest hit frame — used for arena clamping and body anchor. */
-export const BRUISER_WEAPON_HIT_MAX_FRAME_WIDTH_PX = Math.max(
-  ...BRUISER_WEAPON_HIT.frameWidths,
-);
-
-/**
- * Nudge draw position so ~64px body lines up with idle (wide strip is centered-ish).
- * Uses max frame width so bounds stay conservative when frame width varies.
- */
-export const BRUISER_HIT_ANCHOR_OFFSET_X =
-  (BRUISER_WEAPON_HIT_MAX_FRAME_WIDTH_PX - BRUISER_FRAME_PX.w) / 2;
+/** Hit uses `BRUISER_ANIM.dashRight` in `BruiserSpriteView` until a proper melee strip is wired. */
+export const BRUISER_HIT_ANCHOR_OFFSET_X = 0;
 
 /**
  * Extra horizontal nudge in **sheet pixels** (before scale), per facing.

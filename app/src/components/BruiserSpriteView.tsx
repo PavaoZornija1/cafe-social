@@ -4,7 +4,6 @@ import {
   BRUISER_ANIM,
   BRUISER_FRAME_PX,
   BRUISER_SHEET_PX,
-  BRUISER_WEAPON_HIT,
 } from '../brawler/bruiserSpritesheet';
 
 const SHEET_SOURCE = require('../../assets/bruiser-spritesheet.png');
@@ -15,7 +14,7 @@ type Props = {
   anim: BruiserSpriteAnim;
   /** Walk cycle index 0..frameCount-1 */
   walkFrame: number;
-  /** Weapon swing frame index 0..BRUISER_WEAPON_HIT.frameCount-1 */
+  /** Unused while hit reuses dash pose; kept for arena timing API */
   hitFrame: number;
   facing: 'left' | 'right';
   /** Scale from sheet pixels to display size (display ≈ frame * scale) */
@@ -25,22 +24,20 @@ type Props = {
 export function BruiserSpriteView({
   anim,
   walkFrame,
-  hitFrame,
+  hitFrame: _hitFrame,
   facing,
   scale = 2,
 }: Props) {
   const { sx, sy, clipW, clipH } = useMemo(() => {
     const { w: fw, h: fh } = BRUISER_FRAME_PX;
-    // Hit: 5 wide frames per row, not 64px stride — see BRUISER_WEAPON_HIT.frameStarts / frameWidths.
+    // Hit: temporarily same graphic as dash facing right (`dashRight`).
     if (anim === 'hit') {
-      const wh = BRUISER_WEAPON_HIT;
-      const row = facing === 'right' ? wh.rowRight : wh.rowLeft;
-      const fi = hitFrame % wh.frameCount;
+      const cell = BRUISER_ANIM.dashRight;
       return {
-        sx: wh.frameStarts[fi],
-        sy: row * fh,
-        clipW: wh.frameWidths[fi],
-        clipH: wh.frameHeight,
+        sx: cell.col * fw,
+        sy: cell.row * fh,
+        clipW: fw,
+        clipH: fh,
       };
     }
     if (anim === 'dash') {
@@ -82,7 +79,7 @@ export function BruiserSpriteView({
       clipW: fw,
       clipH: fh,
     };
-  }, [anim, facing, walkFrame, hitFrame]);
+  }, [anim, facing, walkFrame]);
 
   const displayW = clipW * scale;
   const displayH = clipH * scale;

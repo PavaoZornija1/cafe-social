@@ -1,8 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';
 
-const OUTER_RADIUS = 72;
-const KNOB_RADIUS = 28;
+const DEFAULT_SIZE = 120;
 /** Normalized stick magnitude below this snaps to 0 */
 const DEADZONE = 0.14;
 
@@ -18,10 +17,11 @@ type Props = {
  * Touch joystick: updates `stickRef` on drag; vertical is available for future
  * use (e.g. aim); arena currently uses horizontal only.
  */
-export function VirtualJoystick({ stickRef, size = OUTER_RADIUS * 2 }: Props) {
+export function VirtualJoystick({ stickRef, size = DEFAULT_SIZE }: Props) {
   const [knob, setKnob] = useState({ x: 0, y: 0 });
   const layoutRef = useRef({ w: size, h: size });
-  const maxTravel = Math.max(10, size / 2 - KNOB_RADIUS - 6);
+  const knobRadius = Math.max(11, Math.min(24, size * 0.19));
+  const maxTravel = Math.max(8, size / 2 - knobRadius - 5);
 
   const applyTouch = useCallback(
     (locationX: number, locationY: number) => {
@@ -94,9 +94,9 @@ export function VirtualJoystick({ stickRef, size = OUTER_RADIUS * 2 }: Props) {
         style={[
           styles.knob,
           {
-            width: KNOB_RADIUS * 2,
-            height: KNOB_RADIUS * 2,
-            borderRadius: KNOB_RADIUS,
+            width: knobRadius * 2,
+            height: knobRadius * 2,
+            borderRadius: knobRadius,
             transform: [{ translateX: knob.x }, { translateY: knob.y }],
           },
         ]}

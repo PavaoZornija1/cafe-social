@@ -10,6 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
+import { syncBrawlerScreenOrientation } from './src/brawler/screenOrientation';
 import { ExpoPushRegistrar } from './src/components/ExpoPushRegistrar';
 import { NotificationNavigationEffect } from './src/components/NotificationNavigationEffect';
 import RootStack from './src/navigation/RootStack';
@@ -84,7 +85,17 @@ export default function App() {
 
   return (
     <ClerkProvider publishableKey={publishableKey!} tokenCache={tokenCache}>
-      <NavigationContainer ref={navigationRef} theme={navigationTheme} linking={linking}>
+      <NavigationContainer
+        ref={navigationRef}
+        theme={navigationTheme}
+        linking={linking}
+        onReady={() => {
+          void syncBrawlerScreenOrientation(navigationRef.getRootState());
+        }}
+        onStateChange={(state) => {
+          void syncBrawlerScreenOrientation(state);
+        }}
+      >
         <NotificationNavigationEffect />
         <ExpoPushRegistrar />
         <StatusBar style="light" />

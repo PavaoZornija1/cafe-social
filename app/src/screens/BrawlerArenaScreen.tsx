@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Image,
   LayoutChangeEvent,
   Pressable,
   StyleSheet,
@@ -16,25 +17,121 @@ import {
   BRUISER_FRAME_PX,
   BRUISER_HIT_ANCHOR_OFFSET_X,
   BRUISER_HIT_FINE_OFFSET_SHEET_PX,
-  BRUISER_WEAPON_HIT,
-  BRUISER_WEAPON_HIT_MAX_FRAME_WIDTH_PX,
 } from '../brawler/bruiserSpritesheet';
+import {
+  buildArenaPlatforms,
+  HERO_FEET_EMBED_FLOATING_PLATFORM_PX,
+  HERO_FEET_EMBED_GROUND_PLATFORM_PX,
+  spawnOnBottomPlatform,
+  type PlatformWorld,
+} from '../brawler/arenaPlatforms';
 import type { RootStackParamList } from '../navigation/type';
+
+/** Mossy tile — one stretched strip per platform hitbox. */
+const ARENA_MAP_BG = require('../../assets/Mossy - FloatingPlatforms.png');
+
+const ACTION_CIRCLE_SIZE = 54;
+/** Temporarily hide the purple top border on the ground strip. */
+const ARENA_SHOW_PURPLE_GROUND_LINE = false;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BrawlerArena'>;
 
 const MOVE_SPEED = 260;
 const GRAVITY = 2200;
 const JUMP_VELOCITY = -640;
-const GROUND_STRIP_H = 56;
-const SPRITE_SCALE = 2;
+const GROUND_STRIP_H = 40;
+/** Hero scale (~25% smaller than prior 1.65). */
+const SPRITE_SCALE = 1.65 * 0.75;
 const WALK_FRAME_MS = 140;
 
-const ATTACK_DURATION_S = 0.55;
-const HIT_FRAME_MS = 88;
+const ATTACK_DURATION_S = 0.28;
 const DASH_DURATION_S = 0.18;
 const DASH_SPEED = 560;
 const DASH_COOLDOWN_S = 1.0;
+
+const MARGIN_SCREEN = 20;
+const JOYSTICK_SIZE = 102;
+
+/** Hit, Dash, Jump — degrees from +X axis (CCW); center is bottom-right of arc box. */
+/** All three circles fit inside this width (no overflow past `right:` edge). */
+const ACTION_ARC_W = 200;
+const ACTION_ARC_H = 102;
+/** Slightly larger radius = a bit more space between the three circles. */
+const ACTION_ARC_R = 59;
+/** Arc center — tuned so Jump’s right edge stays inside ACTION_ARC_W. */
+const ACTION_ARC_CENTER_X = 116;
+const ACTION_ARC_CENTER_Y = ACTION_ARC_H - 8;
+/** ~half-circle fan; degrees spaced a touch wider than before (Hit → Dash → Jump). */
+const ACTION_ARC_ANGLES_HIT_DASH_JUMP = [156, 93, 32] as const;
+
+function actionArcButtonPositions(): { left: number; top: number }[] {
+  const half = ACTION_CIRCLE_SIZE / 2;
+  const r = ACTION_ARC_R;
+  return ACTION_ARC_ANGLES_HIT_DASH_JUMP.map((deg) => {
+    const rad = (deg * Math.PI) / 180;
+    return {
+      left: ACTION_ARC_CENTER_X + r * Math.cos(rad) - half,
+      top: ACTION_ARC_CENTER_Y - r * Math.sin(rad) - half,
+    };
+  });
+}
+
+const ACTION_ARC_LAYOUT = actionArcButtonPositions();
+/**
+ * Eat into the right safe-area inset (px) so the arc sits closer to the bezel.
+ * Clamped to ≥ 0 so we never offset past the screen.
+ */
+const ACTION_CONTROLS_SAFE_RIGHT_NUDGE_PX = 44;
+/** Extra px after `(insets.right - nudge)` — usually 0. */
+const ACTION_CONTROLS_RIGHT_GUTTER = 0;
+
+function overlapX(
+  ax: number,
+  aw: number,
+  p: Pick<PlatformWorld, 'x' | 'w'>,
+  inset = 4,
+): boolean {
+  return ax + aw > p.x + inset && ax < p.x + p.w - inset;
+}
+
+/** Visual slabs aligned 1:1 with physics hitboxes from `buildArenaPlatforms`. */
+function ArenaPlatformArt({
+  platforms,
+  arenaW,
+  arenaH,
+}: {
+  platforms: PlatformWorld[];
+  arenaW: number;
+  arenaH: number;
+}) {
+  if (arenaW < 2 || arenaH < 2) return null;
+  return (
+    <>
+      {platforms.map((p, i) => (
+        <View
+          key={i}
+          style={[
+            styles.platformArtClip,
+            {
+              left: `${(p.x / arenaW) * 100}%`,
+              top: `${(p.y / arenaH) * 100}%`,
+              width: `${(p.w / arenaW) * 100}%`,
+              height: `${(p.h / arenaH) * 100}%`,
+            },
+          ]}
+          accessibilityLabel={`Platform ${i + 1}`}
+        >
+          <Image
+            source={ARENA_MAP_BG}
+            style={styles.platformArtImage}
+            resizeMode="stretch"
+            accessibilityIgnoresInvertColors
+          />
+        </View>
+      ))}
+    </>
+  );
+}
 
 export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const { heroId } = route.params;
@@ -44,14 +141,22 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const arenaW = arenaBox.w || 1;
   const arenaInnerH = arenaBox.h || 1;
 
-  const spriteDisplayH = 64 * SPRITE_SCALE;
-  const floorY = Math.max(
-    0,
-    arenaInnerH - GROUND_STRIP_H - spriteDisplayH - 4,
+  const bodyW = BRUISER_FRAME_PX.w * SPRITE_SCALE;
+  const bodyH = BRUISER_FRAME_PX.h * SPRITE_SCALE;
+
+  const floorY = useMemo(
+    () => Math.max(0, arenaInnerH - GROUND_STRIP_H - bodyH - 4),
+    [arenaInnerH, bodyH],
+  );
+
+  const platformsWorld = useMemo(
+    () => buildArenaPlatforms(arenaW, arenaInnerH, GROUND_STRIP_H, 4),
+    [arenaW, arenaInnerH],
   );
 
   const playerX = useRef(0);
   const playerY = useRef(0);
+  const prevPlayerY = useRef(0);
   const vx = useRef(0);
   const vy = useRef(0);
   const onGround = useRef(true);
@@ -65,25 +170,60 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const dashTimeLeft = useRef(0);
   const dashCooldownLeft = useRef(0);
   const hitFrameRef = useRef(0);
-  const hitFrameAccum = useRef(0);
 
   const [, setRenderTick] = useState(0);
   const spriteAnimRef = useRef<BruiserSpriteAnim>('idle');
   const walkFrameRef = useRef(0);
   const walkAccum = useRef(0);
-  const layoutInitDone = useRef(false);
+  const lastSpawnKey = useRef({
+    w: 0,
+    h: 0,
+    embedG: -9999,
+    embedF: -9999,
+  });
 
   const bump = useCallback(() => {
     setRenderTick((t) => (t + 1) % 1_000_000);
   }, []);
 
   useEffect(() => {
-    if (arenaBox.w > 0 && arenaBox.h > 0 && !layoutInitDone.current) {
-      layoutInitDone.current = true;
-      playerX.current = arenaBox.w / 2 - 32 * SPRITE_SCALE;
-      playerY.current = floorY;
+    if (arenaW < 32 || arenaInnerH < 32) return;
+    const eg = HERO_FEET_EMBED_GROUND_PLATFORM_PX;
+    const ef = HERO_FEET_EMBED_FLOATING_PLATFORM_PX;
+    if (
+      lastSpawnKey.current.w === arenaW &&
+      lastSpawnKey.current.h === arenaInnerH &&
+      lastSpawnKey.current.embedG === eg &&
+      lastSpawnKey.current.embedF === ef
+    ) {
+      return;
     }
-  }, [arenaBox.w, arenaBox.h, floorY]);
+    lastSpawnKey.current = {
+      w: arenaW,
+      h: arenaInnerH,
+      embedG: eg,
+      embedF: ef,
+    };
+    const spawn = spawnOnBottomPlatform(
+      arenaW,
+      arenaInnerH,
+      bodyW,
+      bodyH,
+      MARGIN_SCREEN,
+      GROUND_STRIP_H,
+      4,
+    );
+    playerX.current = spawn.x;
+    playerY.current = spawn.y;
+    prevPlayerY.current = spawn.y;
+  }, [
+    arenaW,
+    arenaInnerH,
+    bodyW,
+    bodyH,
+    HERO_FEET_EMBED_GROUND_PLATFORM_PX,
+    HERO_FEET_EMBED_FLOATING_PLATFORM_PX,
+  ]);
 
   useEffect(() => {
     if (heroId !== BRUISER_ARENA_HERO_ID) {
@@ -96,8 +236,11 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     setArenaBox({ w: width, h: height });
   }, []);
 
+  const platformsRef = useRef(platformsWorld);
+  platformsRef.current = platformsWorld;
+
   useEffect(() => {
-    if (arenaBox.h <= 0) return;
+    if (arenaInnerH <= 0) return;
     const rafRef = { current: 0 };
     let cancelled = false;
     let last =
@@ -107,6 +250,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       if (cancelled) return;
       const dt = Math.min((now - last) / 1000, 0.05);
       last = now;
+
+      const plats = platformsRef.current;
+      const prevY = prevPlayerY.current;
 
       dashCooldownLeft.current = Math.max(0, dashCooldownLeft.current - dt);
 
@@ -118,11 +264,14 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
       attackTimeLeft.current = Math.max(0, attackTimeLeft.current - dt);
 
-      if (hitQueued.current && attackTimeLeft.current <= 0 && dashTimeLeft.current <= 0) {
+      if (
+        hitQueued.current &&
+        attackTimeLeft.current <= 0 &&
+        dashTimeLeft.current <= 0
+      ) {
         hitQueued.current = false;
         attackTimeLeft.current = ATTACK_DURATION_S;
         hitFrameRef.current = 0;
-        hitFrameAccum.current = 0;
       }
 
       if (
@@ -139,19 +288,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         dashTimeLeft.current = DASH_DURATION_S;
       }
 
-      if (attackTimeLeft.current > 0) {
-        hitFrameAccum.current += dt * 1000;
-        const lastHitFrame = BRUISER_WEAPON_HIT.frameCount - 1;
-        while (
-          hitFrameAccum.current >= HIT_FRAME_MS &&
-          hitFrameRef.current < lastHitFrame
-        ) {
-          hitFrameAccum.current -= HIT_FRAME_MS;
-          hitFrameRef.current += 1;
-        }
-      } else {
+      if (attackTimeLeft.current <= 0) {
         hitFrameRef.current = 0;
-        hitFrameAccum.current = 0;
       }
 
       const dashing = dashTimeLeft.current > 0;
@@ -175,22 +313,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       }
 
       playerX.current += vx.current * dt;
-
-      const margin = 24;
-      const bodyW = BRUISER_FRAME_PX.w * SPRITE_SCALE;
-      let minX = margin;
-      let maxX = arenaW - margin - bodyW;
-      /** Wide hit clip is drawn at `left: px - hitPadL` with width `hitW` — keep it inside arena. */
-      if (attackTimeLeft.current > 0) {
-        const fine = BRUISER_HIT_FINE_OFFSET_SHEET_PX[facing.current];
-        const hitPadL = (BRUISER_HIT_ANCHOR_OFFSET_X + fine) * SPRITE_SCALE;
-        const hitW = BRUISER_WEAPON_HIT_MAX_FRAME_WIDTH_PX * SPRITE_SCALE;
-        minX = margin + hitPadL;
-        maxX = Math.min(maxX, arenaW - margin - hitW + hitPadL);
-      }
-      const xLo = Math.min(minX, maxX);
-      const xHi = Math.max(minX, maxX);
-      playerX.current = Math.max(xLo, Math.min(xHi, playerX.current));
+      const minX = MARGIN_SCREEN;
+      const maxX = arenaW - MARGIN_SCREEN - bodyW;
+      playerX.current = Math.max(minX, Math.min(maxX, playerX.current));
 
       if (jumpQueued.current && onGround.current && !attacking) {
         vy.current = JUMP_VELOCITY;
@@ -201,13 +326,99 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       vy.current += GRAVITY * dt;
       playerY.current += vy.current * dt;
 
-      if (playerY.current >= floorY) {
-        playerY.current = floorY;
+      const prevBottom = prevY + bodyH;
+      let newBottom = playerY.current + bodyH;
+
+      // No head-bonk on platform bottoms: jump up passes through the slab so you can
+      // land on top from below (classic pass-through / one-way behavior).
+
+      if (vy.current > 0) {
+        let best: PlatformWorld | null = null;
+        for (const p of plats) {
+          if (!overlapX(playerX.current, bodyW, p)) continue;
+          const pt = p.y;
+          if (prevBottom <= pt + 14 && newBottom >= pt - 6) {
+            if (!best || pt < best.y) best = p;
+          }
+        }
+        if (best) {
+          const e = best.feetEmbedPx;
+          playerY.current = best.y - bodyH + e;
+          vy.current = 0;
+          onGround.current = true;
+          newBottom = best.y + e;
+        }
+      }
+
+      // Only when not rising: avoids “sticking” to a lower platform while jumping up
+      // through it toward a higher one (vy >= -40 would snag at jump apex).
+      if (vy.current >= 0) {
+        newBottom = playerY.current + bodyH;
+        for (const p of plats) {
+          if (!overlapX(playerX.current, bodyW, p)) continue;
+          const pt = p.y;
+          if (newBottom >= pt - 2 && newBottom <= pt + 18) {
+            const e = p.feetEmbedPx;
+            playerY.current = pt - bodyH + e;
+            vy.current = 0;
+            onGround.current = true;
+            newBottom = pt + e;
+            break;
+          }
+        }
+      }
+
+      const bot = plats[plats.length - 1]!;
+      const horizOnBottom = overlapX(playerX.current, bodyW, bot, 0);
+
+      const floorClampY = floorY + HERO_FEET_EMBED_GROUND_PLATFORM_PX;
+      // Only snap to the “floor” when still under the bottom slab in X; in side gaps
+      // there is no invisible ground — you fall until respawn below the arena.
+      if (playerY.current >= floorClampY) {
+        if (horizOnBottom) {
+          playerY.current = floorClampY;
+          vy.current = 0;
+          onGround.current = true;
+        } else {
+          onGround.current = false;
+        }
+      } else {
+        let supported = false;
+        const feet = playerY.current + bodyH;
+        for (const p of plats) {
+          if (!overlapX(playerX.current, bodyW, p)) continue;
+          if (
+            Math.abs(feet - p.y - p.feetEmbedPx) < 10 &&
+            vy.current >= -20
+          ) {
+            supported = true;
+            break;
+          }
+        }
+        onGround.current = supported;
+      }
+
+      // Fell through a bottom-deck gap — respawn only after dropping past the view.
+      const feetBottom = playerY.current + bodyH;
+      if (feetBottom > arenaInnerH + 36) {
+        const spawn = spawnOnBottomPlatform(
+          arenaW,
+          arenaInnerH,
+          bodyW,
+          bodyH,
+          MARGIN_SCREEN,
+          GROUND_STRIP_H,
+          4,
+        );
+        playerX.current = spawn.x;
+        playerY.current = spawn.y;
+        prevPlayerY.current = spawn.y;
+        vx.current = 0;
         vy.current = 0;
         onGround.current = true;
-      } else {
-        onGround.current = false;
       }
+
+      prevPlayerY.current = playerY.current;
 
       let nextAnim: BruiserSpriteAnim = 'idle';
       if (attacking) nextAnim = 'hit';
@@ -236,20 +447,36 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       cancelled = true;
       cancelAnimationFrame(rafRef.current);
     };
-  }, [arenaW, arenaBox.h, bump, floorY]);
+  }, [
+    arenaW,
+    arenaInnerH,
+    bump,
+    bodyW,
+    bodyH,
+    floorY,
+    HERO_FEET_EMBED_GROUND_PLATFORM_PX,
+    HERO_FEET_EMBED_FLOATING_PLATFORM_PX,
+  ]);
 
   const px = Math.round(playerX.current);
   const py = Math.round(playerY.current);
   const attackingNow = spriteAnimRef.current === 'hit';
-  /** Align wide 192px hit strip to same logical 64px anchor as idle (see bruiserSpritesheet). */
   const hitFineSheetPx = attackingNow
     ? BRUISER_HIT_FINE_OFFSET_SHEET_PX[facing.current]
     : 0;
-  const hitDrawOffsetX = attackingNow
-    ? (BRUISER_HIT_ANCHOR_OFFSET_X + hitFineSheetPx) * SPRITE_SCALE
-    : 0;
+  const hitDrawOffsetX =
+    (BRUISER_HIT_ANCHOR_OFFSET_X + hitFineSheetPx) * SPRITE_SCALE;
 
   const dashReady = dashCooldownLeft.current <= 0 && dashTimeLeft.current <= 0;
+
+  const bottomPad = Math.max(insets.bottom, 10);
+  const safeRight =
+    typeof insets.right === 'number' && Number.isFinite(insets.right)
+      ? Math.max(0, insets.right)
+      : 0;
+  const actionArcRight =
+    Math.max(0, safeRight - ACTION_CONTROLS_SAFE_RIGHT_NUDGE_PX) +
+    ACTION_CONTROLS_RIGHT_GUTTER;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -263,59 +490,79 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       <View style={styles.arenaFlex}>
         <View style={styles.arena} onLayout={onArenaLayout}>
           <View style={styles.platformBg}>
-            <View style={[styles.ground, { width: '100%' }]} />
+            <ArenaPlatformArt
+              platforms={platformsWorld}
+              arenaW={arenaW}
+              arenaH={arenaInnerH}
+            />
+            <View
+              style={[
+                styles.ground,
+                !ARENA_SHOW_PURPLE_GROUND_LINE && styles.groundNoPurpleLine,
+              ]}
+            />
           </View>
 
-        <View
-          style={[
-            styles.playerWrap,
-            {
-              left: px - hitDrawOffsetX,
-              top: py,
-            },
-          ]}
-        >
-          <BruiserSpriteView
-            anim={spriteAnimRef.current}
-            walkFrame={walkFrameRef.current}
-            hitFrame={hitFrameRef.current}
-            facing={facing.current}
-            scale={SPRITE_SCALE}
-          />
-        </View>
-        </View>
-      </View>
+          <View
+            style={[
+              styles.playerWrap,
+              {
+                left: px - hitDrawOffsetX,
+                top: py,
+                zIndex: 5,
+              },
+            ]}
+          >
+            <BruiserSpriteView
+              anim={spriteAnimRef.current}
+              walkFrame={walkFrameRef.current}
+              hitFrame={hitFrameRef.current}
+              facing={facing.current}
+              scale={SPRITE_SCALE}
+            />
+          </View>
 
-      <View style={[styles.controlsWrap, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-        <View style={styles.controlsMainRow}>
-          <VirtualJoystick stickRef={joyRef} size={148} />
-          <View style={styles.actionsColumn}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.ctrlBtnJump,
-                pressed && styles.ctrlPressed,
+          {/* Touchable controls sit on top of the map (no separate bottom tray). */}
+          <View
+            style={[styles.controlsOverlay, { paddingBottom: bottomPad }]}
+            pointerEvents="box-none"
+          >
+            <View style={styles.controlsJoystickCluster} pointerEvents="box-none">
+              <View pointerEvents="auto">
+                <VirtualJoystick stickRef={joyRef} size={JOYSTICK_SIZE} />
+              </View>
+            </View>
+            <View
+              style={[
+                styles.actionArcWrap,
+                { right: actionArcRight, bottom: 0 },
               ]}
-              onPress={() => {
-                jumpQueued.current = true;
-              }}
+              pointerEvents="box-none"
             >
-              <Text style={styles.ctrlLabel}>Jump</Text>
-            </Pressable>
-            <View style={styles.hitDashRow}>
               <Pressable
                 style={({ pressed }) => [
-                  styles.ctrlBtnHit,
+                  styles.ctrlCircleHit,
+                  styles.ctrlCircleAbsolute,
+                  {
+                    left: ACTION_ARC_LAYOUT[0]!.left,
+                    top: ACTION_ARC_LAYOUT[0]!.top,
+                  },
                   pressed && styles.ctrlPressed,
                 ]}
                 onPress={() => {
                   hitQueued.current = true;
                 }}
               >
-                <Text style={styles.ctrlLabel}>Hit</Text>
+                <Text style={styles.ctrlCircleLabel}>Hit</Text>
               </Pressable>
               <Pressable
                 style={({ pressed }) => [
-                  styles.ctrlBtnDash,
+                  styles.ctrlCircleDash,
+                  styles.ctrlCircleAbsolute,
+                  {
+                    left: ACTION_ARC_LAYOUT[1]!.left,
+                    top: ACTION_ARC_LAYOUT[1]!.top,
+                  },
                   !dashReady && styles.ctrlBtnDisabled,
                   pressed && styles.ctrlPressed,
                 ]}
@@ -324,8 +571,24 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
                   dashQueued.current = true;
                 }}
               >
-                <Text style={styles.ctrlLabel}>Dash</Text>
-                {!dashReady && <Text style={styles.ctrlSub}>CD</Text>}
+                <Text style={styles.ctrlCircleLabel}>Dash</Text>
+                {!dashReady && <Text style={styles.ctrlCircleSub}>CD</Text>}
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.ctrlCircleJump,
+                  styles.ctrlCircleAbsolute,
+                  {
+                    left: ACTION_ARC_LAYOUT[2]!.left,
+                    top: ACTION_ARC_LAYOUT[2]!.top,
+                  },
+                  pressed && styles.ctrlPressed,
+                ]}
+                onPress={() => {
+                  jumpQueued.current = true;
+                }}
+              >
+                <Text style={styles.ctrlCircleLabel}>Jump</Text>
               </Pressable>
             </View>
           </View>
@@ -343,18 +606,18 @@ const styles = StyleSheet.create({
   hud: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    gap: 8,
   },
   backBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
     backgroundColor: '#1e293b',
   },
-  backText: { color: '#e2e8f0', fontWeight: '800', fontSize: 14 },
-  hudTitle: { color: '#fff', fontSize: 18, fontWeight: '900' },
+  backText: { color: '#e2e8f0', fontWeight: '800', fontSize: 12 },
+  hudTitle: { color: '#fff', fontSize: 15, fontWeight: '900' },
   arenaFlex: {
     flex: 1,
     overflow: 'visible',
@@ -362,12 +625,21 @@ const styles = StyleSheet.create({
   arena: {
     flex: 1,
     position: 'relative',
-    // Hit uses ~384px-wide clips; allow draw past bounds when parent allows (clamp still keeps px safe).
-    overflow: 'visible',
+    overflow: 'hidden',
   },
   platformBg: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#111827',
+    backgroundColor: '#1a2e1a',
+  },
+  platformArtClip: {
+    position: 'absolute',
+    overflow: 'hidden',
+    borderRadius: 8,
+  },
+  platformArtImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
   },
   ground: {
     position: 'absolute',
@@ -375,66 +647,78 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     height: GROUND_STRIP_H,
-    backgroundColor: '#334155',
-    borderTopWidth: 3,
+    backgroundColor: 'rgba(30, 41, 59, 0.55)',
+    borderTopWidth: 2,
     borderTopColor: '#7c3aed',
+  },
+  groundNoPurpleLine: {
+    borderTopWidth: 0,
+    borderTopColor: 'transparent',
   },
   playerWrap: {
     position: 'absolute',
   },
-  controlsWrap: {
-    backgroundColor: '#0f172a',
-    borderTopWidth: 1,
-    borderTopColor: '#1e293b',
-    paddingHorizontal: 16,
+  controlsOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+    zIndex: 20,
+  },
+  controlsJoystickCluster: {
+    alignSelf: 'flex-start',
+    paddingLeft: 12,
     paddingTop: 8,
-    gap: 8,
   },
-  controlsMainRow: {
-    flexDirection: 'row',
+  actionArcWrap: {
+    position: 'absolute',
+    width: ACTION_ARC_W,
+    height: ACTION_ARC_H,
+  },
+  ctrlCircleAbsolute: {
+    position: 'absolute',
+  },
+  ctrlCircleHit: {
+    width: ACTION_CIRCLE_SIZE,
+    height: ACTION_CIRCLE_SIZE,
+    borderRadius: ACTION_CIRCLE_SIZE / 2,
     alignItems: 'center',
-    gap: 14,
-  },
-  actionsColumn: {
-    flex: 1,
-    gap: 10,
-    minWidth: 0,
-  },
-  hitDashRow: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: 10,
-  },
-  ctrlBtnJump: {
-    backgroundColor: '#5b21b6',
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#7c3aed',
-  },
-  ctrlBtnHit: {
-    flex: 1,
+    justifyContent: 'center',
+    borderWidth: 2,
     backgroundColor: '#9a3412',
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-    borderWidth: 1,
     borderColor: '#ea580c',
   },
-  ctrlBtnDash: {
-    flex: 1,
-    backgroundColor: '#0e7490',
-    paddingVertical: 14,
-    borderRadius: 14,
+  ctrlCircleDash: {
+    width: ACTION_CIRCLE_SIZE,
+    height: ACTION_CIRCLE_SIZE,
+    borderRadius: ACTION_CIRCLE_SIZE / 2,
     alignItems: 'center',
-    borderWidth: 1,
+    justifyContent: 'center',
+    borderWidth: 2,
+    backgroundColor: '#0e7490',
     borderColor: '#22d3ee',
+  },
+  ctrlCircleJump: {
+    width: ACTION_CIRCLE_SIZE,
+    height: ACTION_CIRCLE_SIZE,
+    borderRadius: ACTION_CIRCLE_SIZE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    backgroundColor: '#5b21b6',
+    borderColor: '#7c3aed',
   },
   ctrlBtnDisabled: {
     opacity: 0.45,
   },
   ctrlPressed: { opacity: 0.85 },
-  ctrlLabel: { color: '#f8fafc', fontSize: 16, fontWeight: '900' },
-  ctrlSub: { color: '#94a3b8', fontSize: 10, fontWeight: '700', marginTop: 2 },
+  ctrlCircleLabel: {
+    color: '#f8fafc',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  ctrlCircleSub: {
+    color: '#94a3b8',
+    fontSize: 8,
+    fontWeight: '800',
+    marginTop: 1,
+  },
 });
