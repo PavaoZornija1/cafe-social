@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Image,
   LayoutChangeEvent,
   Pressable,
@@ -29,10 +30,10 @@ import type { RootStackParamList } from '../navigation/type';
 
 /** Mossy tile — one stretched strip per platform hitbox. */
 const ARENA_MAP_BG = require('../../assets/Mossy - FloatingPlatforms.png');
+/** Distant sky behind platforms and hero. */
+const ARENA_SKY_BG = require('../../assets/cloud-background.png');
 
 const ACTION_CIRCLE_SIZE = 54;
-/** Temporarily hide the purple top border on the ground strip. */
-const ARENA_SHOW_PURPLE_GROUND_LINE = false;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BrawlerArena'>;
 
@@ -51,6 +52,24 @@ const DASH_COOLDOWN_S = 1.0;
 
 const MARGIN_SCREEN = 20;
 const JOYSTICK_SIZE = 102;
+
+const PRE_MATCH_COUNTDOWN_S = 5;
+const MATCH_PHASE_CHAOS_END_S = 45;
+const MATCH_PHASE_ENDGAME_END_S = 60;
+const MATCH_MAX_S = 75;
+
+function formatMatchClock(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${r.toString().padStart(2, '0')}`;
+}
+
+function matchPhaseLabel(elapsed: number): string {
+  if (elapsed >= MATCH_PHASE_ENDGAME_END_S) return 'Sudden Death';
+  if (elapsed >= MATCH_PHASE_CHAOS_END_S) return 'Endgame';
+  return 'Chaos';
+}
 
 /** Hit, Dash, Jump — degrees from +X axis (CCW); center is bottom-right of arc box. */
 /** All three circles fit inside this width (no overflow past `right:` edge). */
@@ -182,6 +201,11 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     embedF: -9999,
   });
 
+  const preMatchLeftRef = useRef(PRE_MATCH_COUNTDOWN_S);
+  const matchClockRef = useRef(0);
+  const matchEndedRef = useRef(false);
+  const [gameOverOpen, setGameOverOpen] = useState(false);
+
   const bump = useCallback(() => {
     setRenderTick((t) => (t + 1) % 1_000_000);
   }, []);
@@ -239,6 +263,43 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const platformsRef = useRef(platformsWorld);
   platformsRef.current = platformsWorld;
 
+  const resetArenaRound = useCallback(() => {
+    if (arenaW < 32 || arenaInnerH < 32) return;
+    const spawn = spawnOnBottomPlatform(
+      arenaW,
+      arenaInnerH,
+      bodyW,
+      bodyH,
+      MARGIN_SCREEN,
+      GROUND_STRIP_H,
+      4,
+    );
+    playerX.current = spawn.x;
+    playerY.current = spawn.y;
+    prevPlayerY.current = spawn.y;
+    vx.current = 0;
+    vy.current = 0;
+    onGround.current = true;
+    facing.current = 'right';
+    joyRef.current.x = 0;
+    joyRef.current.y = 0;
+    jumpQueued.current = false;
+    hitQueued.current = false;
+    dashQueued.current = false;
+    attackTimeLeft.current = 0;
+    dashTimeLeft.current = 0;
+    dashCooldownLeft.current = 0;
+    hitFrameRef.current = 0;
+    spriteAnimRef.current = 'idle';
+    walkFrameRef.current = 0;
+    walkAccum.current = 0;
+    matchEndedRef.current = false;
+    matchClockRef.current = 0;
+    preMatchLeftRef.current = PRE_MATCH_COUNTDOWN_S;
+    setGameOverOpen(false);
+    bump();
+  }, [arenaW, arenaInnerH, bodyW, bodyH, bump]);
+
   useEffect(() => {
     if (arenaInnerH <= 0) return;
     const rafRef = { current: 0 };
@@ -250,6 +311,72 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       if (cancelled) return;
       const dt = Math.min((now - last) / 1000, 0.05);
       last = now;
+
+      const arenaReady = arenaW >= 32 && arenaInnerH >= 32;
+
+      if (arenaReady && preMatchLeftRef.current > 0) {
+        const t0 = preMatchLeftRef.current;
+        preMatchLeftRef.current = Math.max(0, t0 - dt);
+        const ceilBefore = t0 > 0 ? Math.max(1, Math.ceil(t0)) : 0;
+        const ceilAfter =
+          preMatchLeftRef.current > 0
+            ? Math.max(1, Math.ceil(preMatchLeftRef.current))
+            : 0;
+        if (
+          ceilBefore !== ceilAfter ||
+          (preMatchLeftRef.current <= 0 && t0 > 0)
+        ) {
+          bump();
+        }
+        joyRef.current.x = 0;
+        joyRef.current.y = 0;
+        jumpQueued.current = false;
+        hitQueued.current = false;
+        dashQueued.current = false;
+        vx.current = 0;
+        vy.current = 0;
+        attackTimeLeft.current = 0;
+        dashTimeLeft.current = 0;
+        dashCooldownLeft.current = 0;
+        hitFrameRef.current = 0;
+        spriteAnimRef.current = 'idle';
+        walkAccum.current = 0;
+        prevPlayerY.current = playerY.current;
+        rafRef.current = requestAnimationFrame(step);
+        return;
+      }
+
+      if (arenaReady && preMatchLeftRef.current <= 0) {
+        if (!matchEndedRef.current) {
+          matchClockRef.current = Math.min(
+            MATCH_MAX_S,
+            matchClockRef.current + dt,
+          );
+          if (matchClockRef.current >= MATCH_MAX_S) {
+            matchEndedRef.current = true;
+            setGameOverOpen(true);
+          }
+        }
+      }
+
+      if (arenaReady && preMatchLeftRef.current <= 0 && matchEndedRef.current) {
+        joyRef.current.x = 0;
+        joyRef.current.y = 0;
+        jumpQueued.current = false;
+        hitQueued.current = false;
+        dashQueued.current = false;
+        vx.current = 0;
+        vy.current = 0;
+        attackTimeLeft.current = 0;
+        dashTimeLeft.current = 0;
+        dashCooldownLeft.current = 0;
+        hitFrameRef.current = 0;
+        spriteAnimRef.current = 'idle';
+        walkAccum.current = 0;
+        prevPlayerY.current = playerY.current;
+        rafRef.current = requestAnimationFrame(step);
+        return;
+      }
 
       const plats = platformsRef.current;
       const prevY = prevPlayerY.current;
@@ -469,6 +596,19 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
   const dashReady = dashCooldownLeft.current <= 0 && dashTimeLeft.current <= 0;
 
+  const arenaReadyHud = arenaW >= 32 && arenaInnerH >= 32;
+  const controlsLive =
+    arenaReadyHud &&
+    preMatchLeftRef.current <= 0 &&
+    !matchEndedRef.current;
+  const showHudMatchClock = arenaReadyHud && preMatchLeftRef.current <= 0;
+  const preMatchCeil =
+    preMatchLeftRef.current > 0
+      ? Math.max(1, Math.ceil(preMatchLeftRef.current))
+      : 0;
+  const matchClockShown = matchClockRef.current;
+  const phaseShown = matchPhaseLabel(matchClockShown);
+
   const bottomPad = Math.max(insets.bottom, 10);
   const safeRight =
     typeof insets.right === 'number' && Number.isFinite(insets.right)
@@ -478,28 +618,64 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     Math.max(0, safeRight - ACTION_CONTROLS_SAFE_RIGHT_NUDGE_PX) +
     ACTION_CONTROLS_RIGHT_GUTTER;
 
+  const requestExitFromHud = useCallback(() => {
+    if (gameOverOpen) {
+      navigation.goBack();
+      return;
+    }
+    Alert.alert(
+      'Leave arena?',
+      'Your current match will end if you leave now.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: () => navigation.goBack(),
+        },
+      ],
+    );
+  }, [gameOverOpen, navigation]);
+
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.hud}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backText}>← Exit</Text>
-        </Pressable>
-        <Text style={styles.hudTitle}>Arena</Text>
+        <View style={styles.hudSideLeft}>
+          <Pressable onPress={requestExitFromHud} style={styles.backBtn}>
+            <Text style={styles.backText}>← Exit</Text>
+          </Pressable>
+        </View>
+        <View style={styles.hudCenter}>
+          {showHudMatchClock ? (
+            <>
+              <Text style={styles.hudPhase}>{phaseShown}</Text>
+              <Text style={styles.hudClock}>
+                {formatMatchClock(matchClockShown)}
+              </Text>
+            </>
+          ) : null}
+        </View>
+        <View style={styles.hudSideRight}>
+          <Text style={styles.hudTitle}>Arena</Text>
+        </View>
       </View>
 
       <View style={styles.arenaFlex}>
         <View style={styles.arena} onLayout={onArenaLayout}>
+          <View style={styles.arenaSkyBack} pointerEvents="none">
+            <Image
+              source={ARENA_SKY_BG}
+              style={styles.arenaSkyBackImage}
+              resizeMode="stretch"
+              accessible={false}
+              accessibilityIgnoresInvertColors
+            />
+          </View>
           <View style={styles.platformBg}>
             <ArenaPlatformArt
               platforms={platformsWorld}
               arenaW={arenaW}
               arenaH={arenaInnerH}
-            />
-            <View
-              style={[
-                styles.ground,
-                !ARENA_SHOW_PURPLE_GROUND_LINE && styles.groundNoPurpleLine,
-              ]}
             />
           </View>
 
@@ -529,7 +705,11 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           >
             <View style={styles.controlsJoystickCluster} pointerEvents="box-none">
               <View pointerEvents="auto">
-                <VirtualJoystick stickRef={joyRef} size={JOYSTICK_SIZE} />
+                <VirtualJoystick
+                  stickRef={joyRef}
+                  size={JOYSTICK_SIZE}
+                  enabled={controlsLive}
+                />
               </View>
             </View>
             <View
@@ -547,8 +727,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
                     left: ACTION_ARC_LAYOUT[0]!.left,
                     top: ACTION_ARC_LAYOUT[0]!.top,
                   },
+                  !controlsLive && styles.ctrlBtnDisabled,
                   pressed && styles.ctrlPressed,
                 ]}
+                disabled={!controlsLive}
                 onPress={() => {
                   hitQueued.current = true;
                 }}
@@ -563,10 +745,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
                     left: ACTION_ARC_LAYOUT[1]!.left,
                     top: ACTION_ARC_LAYOUT[1]!.top,
                   },
-                  !dashReady && styles.ctrlBtnDisabled,
+                  (!controlsLive || !dashReady) && styles.ctrlBtnDisabled,
                   pressed && styles.ctrlPressed,
                 ]}
-                disabled={!dashReady}
+                disabled={!controlsLive || !dashReady}
                 onPress={() => {
                   dashQueued.current = true;
                 }}
@@ -582,8 +764,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
                     left: ACTION_ARC_LAYOUT[2]!.left,
                     top: ACTION_ARC_LAYOUT[2]!.top,
                   },
+                  !controlsLive && styles.ctrlBtnDisabled,
                   pressed && styles.ctrlPressed,
                 ]}
+                disabled={!controlsLive}
                 onPress={() => {
                   jumpQueued.current = true;
                 }}
@@ -592,6 +776,46 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
               </Pressable>
             </View>
           </View>
+
+          {arenaReadyHud && preMatchCeil > 0 ? (
+            <View style={styles.preMatchOverlay}>
+              <Text style={styles.preMatchLabel}>Get ready</Text>
+              <Text style={styles.preMatchDigit}>{preMatchCeil}</Text>
+            </View>
+          ) : null}
+
+          {arenaReadyHud && gameOverOpen ? (
+            <View style={styles.gameOverOverlay}>
+              <View style={styles.gameOverCard}>
+                <Text style={styles.gameOverTitle}>Match over</Text>
+                <Text style={styles.gameOverHint}>
+                  Play again or return to the lobby.
+                </Text>
+                <View style={styles.gameOverActions}>
+                  <Pressable
+                    onPress={resetArenaRound}
+                    style={({ pressed }) => [
+                      styles.gameOverBtn,
+                      styles.gameOverBtnPrimary,
+                      pressed && styles.gameOverBtnPressed,
+                    ]}
+                  >
+                    <Text style={styles.gameOverBtnPrimaryText}>Replay</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => navigation.goBack()}
+                    style={({ pressed }) => [
+                      styles.gameOverBtn,
+                      styles.gameOverBtnSecondary,
+                      pressed && styles.gameOverBtnPressed,
+                    ]}
+                  >
+                    <Text style={styles.gameOverBtnSecondaryText}>Exit</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          ) : null}
         </View>
       </View>
     </View>
@@ -608,7 +832,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    gap: 8,
+    minHeight: 40,
+  },
+  hudSideLeft: {
+    flex: 1,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  hudCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hudSideRight: {
+    flex: 1,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  hudPhase: {
+    color: '#94a3b8',
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    textAlign: 'center',
+  },
+  hudClock: {
+    color: '#f8fafc',
+    fontSize: 14,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
+    textAlign: 'center',
   },
   backBtn: {
     paddingVertical: 4,
@@ -617,7 +871,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#1e293b',
   },
   backText: { color: '#e2e8f0', fontWeight: '800', fontSize: 12 },
-  hudTitle: { color: '#fff', fontSize: 15, fontWeight: '900' },
+  hudTitle: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '900',
+    textAlign: 'right',
+  },
   arenaFlex: {
     flex: 1,
     overflow: 'visible',
@@ -627,9 +886,22 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
+  arenaSkyBack: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
+    overflow: 'hidden',
+  },
+  arenaSkyBackImage: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: '100%',
+    height: '100%',
+  },
   platformBg: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#1a2e1a',
+    zIndex: 1,
+    backgroundColor: 'transparent',
   },
   platformArtClip: {
     position: 'absolute',
@@ -641,22 +913,94 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  ground: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: GROUND_STRIP_H,
-    backgroundColor: 'rgba(30, 41, 59, 0.55)',
-    borderTopWidth: 2,
-    borderTopColor: '#7c3aed',
-  },
-  groundNoPurpleLine: {
-    borderTopWidth: 0,
-    borderTopColor: 'transparent',
-  },
   playerWrap: {
     position: 'absolute',
+  },
+  preMatchOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 40,
+    backgroundColor: 'rgba(12, 18, 34, 0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  preMatchLabel: {
+    color: '#94a3b8',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  preMatchDigit: {
+    color: '#f8fafc',
+    fontSize: 96,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
+  },
+  gameOverOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 50,
+    backgroundColor: 'rgba(12, 18, 34, 0.78)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  gameOverCard: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 16,
+    paddingVertical: 22,
+    paddingHorizontal: 20,
+    backgroundColor: '#151b2e',
+    borderWidth: 2,
+    borderColor: '#334155',
+  },
+  gameOverTitle: {
+    color: '#f8fafc',
+    fontSize: 22,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  gameOverHint: {
+    color: '#94a3b8',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  gameOverActions: {
+    gap: 10,
+  },
+  gameOverBtn: {
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  gameOverBtnPrimary: {
+    backgroundColor: '#7c3aed',
+    borderWidth: 2,
+    borderColor: '#a78bfa',
+  },
+  gameOverBtnSecondary: {
+    backgroundColor: '#1e293b',
+    borderWidth: 2,
+    borderColor: '#475569',
+  },
+  gameOverBtnPressed: {
+    opacity: 0.88,
+  },
+  gameOverBtnPrimaryText: {
+    color: '#f8fafc',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  gameOverBtnSecondaryText: {
+    color: '#e2e8f0',
+    fontSize: 16,
+    fontWeight: '800',
   },
   controlsOverlay: {
     ...StyleSheet.absoluteFillObject,

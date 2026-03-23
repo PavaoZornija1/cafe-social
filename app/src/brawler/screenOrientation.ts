@@ -5,6 +5,9 @@ import { Platform } from 'react-native';
 /** Landscape only in the arena; hero lobby (`BrawlerLobby`) stays portrait. */
 const LANDSCAPE_ROUTE_NAMES = new Set(['BrawlerArena']);
 
+/** Skip redundant `lockAsync` calls — repeating them on every nav tick can stall the bridge. */
+let lastArenaOrientationLock: boolean | null = null;
+
 export function getActiveRouteName(
   state: NavigationState | PartialState<NavigationState> | undefined,
 ): string | undefined {
@@ -31,6 +34,9 @@ export async function syncBrawlerScreenOrientation(
   const routeName = getActiveRouteName(state);
   const inArena =
     routeName !== undefined && LANDSCAPE_ROUTE_NAMES.has(routeName);
+
+  if (lastArenaOrientationLock === inArena) return;
+  lastArenaOrientationLock = inArena;
 
   try {
     if (inArena) {

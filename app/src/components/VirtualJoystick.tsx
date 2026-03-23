@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';
 
 const DEFAULT_SIZE = 120;
@@ -11,13 +11,19 @@ type Props = {
   /** Mutable stick output — read each frame in game loop (-1..1 each axis). */
   stickRef: React.MutableRefObject<StickVector>;
   size?: number;
+  /** When false, touches are ignored and the stick resets to center. */
+  enabled?: boolean;
 };
 
 /**
  * Touch joystick: updates `stickRef` on drag; vertical is available for future
  * use (e.g. aim); arena currently uses horizontal only.
  */
-export function VirtualJoystick({ stickRef, size = DEFAULT_SIZE }: Props) {
+export function VirtualJoystick({
+  stickRef,
+  size = DEFAULT_SIZE,
+  enabled = true,
+}: Props) {
   const [knob, setKnob] = useState({ x: 0, y: 0 });
   const layoutRef = useRef({ w: size, h: size });
   const knobRadius = Math.max(11, Math.min(24, size * 0.19));
@@ -54,26 +60,36 @@ export function VirtualJoystick({ stickRef, size = DEFAULT_SIZE }: Props) {
     setKnob({ x: 0, y: 0 });
   }, [stickRef]);
 
+  useEffect(() => {
+    if (!enabled) release();
+  }, [enabled, release]);
+
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponder: () => enabled,
+        onMoveShouldSetPanResponder: () => enabled,
         onPanResponderGrant: (e) => {
+          if (!enabled) return;
           applyTouch(e.nativeEvent.locationX, e.nativeEvent.locationY);
         },
         onPanResponderMove: (e) => {
+          if (!enabled) return;
           applyTouch(e.nativeEvent.locationX, e.nativeEvent.locationY);
         },
         onPanResponderRelease: release,
         onPanResponderTerminate: release,
       }),
-    [applyTouch, release],
+    [applyTouch, enabled, release],
   );
 
   return (
     <View
-      style={[styles.outer, { width: size, height: size, borderRadius: size / 2 }]}
+      style={[
+        styles.outer,
+        { width: size, height: size, borderRadius: size / 2 },
+        !enabled && styles.outerDisabled,
+      ]}
       onLayout={(e) => {
         layoutRef.current.w = e.nativeEvent.layout.width;
         layoutRef.current.h = e.nativeEvent.layout.height;
@@ -112,6 +128,9 @@ const styles = StyleSheet.create({
     borderColor: '#334155',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  outerDisabled: {
+    opacity: 0.45,
   },
   ring: {
     position: 'absolute',

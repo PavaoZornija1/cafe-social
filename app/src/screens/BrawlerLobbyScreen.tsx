@@ -74,6 +74,14 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
     [heroes, selectedHeroId],
   );
 
+  const onBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate('ChooseGame', { venueId });
+  };
+
   const onStart = async () => {
     if (!selectedHeroId) return;
     if (!isLoaded) return;
@@ -119,6 +127,9 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
+        <Pressable onPress={onBack} style={styles.backBtn}>
+          <Text style={styles.backText}>← Back</Text>
+        </Pressable>
         <Text style={styles.title}>Brawler Lobby</Text>
         <Text style={styles.subtitle}>Choose your hero and start a short arena match.</Text>
         <Text style={styles.meta}>Venue: {venueId ?? 'Not set (home play)'}</Text>
@@ -183,7 +194,16 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#050816' },
-  container: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 28, gap: 12 },
+  container: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28, gap: 12 },
+  backBtn: {
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: '#1e293b',
+    marginBottom: 2,
+  },
+  backText: { color: '#e2e8f0', fontWeight: '800', fontSize: 12 },
   title: { color: '#fff', fontSize: 28, fontWeight: '900' },
   subtitle: { color: '#9ca3af', fontSize: 14, lineHeight: 20 },
   meta: { color: '#93c5fd', fontSize: 12, fontWeight: '700', marginBottom: 6 },
