@@ -1,4 +1,5 @@
 import { navigationRef } from '../navigation/navigationRef';
+import { ensureOnboardingCompleteForNavigation } from './onboardingNavigationGate';
 import { navigateWordMatchFromPush } from './wordMatchPushNavigation';
 import { openOrderingOrMenu } from './openOrderingLinks';
 
@@ -18,7 +19,8 @@ export async function handleNotificationTapNavigation(
     const menuUrl = typeof raw.menuUrl === 'string' ? raw.menuUrl : '';
     await openOrderingOrMenu(orderingUrl, menuUrl);
     if (navigationRef.isReady()) {
-      navigationRef.navigate('Home');
+      const ok = await ensureOnboardingCompleteForNavigation(getToken);
+      if (ok) navigationRef.navigate('Home');
     }
     return;
   }

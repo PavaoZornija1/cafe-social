@@ -20,6 +20,7 @@ import { fetchDetectedVenue } from '../lib/venueDetectClient';
 type Props = NativeStackScreenProps<RootStackParamList, 'RedeemPerk'>;
 
 type RedeemOk = {
+  staffVerificationCode: string;
   title: string;
   subtitle?: string | null;
   body?: string | null;
@@ -108,6 +109,8 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
 
         {lastOk ? (
           <View style={styles.resultCard}>
+            <Text style={styles.verifyLabel}>{t('perk.staffVerificationCode')}</Text>
+            <Text style={styles.verifyCode}>{lastOk.staffVerificationCode}</Text>
             <Text style={styles.resultTitle}>{lastOk.title}</Text>
             {lastOk.subtitle ? <Text style={styles.resultSub}>{lastOk.subtitle}</Text> : null}
             {lastOk.body ? <Text style={styles.resultBody}>{lastOk.body}</Text> : null}
@@ -163,6 +166,15 @@ const styles = StyleSheet.create({
     borderColor: '#312e81',
     borderRadius: 16,
     padding: 18,
+  },
+  verifyLabel: { color: '#94a3b8', fontSize: 12, fontWeight: '700' },
+  verifyCode: {
+    color: '#fef08a',
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 2,
+    marginTop: 6,
+    marginBottom: 14,
   },
   resultTitle: { color: '#fff', fontSize: 18, fontWeight: '900' },
   resultSub: { color: '#a5b4fc', marginTop: 8, fontWeight: '700' },

@@ -6,6 +6,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -19,6 +20,7 @@ import type { RootStackParamList } from '../navigation/type';
 import { LANGUAGE_OPTIONS, type AppLanguage, setAppLanguage } from '../i18n';
 import { apiGet, apiPatch } from '../lib/api';
 import { createAndShareFriendInviteLink } from '../lib/friendInviteShare';
+import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../lib/legalUrls';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
@@ -215,10 +217,44 @@ export default function SettingsScreen({ navigation }: Props) {
           </View>
         )}
 
+        <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.legalTitle')}</Text>
+        <Text style={styles.hint}>{t('settings.legalHint')}</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardText}>{t('settings.legalDataSummary')}</Text>
+          {PRIVACY_POLICY_URL ? (
+            <Pressable
+              style={({ pressed }) => [styles.linkRow, pressed && styles.actionRowPressed]}
+              onPress={() => void Linking.openURL(PRIVACY_POLICY_URL)}
+            >
+              <Text style={styles.linkText}>{t('settings.privacyPolicyLink')}</Text>
+            </Pressable>
+          ) : (
+            <Text style={styles.cardTextMuted}>{t('settings.legalUrlMissing')}</Text>
+          )}
+          {TERMS_OF_SERVICE_URL ? (
+            <Pressable
+              style={({ pressed }) => [styles.linkRow, pressed && styles.actionRowPressed]}
+              onPress={() => void Linking.openURL(TERMS_OF_SERVICE_URL)}
+            >
+              <Text style={styles.linkText}>{t('settings.termsLink')}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.account')}</Text>
         <View style={styles.card}>
           <Text style={styles.cardText}>{t('settings.accountHint')}</Text>
         </View>
+
+        <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.staffTitle')}</Text>
+        <Text style={styles.hint}>{t('settings.staffHint')}</Text>
+        <Pressable
+          style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+          onPress={() => navigation.navigate('StaffVenues')}
+        >
+          <Text style={styles.actionRowText}>{t('settings.staffOpen')}</Text>
+          <Text style={styles.actionRowChev}>›</Text>
+        </Pressable>
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.social')}</Text>
         <Text style={styles.hint}>{t('settings.friendInviteHint')}</Text>
@@ -360,4 +396,14 @@ const styles = StyleSheet.create({
   actionRowDisabled: { opacity: 0.55 },
   actionRowText: { color: '#e5e7eb', fontWeight: '800', fontSize: 15 },
   actionRowChev: { color: '#6b7280', fontSize: 20, fontWeight: '300' },
+  linkRow: {
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#111827',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#312e81',
+  },
+  linkText: { color: '#a5b4fc', fontWeight: '800', fontSize: 14 },
 });

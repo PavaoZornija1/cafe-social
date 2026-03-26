@@ -8,6 +8,8 @@
     "start:clean": "expo start --clear",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "ios:device": "expo run:ios --device -- -allowProvisioningUpdates",
+    "ios:sim": "expo run:ios --simulator",
     "web": "expo start --web",
     "lint": "eslint . --ext .ts,.tsx"
   },
@@ -23,6 +25,8 @@
     "expo-constants": "~18.0.13",
     "expo-crypto": "~15.0.8",
     "expo-device": "~8.0.10",
+    "expo-file-system": "~19.0.21",
+    "expo-image-picker": "~17.0.10",
     "expo-localization": "~17.0.8",
     "expo-location": "~19.0.8",
     "expo-modules-core": "~3.0.29",

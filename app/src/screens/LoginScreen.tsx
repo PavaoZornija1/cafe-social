@@ -1,6 +1,6 @@
 import { useAuth, useSignIn } from '@clerk/expo';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     KeyboardAvoidingView,
@@ -14,13 +14,16 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { SocialSignInButtons } from '../components/SocialSignInButtons';
+import { replaceAfterAuth } from '../navigation/afterAuth';
 import { RootStackParamList } from '../navigation/type';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation }: Props) {
     const { t } = useTranslation();
-    const { isLoaded, isSignedIn } = useAuth();
+    const { isLoaded, isSignedIn, getToken } = useAuth();
+    const getTokenRef = useRef(getToken);
+    getTokenRef.current = getToken;
     const { signIn, errors, fetchStatus } = useSignIn();
 
     const [emailAddress, setEmailAddress] = useState('');
@@ -29,10 +32,10 @@ export default function LoginScreen({ navigation }: Props) {
     const [needsMfa, setNeedsMfa] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
 
-    // Redirect to Home when already signed in
+    // After auth, onboarding may run once before Home
     useEffect(() => {
         if (isLoaded && isSignedIn) {
-            navigation.replace('Home');
+            void replaceAfterAuth(navigation, () => getTokenRef.current());
         }
     }, [isLoaded, isSignedIn, navigation]);
 
@@ -50,7 +53,7 @@ export default function LoginScreen({ navigation }: Props) {
 
         if (signIn.status === 'complete') {
             await signIn.finalize();
-            navigation.replace('Home');
+            await replaceAfterAuth(navigation, () => getTokenRef.current());
             return;
         }
 
@@ -85,7 +88,7 @@ export default function LoginScreen({ navigation }: Props) {
 
         if (signIn.status === 'complete') {
             await signIn.finalize();
-            navigation.replace('Home');
+            await replaceAfterAuth(navigation, () => getTokenRef.current());
         }
     };
 
@@ -169,7 +172,9 @@ export default function LoginScreen({ navigation }: Props) {
                     <Text style={styles.title}>{t('login.title')}</Text>
                     <Text style={styles.subtitle}>{t('login.subtitle')}</Text>
 
-                    <SocialSignInButtons onSuccess={() => navigation.replace('Home')} />
+                    <SocialSignInButtons
+                        onSuccess={() => void replaceAfterAuth(navigation, () => getTokenRef.current())}
+                    />
 
                     <Text style={styles.label}>{t('login.email')}</Text>
                     <TextInput

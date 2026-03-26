@@ -2,6 +2,7 @@ import { Alert } from 'react-native';
 import { apiGet } from './api';
 import { fetchDetectedVenue } from './venueDetectClient';
 import { navigationRef } from '../navigation/navigationRef';
+import { ensureOnboardingCompleteForNavigation } from './onboardingNavigationGate';
 
 type WordMatchState = {
   sessionId: string;
@@ -50,6 +51,9 @@ export async function navigateWordMatchFromPush(
     Alert.alert('Cafe Social', 'Sign in to open this match.');
     return;
   }
+
+  const onboardingOk = await ensureOnboardingCompleteForNavigation(getToken);
+  if (!onboardingOk) return;
 
   if (!allowNavigate(sessionId)) return;
 

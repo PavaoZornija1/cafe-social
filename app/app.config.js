@@ -23,9 +23,11 @@ export default {
       usesAppleSignIn: false,
       infoPlist: {
         NSCameraUsageDescription:
-          'Cafe Social uses the camera to scan venue QR codes for unlocking.',
+          'Cafe Social uses the camera to scan venue QR codes to unlock games and partner offers at that location.',
+        NSPhotoLibraryUsageDescription:
+          'Cafe Social can attach a receipt photo when a venue asks for purchase proof.',
         NSLocationWhenInUseUsageDescription:
-          'Cafe Social uses your location to detect when you are at a partner café.',
+          'Cafe Social uses your approximate location only to detect when you are inside a partner café’s geofence, so venue games, challenges, and (if you allow them in Settings) partner notifications can apply. Location is not used for continuous tracking in the background for advertising.',
         ...(googleIosUrlScheme && {
           CFBundleURLTypes: [
             {
@@ -57,7 +59,8 @@ export default {
       [
         'expo-camera',
         {
-          cameraPermission: 'Allow Cafe Social to scan venue QR codes.',
+          cameraPermission:
+            'Allow Cafe Social to use the camera to scan venue QR codes for access.',
         },
       ],
       [
@@ -67,6 +70,13 @@ export default {
         },
       ],
       'expo-screen-orientation',
+      [
+        'expo-image-picker',
+        {
+          photosPermission:
+            'Allow Cafe Social to choose a receipt image to send to the venue.',
+        },
+      ],
     ],
     extra: {
       eas: easProjectId ? { projectId: easProjectId } : {},

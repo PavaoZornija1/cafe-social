@@ -1,5 +1,6 @@
 import { useAuth, useUser } from '@clerk/expo';
 import { useFocusEffect } from '@react-navigation/native';
+import { useOnboardingEnforcement } from '../navigation/useOnboardingEnforcement';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -89,6 +90,8 @@ export default function HomeScreen({ navigation }: Props) {
     const getTokenRef = useRef(getToken);
     getTokenRef.current = getToken;
 
+    useOnboardingEnforcement(navigation);
+
     const displayName =
         user?.firstName ||
         user?.primaryEmailAddress?.emailAddress ||
@@ -134,6 +137,13 @@ export default function HomeScreen({ navigation }: Props) {
         if (!access) return false;
         return !access.canEnterVenueContext;
     }, [access]);
+
+    const venueGamesLockedExplanation = useMemo(() => {
+        if (!locked || !detectedVenue) return '';
+        return detectedVenue.isPremium
+            ? t('home.lockedHintPremium')
+            : t('home.lockedHintStandard');
+    }, [locked, detectedVenue, t]);
 
     const loadMeSummary = useCallback(async () => {
         if (!isLoaded) return;
@@ -448,7 +458,7 @@ export default function HomeScreen({ navigation }: Props) {
                                 {detectedVenue.isPremium ? t('home.premiumSuffix') : ''}
                             </Text>
                             {locked ? (
-                                <Text style={styles.lockedHint}>{t('home.lockedHint')}</Text>
+                                <Text style={styles.lockedHint}>{venueGamesLockedExplanation}</Text>
                             ) : (
                                 <Text style={styles.unlockedHint}>{t('home.unlockedHint')}</Text>
                             )}
@@ -584,6 +594,22 @@ export default function HomeScreen({ navigation }: Props) {
                         }
                     >
                         <Text style={styles.quickLinkText}>{t('home.linkRedeemPerk')}</Text>
+                    </Pressable>
+                    <Pressable
+                        style={({ pressed }) => [
+                            styles.quickLink,
+                            pressed && styles.quickLinkPressed,
+                            !detectedVenue && styles.quickLinkDisabled,
+                        ]}
+                        disabled={!detectedVenue}
+                        onPress={() =>
+                            navigation.navigate('SubmitReceipt', {
+                                venueId: detectedVenue!.id,
+                                detectedVenueId: detectedVenue!.id,
+                            })
+                        }
+                    >
+                        <Text style={styles.quickLinkText}>{t('home.linkReceipt')}</Text>
                     </Pressable>
                 </View>
 

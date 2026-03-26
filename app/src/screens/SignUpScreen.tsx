@@ -1,6 +1,6 @@
 import { useAuth, useSignUp } from '@clerk/expo';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     KeyboardAvoidingView,
@@ -14,13 +14,16 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { SocialSignInButtons } from '../components/SocialSignInButtons';
+import { replaceAfterAuth } from '../navigation/afterAuth';
 import { RootStackParamList } from '../navigation/type';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SignUp'>;
 
 export default function SignUpScreen({ navigation }: Props) {
     const { t } = useTranslation();
-    const { isLoaded, isSignedIn } = useAuth();
+    const { isLoaded, isSignedIn, getToken } = useAuth();
+    const getTokenRef = useRef(getToken);
+    getTokenRef.current = getToken;
     const { signUp, errors, fetchStatus } = useSignUp();
 
     const [emailAddress, setEmailAddress] = useState('');
@@ -31,7 +34,7 @@ export default function SignUpScreen({ navigation }: Props) {
 
     useEffect(() => {
         if (isLoaded && isSignedIn) {
-            navigation.replace('Home');
+            void replaceAfterAuth(navigation, () => getTokenRef.current());
         }
     }, [isLoaded, isSignedIn, navigation]);
 
@@ -70,7 +73,7 @@ export default function SignUpScreen({ navigation }: Props) {
 
         if (signUp.status === 'complete') {
             await signUp.finalize();
-            navigation.replace('Home');
+            await replaceAfterAuth(navigation, () => getTokenRef.current());
         }
     };
 
@@ -162,7 +165,9 @@ export default function SignUpScreen({ navigation }: Props) {
                     <Text style={styles.title}>{t('signUp.title')}</Text>
                     <Text style={styles.subtitle}>{t('signUp.subtitle')}</Text>
 
-                    <SocialSignInButtons onSuccess={() => navigation.replace('Home')} />
+                    <SocialSignInButtons
+                        onSuccess={() => void replaceAfterAuth(navigation, () => getTokenRef.current())}
+                    />
 
                     <Text style={styles.label}>{t('signUp.email')}</Text>
                     <TextInput

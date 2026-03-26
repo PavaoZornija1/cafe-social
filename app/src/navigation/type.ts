@@ -1,6 +1,7 @@
 export type RootStackParamList = {
     Login: undefined;
     SignUp: undefined;
+    Onboarding: undefined;
     Home: undefined;
     DailyWord: undefined;
     ChooseGame: { venueId?: string; challengeId?: string } | undefined;
@@ -35,4 +36,13 @@ export type RootStackParamList = {
       matchSessionId?: string;
       sessionWordsCount?: number;
     };
+    StaffVenues: undefined;
+    StaffRedemptions: {
+      venueId: string;
+      venueName?: string;
+      /** 8-char hex staff code from QR / manual entry */
+      highlightCode?: string;
+    };
+    StaffQrScan: { venueId: string; venueName?: string };
+    SubmitReceipt: { venueId: string; detectedVenueId?: string };
 };

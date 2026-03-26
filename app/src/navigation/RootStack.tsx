@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "./type";
 import LoginScreen from "../screens/LoginScreen";
 import SignUpScreen from "../screens/SignUpScreen";
+import OnboardingScreen from "../screens/OnboardingScreen";
 import HomeScreen from "../screens/HomeScreen";
 import DailyWordScreen from "../screens/DailyWordScreen";
 import ChallengesScreen from "../screens/ChallengesScreen";
@@ -24,6 +25,10 @@ import PeopleHereScreen from "../screens/PeopleHereScreen";
 import ChooseGameScreen from "../screens/ChooseGameScreen";
 import BrawlerLobbyScreen from "../screens/BrawlerLobbyScreen";
 import BrawlerArenaScreen from "../screens/BrawlerArenaScreen";
+import StaffVenuesScreen from "../screens/StaffVenuesScreen";
+import StaffRedemptionsScreen from "../screens/StaffRedemptionsScreen";
+import StaffQrScanScreen from "../screens/StaffQrScanScreen";
+import SubmitReceiptScreen from "../screens/SubmitReceiptScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -38,6 +43,11 @@ export default function RootStack() {
         >
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="SignUp" component={SignUpScreen} />
+            <Stack.Screen
+                name="Onboarding"
+                component={OnboardingScreen}
+                options={{ gestureEnabled: false }}
+            />
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="DailyWord" component={DailyWordScreen} />
             <Stack.Screen name="ChooseGame" component={ChooseGameScreen} />
@@ -58,6 +68,10 @@ export default function RootStack() {
             <Stack.Screen name="WordMatchJoin" component={WordMatchJoinScreen} />
             <Stack.Screen name="WordMatchWait" component={WordMatchWaitScreen} />
             <Stack.Screen name="WordGame" component={WordGameScreen} />
+            <Stack.Screen name="StaffVenues" component={StaffVenuesScreen} />
+            <Stack.Screen name="StaffRedemptions" component={StaffRedemptionsScreen} />
+            <Stack.Screen name="StaffQrScan" component={StaffQrScanScreen} />
+            <Stack.Screen name="SubmitReceipt" component={SubmitReceiptScreen} />
         </Stack.Navigator>
     );
 }
