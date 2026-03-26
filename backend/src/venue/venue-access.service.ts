@@ -57,8 +57,8 @@ export class VenueAccessService {
     if (existing) return;
 
     await this.playerVenues.create({
-      playerId: player.id,
-      venueId,
+      player: { connect: { id: player.id } },
+      venue: { connect: { id: venueId } },
     });
   }
 

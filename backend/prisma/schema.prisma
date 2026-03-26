@@ -170,6 +170,11 @@ model Player {
   /// Word-match join/start and similar activity pings.
   matchActivityPush    Boolean @default(true)
 
+  /// First-time player onboarding completed (app tutorial); survives reinstall when synced from server.
+  onboardingPlayerCompletedAt DateTime?
+  /// Staff-only intro completed.
+  onboardingStaffCompletedAt  DateTime?
+
   lastPresenceVenueId String?
   lastPresenceAt      DateTime?
 

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { VenueAccessService } from './venue-access.service';
@@ -35,7 +35,9 @@ export class VenueAccessController {
   @UseGuards(JwtAuthGuard)
   @Get(':venueId/access')
   getAccess(@Param('venueId') venueId: string, @CurrentUser() user: any) {
-    return this.access.getVenueAccess(venueId, this.normalizeEmail(user));
+    const email = this.normalizeEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    return this.access.getVenueAccess(venueId, email);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -44,10 +46,9 @@ export class VenueAccessController {
     @Param('venueId') venueId: string,
     @CurrentUser() user: any,
   ) {
-    return this.access.registerVenueWithQr(
-      venueId,
-      this.normalizeEmail(user),
-    );
+    const email = this.normalizeEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    return this.access.registerVenueWithQr(venueId, email);
   }
 }
 

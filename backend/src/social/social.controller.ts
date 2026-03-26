@@ -32,7 +32,7 @@ export class SocialController {
     private readonly players: PlayerService,
     private readonly friendships: FriendshipService,
     private readonly discovery: DiscoveryService,
-    private readonly venueFeed: VenueFeedService,
+    private readonly venueFeedService: VenueFeedService,
   ) {}
 
   private email(user: unknown): string {
@@ -91,7 +91,7 @@ export class SocialController {
       const n = Number.parseInt(limitRaw, 10);
       if (!Number.isNaN(n)) limit = n;
     }
-    return this.venueFeed.listForVenue(venueId, limit);
+    return this.venueFeedService.listForVenue(venueId, limit);
   }
 
   @Get('discover/subscribers')

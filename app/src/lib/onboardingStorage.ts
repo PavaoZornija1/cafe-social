@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import type { MeSummaryDto } from './meSummary';
+
 export const ONBOARDING_PLAYER_KEY = '@cafe-social/onboarding_player_v1';
 export const ONBOARDING_STAFF_KEY = '@cafe-social/onboarding_staff_v1';
 
@@ -33,4 +35,15 @@ export async function markStaffIntroComplete(): Promise<void> {
     [ONBOARDING_STAFF_KEY, '1'],
     [ONBOARDING_PLAYER_KEY, '1'],
   ]);
+}
+
+/** Mirror server onboarding flags into AsyncStorage (e.g. after reinstall). */
+export async function syncOnboardingFromServerSummary(summary: MeSummaryDto): Promise<void> {
+  if (summary.onboardingStaffCompletedAt) {
+    await markStaffIntroComplete();
+    return;
+  }
+  if (summary.onboardingPlayerCompletedAt) {
+    await markPlayerOnboardingDone();
+  }
 }

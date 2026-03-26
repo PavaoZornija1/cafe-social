@@ -103,7 +103,24 @@
     "legalUrlMissing": "Postavi EXPO_PUBLIC_PRIVACY_POLICY_URL u konfiguraciji aplikacije.",
     "staffTitle": "Osoblje lokala",
     "staffHint": "Provjera kodova ako te je partner u CMS-u dodao kao EMPLOYEE, MANAGER ili OWNER.",
-    "staffOpen": "Način osoblja — otkupi i QR"
+    "staffOpen": "Način osoblja — otkupi i QR",
+    "subscription": "Pretplata",
+    "subscriptionHint": "Pretplata može otključati igranje od kuće i dodatke na premium lokacijama. Status dolazi s poslužitelja.",
+    "subscriptionActive": "Pretplata je aktivna.",
+    "subscriptionInactive": "Nema aktivne pretplate.",
+    "subscriptionOpen": "Upravljanje ili pretplata (web)",
+    "subscriptionUrlMissing": "Postavi EXPO_PUBLIC_SUBSCRIPTION_URL u konfiguraciji aplikacije."
+  },
+  "chooseGame": {
+    "title": "Odaberi igru",
+    "subtitle": "Igre trebaju prijavu na lokalu (ili pretplatu gdje je podržano).",
+    "wordTitle": "Igra riječi",
+    "wordDescription": "Solo, suradnja ili duel s izazovima lokala.",
+    "wordCta": "Otvori word lobby",
+    "needVenue": "Prvo se prijavi na lokalu.",
+    "brawlerTitle": "Brawler",
+    "brawlerDescription": "Kratke arene s herojima i pojačanjima.",
+    "brawlerCta": "Otvori lobby"
   },
   "staff": {
     "venuesTitle": "Tvoji lokali",
@@ -330,7 +347,10 @@
     "completedChallenges": "Dovršeni izazovi",
     "venuesUnlocked": "Otključani lokali",
     "loadError": "Statistika profila se nije mogla učitati.",
-    "comingHistory": "Povijest i nagrade: uskoro.",
+    "recentPerksTitle": "Nedavni otkupi perkova",
+    "recentPerksHint": "Otkupi na partnerskim lokacijama (najnovije prvo).",
+    "recentPerksEmpty": "Još nema otkupa — posjeti partnerski kafić.",
+    "redeemedAt": "Otkupljeno {{when}}",
     "openFriends": "Prijatelji",
     "shareFriendLink": "Podijeli pozivnicu"
   },

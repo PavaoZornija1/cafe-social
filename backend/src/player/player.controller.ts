@@ -18,6 +18,7 @@ import { PlayerService } from './player.service';
 import { CreatePlayerDto } from './dto/create-player.dto';
 import { UpdatePlayerDto } from './dto/update-player.dto';
 import { UpdateMeSettingsDto } from './dto/update-me-settings.dto';
+import { UpdateMeOnboardingDto } from './dto/update-me-onboarding.dto';
 import { RegisterExpoPushTokenDto } from './dto/register-expo-push-token.dto';
 import { PushService } from '../push/push.service';
 
@@ -72,6 +73,17 @@ export class PlayerController {
     const email = this.normalizeEmail(user);
     if (!email) throw new UnauthorizedException('Missing user email');
     return this.playerService.updateMeSettings(email, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('me/onboarding')
+  meOnboarding(@CurrentUser() user: unknown, @Body() dto: UpdateMeOnboardingDto) {
+    const email = this.normalizeEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    return this.playerService.updateMeOnboarding(email, {
+      playerComplete: dto.playerComplete,
+      staffComplete: dto.staffComplete,
+    });
   }
 
   @UseGuards(JwtAuthGuard)

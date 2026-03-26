@@ -16,7 +16,6 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
-import { useOnboardingEnforcement } from '../navigation/useOnboardingEnforcement';
 import { apiGet, apiPost } from '../lib/api';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PartyDetail'>;
@@ -41,8 +40,6 @@ export default function PartyDetailScreen({ navigation, route }: Props) {
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
-
-  useOnboardingEnforcement(navigation);
 
   const [loading, setLoading] = useState(true);
   const [party, setParty] = useState<Party | null>(null);

@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import type { Player } from '@prisma/client';
+import type { Player, Prisma } from '@prisma/client';
 import { CreatePlayerDto } from './dto/create-player.dto';
 import { UpdatePlayerDto } from './dto/update-player.dto';
 import { UpdateMeSettingsDto } from './dto/update-me-settings.dto';
@@ -78,6 +78,9 @@ export class PlayerService {
     totalPrivacy: boolean;
     partnerMarketingPush: boolean;
     matchActivityPush: boolean;
+    subscriptionActive: boolean;
+    onboardingPlayerCompletedAt: string | null;
+    onboardingStaffCompletedAt: string | null;
   }> {
     const player = await this.findOrCreateByEmail(email);
     const { completedChallenges, venuesUnlocked } =
@@ -85,6 +88,11 @@ export class PlayerService {
 
     const venueXpSum = await this.venueStats.sumVenueXpForPlayer(player.id);
     const tier = this.tierFromXp(venueXpSum);
+
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { playerId: player.id },
+    });
+    const subscriptionActive = this.computeSubscriptionRowActive(subscription);
 
     return {
       playerId: player.id,
@@ -96,7 +104,37 @@ export class PlayerService {
       totalPrivacy: player.totalPrivacy,
       partnerMarketingPush: player.partnerMarketingPush,
       matchActivityPush: player.matchActivityPush,
+      subscriptionActive,
+      onboardingPlayerCompletedAt: player.onboardingPlayerCompletedAt?.toISOString() ?? null,
+      onboardingStaffCompletedAt: player.onboardingStaffCompletedAt?.toISOString() ?? null,
     };
+  }
+
+  private computeSubscriptionRowActive(
+    subscription: { active: boolean; expiresAt: Date | null } | null,
+  ): boolean {
+    if (!subscription) return false;
+    if (!subscription.active) return false;
+    if (subscription.expiresAt && subscription.expiresAt.getTime() <= Date.now()) return false;
+    return true;
+  }
+
+  async updateMeOnboarding(
+    email: string,
+    patch: { playerComplete?: boolean; staffComplete?: boolean },
+  ): Promise<Player> {
+    const p = await this.findOrCreateByEmail(email);
+    const now = new Date();
+    const data: Prisma.PlayerUpdateInput = {};
+    if (patch.playerComplete === true && !p.onboardingPlayerCompletedAt) {
+      data.onboardingPlayerCompletedAt = now;
+    }
+    if (patch.staffComplete === true) {
+      if (!p.onboardingStaffCompletedAt) data.onboardingStaffCompletedAt = now;
+      if (!p.onboardingPlayerCompletedAt) data.onboardingPlayerCompletedAt = now;
+    }
+    if (Object.keys(data).length === 0) return p;
+    return this.players.update(p.id, data);
   }
 
   /** Visits & lightweight badges from `PlayerVenueVisitDay`. */

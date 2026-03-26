@@ -1,6 +1,5 @@
 import { useAuth, useUser } from '@clerk/expo';
 import { useFocusEffect } from '@react-navigation/native';
-import { useOnboardingEnforcement } from '../navigation/useOnboardingEnforcement';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -16,6 +15,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiGet, apiPost } from '../lib/api';
+import type { MeSummaryDto } from '../lib/meSummary';
+import { syncOnboardingFromServerSummary } from '../lib/onboardingStorage';
 import { openOrderingOrMenu } from '../lib/openOrderingLinks';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
 
@@ -52,14 +53,6 @@ type VenueFeedItem = {
     createdAt: string;
 };
 
-type MeSummary = {
-    playerId?: string;
-    xp: number;
-    tier: string;
-    completedChallenges: number;
-    venuesUnlocked: number;
-};
-
 type VenuePublicCard = {
     id: string;
     name: string;
@@ -90,8 +83,6 @@ export default function HomeScreen({ navigation }: Props) {
     const getTokenRef = useRef(getToken);
     getTokenRef.current = getToken;
 
-    useOnboardingEnforcement(navigation);
-
     const displayName =
         user?.firstName ||
         user?.primaryEmailAddress?.emailAddress ||
@@ -104,7 +95,7 @@ export default function HomeScreen({ navigation }: Props) {
     const qrPromptShownRef = useRef(false);
     const [venueChallenges, setVenueChallenges] = useState<VenueChallenge[]>([]);
     const [loadingChallenges, setLoadingChallenges] = useState(false);
-    const [meSummary, setMeSummary] = useState<MeSummary | null>(null);
+    const [meSummary, setMeSummary] = useState<MeSummaryDto | null>(null);
     const [loadingSummary, setLoadingSummary] = useState(false);
     const [venueFeed, setVenueFeed] = useState<VenueFeedItem[]>([]);
     const [loadingFeed, setLoadingFeed] = useState(false);
@@ -138,6 +129,11 @@ export default function HomeScreen({ navigation }: Props) {
         return !access.canEnterVenueContext;
     }, [access]);
 
+    const gamesPlayable = useMemo(
+        () => Boolean(detectedVenue && access?.canEnterVenueContext),
+        [detectedVenue, access?.canEnterVenueContext],
+    );
+
     const venueGamesLockedExplanation = useMemo(() => {
         if (!locked || !detectedVenue) return '';
         return detectedVenue.isPremium
@@ -154,7 +150,8 @@ export default function HomeScreen({ navigation }: Props) {
                 setMeSummary(null);
                 return;
             }
-            const s = await apiGet<MeSummary>('/players/me/summary', token);
+            const s = await apiGet<MeSummaryDto>('/players/me/summary', token);
+            await syncOnboardingFromServerSummary(s);
             setMeSummary(s);
         } catch {
             setMeSummary(null);
@@ -386,9 +383,10 @@ export default function HomeScreen({ navigation }: Props) {
     }, [detectedVenue?.id, isLoaded]);
 
     const handlePlay = () => {
+        if (!gamesPlayable || !detectedVenue?.id) return;
         const activeChallenge = venueChallenges.find((c) => !c.isCompleted) ?? venueChallenges[0];
         navigation.navigate('ChooseGame', {
-          venueId: detectedVenue?.id,
+          venueId: detectedVenue.id,
           challengeId: activeChallenge?.id,
         });
     };
@@ -666,11 +664,11 @@ export default function HomeScreen({ navigation }: Props) {
                         onPress={handlePlay}
                         onPressIn={animateIn}
                         onPressOut={animateOut}
-                        disabled={loadingVenue}
+                        disabled={loadingVenue || !gamesPlayable}
                         style={[
                             styles.playButton,
                             { transform: [{ scale }] },
-                            loadingVenue && styles.playButtonDisabled,
+                            (loadingVenue || !gamesPlayable) && styles.playButtonDisabled,
                         ]}
                     >
                         <Text style={styles.playText}>

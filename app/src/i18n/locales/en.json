@@ -103,7 +103,24 @@
     "legalUrlMissing": "Add EXPO_PUBLIC_PRIVACY_POLICY_URL in app config to show the privacy policy link.",
     "staffTitle": "Venue staff",
     "staffHint": "Verify guest perk codes if your venue added you as EMPLOYEE, MANAGER, or OWNER in the partner CMS.",
-    "staffOpen": "Staff mode — redemptions & QR"
+    "staffOpen": "Staff mode — redemptions & QR",
+    "subscription": "Subscription",
+    "subscriptionHint": "A subscription can unlock home play and extras at participating premium venues. Status comes from your account on our servers.",
+    "subscriptionActive": "Subscription active.",
+    "subscriptionInactive": "No active subscription on file.",
+    "subscriptionOpen": "Manage or subscribe (web)",
+    "subscriptionUrlMissing": "Add EXPO_PUBLIC_SUBSCRIPTION_URL in app config for a manage / checkout link."
+  },
+  "chooseGame": {
+    "title": "Choose a game",
+    "subtitle": "Games need venue check-in (or a subscription where supported).",
+    "wordTitle": "Word game",
+    "wordDescription": "Solo, co-op, or versus guessing with venue challenges.",
+    "wordCta": "Open word lobby",
+    "needVenue": "Check in at a venue first.",
+    "brawlerTitle": "Brawler",
+    "brawlerDescription": "Short arena battles with heroes and power-ups.",
+    "brawlerCta": "Open lobby"
   },
   "staff": {
     "venuesTitle": "Your venues",
@@ -330,7 +347,10 @@
     "completedChallenges": "Challenges completed",
     "venuesUnlocked": "Venues unlocked",
     "loadError": "Could not load profile stats.",
-    "comingHistory": "History and rewards: coming soon.",
+    "recentPerksTitle": "Recent perk redemptions",
+    "recentPerksHint": "Perks you redeemed at partner venues (latest first).",
+    "recentPerksEmpty": "No redemptions yet — visit a partner café and redeem an offer.",
+    "redeemedAt": "Redeemed {{when}}",
     "openFriends": "Friends",
     "shareFriendLink": "Share friend invite"
   },

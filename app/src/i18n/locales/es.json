@@ -103,7 +103,24 @@
     "legalUrlMissing": "Configura EXPO_PUBLIC_PRIVACY_POLICY_URL en la app.",
     "staffTitle": "Personal del local",
     "staffHint": "Verifica códigos si tu local te añadió como EMPLOYEE, MANAGER u OWNER en el CMS.",
-    "staffOpen": "Modo personal — canjes y QR"
+    "staffOpen": "Modo personal — canjes y QR",
+    "subscription": "Suscripción",
+    "subscriptionHint": "La suscripción puede desbloquear juego desde casa y extras en locales premium. El estado viene del servidor.",
+    "subscriptionActive": "Suscripción activa.",
+    "subscriptionInactive": "Sin suscripción activa.",
+    "subscriptionOpen": "Gestionar o suscribirse (web)",
+    "subscriptionUrlMissing": "Configura EXPO_PUBLIC_SUBSCRIPTION_URL en la app."
+  },
+  "chooseGame": {
+    "title": "Elige un juego",
+    "subtitle": "Los juegos requieren check-in en el local (o suscripción donde aplique).",
+    "wordTitle": "Juego de palabras",
+    "wordDescription": "Solo, cooperativo o versus con retos del local.",
+    "wordCta": "Abrir lobby de palabras",
+    "needVenue": "Haz check-in en un local primero.",
+    "brawlerTitle": "Brawler",
+    "brawlerDescription": "Batallas cortas con héroes y potenciadores.",
+    "brawlerCta": "Abrir lobby"
   },
   "staff": {
     "venuesTitle": "Tus locales",
@@ -330,7 +347,10 @@
     "completedChallenges": "Retos completados",
     "venuesUnlocked": "Locales desbloqueados",
     "loadError": "No se pudieron cargar las estadísticas.",
-    "comingHistory": "Historial y recompensas: próximamente.",
+    "recentPerksTitle": "Canjes recientes",
+    "recentPerksHint": "Ofertas canjeadas en locales socios (más reciente primero).",
+    "recentPerksEmpty": "Aún no hay canjes — visita un café socio.",
+    "redeemedAt": "Canjeado {{when}}",
     "openFriends": "Amigos",
     "shareFriendLink": "Enlace de amistad"
   },

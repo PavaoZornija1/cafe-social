@@ -21,6 +21,7 @@ import { LANGUAGE_OPTIONS, type AppLanguage, setAppLanguage } from '../i18n';
 import { apiGet, apiPatch } from '../lib/api';
 import { createAndShareFriendInviteLink } from '../lib/friendInviteShare';
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../lib/legalUrls';
+import { SUBSCRIPTION_MANAGE_URL } from '../lib/subscriptionUrl';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
@@ -29,6 +30,7 @@ type MeSummary = {
   totalPrivacy: boolean;
   partnerMarketingPush: boolean;
   matchActivityPush: boolean;
+  subscriptionActive?: boolean;
 };
 
 export default function SettingsScreen({ navigation }: Props) {
@@ -45,6 +47,7 @@ export default function SettingsScreen({ navigation }: Props) {
   const [matchActivityPush, setMatchActivityPush] = useState(true);
   const [privacySaving, setPrivacySaving] = useState(false);
   const [friendLinkBusy, setFriendLinkBusy] = useState(false);
+  const [subscriptionActive, setSubscriptionActive] = useState(false);
   const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '—';
 
   const loadPrivacy = useCallback(async () => {
@@ -58,6 +61,7 @@ export default function SettingsScreen({ navigation }: Props) {
       setTotalPrivacy(s.totalPrivacy);
       setPartnerMarketingPush(s.partnerMarketingPush ?? true);
       setMatchActivityPush(s.matchActivityPush ?? true);
+      setSubscriptionActive(s.subscriptionActive ?? false);
     } catch {
       Alert.alert(t('common.error'), t('settings.privacyLoadError'));
     } finally {
@@ -239,6 +243,28 @@ export default function SettingsScreen({ navigation }: Props) {
               <Text style={styles.linkText}>{t('settings.termsLink')}</Text>
             </Pressable>
           ) : null}
+        </View>
+
+        <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.subscription')}</Text>
+        <Text style={styles.hint}>{t('settings.subscriptionHint')}</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardText}>
+            {privacyLoading
+              ? '…'
+              : subscriptionActive
+                ? t('settings.subscriptionActive')
+                : t('settings.subscriptionInactive')}
+          </Text>
+          {SUBSCRIPTION_MANAGE_URL ? (
+            <Pressable
+              style={({ pressed }) => [styles.linkRow, pressed && styles.actionRowPressed]}
+              onPress={() => void Linking.openURL(SUBSCRIPTION_MANAGE_URL)}
+            >
+              <Text style={styles.linkText}>{t('settings.subscriptionOpen')}</Text>
+            </Pressable>
+          ) : (
+            <Text style={styles.cardTextMuted}>{t('settings.subscriptionUrlMissing')}</Text>
+          )}
         </View>
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.account')}</Text>

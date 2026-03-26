@@ -1,21 +1,11 @@
 import { ClerkProvider } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
 import * as WebBrowser from 'expo-web-browser';
-import {
-  DarkTheme,
-  NavigationContainer,
-  type LinkingOptions,
-} from '@react-navigation/native';
-import { StatusBar } from 'expo-status-bar';
+import type { LinkingOptions } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
-import { syncBrawlerScreenOrientation } from './src/brawler/screenOrientation';
-import { ExpoPushRegistrar } from './src/components/ExpoPushRegistrar';
-import { NotificationNavigationEffect } from './src/components/NotificationNavigationEffect';
-import { VenuePresenceHeartbeat } from './src/components/VenuePresenceHeartbeat';
-import RootStack from './src/navigation/RootStack';
-import { navigationRef } from './src/navigation/navigationRef';
+import AppNavigation from './src/navigation/AppNavigation';
 import type { RootStackParamList } from './src/navigation/type';
 import { initI18n } from './src/i18n';
 
@@ -38,21 +28,6 @@ const linking: LinkingOptions<RootStackParamList> = {
         },
       },
     },
-  },
-};
-
-const navigationTheme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    background: '#050816',
-    card: '#18181b',
-    text: '#f4f4f5',
-    border: '#27272a',
-    notification: '#f4f4f5',
-    primary: '#f4f4f5',
-    secondary: '#e4e4e7',
-    tertiary: '#d4d4d8',
   },
 };
 
@@ -86,23 +61,7 @@ export default function App() {
 
   return (
     <ClerkProvider publishableKey={publishableKey!} tokenCache={tokenCache}>
-      <NavigationContainer
-        ref={navigationRef}
-        theme={navigationTheme}
-        linking={linking}
-        onReady={() => {
-          void syncBrawlerScreenOrientation(navigationRef.getRootState());
-        }}
-        onStateChange={(state) => {
-          void syncBrawlerScreenOrientation(state);
-        }}
-      >
-        <NotificationNavigationEffect />
-        <VenuePresenceHeartbeat />
-        <ExpoPushRegistrar />
-        <StatusBar style="light" />
-        <RootStack />
-      </NavigationContainer>
+      <AppNavigation linking={linking} />
     </ClerkProvider>
   );
 }

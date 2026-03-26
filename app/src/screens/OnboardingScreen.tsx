@@ -17,6 +17,8 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { LANGUAGE_OPTIONS, type AppLanguage, setAppLanguage } from '../i18n';
+import { apiGet, apiPatch } from '../lib/api';
+import type { MeSummaryDto } from '../lib/meSummary';
 import { registerExpoPushTokenWithBackend } from '../lib/expoPush';
 import { fetchOwnerVenues } from '../lib/ownerStaffApi';
 import {
@@ -24,6 +26,7 @@ import {
   isStaffOnboardingDone,
   markPlayerOnboardingDone,
   markStaffIntroComplete,
+  syncOnboardingFromServerSummary,
 } from '../lib/onboardingStorage';
 import type { RootStackParamList } from '../navigation/type';
 
@@ -53,10 +56,19 @@ export default function OnboardingScreen({ navigation }: Props) {
       }
       let isStaff = false;
       try {
-        const { venues } = await fetchOwnerVenues(token);
-        isStaff = venues.length > 0;
+        const [summary, owner] = await Promise.all([
+          apiGet<MeSummaryDto>('/players/me/summary', token),
+          fetchOwnerVenues(token),
+        ]);
+        await syncOnboardingFromServerSummary(summary);
+        isStaff = owner.venues.length > 0;
       } catch {
-        isStaff = false;
+        try {
+          const { venues } = await fetchOwnerVenues(token);
+          isStaff = venues.length > 0;
+        } catch {
+          isStaff = false;
+        }
       }
 
       const [staffDone, playerDone] = await Promise.all([
@@ -85,23 +97,39 @@ export default function OnboardingScreen({ navigation }: Props) {
     void registerExpoPushTokenWithBackend(() => getTokenRef.current());
   }, []);
 
+  const pushOnboardingServer = useCallback(
+    async (body: { playerComplete?: boolean; staffComplete?: boolean }) => {
+      const t = await getTokenRef.current();
+      if (!t) return;
+      try {
+        await apiPatch('/players/me/onboarding', body, t);
+      } catch {
+        /* offline / non-fatal */
+      }
+    },
+    [],
+  );
+
   const finishPlayer = useCallback(async () => {
     await markPlayerOnboardingDone();
+    await pushOnboardingServer({ playerComplete: true });
     registerPush();
     navigation.replace('Home');
-  }, [navigation, registerPush]);
+  }, [navigation, pushOnboardingServer, registerPush]);
 
   const skipPlayer = useCallback(async () => {
     await markPlayerOnboardingDone();
+    await pushOnboardingServer({ playerComplete: true });
     registerPush();
     navigation.replace('Home');
-  }, [navigation, registerPush]);
+  }, [navigation, pushOnboardingServer, registerPush]);
 
   const finishStaff = useCallback(async () => {
     await markStaffIntroComplete();
+    await pushOnboardingServer({ staffComplete: true });
     registerPush();
     navigation.replace('Home');
-  }, [navigation, registerPush]);
+  }, [navigation, pushOnboardingServer, registerPush]);
 
   const goPlayerPage = useCallback(
     (next: number) => {

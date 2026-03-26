@@ -111,13 +111,10 @@ export class VenueReceiptService {
     venueId: string;
     submissionId: string;
     reviewerPlayerId: string;
-    status: ReceiptSubmissionStatus.APPROVED | ReceiptSubmissionStatus.REJECTED;
+    status: 'APPROVED' | 'REJECTED';
     staffNote?: string;
     abuseFlag?: boolean;
   }) {
-    if (params.status === ReceiptSubmissionStatus.PENDING) {
-      throw new BadRequestException('Invalid status');
-    }
     const row = await this.prisma.venueReceiptSubmission.findFirst({
       where: { id: params.submissionId, venueId: params.venueId },
     });
@@ -129,7 +126,7 @@ export class VenueReceiptService {
     return this.prisma.venueReceiptSubmission.update({
       where: { id: row.id },
       data: {
-        status: params.status,
+        status: params.status as ReceiptSubmissionStatus,
         staffNote: params.staffNote?.trim()?.slice(0, 2000),
         abuseFlag: params.abuseFlag ?? false,
         reviewedAt: new Date(),

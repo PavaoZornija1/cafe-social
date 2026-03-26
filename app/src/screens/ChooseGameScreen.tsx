@@ -23,26 +23,26 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
     return (
         <SafeAreaView style={styles.safe}>
             <View style={styles.container}>
-                <Text style={styles.title}>Choose a Game</Text>
-                <Text style={styles.subtitle}>
-                    Pick one of the available games to start your session.
-                </Text>
+                <Text style={styles.title}>{t('chooseGame.title')}</Text>
+                <Text style={styles.subtitle}>{t('chooseGame.subtitle')}</Text>
 
                 <Pressable
                     onPress={onOpenWordGame}
+                    disabled={!venueId}
                     style={({ pressed }) => [
                         styles.card,
                         styles.wordCard,
+                        !venueId && styles.cardDisabled,
                         pressed && styles.cardPressed,
                     ]}
                 >
                     <Text style={styles.cardEmoji}>🧩</Text>
                     <View style={styles.cardBody}>
-                        <Text style={styles.cardTitle}>Word Game</Text>
-                        <Text style={styles.cardDescription}>
-                            Fast social guessing game with challenges and venue progression.
+                        <Text style={styles.cardTitle}>{t('chooseGame.wordTitle')}</Text>
+                        <Text style={styles.cardDescription}>{t('chooseGame.wordDescription')}</Text>
+                        <Text style={styles.cardMeta}>
+                            {venueId ? t('chooseGame.wordCta') : t('chooseGame.needVenue')}
                         </Text>
-                        <Text style={styles.cardMeta}>Tap to preview — coming soon</Text>
                     </View>
                 </Pressable>
 
@@ -56,16 +56,14 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
                 >
                     <Text style={styles.cardEmoji}>🥊</Text>
                     <View style={styles.cardBody}>
-                        <Text style={styles.cardTitle}>Brawler</Text>
-                        <Text style={styles.cardDescription}>
-                            60-75s chaotic arena battles with heroes and power-ups.
-                        </Text>
-                        <Text style={styles.cardMeta}>Open lobby</Text>
+                        <Text style={styles.cardTitle}>{t('chooseGame.brawlerTitle')}</Text>
+                        <Text style={styles.cardDescription}>{t('chooseGame.brawlerDescription')}</Text>
+                        <Text style={styles.cardMeta}>{t('chooseGame.brawlerCta')}</Text>
                     </View>
                 </Pressable>
 
                 <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Text style={styles.backButtonText}>Back</Text>
+                    <Text style={styles.backButtonText}>{t('common.back')}</Text>
                 </Pressable>
             </View>
         </SafeAreaView>
@@ -78,39 +76,34 @@ const styles = StyleSheet.create({
     title: { color: '#fff', fontSize: 28, fontWeight: '900' },
     subtitle: { color: '#9ca3af', fontSize: 14, lineHeight: 20, marginBottom: 6 },
     card: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 14,
         borderRadius: 18,
+        padding: 16,
+        flexDirection: 'row',
+        gap: 14,
+        alignItems: 'flex-start',
         borderWidth: 1,
-        paddingHorizontal: 14,
-        paddingVertical: 16,
     },
+    cardDisabled: { opacity: 0.45 },
+    cardPressed: { opacity: 0.92 },
     wordCard: {
-        backgroundColor: '#0f172a',
-        borderColor: '#1d4ed8',
+        backgroundColor: '#111827',
+        borderColor: '#4c1d95',
     },
     brawlerCard: {
         backgroundColor: '#111827',
-        borderColor: '#374151',
+        borderColor: '#14532d',
     },
-    cardPressed: { opacity: 0.88 },
-    cardDisabled: { opacity: 0.45 },
-    cardEmoji: { fontSize: 32 },
-    cardBody: { flex: 1, gap: 4 },
-    cardTitle: { color: '#fff', fontSize: 18, fontWeight: '900' },
-    cardDescription: { color: '#cbd5e1', fontSize: 13, lineHeight: 18 },
-    cardMeta: { color: '#93c5fd', fontSize: 12, fontWeight: '700', marginTop: 3 },
+    cardEmoji: { fontSize: 36, marginTop: 4 },
+    cardBody: { flex: 1, gap: 6 },
+    cardTitle: { color: '#fff', fontSize: 18, fontWeight: '800' },
+    cardDescription: { color: '#9ca3af', fontSize: 13, lineHeight: 19 },
+    cardMeta: { color: '#a78bfa', fontSize: 12, fontWeight: '700', marginTop: 4 },
     backButton: {
-        marginTop: 8,
+        marginTop: 'auto',
+        marginBottom: 24,
         alignSelf: 'flex-start',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#374151',
-        backgroundColor: '#111827',
-        paddingVertical: 10,
+        paddingVertical: 12,
         paddingHorizontal: 16,
     },
-    backButtonText: { color: '#f3f4f6', fontWeight: '800' },
+    backButtonText: { color: '#a78bfa', fontWeight: '700', fontSize: 15 },
 });
-

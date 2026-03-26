@@ -1,4 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useAuth } from '@clerk/expo';
+import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,21 +12,19 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useAuth } from '@clerk/expo';
-import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiGet } from '../lib/api';
 import { createAndShareFriendInviteLink } from '../lib/friendInviteShare';
+import type { MeSummaryDto } from '../lib/meSummary';
+import { syncOnboardingFromServerSummary } from '../lib/onboardingStorage';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 
-type MeSummary = {
-  playerId?: string;
-  xp: number;
-  tier: string;
-  completedChallenges: number;
-  venuesUnlocked: number;
+type PerkRedemptionRow = {
+  id: string;
+  redeemedAt: string;
+  perk: { title: string; subtitle: string | null; code: string };
 };
 
 export default function ProfileScreen({ navigation }: Props) {
@@ -34,7 +34,8 @@ export default function ProfileScreen({ navigation }: Props) {
   getTokenRef.current = getToken;
 
   const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState<MeSummary | null>(null);
+  const [summary, setSummary] = useState<MeSummaryDto | null>(null);
+  const [redemptions, setRedemptions] = useState<PerkRedemptionRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
 
@@ -46,13 +47,20 @@ export default function ProfileScreen({ navigation }: Props) {
       const token = await getTokenRef.current();
       if (!token) {
         setSummary(null);
+        setRedemptions([]);
         return;
       }
-      const s = await apiGet<MeSummary>('/players/me/summary', token);
+      const [s, r] = await Promise.all([
+        apiGet<MeSummaryDto>('/players/me/summary', token),
+        apiGet<PerkRedemptionRow[]>('/players/me/perk-redemptions', token),
+      ]);
+      await syncOnboardingFromServerSummary(s);
       setSummary(s);
+      setRedemptions(Array.isArray(r) ? r.slice(0, 15) : []);
     } catch {
       setError(t('profile.loadError'));
       setSummary(null);
+      setRedemptions([]);
     } finally {
       setLoading(false);
     }
@@ -73,6 +81,15 @@ export default function ProfileScreen({ navigation }: Props) {
       Alert.alert(t('common.error'), (e as Error).message ?? t('friends.friendLinkFailed'));
     } finally {
       setSharing(false);
+    }
+  };
+
+  const formatRedeemed = (iso: string) => {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    } catch {
+      return iso;
     }
   };
 
@@ -127,7 +144,25 @@ export default function ProfileScreen({ navigation }: Props) {
           </View>
         ) : null}
 
-        <Text style={styles.placeholder}>{t('profile.comingHistory')}</Text>
+        <Text style={styles.sectionTitle}>{t('profile.recentPerksTitle')}</Text>
+        <Text style={styles.sectionHint}>{t('profile.recentPerksHint')}</Text>
+        {loading ? null : redemptions.length === 0 ? (
+          <Text style={styles.muted}>{t('profile.recentPerksEmpty')}</Text>
+        ) : (
+          <View style={styles.list}>
+            {redemptions.map((row) => (
+              <View key={row.id} style={styles.listItem}>
+                <Text style={styles.listTitle}>{row.perk.title}</Text>
+                {row.perk.subtitle ? (
+                  <Text style={styles.listSub}>{row.perk.subtitle}</Text>
+                ) : null}
+                <Text style={styles.listMeta}>
+                  {t('profile.redeemedAt', { when: formatRedeemed(row.redeemedAt) })} · {row.perk.code}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -166,5 +201,18 @@ const styles = StyleSheet.create({
   label: { color: '#9ca3af', fontSize: 14, fontWeight: '600' },
   value: { color: '#fff', fontSize: 16, fontWeight: '900' },
   error: { color: '#f87171', marginTop: 16, fontSize: 14 },
-  placeholder: { color: '#6b7280', marginTop: 24, fontSize: 13, lineHeight: 18 },
+  sectionTitle: { color: '#fff', fontSize: 16, fontWeight: '800', marginTop: 28 },
+  sectionHint: { color: '#6b7280', fontSize: 12, marginTop: 6, lineHeight: 17 },
+  muted: { color: '#6b7280', marginTop: 10, fontSize: 13 },
+  list: { marginTop: 12, gap: 10 },
+  listItem: {
+    backgroundColor: '#111827',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1f2937',
+    padding: 14,
+  },
+  listTitle: { color: '#f4f4f5', fontSize: 15, fontWeight: '800' },
+  listSub: { color: '#9ca3af', fontSize: 13, marginTop: 4, lineHeight: 18 },
+  listMeta: { color: '#6b7280', fontSize: 11, marginTop: 8, fontWeight: '600' },
 });

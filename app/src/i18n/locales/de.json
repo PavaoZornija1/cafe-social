@@ -103,7 +103,24 @@
     "legalUrlMissing": "EXPO_PUBLIC_PRIVACY_POLICY_URL in der App-Konfiguration setzen.",
     "staffTitle": "Venue-Personal",
     "staffHint": "Codes prüfen, wenn du im Partner-CMS als EMPLOYEE, MANAGER oder OWNER eingetragen bist.",
-    "staffOpen": "Personalmodus — Einlösungen & QR"
+    "staffOpen": "Personalmodus — Einlösungen & QR",
+    "subscription": "Abo",
+    "subscriptionHint": "Ein Abo kann Heimspiel und Extras an Premium-Partnern freischalten. Status kommt vom Server.",
+    "subscriptionActive": "Abo aktiv.",
+    "subscriptionInactive": "Kein aktives Abo hinterlegt.",
+    "subscriptionOpen": "Verwalten / abschließen (Web)",
+    "subscriptionUrlMissing": "EXPO_PUBLIC_SUBSCRIPTION_URL in der App-Konfiguration setzen."
+  },
+  "chooseGame": {
+    "title": "Spiel wählen",
+    "subtitle": "Spiele brauchen Check-in vor Ort (oder Abo, wo unterstützt).",
+    "wordTitle": "Wortspiel",
+    "wordDescription": "Solo, Koop oder Duell mit Venue-Challenges.",
+    "wordCta": "Wort-Lobby öffnen",
+    "needVenue": "Erst am Venue einchecken.",
+    "brawlerTitle": "Brawler",
+    "brawlerDescription": "Kurze Arena-Kämpfe mit Helden und Power-ups.",
+    "brawlerCta": "Lobby öffnen"
   },
   "staff": {
     "venuesTitle": "Deine Venues",
@@ -330,7 +347,10 @@
     "completedChallenges": "Abgeschlossene Challenges",
     "venuesUnlocked": "Freigeschaltete Lokale",
     "loadError": "Profilstatistik konnte nicht geladen werden.",
-    "comingHistory": "Verlauf und Belohnungen: demnächst.",
+    "recentPerksTitle": "Letzte Perk-Einlösungen",
+    "recentPerksHint": "Einlösungen an Partner-Lokalen (neueste zuerst).",
+    "recentPerksEmpty": "Noch keine Einlösungen — besuche ein Partner-Café.",
+    "redeemedAt": "Eingelöst {{when}}",
     "openFriends": "Freunde",
     "shareFriendLink": "Freundes-Link teilen"
   },
