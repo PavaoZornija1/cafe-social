@@ -78,7 +78,11 @@ export class PushService {
       targets = rows.map((r) => r.id);
     } else if (opts?.channel === 'partner_marketing') {
       const rows = await this.prisma.player.findMany({
-        where: { id: { in: targets }, partnerMarketingPush: true },
+        where: {
+          id: { in: targets },
+          partnerMarketingPush: true,
+          totalPrivacy: false,
+        },
         select: { id: true },
       });
       targets = rows.map((r) => r.id);

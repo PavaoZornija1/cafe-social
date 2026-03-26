@@ -13,7 +13,10 @@ import { InvitesModule } from './invites/invites.module';
 import { PartyModule } from './party/party.module';
 import { BrawlerModule } from './brawler/brawler.module';
 import { PerkModule } from './perk/perk.module';
+import { ReceiptModule } from './receipt/receipt.module';
 import { AdminModule } from './admin/admin.module';
+import { OwnerModule } from './owner/owner.module';
+import { StaffModule } from './staff/staff.module';
 
 @Module({
   imports: [
@@ -32,7 +35,10 @@ import { AdminModule } from './admin/admin.module';
     PartyModule,
     BrawlerModule,
     PerkModule,
+    ReceiptModule,
     AdminModule,
+    OwnerModule,
+    StaffModule,
   ],
   controllers: [HealthController],
   providers: [],

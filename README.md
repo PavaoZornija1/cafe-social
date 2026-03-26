@@ -8,7 +8,7 @@
 |------|-------------|
 | `backend/` | NestJS API (`/api`), PostgreSQL via Prisma, Clerk JWT auth |
 | `app/` | Expo SDK 54 app (iOS/Android), Clerk, React Navigation |
-| `admin/` | **Next.js 15** partner CMS (`ADMIN_API_KEY`): venues (menu / ordering URLs, nudges, featured offer), words, challenge windows, perk codes |
+| `admin/` | **Next.js 15** partner CMS (`ADMIN_API_KEY`): venues (menu / ordering URLs, nudges, featured offer), words, challenge windows, perk codes; **Clerk owner portal** (`/owner`) for venue analytics + JWT staff redemption lists |
 
 ## What’s implemented
 
@@ -29,7 +29,9 @@
 - **Venue public card (no auth)**: `GET /venues/:id/public-card` — `menuUrl`, `orderingUrl`, optional **featured offer** (respects `featuredOfferEndsAt`).
 - **Perks (JWT)**: `POST /venue-context/:venueId/perks/redeem` `{ code, detectedVenueId? }` — presence + optional QR-unlock perks (admin-configured).
 - **Friends at venue (aggregate)**: `GET /social/venues/:venueId/friends-visit-summary` — count of accepted friends with any visit day at this venue in the last **30 UTC days** (no per-friend leakage).
-- **Admin API**: `X-Admin-Key` or `Authorization: Bearer` with **`ADMIN_API_KEY`** — `/api/admin/...` for venues, words, challenge schedules, **VenuePerk** CRUD (see `admin/` app).
+- **Admin API**: `X-Admin-Key` or `Authorization: Bearer` with **`ADMIN_API_KEY`** — `/api/admin/...` for venues, words, challenge schedules, **VenuePerk** CRUD (see `admin/` app). **`GET/POST /admin/venues/:venueId/staff`**, **`DELETE /admin/venues/:venueId/staff/:playerId`** assign **Clerk** identities to a venue with roles **`EMPLOYEE` | `MANAGER` | `OWNER`** (creates `Player` by email if needed). Last **OWNER** cannot be removed or demoted without adding another OWNER first. Venue PATCH may set a **hashed staff PIN** (`staffPortalPin`, `clearStaffPortalPin`) — never returned in JSON; **`staffPortalConfigured`** boolean is safe.
+- **Owner API (Clerk JWT)**: **`GET /owner/venues`** — venues you are on staff for; **`GET /owner/venues/:venueId/analytics?days=`** ( **`MANAGER`** or **`OWNER`** ) — redemptions, visit-day rows, feed events by UTC day; **`GET /owner/venues/:venueId/redemptions?date=YYYY-MM-DD`** ( **`EMPLOYEE`**+ ) — same payload as the PIN staff portal, without sharing the venue tablet PIN.
+- **Staff portal (browser, no admin key)**: `GET /api/staff/venues/:venueId/redemptions?date=YYYY-MM-DD` with header **`X-Venue-Staff-Pin`** — today’s perk redemptions (UTC day) with **staff verification code** matching the guest app after **`POST .../perks/redeem`**. Enables barista check without sharing **`ADMIN_API_KEY`**. **CORS** is enabled on the API (`origin: true`) so the **Next.js admin** staff page can call the API from another port; tighten `origin` in production.
 - **Challenges schedule**: optional **`activeFrom` / `activeTo`** (UTC) on **`Challenge`** — listed progress respects the window (“happy hour” style).
 - **Push (Expo)**: `POST /players/me/push-token` `{ expoPushToken }`, `DELETE /players/me/push-token?expoPushToken=…` — stores **Expo push tokens** per device; **word match** sends notifications when someone **joins** the room or the host **starts** the match (**channel** `match`, payload `pushCategory: match`). **Venue order nudge** uses **channel** `partner_marketing` and includes `orderingUrl` / `menuUrl` in `data` (`pushCategory: partner_marketing`); recipients must have **`partnerMarketingPush`** and not **`totalPrivacy`**. Server-side category filtering is the baseline; OS notification settings still apply on device.
 - **Per-venue XP**: earned on **challenge progress** at that venue (+10 per increment, +50 on first completion).
@@ -48,15 +50,20 @@
 - **Daily word** screen: **Global** vs **Venue** scope (venue requires detection), guesses via API, streak display; deck **language** follows app locale.
 - **Parties**: list/create, party detail (leader: **kick**, **transfer leadership**, share invite via **Share sheet**, mesh friend-requests, leave).
 - **Redeem invite**: paste token or **`cafesocial://redeem?token=...`** (linking configured).
-- **Redeem perk**: venue staff codes; **`POST /venue-context/:venueId/perks/redeem`** with presence (and optional QR-gated perks).
+- **Redeem perk**: venue staff codes via **`POST /venue-context/:venueId/perks/redeem`** (presence + optional QR-gated perks); response includes **staff verification code** for the staff portal list.
 - **Who’s here**: list for current venue (privacy rules).
 - **Leaderboard**: tabs for **this venue**, **city**, **country**, and **global** summed XP (uses detected venue’s `city` / `country` where needed).
-- **Settings**: Language, **privacy toggles** (discoverable / total privacy), **push buckets** (**word match** vs **partner marketing**), about, **Sign out**.
+- **Settings**: Language, **privacy toggles** (discoverable / total privacy), **push buckets** (**word match** vs **partner marketing**), **Legal & data** (summary + links to policy/terms when env URLs are set), about, **Sign out**.
 - **Word game**: Solo / **co-op** / **versus** (room code, host starts), difficulty, deck language follows app locale with **EN fallback**; challenge progress when rules allow. **Socket.IO** `/word-match` with **reconnecting** banner; **Expo push** + **tap notification** opens the word match (**wait** or **game**) when possible.
 - **QR unlock**: **`expo-camera`** QR scan (native) + manual venue UUID; supports raw UUID, `/venue/<uuid>`, query `venueId`, `cafesocial://…`, JSON `{ venueId }`.
 - **Challenges**: list + progress (+1) with refetch.
 - **Profile**: server summary (includes `playerId`, XP, tier); **share friend invite** (same as Settings).
 - **Friends**: **add by username**, cancel **outgoing** requests, incoming + **Accept**, **share invite** from the screen.
+- **Staff mode** (Clerk users on **`VenueStaff`**): **Settings → Staff mode** — list assigned venues, **UTC-day** perk redemptions (`GET /owner/venues/.../redemptions`), **filter**, **QR scan** / manual code (8-char code or redemption UUID / JSON payload) to highlight the row.
+- **Receipt proof (JWT)**: `POST /venue-context/:venueId/receipts` `{ imageData (data URL base64), mimeType?, notePlayer?, detectedVenueId? }` — same presence rule as perks; **90-day** `retentionUntil` target. Owners: `GET /owner/venues/:venueId/receipts`, `GET .../receipts/:id` (includes image), `POST .../receipts/:id/review` `{ status: APPROVED|REJECTED, staffNote?, abuseFlag? }`.
+- **Redemption audit**: `POST /owner/venues/:venueId/redemptions/:redemptionId/acknowledge` (**EMPLOYEE**+), `POST .../void` (**MANAGER**+, `{ reason }`). Voided rows excluded from active analytics counts; CSV export includes void/ack columns.
+- **Owner analytics v2** (same `GET /owner/venues/:venueId/analytics`): **per-perk** counts, **hour-of-day** (UTC + optional venue **IANA** timezone from `Venue.analyticsTimeZone`, set in Partner CMS), **funnel** (unique visitors vs redeemers), **voided** count. **`GET .../analytics/export.csv`** — redemptions CSV (**MANAGER**+).
+- **Campaigns**: `VenueCampaign` + `VenueCampaignSend` log; **`GET/POST /owner/venues/:venueId/campaigns`**, **`POST .../campaigns/:id/send`** — targets players with a **visit day** at that venue in the last **segmentDays** (UTC day keys); **Expo push** via `partner_marketing` channel (**`partnerMarketingPush` and not `totalPrivacy`**). Re-send after **FAILED** clears prior send rows.
 
 ### Not done yet (good next steps)
 
@@ -108,6 +115,8 @@ npx expo install i18next react-i18next expo-localization @react-native-async-sto
 
 **Physical device**: `EXPO_PUBLIC_API_URL` must use your machine’s **LAN IP**, not `localhost`.
 
+**Store / privacy (Settings in-app)** — Set **`EXPO_PUBLIC_PRIVACY_POLICY_URL`** and optionally **`EXPO_PUBLIC_TERMS_OF_SERVICE_URL`** to your hosted legal pages. The app also shows a short in-app summary (location + notifications). iOS permission strings are in **`app.config.js`** (`NSLocationWhenInUseUsageDescription`, camera, etc.); keep them aligned with your real policy before review.
+
 Development build (with native modules):
 
 ```bash
@@ -116,6 +125,24 @@ npx expo run:ios --device
 ```
 
 After first install on iPhone: **Settings → General → VPN & Device Management → Trust** your developer app.
+
+### iOS troubleshooting (signing / provisioning)
+
+If **`expo run:ios`** / **`xcodebuild`** fails with **“No profiles for `com.….` were found”** and **“Automatic signing is disabled”**:
+
+1. **Use the workspace** — Open **`app/ios/CafeSocial.xcworkspace`** (not `.xcodeproj`).
+2. **Xcode → Settings → Accounts** — Add your **Apple ID** (free or paid developer).
+3. **Target `CafeSocial` → Signing & Capabilities** — Turn on **Automatically manage signing**, pick your **Team**. If the bundle ID isn’t registered yet, Xcode will offer to create it.
+4. **CLI from the repo** — After the account works in Xcode once, you can try:
+   ```bash
+   cd app && npx expo run:ios --device -- -allowProvisioningUpdates
+   ```
+   (`npm run ios:device` if you use the script in `app/package.json`.)
+5. **Wrong team in git** — If `DEVELOPMENT_TEAM` in `ios/…/project.pbxproj` is **not** your team, change it in Xcode (or replace with your 10-character Team ID from [developer.apple.com](https://developer.apple.com/account)).
+6. **Simulator (no device profile)** — For quick JS/native iteration without a physical device profile:
+   ```bash
+   cd app && npx expo run:ios --simulator
+   ```
 
 ### iOS troubleshooting (location / native modules)
 
@@ -134,7 +161,7 @@ cd admin && npm install && npm run dev
 # Docker: docker build -t cafe-social-admin . && docker run -p 3000:3000 cafe-social-admin
 ```
 
-Boilerplate only — wire to your API and auth when you build the CMS.
+Partner CMS: venues (copy, URLs, featured offer, **staff PIN**, **venue staff list** for Clerk owner/employee roles), words, challenge windows, perks; **Staff verification** page at **`/staff/[venueId]`** (venue PIN only). **Owner portal**: **`/owner`** — set **`NEXT_PUBLIC_API_URL`**, **`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`**, and **`CLERK_SECRET_KEY`** (same Clerk application as the mobile app so JWTs validate on the API).
 
 ## Environment variables (app)
 
@@ -144,6 +171,8 @@ Boilerplate only — wire to your API and auth when you build the CMS.
 | `EXPO_PUBLIC_API_URL` | API base including `/api` |
 | `EXPO_PUBLIC_CLERK_GOOGLE_*` | Optional Google sign-in |
 | `EXPO_PUBLIC_EAS_PROJECT_ID` | **Expo push**: EAS project UUID (from `eas project:info`) so `getExpoPushTokenAsync` works in dev/production builds |
+| `EXPO_PUBLIC_PRIVACY_POLICY_URL` | **Store / Settings**: link to your privacy policy |
+| `EXPO_PUBLIC_TERMS_OF_SERVICE_URL` | Optional link to terms of service |
 
 ## Environment variables (backend)
 

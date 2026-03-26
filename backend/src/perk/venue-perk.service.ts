@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { staffVerificationCodeFromRedemptionId } from '../lib/redemption-staff-code';
 
 @Injectable()
 export class VenuePerkService {
@@ -99,6 +100,7 @@ export class VenuePerkService {
 
       return {
         redemptionId: redemption.id,
+        staffVerificationCode: staffVerificationCodeFromRedemptionId(redemption.id),
         title: perk.title,
         subtitle: perk.subtitle,
         body: perk.body,

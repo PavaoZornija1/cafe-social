@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/co
 import { AdminApiKeyGuard } from './admin-api-key.guard';
 import { VenueService } from '../venue/venue.service';
 import { CreateVenueDto } from '../venue/dto/create-venue.dto';
-import { UpdateVenueDto } from '../venue/dto/update-venue.dto';
+import { AdminPatchVenueDto } from '../venue/dto/admin-patch-venue.dto';
 
 @Controller('admin/venues')
 @UseGuards(AdminApiKeyGuard)
@@ -10,13 +10,15 @@ export class AdminVenueController {
   constructor(private readonly venues: VenueService) {}
 
   @Get()
-  list() {
-    return this.venues.findAll();
+  async list() {
+    const rows = await this.venues.findAll();
+    return rows.map((v) => this.venues.sanitizeVenueForAdmin(v));
   }
 
   @Get(':id')
-  get(@Param('id') id: string) {
-    return this.venues.findOne(id);
+  async get(@Param('id') id: string) {
+    const v = await this.venues.findOne(id);
+    return this.venues.sanitizeVenueForAdmin(v);
   }
 
   @Post()
@@ -25,7 +27,7 @@ export class AdminVenueController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateVenueDto) {
-    return this.venues.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: AdminPatchVenueDto) {
+    return this.venues.updateForAdmin(id, dto);
   }
 }

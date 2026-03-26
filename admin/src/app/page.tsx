@@ -52,8 +52,13 @@ export default function AdminHome() {
         Continue
       </button>
       <nav className="mt-8 flex flex-col gap-2 text-violet-400 text-sm">
+        <Link href="/owner">Venue owner / manager portal (Clerk) →</Link>
         <Link href="/venues">Venues, menus & offers →</Link>
         <Link href="/words">Word deck →</Link>
+        <span className="text-zinc-500 text-xs mt-2">
+          Staff tablets: open <strong className="text-zinc-400">/staff/&lt;venueId&gt;</strong> after the
+          manager sets a venue PIN (edit venue).
+        </span>
       </nav>
     </div>
   );

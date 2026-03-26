@@ -1,10 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Venue } from '@prisma/client';
 import { CreateVenueDto } from './dto/create-venue.dto';
 import { UpdateVenueDto } from './dto/update-venue.dto';
+import { AdminPatchVenueDto } from './dto/admin-patch-venue.dto';
 import { VenueRepository } from './venue.repository';
 import { PrismaService } from '../prisma/prisma.service';
+import { hashStaffPortalPin } from '../lib/staff-pin';
 
 function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const earthRadiusM = 6371000;
@@ -85,6 +87,37 @@ export class VenueService {
     return venue;
   }
 
+  /** Strip secret hash; safe for CMS JSON. */
+  sanitizeVenueForAdmin(
+    venue: Venue,
+  ): Omit<Venue, 'staffPortalPinHash'> & { staffPortalConfigured: boolean } {
+    const { staffPortalPinHash, ...rest } = venue;
+    return { ...rest, staffPortalConfigured: !!staffPortalPinHash };
+  }
+
+  async updateForAdmin(id: string, dto: AdminPatchVenueDto) {
+    if (dto.clearStaffPortalPin && dto.staffPortalPin) {
+      throw new BadRequestException('Cannot set and clear staff PIN in the same request');
+    }
+    const { staffPortalPin, clearStaffPortalPin, ...venuePatch } = dto;
+    const patch = venuePatch as UpdateVenueDto;
+    const hasVenueFields = Object.keys(patch).some(
+      (k) => (patch as Record<string, unknown>)[k] !== undefined,
+    );
+    if (hasVenueFields) {
+      await this.update(id, patch);
+    }
+    if (clearStaffPortalPin) {
+      await this.venues.update(id, { staffPortalPinHash: null });
+    } else if (staffPortalPin) {
+      await this.venues.update(id, {
+        staffPortalPinHash: hashStaffPortalPin(staffPortalPin),
+      });
+    }
+    const v = await this.findOne(id);
+    return this.sanitizeVenueForAdmin(v);
+  }
+
   async update(id: string, dto: UpdateVenueDto): Promise<Venue> {
     await this.findOne(id);
     return this.venues.update(id, {
@@ -107,6 +140,9 @@ export class VenueService {
         featuredOfferEndsAt: dto.featuredOfferEndsAt
           ? new Date(dto.featuredOfferEndsAt)
           : null,
+      }),
+      ...(dto.analyticsTimeZone !== undefined && {
+        analyticsTimeZone: dto.analyticsTimeZone?.trim() || null,
       }),
     });
   }

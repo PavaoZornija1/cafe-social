@@ -34,6 +34,12 @@ model Venue {
   featuredOfferBody   String?
   featuredOfferEndsAt DateTime?
 
+  /// PBKDF2 hash for staff tablet browser (`GET /staff/venues/.../redemptions`). Never exposed in public APIs.
+  staffPortalPinHash String?
+
+  /// Optional IANA timezone (e.g. `Europe/Zagreb`) for owner analytics hour-of-day buckets. UTC used when null.
+  analyticsTimeZone String?
+
   playerVenues     PlayerVenue[]
   playerVenueStats PlayerVenueStats[]
   challenges       Challenge[]
@@ -42,9 +48,110 @@ model Venue {
   feedEvents       VenueFeedEvent[]
   perks            VenuePerk[]
   visitDays        PlayerVenueVisitDay[]
+  staffMembers     VenueStaff[]
+  campaigns        VenueCampaign[]
+  receiptSubmissions VenueReceiptSubmission[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum CampaignStatus {
+  DRAFT
+  SENDING
+  COMPLETED
+  FAILED
+}
+
+model VenueCampaign {
+  id              String         @id @default(uuid())
+  venueId         String
+  name            String
+  title           String
+  body            String
+  /// Players who had any visit-day at this venue in the last N UTC days.
+  segmentDays     Int            @default(30)
+  status          CampaignStatus @default(DRAFT)
+  recipientCount  Int?
+  pushSentCount   Int            @default(0)
+  lastError       String?
+  sentAt          DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  venue Venue                @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  sends VenueCampaignSend[]
+
+  @@index([venueId])
+}
+
+model VenueCampaignSend {
+  id         String   @id @default(uuid())
+  campaignId String
+  playerId   String
+  sentAt     DateTime @default(now())
+  ok         Boolean  @default(true)
+  error      String?
+
+  campaign VenueCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  player   Player        @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([playerId])
+}
+
+enum ReceiptSubmissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model VenueReceiptSubmission {
+  id                 String                  @id @default(uuid())
+  venueId            String
+  playerId           String
+  /// Base64 image payload (data URL or raw); prefer client resize; server enforces max size in app logic.
+  imageData          String                  @db.Text
+  mimeType           String                  @default("image/jpeg")
+  notePlayer         String?
+  status             ReceiptSubmissionStatus @default(PENDING)
+  staffNote          String?
+  abuseFlag          Boolean                 @default(false)
+  retentionUntil     DateTime?
+  reviewedAt         DateTime?
+  reviewedByPlayerId String?
+
+  venue    Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  player   Player @relation("ReceiptSubmitter", fields: [playerId], references: [id], onDelete: Cascade)
+  reviewer Player? @relation("ReceiptReviewer", fields: [reviewedByPlayerId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([venueId, status])
+  @@index([playerId])
+}
+
+/// Partner venue access: employees and owners (separate from subscription “premium”).
+enum VenueStaffRole {
+  EMPLOYEE
+  MANAGER
+  OWNER
+}
+
+model VenueStaff {
+  id        String         @id @default(uuid())
+  venueId   String
+  playerId  String
+  role      VenueStaffRole @default(EMPLOYEE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([venueId, playerId])
+  @@index([playerId])
 }
 
 /// A user profile inside Cafe Social.
@@ -94,7 +201,14 @@ model Player {
   dailyWords  PlayerDailyWord[]
   dailyStreaks PlayerDailyStreak[]
   venueVisitDays   PlayerVenueVisitDay[]
-  perkRedemptions  VenuePerkRedemption[]
+  perkRedemptions  VenuePerkRedemption[] @relation("RedemptionGuest")
+
+  venueStaff VenueStaff[]
+  campaignSends VenueCampaignSend[]
+  receiptSubmissions VenueReceiptSubmission[] @relation("ReceiptSubmitter")
+  receiptsReviewed VenueReceiptSubmission[] @relation("ReceiptReviewer")
+  redemptionsAcknowledged VenuePerkRedemption[] @relation("RedemptionStaffAck")
+  redemptionsVoided VenuePerkRedemption[] @relation("RedemptionStaffVoid")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -147,12 +261,21 @@ model VenuePerkRedemption {
   venueId    String
   redeemedAt DateTime @default(now())
 
-  perk   VenuePerk @relation(fields: [perkId], references: [id], onDelete: Cascade)
-  player Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  staffAcknowledgedAt           DateTime?
+  staffAcknowledgedByPlayerId   String?
+  voidedAt                      DateTime?
+  voidReason                    String?
+  voidedByPlayerId              String?
+
+  perk                 VenuePerk @relation(fields: [perkId], references: [id], onDelete: Cascade)
+  player               Player    @relation("RedemptionGuest", fields: [playerId], references: [id], onDelete: Cascade)
+  staffAcknowledgedBy  Player?   @relation("RedemptionStaffAck", fields: [staffAcknowledgedByPlayerId], references: [id], onDelete: SetNull)
+  voidedBy             Player?   @relation("RedemptionStaffVoid", fields: [voidedByPlayerId], references: [id], onDelete: SetNull)
 
   @@unique([perkId, playerId])
   @@index([playerId])
   @@index([venueId])
+  @@index([voidedAt])
 }
 
 /// Expo push notification token (one row per device token; reassigned on login).
