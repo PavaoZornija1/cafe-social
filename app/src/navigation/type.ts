@@ -14,6 +14,7 @@ export type RootStackParamList = {
     Parties: undefined;
     PartyDetail: { partyId: string };
     RedeemInvite: { token?: string } | undefined;
+    RedeemPerk: { venueId?: string } | undefined;
     PeopleHere: { venueId: string; venueName?: string };
     QrScan: { venueId?: string };
     WordLobby: { venueId: string; challengeId?: string };

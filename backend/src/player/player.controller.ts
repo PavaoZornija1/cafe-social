@@ -51,6 +51,22 @@ export class PlayerController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('me/engagement')
+  meEngagement(@CurrentUser() user: unknown) {
+    const email = this.normalizeEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    return this.playerService.getMeEngagement(email);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/perk-redemptions')
+  mePerkRedemptions(@CurrentUser() user: unknown) {
+    const email = this.normalizeEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    return this.playerService.listMyPerkRedemptions(email);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Patch('me/settings')
   meSettings(@CurrentUser() user: unknown, @Body() dto: UpdateMeSettingsDto) {
     const email = this.normalizeEmail(user);

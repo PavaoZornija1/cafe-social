@@ -51,6 +51,8 @@ export class ChallengeRepository {
     rewardVenueSpecific: boolean;
     locationRequired: boolean;
     resetsWeekly: boolean;
+    activeFrom: Date | null;
+    activeTo: Date | null;
   } | null> {
     return this.prisma.challenge.findUnique({
       where: { id: challengeId },
@@ -61,6 +63,8 @@ export class ChallengeRepository {
         rewardVenueSpecific: true,
         locationRequired: true,
         resetsWeekly: true,
+        activeFrom: true,
+        activeTo: true,
       },
     });
   }

@@ -30,6 +30,7 @@ function asDifficulty(d: string): 'easy' | 'normal' | 'hard' {
 
 /**
  * Opens Word match wait or game from a push notification payload (or cold-start response).
+ * Other notification types are handled in `notificationPushNavigation.ts`.
  */
 export async function navigateWordMatchFromPush(
   raw: Record<string, unknown>,

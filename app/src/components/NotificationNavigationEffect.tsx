@@ -1,9 +1,9 @@
 import { useAuth } from '@clerk/expo';
 import * as Notifications from 'expo-notifications';
 import React, { useEffect, useRef } from 'react';
-import { navigateWordMatchFromPush } from '../lib/wordMatchPushNavigation';
+import { handleNotificationTapNavigation } from '../lib/notificationPushNavigation';
 
-/** Handles notification taps → deep link into word match (join / start). */
+/** Handles notification taps → route by payload type (word match, venue nudge, …). */
 export function NotificationNavigationEffect() {
   const { getToken } = useAuth();
   const getTokenRef = useRef(getToken);
@@ -13,7 +13,7 @@ export function NotificationNavigationEffect() {
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data as Record<string, unknown>;
-      void navigateWordMatchFromPush(data ?? {}, () => getTokenRef.current());
+      void handleNotificationTapNavigation(data ?? {}, () => getTokenRef.current());
     });
 
     if (!coldStartDone.current) {
@@ -21,7 +21,7 @@ export function NotificationNavigationEffect() {
       void Notifications.getLastNotificationResponseAsync().then((response) => {
         if (!response) return;
         const data = response.notification.request.content.data as Record<string, unknown>;
-        void navigateWordMatchFromPush(data ?? {}, () => getTokenRef.current());
+        void handleNotificationTapNavigation(data ?? {}, () => getTokenRef.current());
       });
     }
 

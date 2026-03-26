@@ -58,7 +58,10 @@
     "location": "Standort",
     "locationHint": "Wir nutzen deinen Standort nur, um Partner-Cafés in der Nähe zu erkennen. Du kannst ablehnen und den Code manuell einfügen.",
     "notifications": "Benachrichtigungen",
-    "notificationsHint": "Demnächst: Challenge-Erinnerungen und Angebote.",
+    "notificationsHint": "Wähle, welche Push-Typen erlaubt sind (Wort-Matches vs. Partnerangebote). OS-Einstellungen gelten zusätzlich.",
+    "pushMatchActivity": "Wort-Match-Aktivität",
+    "pushPartnerMarketing": "Partner-Angebote vor Ort",
+    "pushPartnerFootnote": "Bestell-Hinweise respektieren weiterhin „Totale Privatsphäre“ auf dem Server.",
     "account": "Konto",
     "accountHint": "E-Mail und Sicherheit in deinem Clerk-Profil (später tiefer verlinkt).",
     "privacy": "Datenschutz & Auffindbarkeit",
@@ -106,7 +109,16 @@
     "venueFeedTitle": "In diesem Café",
     "venueFeedEmpty": "Noch keine Aktivität — starte ein Match oder löse das Tageswort vor Ort.",
     "venueFeedActor": "{{user}} · {{action}}",
-    "challengeProgressWeekly": "Wöchentlich · {{title}} ({{current}}/{{target}})"
+    "challengeProgressWeekly": "Wöchentlich · {{title}} ({{current}}/{{target}})",
+    "partnerOffers": "Partner — {{name}}",
+    "featuredOffer": "Highlight",
+    "openOrdering": "Bestellen",
+    "openMenu": "Speisekarte",
+    "friendsVisitedVenue": "{{count}} Freund:innen waren in den letzten 30 Tagen hier.",
+    "visitsThisWeek": "{{n}} Besuchstage diese Woche",
+    "badgeRegularWeek": "Stammgast diese Woche",
+    "badgeVenueExplorer": "Lokal-Entdecker",
+    "linkRedeemPerk": "Vorteil einlösen"
   },
   "dailyWord": {
     "title": "Tageswort",
@@ -338,6 +350,17 @@
     "accepted": "Ihr seid jetzt Freunde!",
     "shareFriendInviteMessage": "Cafe Social – füge mich hinzu:\n{{url}}\n\nToken:\n{{raw}}",
     "friendLinkFailed": "Einladungslink fehlgeschlagen."
+  },
+  "perk": {
+    "title": "Vorteil einlösen",
+    "subtitle": "Gib den Code vom Lokal ein (du musst vor Ort sein). Für manche Angebote ist ein QR-Scan nötig.",
+    "codePlaceholder": "CODE",
+    "redeem": "Einlösen",
+    "codeRequired": "Bitte Code eingeben.",
+    "signInFirst": "Zuerst anmelden.",
+    "needVenue": "Lokal muss erkannt sein (oder von der Startseite öffnen, wenn du dort bist).",
+    "redeemFailed": "Einlösen fehlgeschlagen.",
+    "showToStaff": "Diesen Bildschirm ggf. dem Personal zeigen."
   },
   "redeem": {
     "title": "Einladung einlösen",

@@ -58,7 +58,10 @@
     "location": "Ubicación",
     "locationHint": "Usamos tu ubicación solo para detectar cafés socios cercanos. Puedes denegar y pegar el código manualmente.",
     "notifications": "Notificaciones",
-    "notificationsHint": "Próximamente: recordatorios de retos y ofertas.",
+    "notificationsHint": "Elige qué notificaciones permitimos (partidas de palabras vs. ofertas de socios). El sistema operativo también filtra.",
+    "pushMatchActivity": "Actividad de partidas de palabras",
+    "pushPartnerMarketing": "Ofertas del local socio",
+    "pushPartnerFootnote": "Los avisos de pedido siguen respetando “Privacidad total” en el servidor.",
     "account": "Cuenta",
     "accountHint": "Gestiona correo y seguridad en tu perfil de Clerk (enlace más adelante).",
     "privacy": "Privacidad y visibilidad",
@@ -106,7 +109,16 @@
     "venueFeedTitle": "En este local",
     "venueFeedEmpty": "Sin actividad aún — empieza una partida o resuelve la palabra del local.",
     "venueFeedActor": "{{user}} · {{action}}",
-    "challengeProgressWeekly": "Semanal · {{title}} ({{current}}/{{target}})"
+    "challengeProgressWeekly": "Semanal · {{title}} ({{current}}/{{target}})",
+    "partnerOffers": "Socio — {{name}}",
+    "featuredOffer": "Destacado",
+    "openOrdering": "Pedir",
+    "openMenu": "Carta",
+    "friendsVisitedVenue": "{{count}} amigos han pasado por este local en los últimos 30 días.",
+    "visitsThisWeek": "{{n}} días con visita esta semana",
+    "badgeRegularWeek": "Habitual esta semana",
+    "badgeVenueExplorer": "Explorador de locales",
+    "linkRedeemPerk": "Canjear beneficio"
   },
   "dailyWord": {
     "title": "Palabra del día",
@@ -338,6 +350,17 @@
     "accepted": "¡Sois amigos!",
     "shareFriendInviteMessage": "Añádeme en Cafe Social:\n{{url}}\n\nToken:\n{{raw}}",
     "friendLinkFailed": "No se pudo crear el enlace."
+  },
+  "perk": {
+    "title": "Canjear beneficio",
+    "subtitle": "Introduce el código del local (debes estar allí). Algunas ofertas requieren escanear un QR.",
+    "codePlaceholder": "CÓDIGO",
+    "redeem": "Canjear",
+    "codeRequired": "Escribe un código.",
+    "signInFirst": "Inicia sesión primero.",
+    "needVenue": "Debes estar detectado en el local (o abre esto desde Inicio estando allí).",
+    "redeemFailed": "No se pudo canjear.",
+    "showToStaff": "Muestra esta pantalla al personal si hace falta."
   },
   "redeem": {
     "title": "Canjear invitación",

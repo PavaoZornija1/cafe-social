@@ -21,12 +21,27 @@ model Venue {
   country String?
   region  String?
 
+  /// Optional push copy for the “order a drink” nudge (`{{venueName}}` supported).
+  orderNudgeTitle String?
+  orderNudgeBody  String?
+
+  /// Menu / ordering deep links (shown in app + optional notification payload).
+  menuUrl     String?
+  orderingUrl String?
+
+  /// “Featured offer of the week” (optional; `featuredOfferEndsAt` hides after date).
+  featuredOfferTitle  String?
+  featuredOfferBody   String?
+  featuredOfferEndsAt DateTime?
+
   playerVenues     PlayerVenue[]
   playerVenueStats PlayerVenueStats[]
   challenges       Challenge[]
   gameSessions         GameSession[]
   playerGameVenueStats PlayerGameVenueStats[]
   feedEvents       VenueFeedEvent[]
+  perks            VenuePerk[]
+  visitDays        PlayerVenueVisitDay[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -43,8 +58,18 @@ model Player {
   /// Total privacy: invisible to everyone for social/presence surfaces.
   totalPrivacy Boolean @default(false)
 
+  /// Partner / venue marketing pushes (e.g. order nudge). Independent of `totalPrivacy`.
+  partnerMarketingPush Boolean @default(true)
+  /// Word-match join/start and similar activity pings.
+  matchActivityPush    Boolean @default(true)
+
   lastPresenceVenueId String?
   lastPresenceAt      DateTime?
+
+  /// Dwell-based venue order nudge: continuous visit at `venueNudgeSessionVenueId` since `venueNudgeSessionStartedAt`.
+  venueNudgeSessionVenueId   String?
+  venueNudgeSessionStartedAt DateTime?
+  venueNudgeLastSentAt       DateTime?
 
   playerVenues        PlayerVenue[]
   playerVenueStats    PlayerVenueStats[]
@@ -68,11 +93,66 @@ model Player {
 
   dailyWords  PlayerDailyWord[]
   dailyStreaks PlayerDailyStreak[]
+  venueVisitDays   PlayerVenueVisitDay[]
+  perkRedemptions  VenuePerkRedemption[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([email, username])
+}
+
+/// One row per player per venue per UTC calendar day — powers visits / badges / friend aggregates.
+model PlayerVenueVisitDay {
+  playerId  String
+  venueId   String
+  dayKey    String
+  createdAt DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, venueId, dayKey])
+  @@index([venueId, dayKey])
+  @@index([playerId, dayKey])
+}
+
+/// Staff-configured perk codes (“show this screen for 10% off”).
+model VenuePerk {
+  id        String   @id @default(uuid())
+  venueId   String
+  /// Normalized uppercase code (unique globally for simple lookup).
+  code      String   @unique
+  title     String
+  subtitle  String?
+  body      String?
+  requiresQrUnlock Boolean @default(false)
+  activeFrom DateTime?
+  activeTo   DateTime?
+  maxRedemptions Int?
+  redemptionCount Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue       Venue                 @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  redemptions VenuePerkRedemption[]
+
+  @@index([venueId])
+}
+
+model VenuePerkRedemption {
+  id         String   @id @default(uuid())
+  perkId     String
+  playerId   String
+  venueId    String
+  redeemedAt DateTime @default(now())
+
+  perk   VenuePerk @relation(fields: [perkId], references: [id], onDelete: Cascade)
+  player Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([perkId, playerId])
+  @@index([playerId])
+  @@index([venueId])
 }
 
 /// Expo push notification token (one row per device token; reassigned on login).
@@ -311,6 +391,10 @@ model Challenge {
 
   /// When true, progress and completion reset each ISO calendar week (UTC).
   resetsWeekly Boolean @default(false)
+
+  /// Optional “happy hour” style window (UTC); null = always available.
+  activeFrom DateTime?
+  activeTo   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

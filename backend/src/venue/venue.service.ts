@@ -34,6 +34,18 @@ export class VenueService {
       ...(dto.city !== undefined && { city: dto.city }),
       ...(dto.country !== undefined && { country: dto.country }),
       ...(dto.region !== undefined && { region: dto.region }),
+      ...(dto.isPremium !== undefined && { isPremium: dto.isPremium }),
+      ...(dto.menuUrl !== undefined && { menuUrl: dto.menuUrl }),
+      ...(dto.orderingUrl !== undefined && { orderingUrl: dto.orderingUrl }),
+      ...(dto.orderNudgeTitle !== undefined && { orderNudgeTitle: dto.orderNudgeTitle }),
+      ...(dto.orderNudgeBody !== undefined && { orderNudgeBody: dto.orderNudgeBody }),
+      ...(dto.featuredOfferTitle !== undefined && { featuredOfferTitle: dto.featuredOfferTitle }),
+      ...(dto.featuredOfferBody !== undefined && { featuredOfferBody: dto.featuredOfferBody }),
+      ...(dto.featuredOfferEndsAt !== undefined && {
+        featuredOfferEndsAt: dto.featuredOfferEndsAt
+          ? new Date(dto.featuredOfferEndsAt)
+          : null,
+      }),
     });
   }
 
@@ -84,7 +96,54 @@ export class VenueService {
       ...(dto.city !== undefined && { city: dto.city }),
       ...(dto.country !== undefined && { country: dto.country }),
       ...(dto.region !== undefined && { region: dto.region }),
+      ...(dto.isPremium !== undefined && { isPremium: dto.isPremium }),
+      ...(dto.menuUrl !== undefined && { menuUrl: dto.menuUrl }),
+      ...(dto.orderingUrl !== undefined && { orderingUrl: dto.orderingUrl }),
+      ...(dto.orderNudgeTitle !== undefined && { orderNudgeTitle: dto.orderNudgeTitle }),
+      ...(dto.orderNudgeBody !== undefined && { orderNudgeBody: dto.orderNudgeBody }),
+      ...(dto.featuredOfferTitle !== undefined && { featuredOfferTitle: dto.featuredOfferTitle }),
+      ...(dto.featuredOfferBody !== undefined && { featuredOfferBody: dto.featuredOfferBody }),
+      ...(dto.featuredOfferEndsAt !== undefined && {
+        featuredOfferEndsAt: dto.featuredOfferEndsAt
+          ? new Date(dto.featuredOfferEndsAt)
+          : null,
+      }),
     });
+  }
+
+  /** Public fields for the mobile app (menu, ordering, featured offer). */
+  async getPublicCard(id: string) {
+    await this.findOne(id);
+    const v = await this.prisma.venue.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        menuUrl: true,
+        orderingUrl: true,
+        featuredOfferTitle: true,
+        featuredOfferBody: true,
+        featuredOfferEndsAt: true,
+      },
+    });
+    if (!v) throw new NotFoundException(`Venue ${id} not found`);
+    const now = new Date();
+    const featuredLive =
+      !!v.featuredOfferTitle?.trim() &&
+      (!v.featuredOfferEndsAt || v.featuredOfferEndsAt > now);
+    return {
+      id: v.id,
+      name: v.name,
+      menuUrl: v.menuUrl,
+      orderingUrl: v.orderingUrl,
+      featuredOffer: featuredLive
+        ? {
+            title: v.featuredOfferTitle,
+            body: v.featuredOfferBody,
+            endsAt: v.featuredOfferEndsAt?.toISOString() ?? null,
+          }
+        : null,
+    };
   }
 
   async remove(id: string): Promise<void> {

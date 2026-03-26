@@ -56,15 +56,34 @@ export class PushService {
     return [...new Set(rows.map((r) => r.token))];
   }
 
-  /** Notify everyone in `playerIds` except `exceptPlayerId` (optional). */
+  /**
+   * Notify everyone in `playerIds` except `exceptPlayerId` (optional).
+   * Respects per-player push prefs when `channel` is set.
+   */
   async sendToPlayers(
     playerIds: string[],
     exceptPlayerId: string | undefined,
     message: Omit<ExpoPushMessage, 'to'>,
+    opts?: { channel?: 'partner_marketing' | 'match' },
   ): Promise<void> {
-    const targets = exceptPlayerId
+    let targets = exceptPlayerId
       ? playerIds.filter((id) => id !== exceptPlayerId)
-      : playerIds;
+      : [...playerIds];
+
+    if (opts?.channel === 'match') {
+      const rows = await this.prisma.player.findMany({
+        where: { id: { in: targets }, matchActivityPush: true },
+        select: { id: true },
+      });
+      targets = rows.map((r) => r.id);
+    } else if (opts?.channel === 'partner_marketing') {
+      const rows = await this.prisma.player.findMany({
+        where: { id: { in: targets }, partnerMarketingPush: true },
+        select: { id: true },
+      });
+      targets = rows.map((r) => r.id);
+    }
+
     const tokens = await this.tokensForPlayers(targets);
     await this.sendExpo(tokens, message);
   }

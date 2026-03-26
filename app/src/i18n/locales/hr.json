@@ -58,7 +58,10 @@
     "location": "Lokacija",
     "locationHint": "Koristimo lokaciju samo za otkrivanje partnerskih kafića u blizini. Možeš odbiti i ručno zalijepiti kod.",
     "notifications": "Obavijesti",
-    "notificationsHint": "Uskoro: podsjetnici na izazove i ponude.",
+    "notificationsHint": "Odaberi koje obavijesti šaljemo (riječ-mčevi vs. partnerske ponude). Postavke OS-a i dalje vrijede.",
+    "pushMatchActivity": "Aktivnost riječ-mčeva",
+    "pushPartnerMarketing": "Ponude partnerskog lokala",
+    "pushPartnerFootnote": "Podsjetnici za narudžbu i dalje poštuju „Potpunu privatnost” na serveru.",
     "account": "Račun",
     "accountHint": "E-poštu i sigurnost upravljaj u Clerk profilu (kasnije dublja poveznica).",
     "privacy": "Privatnost i vidljivost",
@@ -106,7 +109,16 @@
     "venueFeedTitle": "U ovom lokalu",
     "venueFeedEmpty": "Još nema aktivnosti — pokreni meč ili riješi dnevnu riječ lokala.",
     "venueFeedActor": "{{user}} · {{action}}",
-    "challengeProgressWeekly": "Tjedno · {{title}} ({{current}}/{{target}})"
+    "challengeProgressWeekly": "Tjedno · {{title}} ({{current}}/{{target}})",
+    "partnerOffers": "Partner — {{name}}",
+    "featuredOffer": "Istaknuto",
+    "openOrdering": "Naruči",
+    "openMenu": "Jelovnik",
+    "friendsVisitedVenue": "{{count}} prijatelja posjetilo je ovaj lokal u zadnjih 30 dana.",
+    "visitsThisWeek": "{{n}} dana posjeta ovaj tjedan",
+    "badgeRegularWeek": "Redovan posjet ovaj tjedan",
+    "badgeVenueExplorer": "Istraživač lokala",
+    "linkRedeemPerk": "Iskoristi pogodnost"
   },
   "dailyWord": {
     "title": "Dnevna riječ",
@@ -338,6 +350,17 @@
     "accepted": "Sada ste prijatelji!",
     "shareFriendInviteMessage": "Dodaj me na Cafe Social:\n{{url}}\n\nToken:\n{{raw}}",
     "friendLinkFailed": "Poveznica nije uspjela."
+  },
+  "perk": {
+    "title": "Iskoristi pogodnost",
+    "subtitle": "Upiši kod lokala (moraš biti na mjestu). Neke ponude traže skeniranje QR koda.",
+    "codePlaceholder": "KÔD",
+    "redeem": "Iskoristi",
+    "codeRequired": "Upiši kod.",
+    "signInFirst": "Prvo se prijavi.",
+    "needVenue": "Lokal mora biti prepoznat (ili otvori s Početne dok si tamo).",
+    "redeemFailed": "Nije uspjelo iskoristiti.",
+    "showToStaff": "Po potrebi pokaži ovaj ekran osoblju."
   },
   "redeem": {
     "title": "Iskoristi pozivnicu",

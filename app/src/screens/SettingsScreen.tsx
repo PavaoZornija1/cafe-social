@@ -25,6 +25,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 type MeSummary = {
   discoverable: boolean;
   totalPrivacy: boolean;
+  partnerMarketingPush: boolean;
+  matchActivityPush: boolean;
 };
 
 export default function SettingsScreen({ navigation }: Props) {
@@ -37,6 +39,8 @@ export default function SettingsScreen({ navigation }: Props) {
   const [privacyLoading, setPrivacyLoading] = useState(true);
   const [discoverable, setDiscoverable] = useState(true);
   const [totalPrivacy, setTotalPrivacy] = useState(false);
+  const [partnerMarketingPush, setPartnerMarketingPush] = useState(true);
+  const [matchActivityPush, setMatchActivityPush] = useState(true);
   const [privacySaving, setPrivacySaving] = useState(false);
   const [friendLinkBusy, setFriendLinkBusy] = useState(false);
   const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '—';
@@ -50,6 +54,8 @@ export default function SettingsScreen({ navigation }: Props) {
       const s = await apiGet<MeSummary>('/players/me/summary', token);
       setDiscoverable(s.discoverable);
       setTotalPrivacy(s.totalPrivacy);
+      setPartnerMarketingPush(s.partnerMarketingPush ?? true);
+      setMatchActivityPush(s.matchActivityPush ?? true);
     } catch {
       Alert.alert(t('common.error'), t('settings.privacyLoadError'));
     } finally {
@@ -172,9 +178,42 @@ export default function SettingsScreen({ navigation }: Props) {
         </View>
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.notifications')}</Text>
-        <View style={styles.card}>
-          <Text style={styles.cardText}>{t('settings.notificationsHint')}</Text>
-        </View>
+        <Text style={styles.hint}>{t('settings.notificationsHint')}</Text>
+        {privacyLoading ? (
+          <View style={styles.privacyLoading}>
+            <ActivityIndicator color="#a78bfa" />
+          </View>
+        ) : (
+          <View style={styles.toggleCard}>
+            <View style={styles.toggleRow}>
+              <Text style={styles.toggleLabel}>{t('settings.pushMatchActivity')}</Text>
+              <Switch
+                value={matchActivityPush}
+                disabled={privacySaving}
+                onValueChange={(v) => {
+                  setMatchActivityPush(v);
+                  void persistPrivacy({ matchActivityPush: v });
+                }}
+                trackColor={{ true: '#6d28d9', false: '#374151' }}
+                thumbColor="#f4f4f5"
+              />
+            </View>
+            <View style={[styles.toggleRow, styles.toggleRowBorder]}>
+              <Text style={styles.toggleLabel}>{t('settings.pushPartnerMarketing')}</Text>
+              <Switch
+                value={partnerMarketingPush}
+                disabled={privacySaving}
+                onValueChange={(v) => {
+                  setPartnerMarketingPush(v);
+                  void persistPrivacy({ partnerMarketingPush: v });
+                }}
+                trackColor={{ true: '#6d28d9', false: '#374151' }}
+                thumbColor="#f4f4f5"
+              />
+            </View>
+            <Text style={styles.pushFootnote}>{t('settings.pushPartnerFootnote')}</Text>
+          </View>
+        )}
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.account')}</Text>
         <View style={styles.card}>
@@ -276,6 +315,14 @@ const styles = StyleSheet.create({
   },
   toggleRowBorder: { borderTopWidth: 1, borderTopColor: '#1f2937' },
   toggleLabel: { color: '#e5e7eb', fontWeight: '700', fontSize: 15, flex: 1, paddingRight: 12 },
+  pushFootnote: {
+    color: '#6b7280',
+    fontSize: 11,
+    lineHeight: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    paddingTop: 4,
+  },
   card: {
     marginTop: 10,
     backgroundColor: '#111827',

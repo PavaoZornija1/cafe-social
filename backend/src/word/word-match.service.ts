@@ -148,15 +148,21 @@ export class WordMatchService {
 
     this.pushSessionRefresh(session.id);
 
-    void this.pushNotifications.sendToPlayers(alreadyThere, undefined, {
-      title: 'Cafe Social',
-      body: `${player.username} joined your word room`,
-      data: {
-        type: 'word_match_join',
-        sessionId: session.id,
-        venueId: session.venueId ?? '',
+    void this.pushNotifications.sendToPlayers(
+      alreadyThere,
+      undefined,
+      {
+        title: 'Cafe Social',
+        body: `${player.username} joined your word room`,
+        data: {
+          type: 'word_match_join',
+          sessionId: session.id,
+          venueId: session.venueId ?? '',
+          pushCategory: 'match',
+        },
       },
-    });
+      { channel: 'match' },
+    );
 
     return this.getStateForViewer(player.id, session.id);
   }
@@ -200,15 +206,21 @@ export class WordMatchService {
     const participantIds = session.participants
       .map((p) => p.playerId)
       .filter((id): id is string => !!id);
-    void this.pushNotifications.sendToPlayers(participantIds, undefined, {
-      title: 'Cafe Social',
-      body: 'Word match is starting — open the app to play!',
-      data: {
-        type: 'word_match_start',
-        sessionId,
-        venueId: session.venueId ?? '',
+    void this.pushNotifications.sendToPlayers(
+      participantIds,
+      undefined,
+      {
+        title: 'Cafe Social',
+        body: 'Word match is starting — open the app to play!',
+        data: {
+          type: 'word_match_start',
+          sessionId,
+          venueId: session.venueId ?? '',
+          pushCategory: 'match',
+        },
       },
-    });
+      { channel: 'match' },
+    );
 
     return { sessionId, status: GameSessionStatus.ACTIVE };
   }

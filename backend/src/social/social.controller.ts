@@ -23,6 +23,7 @@ import { FriendRequestDto } from './dto/friend-request.dto';
 import { FriendRequestByUsernameDto } from './dto/friend-request-by-username.dto';
 import { FriendAcceptDto } from './dto/friend-accept.dto';
 import { UpdatePresenceDto } from '../player/dto/update-presence.dto';
+import { utcDayKeyDaysAgo } from '../lib/engagement-dates';
 
 @Controller('social')
 @UseGuards(JwtAuthGuard)
@@ -59,6 +60,25 @@ export class SocialController {
   ) {
     const p = await this.players.findOrCreateByEmail(this.email(user));
     return this.discovery.peopleHere(p.id, venueId);
+  }
+
+  /**
+   * Count of **accepted friends** with at least one visit day at this venue in the last 30 UTC days
+   * (`PlayerVenueVisitDay`). Privacy-safe aggregate.
+   */
+  @Get('venues/:venueId/friends-visit-summary')
+  async friendsVisitSummary(
+    @CurrentUser() user: unknown,
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+  ) {
+    const p = await this.players.findOrCreateByEmail(this.email(user));
+    const sinceDayKey = utcDayKeyDaysAgo(30);
+    const friendsWithVisits = await this.discovery.countFriendsWithVisitsSince(
+      p.id,
+      venueId,
+      sinceDayKey,
+    );
+    return { friendsWithVisitsLast30Days: friendsWithVisits, sinceDayKey };
   }
 
   @Get('venues/:venueId/feed')

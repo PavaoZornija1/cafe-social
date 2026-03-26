@@ -58,7 +58,10 @@
     "location": "Location",
     "locationHint": "We use your location only to detect which partner café you are near. You can deny access and still paste a venue code manually.",
     "notifications": "Notifications",
-    "notificationsHint": "Coming soon: challenge reminders and offers.",
+    "notificationsHint": "Choose which kinds of pushes we may send (word matches vs. partner offers). OS settings always apply.",
+    "pushMatchActivity": "Word match activity",
+    "pushPartnerMarketing": "Partner venue offers",
+    "pushPartnerFootnote": "Venue order nudges still respect “Total privacy” on the server.",
     "account": "Account",
     "accountHint": "Manage email and security in your Clerk profile (we’ll link deeper later).",
     "privacy": "Privacy & discoverability",
@@ -106,7 +109,16 @@
     "venueFeedTitle": "At this venue",
     "venueFeedEmpty": "No recent activity yet — start a match or solve the venue daily.",
     "venueFeedActor": "{{user}} · {{action}}",
-    "challengeProgressWeekly": "Weekly · {{title}} ({{current}}/{{target}})"
+    "challengeProgressWeekly": "Weekly · {{title}} ({{current}}/{{target}})",
+    "partnerOffers": "Partner — {{name}}",
+    "featuredOffer": "Featured",
+    "openOrdering": "Order",
+    "openMenu": "Menu",
+    "friendsVisitedVenue": "{{count}} friends have visited this venue in the last 30 days.",
+    "visitsThisWeek": "{{n}} visit days this week",
+    "badgeRegularWeek": "Regular this week",
+    "badgeVenueExplorer": "Venue explorer",
+    "linkRedeemPerk": "Redeem perk"
   },
   "dailyWord": {
     "title": "Daily word",
@@ -338,6 +350,17 @@
     "accepted": "You are now friends!",
     "shareFriendInviteMessage": "Add me on Cafe Social:\n{{url}}\n\nToken:\n{{raw}}",
     "friendLinkFailed": "Could not create invite link."
+  },
+  "perk": {
+    "title": "Redeem perk",
+    "subtitle": "Enter the code from the venue (you must be on premise). Staff may ask you to scan a QR for some offers.",
+    "codePlaceholder": "CODE",
+    "redeem": "Redeem",
+    "codeRequired": "Enter a perk code.",
+    "signInFirst": "Sign in first.",
+    "needVenue": "Be detected at the venue (or open this from Home while you’re there).",
+    "redeemFailed": "Could not redeem.",
+    "showToStaff": "Show this screen to staff if they need proof."
   },
   "redeem": {
     "title": "Redeem invite",

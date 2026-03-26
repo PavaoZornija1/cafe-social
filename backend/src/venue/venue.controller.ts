@@ -67,6 +67,12 @@ export class VenueController {
     return this.venueService.venueXpLeaderboard(id);
   }
 
+  /** No auth — safe public card for Home / deep links. */
+  @Get(':id/public-card')
+  publicCard(@Param('id') id: string) {
+    return this.venueService.getPublicCard(id);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.venueService.findOne(id);

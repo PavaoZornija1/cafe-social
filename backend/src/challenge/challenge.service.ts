@@ -4,6 +4,7 @@ import { PlayerService } from '../player/player.service';
 import { ChallengeRepository } from './challenge.repository';
 import { PlayerVenueStatsRepository } from '../stats/player-venue-stats.repository';
 import { isoWeekKeyUTC } from '../lib/week-key';
+import { isChallengeActiveWindow } from '../lib/challenge-window';
 
 export type VenueChallengeDto = {
   id: string;
@@ -28,7 +29,10 @@ export class ChallengeService {
   async getVenueChallengesForPlayer(venueId: string, email: string): Promise<VenueChallengeDto[]> {
     const player = await this.players.findOrCreateByEmail(email);
 
-    const challengeRows = await this.challenges.findByVenueId(venueId);
+    const now = new Date();
+    const challengeRows = (await this.challenges.findByVenueId(venueId)).filter((c) =>
+      isChallengeActiveWindow(c.activeFrom, c.activeTo, now),
+    );
     const progresses = await this.challenges.findProgresses(
       player.id,
       challengeRows.map((c) => c.id),
@@ -85,6 +89,9 @@ export class ChallengeService {
     const challenge = await this.challenges.getChallengeTarget(challengeId);
     if (!challenge) throw new BadRequestException('Challenge not found');
     if (challenge.venueId !== venueId) throw new BadRequestException('Challenge does not belong to this venue');
+    if (!isChallengeActiveWindow(challenge.activeFrom, challenge.activeTo)) {
+      throw new BadRequestException('This challenge is not active during the current time window');
+    }
 
     const venueIsPremium = await this.challenges.getVenueIsPremium(venueId);
 

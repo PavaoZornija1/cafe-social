@@ -1,4 +1,14 @@
-import { IsLatitude, IsLongitude, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsLatitude,
+  IsLongitude,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 
 export class CreateVenueDto {
   @IsString()
@@ -30,5 +40,37 @@ export class CreateVenueDto {
   @IsString()
   @IsOptional()
   region?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isPremium?: boolean;
+
+  @IsString()
+  @IsOptional()
+  menuUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  orderingUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  orderNudgeTitle?: string;
+
+  @IsString()
+  @IsOptional()
+  orderNudgeBody?: string;
+
+  @IsString()
+  @IsOptional()
+  featuredOfferTitle?: string;
+
+  @IsString()
+  @IsOptional()
+  featuredOfferBody?: string;
+
+  @IsDateString()
+  @IsOptional()
+  featuredOfferEndsAt?: string;
 }
 

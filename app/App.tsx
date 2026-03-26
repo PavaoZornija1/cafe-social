@@ -13,6 +13,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { syncBrawlerScreenOrientation } from './src/brawler/screenOrientation';
 import { ExpoPushRegistrar } from './src/components/ExpoPushRegistrar';
 import { NotificationNavigationEffect } from './src/components/NotificationNavigationEffect';
+import { VenuePresenceHeartbeat } from './src/components/VenuePresenceHeartbeat';
 import RootStack from './src/navigation/RootStack';
 import { navigationRef } from './src/navigation/navigationRef';
 import type { RootStackParamList } from './src/navigation/type';
@@ -97,6 +98,7 @@ export default function App() {
         }}
       >
         <NotificationNavigationEffect />
+        <VenuePresenceHeartbeat />
         <ExpoPushRegistrar />
         <StatusBar style="light" />
         <RootStack />

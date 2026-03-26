@@ -19,6 +19,7 @@ import WordGameScreen from "../screens/WordGameScreen";
 import PartiesScreen from "../screens/PartiesScreen";
 import PartyDetailScreen from "../screens/PartyDetailScreen";
 import RedeemInviteScreen from "../screens/RedeemInviteScreen";
+import RedeemPerkScreen from "../screens/RedeemPerkScreen";
 import PeopleHereScreen from "../screens/PeopleHereScreen";
 import ChooseGameScreen from "../screens/ChooseGameScreen";
 import BrawlerLobbyScreen from "../screens/BrawlerLobbyScreen";
@@ -50,6 +51,7 @@ export default function RootStack() {
             <Stack.Screen name="Parties" component={PartiesScreen} />
             <Stack.Screen name="PartyDetail" component={PartyDetailScreen} />
             <Stack.Screen name="RedeemInvite" component={RedeemInviteScreen} />
+            <Stack.Screen name="RedeemPerk" component={RedeemPerkScreen} />
             <Stack.Screen name="PeopleHere" component={PeopleHereScreen} />
             <Stack.Screen name="QrScan" component={QrScanScreen} />
             <Stack.Screen name="WordLobby" component={WordLobbyScreen} />

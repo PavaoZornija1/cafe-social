@@ -15,6 +15,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiGet, apiPost } from '../lib/api';
+import { openOrderingOrMenu } from '../lib/openOrderingLinks';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
@@ -58,6 +59,29 @@ type MeSummary = {
     venuesUnlocked: number;
 };
 
+type VenuePublicCard = {
+    id: string;
+    name: string;
+    menuUrl: string | null;
+    orderingUrl: string | null;
+    featuredOffer: {
+        title: string | null;
+        body: string | null;
+        endsAt: string | null;
+    } | null;
+};
+
+type FriendsVisitSummary = {
+    friendsWithVisitsLast30Days: number;
+    sinceDayKey: string;
+};
+
+type Engagement = {
+    visitsThisWeek: number;
+    distinctVenuesVisitedLast30Days: number;
+    badges: string[];
+};
+
 export default function HomeScreen({ navigation }: Props) {
     const { t } = useTranslation();
     const { user } = useUser();
@@ -81,6 +105,12 @@ export default function HomeScreen({ navigation }: Props) {
     const [loadingSummary, setLoadingSummary] = useState(false);
     const [venueFeed, setVenueFeed] = useState<VenueFeedItem[]>([]);
     const [loadingFeed, setLoadingFeed] = useState(false);
+    const [publicCard, setPublicCard] = useState<VenuePublicCard | null>(null);
+    const [loadingPublicCard, setLoadingPublicCard] = useState(false);
+    const [friendsVisit, setFriendsVisit] = useState<FriendsVisitSummary | null>(null);
+    const [loadingFriendsVisit, setLoadingFriendsVisit] = useState(false);
+    const [engagement, setEngagement] = useState<Engagement | null>(null);
+    const [loadingEngagement, setLoadingEngagement] = useState(false);
 
     const scale = useRef(new Animated.Value(1)).current;
     const animateIn = () => {
@@ -123,10 +153,29 @@ export default function HomeScreen({ navigation }: Props) {
         }
     }, [isLoaded]);
 
+    const loadEngagement = useCallback(async () => {
+        if (!isLoaded) return;
+        setLoadingEngagement(true);
+        try {
+            const token = await getTokenRef.current();
+            if (!token) {
+                setEngagement(null);
+                return;
+            }
+            const e = await apiGet<Engagement>('/players/me/engagement', token);
+            setEngagement(e);
+        } catch {
+            setEngagement(null);
+        } finally {
+            setLoadingEngagement(false);
+        }
+    }, [isLoaded]);
+
     useFocusEffect(
         useCallback(() => {
             void loadMeSummary();
-        }, [loadMeSummary]),
+            void loadEngagement();
+        }, [loadMeSummary, loadEngagement]),
     );
 
     useEffect(() => {
@@ -175,6 +224,62 @@ export default function HomeScreen({ navigation }: Props) {
             cancelled = true;
         };
     }, [isLoaded, navigation, t]);
+
+    useEffect(() => {
+        let cancelled = false;
+        async function run() {
+            if (!detectedVenue) {
+                setPublicCard(null);
+                return;
+            }
+            setLoadingPublicCard(true);
+            try {
+                const card = await apiGet<VenuePublicCard>(
+                    `/venues/${encodeURIComponent(detectedVenue.id)}/public-card`,
+                );
+                if (!cancelled) setPublicCard(card);
+            } catch {
+                if (!cancelled) setPublicCard(null);
+            } finally {
+                if (!cancelled) setLoadingPublicCard(false);
+            }
+        }
+        void run();
+        return () => {
+            cancelled = true;
+        };
+    }, [detectedVenue?.id]);
+
+    useEffect(() => {
+        let cancelled = false;
+        async function run() {
+            if (!detectedVenue || !isLoaded) {
+                setFriendsVisit(null);
+                return;
+            }
+            setLoadingFriendsVisit(true);
+            try {
+                const token = await getTokenRef.current();
+                if (!token) {
+                    setFriendsVisit(null);
+                    return;
+                }
+                const s = await apiGet<FriendsVisitSummary>(
+                    `/social/venues/${encodeURIComponent(detectedVenue.id)}/friends-visit-summary`,
+                    token,
+                );
+                if (!cancelled) setFriendsVisit(s);
+            } catch {
+                if (!cancelled) setFriendsVisit(null);
+            } finally {
+                if (!cancelled) setLoadingFriendsVisit(false);
+            }
+        }
+        void run();
+        return () => {
+            cancelled = true;
+        };
+    }, [detectedVenue?.id, isLoaded]);
 
     useEffect(() => {
         let cancelled = false;
@@ -278,6 +383,12 @@ export default function HomeScreen({ navigation }: Props) {
         });
     };
 
+    const badgeLabel = (key: string): string => {
+        if (key === 'regular_this_week') return t('home.badgeRegularWeek');
+        if (key === 'venue_explorer') return t('home.badgeVenueExplorer');
+        return key;
+    };
+
     return (
         <SafeAreaView style={styles.safe}>
             <View style={styles.screen}>
@@ -347,6 +458,79 @@ export default function HomeScreen({ navigation }: Props) {
                     )}
                 </View>
 
+                {detectedVenue ? (
+                    <View style={styles.partnerCard}>
+                        <Text style={styles.partnerTitle}>
+                            {t('home.partnerOffers', { name: detectedVenue.name })}
+                        </Text>
+                        {loadingPublicCard && !publicCard ? (
+                            <ActivityIndicator color="#a78bfa" style={{ marginVertical: 10 }} />
+                        ) : null}
+                        {publicCard?.featuredOffer?.title ? (
+                            <View style={styles.featuredBox}>
+                                <Text style={styles.featuredLabel}>{t('home.featuredOffer')}</Text>
+                                <Text style={styles.featuredTitle}>{publicCard.featuredOffer.title}</Text>
+                                {publicCard.featuredOffer.body ? (
+                                    <Text style={styles.featuredBody}>{publicCard.featuredOffer.body}</Text>
+                                ) : null}
+                            </View>
+                        ) : null}
+                        {publicCard ? (
+                            <View style={styles.partnerLinks}>
+                                {publicCard.orderingUrl?.trim() ? (
+                                    <Pressable
+                                        style={({ pressed }) => [
+                                            styles.partnerLinkBtn,
+                                            pressed && styles.quickLinkPressed,
+                                        ]}
+                                        onPress={() =>
+                                            void openOrderingOrMenu(publicCard.orderingUrl, null)
+                                        }
+                                    >
+                                        <Text style={styles.partnerLinkText}>{t('home.openOrdering')}</Text>
+                                    </Pressable>
+                                ) : null}
+                                {publicCard.menuUrl?.trim() ? (
+                                    <Pressable
+                                        style={({ pressed }) => [
+                                            styles.partnerLinkBtn,
+                                            pressed && styles.quickLinkPressed,
+                                        ]}
+                                        onPress={() =>
+                                            void openOrderingOrMenu(null, publicCard.menuUrl)
+                                        }
+                                    >
+                                        <Text style={styles.partnerLinkText}>{t('home.openMenu')}</Text>
+                                    </Pressable>
+                                ) : null}
+                            </View>
+                        ) : null}
+                        {friendsVisit && friendsVisit.friendsWithVisitsLast30Days > 0 ? (
+                            <Text style={styles.friendsVenueLine}>
+                                {loadingFriendsVisit
+                                    ? '…'
+                                    : t('home.friendsVisitedVenue', {
+                                          count: friendsVisit.friendsWithVisitsLast30Days,
+                                      })}
+                            </Text>
+                        ) : null}
+                        {engagement && !loadingEngagement ? (
+                            <View style={styles.engagementRow}>
+                                <Text style={styles.engagementMeta}>
+                                    {t('home.visitsThisWeek', { n: engagement.visitsThisWeek })}
+                                </Text>
+                                <View style={styles.badgeRow}>
+                                    {engagement.badges.map((b) => (
+                                        <View key={b} style={styles.badgeChip}>
+                                            <Text style={styles.badgeChipText}>{badgeLabel(b)}</Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            </View>
+                        ) : null}
+                    </View>
+                ) : null}
+
                 <View style={styles.quickLinks}>
                     <Pressable
                         style={({ pressed }) => [styles.quickLink, pressed && styles.quickLinkPressed]}
@@ -387,6 +571,19 @@ export default function HomeScreen({ navigation }: Props) {
                         onPress={() => navigation.navigate('DailyWord')}
                     >
                         <Text style={styles.quickLinkText}>{t('home.linkDailyWord')}</Text>
+                    </Pressable>
+                    <Pressable
+                        style={({ pressed }) => [
+                            styles.quickLink,
+                            pressed && styles.quickLinkPressed,
+                            !detectedVenue && styles.quickLinkDisabled,
+                        ]}
+                        disabled={!detectedVenue}
+                        onPress={() =>
+                            navigation.navigate('RedeemPerk', { venueId: detectedVenue!.id })
+                        }
+                    >
+                        <Text style={styles.quickLinkText}>{t('home.linkRedeemPerk')}</Text>
                     </Pressable>
                 </View>
 
@@ -558,6 +755,45 @@ const styles = StyleSheet.create({
     contextName: { color: '#fff', fontSize: 18, fontWeight: '900', marginTop: 10 },
     lockedHint: { marginTop: 8, color: '#fca5a5', fontSize: 13, fontWeight: '700' },
     unlockedHint: { marginTop: 8, color: '#a78bfa', fontSize: 13, fontWeight: '700' },
+    partnerCard: {
+        backgroundColor: '#0b1220',
+        borderWidth: 1,
+        borderColor: '#312e81',
+        borderRadius: 18,
+        padding: 16,
+        marginBottom: 14,
+    },
+    partnerTitle: { color: '#e9d5ff', fontSize: 13, fontWeight: '900' },
+    featuredBox: {
+        marginTop: 12,
+        backgroundColor: '#111827',
+        borderRadius: 12,
+        padding: 12,
+        borderWidth: 1,
+        borderColor: '#4c1d95',
+    },
+    featuredLabel: { color: '#c4b5fd', fontSize: 11, fontWeight: '800', marginBottom: 6 },
+    featuredTitle: { color: '#fff', fontSize: 16, fontWeight: '900' },
+    featuredBody: { color: '#cbd5e1', fontSize: 13, marginTop: 8, lineHeight: 18 },
+    partnerLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+    partnerLinkBtn: {
+        backgroundColor: '#312e81',
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        borderRadius: 12,
+    },
+    partnerLinkText: { color: '#e9d5ff', fontWeight: '800', fontSize: 13 },
+    friendsVenueLine: { color: '#93c5fd', fontSize: 12, marginTop: 12, fontWeight: '700' },
+    engagementRow: { marginTop: 12 },
+    engagementMeta: { color: '#94a3b8', fontSize: 12, fontWeight: '600' },
+    badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+    badgeChip: {
+        backgroundColor: '#14532d',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 999,
+    },
+    badgeChipText: { color: '#bbf7d0', fontSize: 11, fontWeight: '800' },
     quickLinks: {
         flexDirection: 'row',
         flexWrap: 'wrap',

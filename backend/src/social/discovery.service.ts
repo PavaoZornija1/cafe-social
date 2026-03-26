@@ -2,26 +2,171 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { FriendshipStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubscriptionRepository } from '../venue/subscription.repository';
+import { PushService } from '../push/push.service';
+import { utcDayKey } from '../lib/day-key';
 
 const PRESENCE_TTL_MS = 10 * 60 * 1000;
+
+function applyVenueNudgeTemplate(template: string, venueName: string): string {
+  return template.replace(/\{\{venueName\}\}/g, venueName);
+}
 
 @Injectable()
 export class DiscoveryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly subs: SubscriptionRepository,
+    private readonly config: ConfigService,
+    private readonly push: PushService,
   ) {}
 
+  /**
+   * Updates “I’m at this venue” presence for social surfaces.
+   *
+   * **Venue order nudge (optional push):** Not tied to games or matches. The visit clock starts on the
+   * **first** `venueId` we record for this physical stay (user detected at the venue and the app posts
+   * presence — any screen, any activity). While they keep reporting the **same** `venueId`, we accumulate
+   * **wall‑clock dwell** from that start; after `VENUE_ORDER_NUDGE_AFTER_MINUTES` we send **one** push per
+   * visit. Leaving the geofence (`venueId: null`) or switching venue ends the visit and resets the clock
+   * for the next arrival.
+   *
+   * Also records **PlayerVenueVisitDay** for engagement stats (one row per UTC day per venue).
+   */
   async setPresence(playerId: string, venueId: string | null) {
+    const now = new Date();
+
+    const player = await this.prisma.player.findUnique({
+      where: { id: playerId },
+      select: {
+        venueNudgeSessionVenueId: true,
+        venueNudgeSessionStartedAt: true,
+        venueNudgeLastSentAt: true,
+        totalPrivacy: true,
+        partnerMarketingPush: true,
+      },
+    });
+
+    let sessionVenueId: string | null = venueId;
+    let sessionStartedAt: Date | null = player?.venueNudgeSessionStartedAt ?? null;
+    const lastSentAt: Date | null = player?.venueNudgeLastSentAt ?? null;
+
+    if (!venueId) {
+      sessionVenueId = null;
+      sessionStartedAt = null;
+    } else if (player?.venueNudgeSessionVenueId !== venueId) {
+      sessionStartedAt = now;
+    } else if (!sessionStartedAt) {
+      sessionStartedAt = now;
+    }
+
     await this.prisma.player.update({
       where: { id: playerId },
       data: {
         lastPresenceVenueId: venueId,
-        lastPresenceAt: venueId ? new Date() : null,
+        lastPresenceAt: venueId ? now : null,
+        venueNudgeSessionVenueId: sessionVenueId,
+        venueNudgeSessionStartedAt: sessionStartedAt,
       },
+    });
+
+    if (venueId) {
+      const dayKey = utcDayKey(now);
+      await this.prisma.playerVenueVisitDay.upsert({
+        where: {
+          playerId_venueId_dayKey: { playerId, venueId, dayKey },
+        },
+        create: { playerId, venueId, dayKey },
+        update: {},
+      });
+    }
+
+    if (
+      venueId &&
+      sessionStartedAt &&
+      !player?.totalPrivacy &&
+      player?.partnerMarketingPush
+    ) {
+      void this.maybeSendVenueOrderNudge({
+        playerId,
+        venueId,
+        sessionStartedAt,
+        lastSentAt,
+      });
+    }
+  }
+
+  private async maybeSendVenueOrderNudge(params: {
+    playerId: string;
+    venueId: string;
+    sessionStartedAt: Date;
+    lastSentAt: Date | null;
+  }) {
+    const { playerId, venueId, sessionStartedAt, lastSentAt } = params;
+
+    const enabled = this.config.get<string>('VENUE_ORDER_NUDGE_ENABLED')?.trim() !== 'false';
+    if (!enabled) return;
+
+    const delayMin = Number(this.config.get<string>('VENUE_ORDER_NUDGE_AFTER_MINUTES') ?? 30);
+    const delayMs = Math.max(1, Number.isFinite(delayMin) ? delayMin : 30) * 60 * 1000;
+
+    const now = new Date();
+    if (now.getTime() - sessionStartedAt.getTime() < delayMs) return;
+    if (lastSentAt && lastSentAt.getTime() >= sessionStartedAt.getTime()) return;
+
+    const venue = await this.prisma.venue.findUnique({
+      where: { id: venueId },
+      select: {
+        name: true,
+        orderNudgeTitle: true,
+        orderNudgeBody: true,
+        menuUrl: true,
+        orderingUrl: true,
+      },
+    });
+    const venueName = venue?.name ?? 'this venue';
+
+    const defaultTitle =
+      this.config.get<string>('VENUE_ORDER_NUDGE_TITLE')?.trim() || 'Still here?';
+    const defaultBody =
+      this.config.get<string>('VENUE_ORDER_NUDGE_BODY')?.trim() ||
+      'Thirsty? Treat yourself to something from the menu at {{venueName}}.';
+
+    const titleRaw =
+      venue?.orderNudgeTitle?.trim() ? venue.orderNudgeTitle.trim() : defaultTitle;
+    const bodyRaw =
+      venue?.orderNudgeBody?.trim() ? venue.orderNudgeBody.trim() : defaultBody;
+
+    const title = applyVenueNudgeTemplate(titleRaw, venueName);
+    const body = applyVenueNudgeTemplate(bodyRaw, venueName);
+
+    const orderingUrl = venue?.orderingUrl?.trim() ?? '';
+    const menuUrl = venue?.menuUrl?.trim() ?? '';
+
+    await this.push.sendToPlayers(
+      [playerId],
+      undefined,
+      {
+        title,
+        body,
+        data: {
+          type: 'venue_order_nudge',
+          venueId,
+          pushCategory: 'partner_marketing',
+          orderingUrl,
+          menuUrl,
+        },
+        sound: 'default',
+      },
+      { channel: 'partner_marketing' },
+    );
+
+    await this.prisma.player.update({
+      where: { id: playerId },
+      data: { venueNudgeLastSentAt: now },
     });
   }
 
@@ -37,6 +182,28 @@ export class DiscoveryService {
       ids.add(r.playerLowId === playerId ? r.playerHighId : r.playerLowId);
     }
     return ids;
+  }
+
+  /**
+   * Count of **accepted friends** who have at least one `PlayerVenueVisitDay` at `venueId`
+   * with `dayKey >= sinceDayKey` (UTC `YYYY-MM-DD`). Privacy-safe aggregate for “friends have been here”.
+   */
+  async countFriendsWithVisitsSince(
+    viewerId: string,
+    venueId: string,
+    sinceDayKey: string,
+  ): Promise<number> {
+    const friends = await this.friendIdsOf(viewerId);
+    if (friends.size === 0) return 0;
+    const grouped = await this.prisma.playerVenueVisitDay.groupBy({
+      by: ['playerId'],
+      where: {
+        venueId,
+        dayKey: { gte: sinceDayKey },
+        playerId: { in: [...friends] },
+      },
+    });
+    return grouped.length;
   }
 
   /** Strangers + friends at venue per discoverability rules. */

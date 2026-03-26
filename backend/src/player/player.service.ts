@@ -5,12 +5,15 @@ import { UpdatePlayerDto } from './dto/update-player.dto';
 import { UpdateMeSettingsDto } from './dto/update-me-settings.dto';
 import { PlayerRepository } from './player.repository';
 import { PlayerVenueStatsRepository } from '../stats/player-venue-stats.repository';
+import { PrismaService } from '../prisma/prisma.service';
+import { utcDayKeyDaysAgo, utcWeekDayKeyRange } from '../lib/engagement-dates';
 
 @Injectable()
 export class PlayerService {
   constructor(
     private readonly players: PlayerRepository,
     private readonly venueStats: PlayerVenueStatsRepository,
+    private readonly prisma: PrismaService,
   ) {}
 
   async create(dto: CreatePlayerDto): Promise<Player> {
@@ -73,6 +76,8 @@ export class PlayerService {
     venuesUnlocked: number;
     discoverable: boolean;
     totalPrivacy: boolean;
+    partnerMarketingPush: boolean;
+    matchActivityPush: boolean;
   }> {
     const player = await this.findOrCreateByEmail(email);
     const { completedChallenges, venuesUnlocked } =
@@ -89,7 +94,51 @@ export class PlayerService {
       venuesUnlocked,
       discoverable: player.discoverable,
       totalPrivacy: player.totalPrivacy,
+      partnerMarketingPush: player.partnerMarketingPush,
+      matchActivityPush: player.matchActivityPush,
     };
+  }
+
+  /** Visits & lightweight badges from `PlayerVenueVisitDay`. */
+  async getMeEngagement(email: string): Promise<{
+    visitsThisWeek: number;
+    distinctVenuesVisitedLast30Days: number;
+    badges: string[];
+  }> {
+    const player = await this.findOrCreateByEmail(email);
+    const { start, end } = utcWeekDayKeyRange();
+    const sinceMonth = utcDayKeyDaysAgo(30);
+
+    const visitsThisWeek = await this.prisma.playerVenueVisitDay.count({
+      where: {
+        playerId: player.id,
+        dayKey: { gte: start, lte: end },
+      },
+    });
+
+    const venueGroups = await this.prisma.playerVenueVisitDay.groupBy({
+      by: ['venueId'],
+      where: { playerId: player.id, dayKey: { gte: sinceMonth } },
+    });
+    const distinctVenuesVisitedLast30Days = venueGroups.length;
+
+    const badges: string[] = [];
+    if (visitsThisWeek >= 3) badges.push('regular_this_week');
+    if (distinctVenuesVisitedLast30Days >= 2) badges.push('venue_explorer');
+
+    return { visitsThisWeek, distinctVenuesVisitedLast30Days, badges };
+  }
+
+  async listMyPerkRedemptions(email: string) {
+    const player = await this.findOrCreateByEmail(email);
+    return this.prisma.venuePerkRedemption.findMany({
+      where: { playerId: player.id },
+      orderBy: { redeemedAt: 'desc' },
+      include: {
+        perk: { select: { title: true, subtitle: true, code: true } },
+      },
+      take: 50,
+    });
   }
 
   async updateMeSettings(email: string, dto: UpdateMeSettingsDto): Promise<Player> {
@@ -97,6 +146,12 @@ export class PlayerService {
     return this.players.update(p.id, {
       ...(dto.discoverable !== undefined && { discoverable: dto.discoverable }),
       ...(dto.totalPrivacy !== undefined && { totalPrivacy: dto.totalPrivacy }),
+      ...(dto.partnerMarketingPush !== undefined && {
+        partnerMarketingPush: dto.partnerMarketingPush,
+      }),
+      ...(dto.matchActivityPush !== undefined && {
+        matchActivityPush: dto.matchActivityPush,
+      }),
     });
   }
 

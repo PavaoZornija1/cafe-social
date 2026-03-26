@@ -12,6 +12,8 @@ import { SocialModule } from './social/social.module';
 import { InvitesModule } from './invites/invites.module';
 import { PartyModule } from './party/party.module';
 import { BrawlerModule } from './brawler/brawler.module';
+import { PerkModule } from './perk/perk.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -29,6 +31,8 @@ import { BrawlerModule } from './brawler/brawler.module';
     InvitesModule,
     PartyModule,
     BrawlerModule,
+    PerkModule,
+    AdminModule,
   ],
   controllers: [HealthController],
   providers: [],
