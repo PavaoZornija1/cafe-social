@@ -487,6 +487,7 @@ async function main() {
       rewardVenueSpecific: true,
       locationRequired: true,
       targetCount: 1,
+      resetsWeekly: false,
     },
     {
       id: 'a7f2a6b9-3b8d-4a1c-8f6b-5d2a1b0c9e02',
@@ -496,6 +497,17 @@ async function main() {
       rewardVenueSpecific: false,
       locationRequired: false,
       targetCount: 3,
+      resetsWeekly: false,
+    },
+    {
+      id: 'f1e2d3c4-b5a6-4d7e-8f9a-0b1c2d3e4f5a',
+      venueId: venues[0].id,
+      title: 'Weekly venue sessions',
+      description: 'Complete 5 word sessions at this café during the current week (resets Monday UTC).',
+      rewardVenueSpecific: true,
+      locationRequired: true,
+      targetCount: 5,
+      resetsWeekly: true,
     },
   ];
 
@@ -509,8 +521,18 @@ async function main() {
         rewardVenueSpecific: c.rewardVenueSpecific,
         locationRequired: c.locationRequired,
         targetCount: c.targetCount,
+        resetsWeekly: c.resetsWeekly,
       },
-      create: c,
+      create: {
+        id: c.id,
+        venueId: c.venueId,
+        title: c.title,
+        description: c.description ?? null,
+        rewardVenueSpecific: c.rewardVenueSpecific,
+        locationRequired: c.locationRequired,
+        targetCount: c.targetCount,
+        resetsWeekly: c.resetsWeekly,
+      },
     });
   }
 

@@ -3,6 +3,7 @@ import type { Challenge, ChallengeProgress } from '@prisma/client';
 import { PlayerService } from '../player/player.service';
 import { ChallengeRepository } from './challenge.repository';
 import { PlayerVenueStatsRepository } from '../stats/player-venue-stats.repository';
+import { isoWeekKeyUTC } from '../lib/week-key';
 
 export type VenueChallengeDto = {
   id: string;
@@ -13,6 +14,7 @@ export type VenueChallengeDto = {
   targetCount: number;
   progressCount: number;
   isCompleted: boolean;
+  resetsWeekly: boolean;
 };
 
 @Injectable()
@@ -35,10 +37,18 @@ export class ChallengeService {
     const progressByChallengeId = new Map<string, ChallengeProgress>();
     for (const p of progresses) progressByChallengeId.set(p.challengeId, p);
 
+    const weekKey = isoWeekKeyUTC();
+
     return challengeRows.map((c: Challenge) => {
       const p = progressByChallengeId.get(c.id);
-      const progressCount = p?.progressCount ?? 0;
-      const isCompleted = !!p?.completedAt;
+      let progressCount = p?.progressCount ?? 0;
+      let isCompleted = !!p?.completedAt;
+      if (c.resetsWeekly) {
+        if (!p || p.periodKey !== weekKey) {
+          progressCount = 0;
+          isCompleted = false;
+        }
+      }
 
       return {
         id: c.id,
@@ -49,6 +59,7 @@ export class ChallengeService {
         targetCount: c.targetCount,
         progressCount,
         isCompleted,
+        resetsWeekly: c.resetsWeekly,
       };
     });
   }
@@ -99,10 +110,19 @@ export class ChallengeService {
       throw new UnauthorizedException('Scan QR to unlock this venue-specific challenge');
     }
 
+    const weekKey = isoWeekKeyUTC();
     const existingProgress = await this.challenges.findProgress(player.id, challengeId);
-    const currentCount = existingProgress?.progressCount ?? 0;
-    if (existingProgress?.completedAt) {
-      // Already completed: idempotent.
+    let currentCount = existingProgress?.progressCount ?? 0;
+    let completedForPeriod = !!existingProgress?.completedAt;
+
+    if (challenge.resetsWeekly) {
+      if (!existingProgress || existingProgress.periodKey !== weekKey) {
+        currentCount = 0;
+        completedForPeriod = false;
+      }
+    }
+
+    if (completedForPeriod) {
       return {
         challengeId,
         progressCount: currentCount,
@@ -113,13 +133,14 @@ export class ChallengeService {
     const newCount = currentCount + increment;
     const isCompleted = newCount >= challenge.targetCount;
     const completedAt = isCompleted ? new Date() : null;
-    const newlyCompleted = isCompleted && !existingProgress?.completedAt;
+    const newlyCompleted = isCompleted && !completedForPeriod;
 
     const updated = await this.challenges.upsertProgressCount({
       playerId: player.id,
       challengeId,
       newCount,
       completedAt,
+      periodKey: challenge.resetsWeekly ? weekKey : undefined,
     });
 
     const xpGain = increment * 10 + (newlyCompleted ? 50 : 0);

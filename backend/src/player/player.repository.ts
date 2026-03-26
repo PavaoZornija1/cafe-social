@@ -22,6 +22,15 @@ export class PlayerRepository {
     return this.prisma.player.findUnique({ where: { email } });
   }
 
+  /** Case-insensitive match (PostgreSQL). */
+  findByUsernameInsensitive(username: string): Promise<Player | null> {
+    const u = username.trim();
+    if (!u) return Promise.resolve(null);
+    return this.prisma.player.findFirst({
+      where: { username: { equals: u, mode: 'insensitive' } },
+    });
+  }
+
   update(id: string, data: Prisma.PlayerUpdateInput): Promise<Player> {
     return this.prisma.player.update({ where: { id }, data });
   }

@@ -5,6 +5,7 @@ import type { RootStackParamList } from "./type";
 import LoginScreen from "../screens/LoginScreen";
 import SignUpScreen from "../screens/SignUpScreen";
 import HomeScreen from "../screens/HomeScreen";
+import DailyWordScreen from "../screens/DailyWordScreen";
 import ChallengesScreen from "../screens/ChallengesScreen";
 import LeaderboardScreen from "../screens/LeaderboardScreen";
 import ProfileScreen from "../screens/ProfileScreen";
@@ -37,6 +38,7 @@ export default function RootStack() {
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="SignUp" component={SignUpScreen} />
             <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="DailyWord" component={DailyWordScreen} />
             <Stack.Screen name="ChooseGame" component={ChooseGameScreen} />
             <Stack.Screen name="BrawlerLobby" component={BrawlerLobbyScreen} />
             <Stack.Screen name="BrawlerArena" component={BrawlerArenaScreen} />

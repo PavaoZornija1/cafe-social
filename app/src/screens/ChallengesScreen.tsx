@@ -27,6 +27,7 @@ type VenueChallenge = {
   targetCount: number;
   progressCount: number;
   isCompleted: boolean;
+  resetsWeekly?: boolean;
 };
 
 export default function ChallengesScreen(_props: Props) {
@@ -141,6 +142,7 @@ export default function ChallengesScreen(_props: Props) {
               <Text style={styles.cardHint}>
                 {c.locationRequired ? t('challenges.requiresAtCafe') : t('challenges.worksFromHome')}
               </Text>
+              {c.resetsWeekly ? <Text style={styles.cardWeekly}>{t('challenges.weekly')}</Text> : null}
 
               <Pressable
                 disabled={!!progressingId && progressingId !== c.id}
@@ -192,6 +194,7 @@ const styles = StyleSheet.create({
   cardDesc: { color: '#9ca3af', marginTop: 8, fontSize: 13, lineHeight: 18 },
   cardProgress: { color: '#e5e7eb', marginTop: 10, fontSize: 14, fontWeight: '800' },
   cardHint: { color: '#a5b4fc', marginTop: 6, fontSize: 13, fontWeight: '700' },
+  cardWeekly: { color: '#fbbf24', marginTop: 6, fontSize: 12, fontWeight: '700' },
   actionBtn: {
     marginTop: 14,
     backgroundColor: '#0b1220',

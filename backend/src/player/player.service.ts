@@ -49,6 +49,11 @@ export class PlayerService {
     return player;
   }
 
+  /** Resolve a player by display username (case-insensitive). */
+  async findByUsernameInsensitive(username: string): Promise<Player | null> {
+    return this.players.findByUsernameInsensitive(username);
+  }
+
   async update(id: string, dto: UpdatePlayerDto): Promise<Player> {
     await this.findOne(id);
     return this.players.update(id, {

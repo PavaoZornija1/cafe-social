@@ -26,6 +26,7 @@ model Venue {
   challenges       Challenge[]
   gameSessions         GameSession[]
   playerGameVenueStats PlayerGameVenueStats[]
+  feedEvents       VenueFeedEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -64,6 +65,9 @@ model Player {
   inviteLinksCreated InviteLink[] @relation("InviteCreatedBy")
 
   expoPushTokens PlayerExpoPushToken[]
+
+  dailyWords  PlayerDailyWord[]
+  dailyStreaks PlayerDailyStreak[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -239,6 +243,56 @@ model Word {
   @@unique([text, language], name: "text_language")
 }
 
+/// One async “daily word” attempt record per player per calendar day (UTC) and scope (global or venue).
+model PlayerDailyWord {
+  id        String    @id @default(uuid())
+  playerId  String
+  dayKey    String
+  scopeKey  String
+  attempts  Int       @default(0)
+  solvedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, dayKey, scopeKey])
+  @@index([scopeKey, dayKey])
+}
+
+/// Consecutive daily-word solve streak per scope (global or venue id).
+model PlayerDailyStreak {
+  playerId         String
+  scopeKey         String
+  currentStreak    Int     @default(0)
+  lastSolvedDayKey String?
+  updatedAt        DateTime @updatedAt
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, scopeKey])
+}
+
+enum VenueFeedEventKind {
+  WORD_MATCH_STARTED
+  DAILY_WORD_SOLVED
+}
+
+/// Lightweight venue activity feed (“who’s playing what”).
+model VenueFeedEvent {
+  id              String             @id @default(uuid())
+  venueId         String
+  kind            VenueFeedEventKind
+  title           String
+  subtitle        String?
+  actorUsername   String?
+  createdAt       DateTime           @default(now())
+
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId, createdAt])
+}
+
 /// A single venue-scoped challenge that can be progressed by a player.
 model Challenge {
   id                  String  @id @default(uuid())
@@ -254,6 +308,9 @@ model Challenge {
 
   /// For MVP, we model a simple "do X actions" challenge.
   targetCount Int @default(1)
+
+  /// When true, progress and completion reset each ISO calendar week (UTC).
+  resetsWeekly Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -273,6 +330,9 @@ model ChallengeProgress {
   progressCount   Int       @default(0)
   completedAt     DateTime?
   rewardClaimedAt DateTime?
+
+  /// For `Challenge.resetsWeekly`: last ISO week key when progress was written (e.g. "2026-W11").
+  periodKey String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

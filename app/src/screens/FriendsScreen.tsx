@@ -10,11 +10,12 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
-import { apiGet, apiPost } from '../lib/api';
+import { apiDelete, apiGet, apiPost } from '../lib/api';
 import { createAndShareFriendInviteLink } from '../lib/friendInviteShare';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Friends'>;
@@ -45,6 +46,8 @@ export default function FriendsScreen({ navigation }: Props) {
   const [incoming, setIncoming] = useState<IncomingRow[]>([]);
   const [outgoing, setOutgoing] = useState<OutgoingRow[]>([]);
   const [sharing, setSharing] = useState(false);
+  const [usernameDraft, setUsernameDraft] = useState('');
+  const [requestBusy, setRequestBusy] = useState(false);
 
   const load = useCallback(async () => {
     if (!isLoaded) return;
@@ -93,6 +96,48 @@ export default function FriendsScreen({ navigation }: Props) {
     }
   };
 
+  const sendByUsername = async () => {
+    const name = usernameDraft.trim();
+    if (name.length < 2) {
+      Alert.alert(t('common.error'), t('friends.usernameTooShort'));
+      return;
+    }
+    const token = await getTokenRef.current();
+    if (!token) return;
+    setRequestBusy(true);
+    try {
+      const res = await apiPost<{ created: boolean }>(
+        '/social/friends/request-by-username',
+        { username: name },
+        token,
+      );
+      setUsernameDraft('');
+      Alert.alert(
+        '',
+        res.created ? t('friends.requestSent') : t('friends.requestAlreadyPending'),
+      );
+      await load();
+    } catch (e) {
+      Alert.alert(t('common.error'), (e as Error).message ?? t('friends.requestFailed'));
+    } finally {
+      setRequestBusy(false);
+    }
+  };
+
+  const cancelOutgoing = async (friendshipId: string) => {
+    const token = await getTokenRef.current();
+    if (!token) return;
+    try {
+      await apiDelete(
+        `/social/friends/outgoing/${encodeURIComponent(friendshipId)}`,
+        token,
+      );
+      await load();
+    } catch (e) {
+      Alert.alert(t('common.error'), (e as Error).message ?? '');
+    }
+  };
+
   const accept = async (otherPlayerId: string) => {
     const token = await getTokenRef.current();
     if (!token) return;
@@ -131,17 +176,45 @@ export default function FriendsScreen({ navigation }: Props) {
           <ActivityIndicator color="#a78bfa" />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <Text style={styles.section}>{t('friends.outgoing')}</Text>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <Text style={styles.section}>{t('friends.addByUsername')}</Text>
+          <Text style={styles.hint}>{t('friends.addByUsernameHint')}</Text>
+          <View style={styles.addRow}>
+            <TextInput
+              style={styles.input}
+              placeholder={t('friends.usernamePlaceholder')}
+              placeholderTextColor="#6b7280"
+              autoCapitalize="none"
+              autoCorrect={false}
+              value={usernameDraft}
+              onChangeText={setUsernameDraft}
+              editable={!requestBusy}
+            />
+            <Pressable
+              style={[styles.sendBtn, requestBusy && styles.toolbarBtnDisabled]}
+              disabled={requestBusy}
+              onPress={() => void sendByUsername()}
+            >
+              <Text style={styles.sendBtnText}>{t('friends.sendRequest')}</Text>
+            </Pressable>
+          </View>
+
+          <Text style={[styles.section, styles.sectionSpacer]}>{t('friends.outgoing')}</Text>
           {outgoing.length === 0 ? (
             <Text style={styles.muted}>{t('friends.noOutgoing')}</Text>
           ) : (
             outgoing.map((row) => (
-              <View key={row.id} style={styles.cardMuted}>
-                <Text style={styles.name}>
-                  {row.target.username}{' '}
+              <View key={row.id} style={styles.outRow}>
+                <View style={styles.outMain}>
+                  <Text style={styles.name}>{row.target.username}</Text>
                   <Text style={styles.mutedSmall}>{t('friends.pendingTheirAccept')}</Text>
-                </Text>
+                </View>
+                <Pressable
+                  style={styles.cancelBtn}
+                  onPress={() => void cancelOutgoing(row.id)}
+                >
+                  <Text style={styles.cancelBtnText}>{t('friends.cancelRequest')}</Text>
+                </Pressable>
               </View>
             ))
           )}
@@ -258,4 +331,46 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   friendName: { color: '#e5e7eb', fontWeight: '700' },
+  hint: { color: '#6b7280', fontSize: 13, marginTop: 6, lineHeight: 18 },
+  addRow: { flexDirection: 'row', gap: 10, marginTop: 12, alignItems: 'center' },
+  input: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#1f2937',
+    backgroundColor: '#0b1220',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: '#fff',
+    fontSize: 16,
+  },
+  sendBtn: {
+    backgroundColor: '#7c3aed',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+  },
+  sendBtnText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+  outRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    backgroundColor: '#0b1220',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1f2937',
+    padding: 14,
+  },
+  outMain: { flex: 1 },
+  cancelBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#3f1d1d',
+    borderWidth: 1,
+    borderColor: '#7f1d1d',
+  },
+  cancelBtnText: { color: '#fca5a5', fontWeight: '800', fontSize: 12 },
 });

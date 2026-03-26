@@ -50,6 +50,7 @@ export class ChallengeRepository {
     targetCount: number;
     rewardVenueSpecific: boolean;
     locationRequired: boolean;
+    resetsWeekly: boolean;
   } | null> {
     return this.prisma.challenge.findUnique({
       where: { id: challengeId },
@@ -59,6 +60,7 @@ export class ChallengeRepository {
         targetCount: true,
         rewardVenueSpecific: true,
         locationRequired: true,
+        resetsWeekly: true,
       },
     });
   }
@@ -85,8 +87,10 @@ export class ChallengeRepository {
     challengeId: string;
     newCount: number;
     completedAt: Date | null;
+    /** When omitted, `periodKey` is not changed on update (non-weekly challenges). */
+    periodKey?: string | null;
   }): Promise<ChallengeProgress> {
-    const { playerId, challengeId, newCount, completedAt } = params;
+    const { playerId, challengeId, newCount, completedAt, periodKey } = params;
 
     return this.prisma.challengeProgress.upsert({
       where: {
@@ -97,10 +101,12 @@ export class ChallengeRepository {
         challengeId,
         progressCount: newCount,
         completedAt,
+        periodKey: periodKey ?? null,
       },
       update: {
         progressCount: newCount,
         completedAt: completedAt ?? undefined,
+        ...(periodKey !== undefined ? { periodKey } : {}),
       },
     });
   }

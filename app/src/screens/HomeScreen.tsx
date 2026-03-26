@@ -38,6 +38,16 @@ type VenueChallenge = {
     targetCount: number;
     progressCount: number;
     isCompleted: boolean;
+    resetsWeekly?: boolean;
+};
+
+type VenueFeedItem = {
+    id: string;
+    kind: string;
+    title: string;
+    subtitle: string | null;
+    actorUsername: string | null;
+    createdAt: string;
 };
 
 type MeSummary = {
@@ -69,6 +79,8 @@ export default function HomeScreen({ navigation }: Props) {
     const [loadingChallenges, setLoadingChallenges] = useState(false);
     const [meSummary, setMeSummary] = useState<MeSummary | null>(null);
     const [loadingSummary, setLoadingSummary] = useState(false);
+    const [venueFeed, setVenueFeed] = useState<VenueFeedItem[]>([]);
+    const [loadingFeed, setLoadingFeed] = useState(false);
 
     const scale = useRef(new Animated.Value(1)).current;
     const animateIn = () => {
@@ -209,6 +221,34 @@ export default function HomeScreen({ navigation }: Props) {
 
     useEffect(() => {
         let cancelled = false;
+        async function run() {
+            if (!detectedVenue || !access?.canEnterVenueContext || !isLoaded) {
+                setVenueFeed([]);
+                return;
+            }
+            try {
+                setLoadingFeed(true);
+                const token = await getTokenRef.current();
+                if (!token) return;
+                const list = await apiGet<VenueFeedItem[]>(
+                    `/social/venues/${encodeURIComponent(detectedVenue.id)}/feed?limit=15`,
+                    token,
+                );
+                if (!cancelled) setVenueFeed(list);
+            } catch {
+                if (!cancelled) setVenueFeed([]);
+            } finally {
+                if (!cancelled) setLoadingFeed(false);
+            }
+        }
+        void run();
+        return () => {
+            cancelled = true;
+        };
+    }, [access?.canEnterVenueContext, detectedVenue?.id, isLoaded]);
+
+    useEffect(() => {
+        let cancelled = false;
         async function presence() {
             if (!isLoaded) return;
             try {
@@ -342,7 +382,38 @@ export default function HomeScreen({ navigation }: Props) {
                     >
                         <Text style={styles.quickLinkText}>{t('home.linkRedeemInvite')}</Text>
                     </Pressable>
+                    <Pressable
+                        style={({ pressed }) => [styles.quickLink, pressed && styles.quickLinkPressed]}
+                        onPress={() => navigation.navigate('DailyWord')}
+                    >
+                        <Text style={styles.quickLinkText}>{t('home.linkDailyWord')}</Text>
+                    </Pressable>
                 </View>
+
+                {detectedVenue && access?.canEnterVenueContext ? (
+                    <View style={styles.feedCard}>
+                        <Text style={styles.feedTitle}>{t('home.venueFeedTitle')}</Text>
+                        {loadingFeed ? (
+                            <ActivityIndicator color="#a78bfa" style={{ marginVertical: 8 }} />
+                        ) : venueFeed.length === 0 ? (
+                            <Text style={styles.feedEmpty}>{t('home.venueFeedEmpty')}</Text>
+                        ) : (
+                            venueFeed.map((ev) => (
+                                <View key={ev.id} style={styles.feedRow}>
+                                    <Text style={styles.feedLine}>
+                                        {ev.actorUsername
+                                            ? t('home.venueFeedActor', {
+                                                  user: ev.actorUsername,
+                                                  action: ev.subtitle ?? ev.title,
+                                              })
+                                            : ev.title}
+                                    </Text>
+                                    <Text style={styles.feedSub}>{ev.title}</Text>
+                                </View>
+                            ))
+                        )}
+                    </View>
+                ) : null}
 
                 <View style={styles.challengeBar}>
                     <Text style={styles.challengeTitle}>{t('home.challengeTitle')}</Text>
@@ -352,11 +423,17 @@ export default function HomeScreen({ navigation }: Props) {
                             : loadingChallenges
                                 ? t('home.loadingChallenge')
                                 : venueChallenges[0]
-                                    ? t('home.challengeProgress', {
-                                        title: venueChallenges[0].title,
-                                        current: venueChallenges[0].progressCount,
-                                        target: venueChallenges[0].targetCount,
-                                    })
+                                    ? venueChallenges[0].resetsWeekly
+                                        ? t('home.challengeProgressWeekly', {
+                                              title: venueChallenges[0].title,
+                                              current: venueChallenges[0].progressCount,
+                                              target: venueChallenges[0].targetCount,
+                                          })
+                                        : t('home.challengeProgress', {
+                                              title: venueChallenges[0].title,
+                                              current: venueChallenges[0].progressCount,
+                                              target: venueChallenges[0].targetCount,
+                                          })
                                     : t('home.noChallenges')}
                     </Text>
                 </View>
@@ -501,6 +578,19 @@ const styles = StyleSheet.create({
     quickLinkPressed: { opacity: 0.88 },
     quickLinkDisabled: { opacity: 0.45 },
     quickLinkText: { color: '#93c5fd', fontWeight: '800', fontSize: 11, textAlign: 'center' },
+    feedCard: {
+        backgroundColor: '#0b1220',
+        borderWidth: 1,
+        borderColor: '#182238',
+        borderRadius: 16,
+        padding: 14,
+        marginBottom: 12,
+    },
+    feedTitle: { color: '#fff', fontSize: 13, fontWeight: '900', marginBottom: 8 },
+    feedEmpty: { color: '#64748b', fontSize: 12 },
+    feedRow: { paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#1e293b' },
+    feedLine: { color: '#e2e8f0', fontSize: 12, fontWeight: '700' },
+    feedSub: { color: '#64748b', fontSize: 11, marginTop: 2 },
     challengeBar: {
         backgroundColor: '#0b1220',
         borderWidth: 1,

@@ -101,7 +101,29 @@
     "linkFriends": "Amigos",
     "linkParties": "Grupos",
     "linkPeopleHere": "Quién hay aquí",
-    "linkRedeemInvite": "Canjear invitación"
+    "linkRedeemInvite": "Canjear invitación",
+    "linkDailyWord": "Palabra del día",
+    "venueFeedTitle": "En este local",
+    "venueFeedEmpty": "Sin actividad aún — empieza una partida o resuelve la palabra del local.",
+    "venueFeedActor": "{{user}} · {{action}}",
+    "challengeProgressWeekly": "Semanal · {{title}} ({{current}}/{{target}})"
+  },
+  "dailyWord": {
+    "title": "Palabra del día",
+    "scopeGlobal": "Global",
+    "scopeVenue": "Local",
+    "day": "Día {{day}}",
+    "streak": "Racha: {{n}}",
+    "answerLength": "Longitud: {{n}} letras",
+    "attempts": "Intentos: {{current}} / {{max}}",
+    "placeholder": "Tu intento",
+    "submit": "Probar",
+    "solved": "Resuelto: {{word}}",
+    "outOfAttempts": "Vuelve mañana por una nueva palabra.",
+    "loadError": "No se pudo cargar la palabra del día.",
+    "guessError": "El intento falló.",
+    "needVenue": "Detecta un local para la palabra del local.",
+    "notSignedIn": "No has iniciado sesión"
   },
   "challenges": {
     "title": "Retos",
@@ -114,7 +136,8 @@
     "worksFromHome": "Funciona desde casa.",
     "progressCta": "Progreso +1",
     "updating": "Actualizando…",
-    "loadError": "No se pudieron cargar los retos"
+    "loadError": "No se pudieron cargar los retos",
+    "weekly": "Reto semanal — el progreso se reinicia cada semana ISO (UTC)."
   },
   "chooseGame": {
     "title": "Elige un juego",
@@ -300,6 +323,15 @@
     "noOutgoing": "Nadie espera tu solicitud.",
     "pendingTheirAccept": "(esperando que acepten)",
     "inviteShare": "Compartir invitación de amigo",
+    "addByUsername": "Añadir por nombre de usuario",
+    "addByUsernameHint": "Sin distinguir mayúsculas. Recibirán una solicitud.",
+    "usernamePlaceholder": "Usuario",
+    "sendRequest": "Enviar",
+    "usernameTooShort": "Al menos 2 caracteres.",
+    "requestSent": "Solicitud de amistad enviada.",
+    "requestAlreadyPending": "Ya hay solicitud o ya sois amigos.",
+    "requestFailed": "No se pudo enviar.",
+    "cancelRequest": "Cancelar",
     "accept": "Aceptar",
     "wantsToConnect": "quiere conectar",
     "loadError": "No se pudieron cargar los amigos.",

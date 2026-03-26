@@ -101,7 +101,29 @@
     "linkFriends": "Friends",
     "linkParties": "Parties",
     "linkPeopleHere": "Who's here",
-    "linkRedeemInvite": "Redeem invite"
+    "linkRedeemInvite": "Redeem invite",
+    "linkDailyWord": "Daily word",
+    "venueFeedTitle": "At this venue",
+    "venueFeedEmpty": "No recent activity yet — start a match or solve the venue daily.",
+    "venueFeedActor": "{{user}} · {{action}}",
+    "challengeProgressWeekly": "Weekly · {{title}} ({{current}}/{{target}})"
+  },
+  "dailyWord": {
+    "title": "Daily word",
+    "scopeGlobal": "Global",
+    "scopeVenue": "Venue",
+    "day": "Day {{day}}",
+    "streak": "Streak: {{n}}",
+    "answerLength": "Answer length: {{n}} letters",
+    "attempts": "Attempts: {{current}} / {{max}}",
+    "placeholder": "Your guess",
+    "submit": "Guess",
+    "solved": "Solved: {{word}}",
+    "outOfAttempts": "Come back tomorrow for a new word.",
+    "loadError": "Could not load daily word.",
+    "guessError": "Guess failed.",
+    "needVenue": "Detect a venue to play the venue daily.",
+    "notSignedIn": "Not signed in"
   },
   "challenges": {
     "title": "Challenges",
@@ -114,7 +136,8 @@
     "worksFromHome": "Works from home.",
     "progressCta": "Progress +1",
     "updating": "Updating…",
-    "loadError": "Failed to load challenges"
+    "loadError": "Failed to load challenges",
+    "weekly": "Weekly challenge — progress resets each ISO week (UTC)."
   },
   "chooseGame": {
     "title": "Choose a game",
@@ -300,6 +323,15 @@
     "noOutgoing": "No invites waiting on others.",
     "pendingTheirAccept": "(waiting for them to accept)",
     "inviteShare": "Share friend invite",
+    "addByUsername": "Add by username",
+    "addByUsernameHint": "Search is case-insensitive. They’ll get a request to accept.",
+    "usernamePlaceholder": "Username",
+    "sendRequest": "Send",
+    "usernameTooShort": "Enter at least 2 characters.",
+    "requestSent": "Friend request sent.",
+    "requestAlreadyPending": "A request already exists or you’re already friends.",
+    "requestFailed": "Could not send request.",
+    "cancelRequest": "Cancel",
     "accept": "Accept",
     "wantsToConnect": "wants to connect",
     "loadError": "Could not load friends.",

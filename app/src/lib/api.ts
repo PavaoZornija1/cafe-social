@@ -64,3 +64,14 @@ export async function apiPatch<T>(
   return handleResponse<T>(res);
 }
 
+export async function apiDelete<T>(
+  path: string,
+  token?: string | null | undefined,
+): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'DELETE',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  return handleResponse<T>(res);
+}
+

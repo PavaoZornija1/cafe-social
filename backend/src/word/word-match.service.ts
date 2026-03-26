@@ -19,6 +19,7 @@ import type { CoopGuessDto } from './dto/coop-guess.dto';
 import type { VersusScoreDto } from './dto/versus-score.dto';
 import { WORD_MATCH_REFRESH_EVENT } from './word-match.gateway';
 import { PushService } from '../push/push.service';
+import { VenueFeedService } from '../venue-feed/venue-feed.service';
 import { normalizeGuess } from './word-match.util';
 
 export type WordMatchConfig = {
@@ -36,6 +37,7 @@ export class WordMatchService {
     private readonly wordRepo: WordRepository,
     private readonly events: EventEmitter2,
     private readonly pushNotifications: PushService,
+    private readonly venueFeed: VenueFeedService,
   ) {}
 
   private pushSessionRefresh(sessionId: string) {
@@ -186,6 +188,12 @@ export class WordMatchService {
         startedAt: new Date(),
       },
     });
+
+    if (session.venueId) {
+      const hostParticipant = session.participants.find((p) => p.playerId === config.hostPlayerId);
+      const name = hostParticipant?.displayNameSnapshot ?? 'Player';
+      void this.venueFeed.recordWordMatchStarted(session.venueId, name, config.wordGameMode);
+    }
 
     this.pushSessionRefresh(sessionId);
 

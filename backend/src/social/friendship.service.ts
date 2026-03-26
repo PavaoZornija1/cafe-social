@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { FriendshipStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { orderedPlayerPair } from '../common/player-pair';
@@ -139,5 +144,20 @@ export class FriendshipService {
           ? r.playerHigh
           : r.playerLow,
     }));
+  }
+
+  /** Withdraw a pending request you sent. */
+  async cancelOutgoingRequest(playerId: string, friendshipId: string): Promise<void> {
+    const row = await this.prisma.friendship.findUnique({
+      where: { id: friendshipId },
+    });
+    if (!row) throw new NotFoundException('Friend request not found');
+    if (row.status !== FriendshipStatus.PENDING) {
+      throw new BadRequestException('Not a pending request');
+    }
+    if (row.requestedById !== playerId) {
+      throw new ForbiddenException('You did not send this request');
+    }
+    await this.prisma.friendship.delete({ where: { id: friendshipId } });
   }
 }

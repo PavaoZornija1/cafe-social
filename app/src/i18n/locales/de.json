@@ -101,7 +101,29 @@
     "linkFriends": "Freunde",
     "linkParties": "Gruppen",
     "linkPeopleHere": "Wer ist hier",
-    "linkRedeemInvite": "Einladung einlösen"
+    "linkRedeemInvite": "Einladung einlösen",
+    "linkDailyWord": "Tageswort",
+    "venueFeedTitle": "In diesem Café",
+    "venueFeedEmpty": "Noch keine Aktivität — starte ein Match oder löse das Tageswort vor Ort.",
+    "venueFeedActor": "{{user}} · {{action}}",
+    "challengeProgressWeekly": "Wöchentlich · {{title}} ({{current}}/{{target}})"
+  },
+  "dailyWord": {
+    "title": "Tageswort",
+    "scopeGlobal": "Global",
+    "scopeVenue": "Café",
+    "day": "Tag {{day}}",
+    "streak": "Serie: {{n}}",
+    "answerLength": "Länge: {{n}} Buchstaben",
+    "attempts": "Versuche: {{current}} / {{max}}",
+    "placeholder": "Dein Tipp",
+    "submit": "Raten",
+    "solved": "Gelöst: {{word}}",
+    "outOfAttempts": "Morgen gibt es ein neues Wort.",
+    "loadError": "Tageswort konnte nicht geladen werden.",
+    "guessError": "Tipp fehlgeschlagen.",
+    "needVenue": "Café erkennen für das lokale Tageswort.",
+    "notSignedIn": "Nicht angemeldet"
   },
   "challenges": {
     "title": "Challenges",
@@ -114,7 +136,8 @@
     "worksFromHome": "Funktioniert von zu Hause.",
     "progressCta": "Fortschritt +1",
     "updating": "Aktualisiere…",
-    "loadError": "Challenges konnten nicht geladen werden"
+    "loadError": "Challenges konnten nicht geladen werden",
+    "weekly": "Wöchentliche Challenge — Fortschritt setzt sich jede ISO-Woche (UTC) zurück."
   },
   "chooseGame": {
     "title": "Spiel wählen",
@@ -300,6 +323,15 @@
     "noOutgoing": "Niemand wartet auf deine Anfrage.",
     "pendingTheirAccept": "(wartet auf Annahme)",
     "inviteShare": "Freundes-Einladung teilen",
+    "addByUsername": "Per Benutzername hinzufügen",
+    "addByUsernameHint": "Groß/Klein egal. Die Person sieht eine Anfrage.",
+    "usernamePlaceholder": "Benutzername",
+    "sendRequest": "Senden",
+    "usernameTooShort": "Mindestens 2 Zeichen.",
+    "requestSent": "Freundschaftsanfrage gesendet.",
+    "requestAlreadyPending": "Anfrage existiert bereits oder ihr seid schon Freunde.",
+    "requestFailed": "Anfrage fehlgeschlagen.",
+    "cancelRequest": "Zurücknehmen",
     "accept": "Annehmen",
     "wantsToConnect": "möchte verbinden",
     "loadError": "Freunde konnten nicht geladen werden.",

@@ -101,7 +101,29 @@
     "linkFriends": "Prijatelji",
     "linkParties": "Partyji",
     "linkPeopleHere": "Tko je ovdje",
-    "linkRedeemInvite": "Iskoristi pozivnicu"
+    "linkRedeemInvite": "Iskoristi pozivnicu",
+    "linkDailyWord": "Dnevna riječ",
+    "venueFeedTitle": "U ovom lokalu",
+    "venueFeedEmpty": "Još nema aktivnosti — pokreni meč ili riješi dnevnu riječ lokala.",
+    "venueFeedActor": "{{user}} · {{action}}",
+    "challengeProgressWeekly": "Tjedno · {{title}} ({{current}}/{{target}})"
+  },
+  "dailyWord": {
+    "title": "Dnevna riječ",
+    "scopeGlobal": "Globalno",
+    "scopeVenue": "Lokal",
+    "day": "Dan {{day}}",
+    "streak": "Niz: {{n}}",
+    "answerLength": "Duljina odgovora: {{n}} slova",
+    "attempts": "Pokušaji: {{current}} / {{max}}",
+    "placeholder": "Tvoj pokušaj",
+    "submit": "Pogodi",
+    "solved": "Riješeno: {{word}}",
+    "outOfAttempts": "Vrati se sutra za novu riječ.",
+    "loadError": "Dnevna riječ se nije učitala.",
+    "guessError": "Pogodak nije uspio.",
+    "needVenue": "Detektiraj lokal za dnevnu riječ lokala.",
+    "notSignedIn": "Nisi prijavljen"
   },
   "challenges": {
     "title": "Izazovi",
@@ -114,7 +136,8 @@
     "worksFromHome": "Radi od kuće.",
     "progressCta": "Napredak +1",
     "updating": "Ažuriranje…",
-    "loadError": "Izazovi se nisu mogli učitati"
+    "loadError": "Izazovi se nisu mogli učitati",
+    "weekly": "Tjedni izazov — napredak se resetira svaki ISO tjedan (UTC)."
   },
   "chooseGame": {
     "title": "Odaberi igru",
@@ -300,6 +323,15 @@
     "noOutgoing": "Nitko ne čeka tvoj zahtjev.",
     "pendingTheirAccept": "(čekamo da prihvate)",
     "inviteShare": "Podijeli poziv za prijatelja",
+    "addByUsername": "Dodaj po korisničkom imenu",
+    "addByUsernameHint": "Nije osjetljivo na velika/mala slova. Oni vide zahtjev za prihvat.",
+    "usernamePlaceholder": "Korisničko ime",
+    "sendRequest": "Pošalji",
+    "usernameTooShort": "Unesi barem 2 znaka.",
+    "requestSent": "Zahtjev za prijateljstvo poslan.",
+    "requestAlreadyPending": "Zahtjev već postoji ili ste već prijatelji.",
+    "requestFailed": "Slanje nije uspjelo.",
+    "cancelRequest": "Odustani",
     "accept": "Prihvati",
     "wantsToConnect": "želi se povezati",
     "loadError": "Prijatelji se nisu učitali.",
