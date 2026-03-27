@@ -11,6 +11,7 @@ import { StatusBar } from 'expo-status-bar';
 
 import { syncBrawlerScreenOrientation } from '../brawler/screenOrientation';
 import { ExpoPushRegistrar } from '../components/ExpoPushRegistrar';
+import RevenueCatIdentitySync from '../components/RevenueCatIdentitySync';
 import { NotificationNavigationEffect } from '../components/NotificationNavigationEffect';
 import { VenuePresenceHeartbeat } from '../components/VenuePresenceHeartbeat';
 import { navigationRef } from './navigationRef';
@@ -82,6 +83,7 @@ export default function AppNavigation({ linking }: Props) {
       onStateChange={onStateChange}
     >
       <NotificationNavigationEffect />
+      <RevenueCatIdentitySync />
       <VenuePresenceHeartbeat />
       <ExpoPushRegistrar />
       <StatusBar style="light" />

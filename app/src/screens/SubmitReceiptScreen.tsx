@@ -17,12 +17,13 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiPost } from '../lib/api';
+import { fetchDetectedVenue } from '../lib/venueDetectClient';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SubmitReceipt'>;
 
 export default function SubmitReceiptScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
-  const { venueId, detectedVenueId } = route.params;
+  const { venueId } = route.params;
   const { getToken, isLoaded } = useAuth();
   const [note, setNote] = useState('');
   const [previewUri, setPreviewUri] = useState<string | null>(null);
@@ -54,6 +55,11 @@ export default function SubmitReceiptScreen({ navigation, route }: Props) {
     try {
       const token = await getToken();
       if (!token) throw new Error(t('staff.signInFirst'));
+      const { venue, coords } = await fetchDetectedVenue();
+      if (!coords || venue?.id !== venueId) {
+        Alert.alert(t('common.error'), t('receiptSubmit.needLocationAtVenue'));
+        return;
+      }
       const base64 = await FileSystem.readAsStringAsync(previewUri, {
         encoding: 'base64',
       });
@@ -65,7 +71,8 @@ export default function SubmitReceiptScreen({ navigation, route }: Props) {
           imageData,
           mimeType: mime,
           notePlayer: note.trim() || undefined,
-          detectedVenueId: detectedVenueId ?? venueId,
+          latitude: coords.lat,
+          longitude: coords.lng,
         },
         token,
       );

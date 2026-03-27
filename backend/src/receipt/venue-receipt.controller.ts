@@ -36,7 +36,8 @@ export class VenueReceiptController {
       imageData?: string;
       mimeType?: string;
       notePlayer?: string;
-      detectedVenueId?: string | null;
+      latitude?: number;
+      longitude?: number;
     },
   ) {
     const player = await this.players.findOrCreateByEmail(this.email(user));
@@ -46,7 +47,8 @@ export class VenueReceiptController {
       imageData: body?.imageData ?? '',
       mimeType: body?.mimeType,
       notePlayer: body?.notePlayer,
-      detectedVenueId: body?.detectedVenueId,
+      latitude: body?.latitude,
+      longitude: body?.longitude,
     });
   }
 }

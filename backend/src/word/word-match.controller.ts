@@ -5,6 +5,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
@@ -40,7 +41,7 @@ export class WordMatchController {
   /** Static path before :sessionId routes */
   @Post('join')
   join(@CurrentUser() user: unknown, @Body() dto: JoinWordMatchDto) {
-    return this.match.joinByCode(this.email(user), dto.inviteCode);
+    return this.match.joinByCode(this.email(user), dto);
   }
 
   @Post(':sessionId/start')
@@ -64,8 +65,19 @@ export class WordMatchController {
   getDeck(
     @CurrentUser() user: unknown,
     @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Query('lat') latRaw?: string,
+    @Query('lng') lngRaw?: string,
   ) {
-    return this.match.getDeck(this.email(user), sessionId);
+    const lat = latRaw !== undefined && latRaw !== '' ? Number(latRaw) : NaN;
+    const lng = lngRaw !== undefined && lngRaw !== '' ? Number(lngRaw) : NaN;
+    const latOk = Number.isFinite(lat);
+    const lngOk = Number.isFinite(lng);
+    return this.match.getDeck(
+      this.email(user),
+      sessionId,
+      latOk ? lat : undefined,
+      lngOk ? lng : undefined,
+    );
   }
 
   @Post(':sessionId/coop-guess')

@@ -20,6 +20,8 @@ import type { VersusScoreDto } from './dto/versus-score.dto';
 import { WORD_MATCH_REFRESH_EVENT } from './word-match.gateway';
 import { PushService } from '../push/push.service';
 import { VenueFeedService } from '../venue-feed/venue-feed.service';
+import { SubscriptionRepository } from '../venue/subscription.repository';
+import { VenueService } from '../venue/venue.service';
 import { normalizeGuess } from './word-match.util';
 
 export type WordMatchConfig = {
@@ -38,7 +40,30 @@ export class WordMatchService {
     private readonly events: EventEmitter2,
     private readonly pushNotifications: PushService,
     private readonly venueFeed: VenueFeedService,
+    private readonly subscriptions: SubscriptionRepository,
+    private readonly venues: VenueService,
   ) {}
+
+  /** When `sessionVenueId` is set, `latitude`/`longitude` must place the user in that venue’s geofence. */
+  private async assertAtVenueIfNeeded(
+    sessionVenueId: string | null | undefined,
+    latitude?: number,
+    longitude?: number,
+  ): Promise<void> {
+    if (!sessionVenueId) return;
+    const hasCoords =
+      typeof latitude === 'number' &&
+      typeof longitude === 'number' &&
+      Number.isFinite(latitude) &&
+      Number.isFinite(longitude);
+    if (!hasCoords) {
+      throw new ForbiddenException('Venue word play requires your current location (lat/lng)');
+    }
+    const at = await this.venues.findVenueAtCoordinates(latitude!, longitude!);
+    if (!at || at.id !== sessionVenueId) {
+      throw new ForbiddenException('You must be at the venue to play this match');
+    }
+  }
 
   private pushSessionRefresh(sessionId: string) {
     this.events.emit(WORD_MATCH_REFRESH_EVENT, sessionId);
@@ -61,6 +86,15 @@ export class WordMatchService {
 
   async create(email: string, dto: CreateWordMatchDto) {
     const player = await this.players.findOrCreateByEmail(email);
+    const vId = dto.venueId?.trim();
+    if (vId) {
+      await this.assertAtVenueIfNeeded(vId, dto.latitude, dto.longitude);
+    } else {
+      const subOk = await this.subscriptions.isActiveSubscriber(player.id);
+      if (!subOk) {
+        throw new ForbiddenException('Word rooms without a venue require an active subscription');
+      }
+    }
     const deck = await this.wordRepo.findRandomSessionDeck({
       language: dto.language,
       count: dto.wordCount,
@@ -82,7 +116,7 @@ export class WordMatchService {
         gameType: GameType.WORD_GAME,
         status: GameSessionStatus.PENDING,
         inviteCode,
-        venueId: dto.venueId ?? null,
+        venueId: vId || null,
         config: config as unknown as Prisma.InputJsonValue,
         wordSession: {
           create: {
@@ -111,9 +145,12 @@ export class WordMatchService {
     };
   }
 
-  async joinByCode(email: string, inviteCode: string) {
+  async joinByCode(
+    email: string,
+    dto: { inviteCode: string; latitude?: number; longitude?: number },
+  ) {
     const player = await this.players.findOrCreateByEmail(email);
-    const normalized = inviteCode.trim().toUpperCase();
+    const normalized = dto.inviteCode.trim().toUpperCase();
     const session = await this.prisma.gameSession.findFirst({
       where: {
         inviteCode: normalized,
@@ -131,6 +168,15 @@ export class WordMatchService {
     }
     if (session.participants.some((p) => p.playerId === player.id)) {
       return this.getStateForViewer(player.id, session.id);
+    }
+
+    if (session.venueId) {
+      await this.assertAtVenueIfNeeded(session.venueId, dto.latitude, dto.longitude);
+    } else {
+      const subOk = await this.subscriptions.isActiveSubscriber(player.id);
+      if (!subOk) {
+        throw new ForbiddenException('This room is global — join requires an active subscription');
+      }
     }
 
     const alreadyThere = session.participants
@@ -286,7 +332,12 @@ export class WordMatchService {
     return p;
   }
 
-  async getDeck(email: string, sessionId: string) {
+  async getDeck(
+    email: string,
+    sessionId: string,
+    latitude?: number,
+    longitude?: number,
+  ) {
     const player = await this.players.findOrCreateByEmail(email);
     const session = await this.prisma.gameSession.findUnique({
       where: { id: sessionId },
@@ -299,6 +350,7 @@ export class WordMatchService {
       throw new BadRequestException('match is not active');
     }
     await this.ensureParticipant(sessionId, player.id);
+    await this.assertAtVenueIfNeeded(session.venueId, latitude, longitude);
 
     const config = session.config as unknown as WordMatchConfig;
     const words = await this.prisma.word.findMany({
@@ -326,6 +378,12 @@ export class WordMatchService {
   async coopGuess(email: string, sessionId: string, dto: CoopGuessDto) {
     const player = await this.players.findOrCreateByEmail(email);
     const part = await this.ensureParticipant(sessionId, player.id);
+
+    const brief = await this.prisma.gameSession.findUnique({
+      where: { id: sessionId },
+      select: { venueId: true },
+    });
+    await this.assertAtVenueIfNeeded(brief?.venueId, dto.latitude, dto.longitude);
 
     const result = await this.prisma.$transaction(async (tx) => {
       const session = await tx.gameSession.findUnique({
@@ -400,6 +458,12 @@ export class WordMatchService {
   async versusScore(email: string, sessionId: string, dto: VersusScoreDto) {
     const player = await this.players.findOrCreateByEmail(email);
     const part = await this.ensureParticipant(sessionId, player.id);
+
+    const brief = await this.prisma.gameSession.findUnique({
+      where: { id: sessionId },
+      select: { venueId: true },
+    });
+    await this.assertAtVenueIfNeeded(brief?.venueId, dto.latitude, dto.longitude);
 
     const result = await this.prisma.$transaction(async (tx) => {
       const session = await tx.gameSession.findUnique({

@@ -18,10 +18,10 @@ export type RootStackParamList = {
     RedeemPerk: { venueId?: string } | undefined;
     PeopleHere: { venueId: string; venueName?: string };
     QrScan: { venueId?: string };
-    WordLobby: { venueId: string; challengeId?: string };
-    WordMatchJoin: { venueId: string; challengeId?: string };
+    WordLobby: { venueId?: string; challengeId?: string };
+    WordMatchJoin: { venueId?: string; challengeId?: string };
     WordMatchWait: {
-      venueId: string;
+      venueId?: string;
       challengeId?: string;
       mode: 'coop' | 'versus';
       difficulty: 'easy' | 'normal' | 'hard';
@@ -29,7 +29,7 @@ export type RootStackParamList = {
       sessionId?: string;
     };
     WordGame: {
-      venueId: string;
+      venueId?: string;
       challengeId?: string;
       difficulty: 'easy' | 'normal' | 'hard';
       mode: 'solo' | 'coop' | 'versus';
@@ -44,5 +44,5 @@ export type RootStackParamList = {
       highlightCode?: string;
     };
     StaffQrScan: { venueId: string; venueName?: string };
-    SubmitReceipt: { venueId: string; detectedVenueId?: string };
+    SubmitReceipt: { venueId: string };
 };

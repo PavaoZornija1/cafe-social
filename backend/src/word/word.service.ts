@@ -1,5 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import type { Word, WordCategory } from '@prisma/client';
+import { PlayerService } from '../player/player.service';
+import { SubscriptionRepository } from '../venue/subscription.repository';
+import { VenueService } from '../venue/venue.service';
 import { WordRepository } from './word.repository';
 
 export type WordSessionDto = {
@@ -16,15 +19,52 @@ export type WordSessionDto = {
 
 @Injectable()
 export class WordService {
-  constructor(private readonly words: WordRepository) {}
+  constructor(
+    private readonly words: WordRepository,
+    private readonly players: PlayerService,
+    private readonly subscriptions: SubscriptionRepository,
+    private readonly venues: VenueService,
+  ) {}
 
   async getWordSessionDeck(params: {
+    email: string;
     language: string;
     category?: WordCategory;
     count: number;
+    globalPlay?: boolean;
+    venueId?: string;
+    latitude?: number;
+    longitude?: number;
   }): Promise<WordSessionDto> {
     if (!params.language) throw new BadRequestException('language is required');
     if (params.count <= 0) throw new BadRequestException('count must be > 0');
+
+    const player = await this.players.findOrCreateByEmail(params.email);
+    if (params.globalPlay) {
+      const ok = await this.subscriptions.isActiveSubscriber(player.id);
+      if (!ok) {
+        throw new ForbiddenException('Solo games without a venue require an active subscription');
+      }
+    } else {
+      const vId = params.venueId?.trim();
+      if (!vId) {
+        throw new ForbiddenException(
+          'Venue solo play requires venueId and your current location (lat/lng)',
+        );
+      }
+      const hasCoords =
+        typeof params.latitude === 'number' &&
+        typeof params.longitude === 'number' &&
+        Number.isFinite(params.latitude) &&
+        Number.isFinite(params.longitude);
+      if (!hasCoords) {
+        throw new ForbiddenException('Venue solo play requires your current location (lat/lng)');
+      }
+      const at = await this.venues.findVenueAtCoordinates(params.latitude!, params.longitude!);
+      if (!at || at.id !== vId) {
+        throw new ForbiddenException('You must be at the venue to play');
+      }
+    }
 
     const rows: Word[] = await this.words.findRandomSessionDeck({
       language: params.language,

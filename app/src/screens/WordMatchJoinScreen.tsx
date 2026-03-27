@@ -13,12 +13,13 @@ import { useAuth } from '@clerk/expo';
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiPost } from '../lib/api';
+import { fetchDetectedVenue } from '../lib/venueDetectClient';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WordMatchJoin'>;
 
 export default function WordMatchJoinScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
-  const { venueId, challengeId } = route.params;
+  const { venueId, challengeId } = route.params ?? {};
   const { getToken, isLoaded } = useAuth();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -36,11 +37,16 @@ export default function WordMatchJoinScreen({ navigation, route }: Props) {
       setLoading(true);
       const token = await getToken();
       if (!token) throw new Error(t('qr.notAuthenticated'));
+      const { coords } = await fetchDetectedVenue();
       const res = await apiPost<{
         sessionId: string;
         mode: 'coop' | 'versus';
         difficulty: string;
-      }>('/words/matches/join', { inviteCode: trimmed }, token);
+      }>('/words/matches/join', {
+        inviteCode: trimmed,
+        latitude: coords?.lat,
+        longitude: coords?.lng,
+      }, token);
       navigation.replace('WordMatchWait', {
         venueId,
         challengeId,

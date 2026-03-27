@@ -18,7 +18,7 @@ import { apiGet, apiPost } from '../lib/api';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { syncOnboardingFromServerSummary } from '../lib/onboardingStorage';
 import { openOrderingOrMenu } from '../lib/openOrderingLinks';
-import { fetchDetectedVenue } from '../lib/venueDetectClient';
+import { buildVenueAccessQuery, fetchDetectedVenue } from '../lib/venueDetectClient';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -27,7 +27,7 @@ type Venue = { id: string; name: string; isPremium: boolean };
 type VenueAccess = {
     venueId: string;
     isPremium: boolean;
-    hasQrUnlock: boolean;
+    visitedBefore: boolean;
     subscriptionActive: boolean;
     canEnterVenueContext: boolean;
 };
@@ -92,7 +92,6 @@ export default function HomeScreen({ navigation }: Props) {
     const [access, setAccess] = useState<VenueAccess | null>(null);
     const [loadingVenue, setLoadingVenue] = useState(true);
     const [venueError, setVenueError] = useState<string | null>(null);
-    const qrPromptShownRef = useRef(false);
     const [venueChallenges, setVenueChallenges] = useState<VenueChallenge[]>([]);
     const [loadingChallenges, setLoadingChallenges] = useState(false);
     const [meSummary, setMeSummary] = useState<MeSummaryDto | null>(null);
@@ -129,10 +128,9 @@ export default function HomeScreen({ navigation }: Props) {
         return !access.canEnterVenueContext;
     }, [access]);
 
-    const gamesPlayable = useMemo(
-        () => Boolean(detectedVenue && access?.canEnterVenueContext),
-        [detectedVenue, access?.canEnterVenueContext],
-    );
+    const canPlayVenueContext = Boolean(detectedVenue && access?.canEnterVenueContext);
+    const canPlayGlobal = Boolean(meSummary?.subscriptionActive);
+    const gamesPlayable = canPlayVenueContext || canPlayGlobal;
 
     const venueGamesLockedExplanation = useMemo(() => {
         if (!locked || !detectedVenue) return '';
@@ -193,11 +191,11 @@ export default function HomeScreen({ navigation }: Props) {
             setVenueError(null);
 
             try {
-                const detected = await fetchDetectedVenue();
+                const { venue, coords } = await fetchDetectedVenue();
                 if (cancelled) return;
-                setDetectedVenue(detected);
+                setDetectedVenue(venue);
 
-                if (!detected) {
+                if (!venue) {
                     setAccess(null);
                     return;
                 }
@@ -207,17 +205,13 @@ export default function HomeScreen({ navigation }: Props) {
                 const token = await getTokenRef.current();
                 if (!token) throw new Error('Not authenticated');
 
+                const accessQs = buildVenueAccessQuery(coords);
                 const a = await apiGet<VenueAccess>(
-                    `/venue-context/${encodeURIComponent(detected.id)}/access`,
+                    `/venue-context/${encodeURIComponent(venue.id)}/access${accessQs}`,
                     token,
                 );
                 if (cancelled) return;
                 setAccess(a);
-
-                if (a && !a.canEnterVenueContext && !qrPromptShownRef.current) {
-                    qrPromptShownRef.current = true;
-                    navigation.navigate('QrScan', { venueId: detected.id });
-                }
             } catch (e) {
                 if (cancelled) return;
                 setVenueError((e as Error).message || t('home.loadVenueError'));
@@ -230,7 +224,7 @@ export default function HomeScreen({ navigation }: Props) {
         return () => {
             cancelled = true;
         };
-    }, [isLoaded, navigation, t]);
+    }, [isLoaded, t]);
 
     useEffect(() => {
         let cancelled = false;
@@ -383,12 +377,18 @@ export default function HomeScreen({ navigation }: Props) {
     }, [detectedVenue?.id, isLoaded]);
 
     const handlePlay = () => {
-        if (!gamesPlayable || !detectedVenue?.id) return;
-        const activeChallenge = venueChallenges.find((c) => !c.isCompleted) ?? venueChallenges[0];
-        navigation.navigate('ChooseGame', {
-          venueId: detectedVenue.id,
-          challengeId: activeChallenge?.id,
-        });
+        if (!gamesPlayable) return;
+        if (canPlayVenueContext && detectedVenue?.id) {
+            const activeChallenge = venueChallenges.find((c) => !c.isCompleted) ?? venueChallenges[0];
+            navigation.navigate('ChooseGame', {
+                venueId: detectedVenue.id,
+                challengeId: activeChallenge?.id,
+            });
+            return;
+        }
+        if (canPlayGlobal) {
+            navigation.navigate('ChooseGame', {});
+        }
     };
 
     const badgeLabel = (key: string): string => {
@@ -603,7 +603,6 @@ export default function HomeScreen({ navigation }: Props) {
                         onPress={() =>
                             navigation.navigate('SubmitReceipt', {
                                 venueId: detectedVenue!.id,
-                                detectedVenueId: detectedVenue!.id,
                             })
                         }
                     >
@@ -676,14 +675,6 @@ export default function HomeScreen({ navigation }: Props) {
                         </Text>
                     </AnimatedPressable>
 
-                    {locked && detectedVenue?.id && (
-                        <Pressable
-                            onPress={() => navigation.navigate('QrScan', { venueId: detectedVenue.id })}
-                            style={styles.scanBtn}
-                        >
-                            <Text style={styles.scanBtnText}>{t('home.scanQrUnlock')}</Text>
-                        </Pressable>
-                    )}
                 </View>
 
                 <View style={styles.bottomNav}>

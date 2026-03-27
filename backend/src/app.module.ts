@@ -17,6 +17,7 @@ import { ReceiptModule } from './receipt/receipt.module';
 import { AdminModule } from './admin/admin.module';
 import { OwnerModule } from './owner/owner.module';
 import { StaffModule } from './staff/staff.module';
+import { RevenueCatModule } from './revenuecat/revenuecat.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { StaffModule } from './staff/staff.module';
     AdminModule,
     OwnerModule,
     StaffModule,
+    RevenueCatModule,
   ],
   controllers: [HealthController],
   providers: [],

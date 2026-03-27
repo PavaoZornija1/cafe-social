@@ -105,22 +105,42 @@
     "staffHint": "Verify guest perk codes if your venue added you as EMPLOYEE, MANAGER, or OWNER in the partner CMS.",
     "staffOpen": "Staff mode — redemptions & QR",
     "subscription": "Subscription",
-    "subscriptionHint": "A subscription can unlock home play and extras at participating premium venues. Status comes from your account on our servers.",
+    "subscriptionHint": "Members unlock play from home and bonus perks at select premium partner venues. Status here is what our servers have on file after the store and RevenueCat sync.",
+    "subscriptionPaywallLead": "Subscribe in a few taps. You can restore past purchases or manage billing anytime in your store account.",
     "subscriptionActive": "Subscription active.",
     "subscriptionInactive": "No active subscription on file.",
     "subscriptionOpen": "Manage or subscribe (web)",
-    "subscriptionUrlMissing": "Add EXPO_PUBLIC_SUBSCRIPTION_URL in app config for a manage / checkout link."
+    "subscriptionUrlMissing": "Add EXPO_PUBLIC_SUBSCRIPTION_URL in app config for a manage / checkout link if you offer web checkout.",
+    "subscriptionSubscribe": "Subscribe with App Store / Google Play",
+    "subscriptionRestore": "Restore purchases",
+    "subscriptionManageNative": "Manage subscription in store settings",
+    "subscriptionRcMissingKey": "Add EXPO_PUBLIC_REVENUECAT_IOS_API_KEY and EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY for in-app subscriptions.",
+    "subscriptionWebOnlyHint": "In-app subscriptions use RevenueCat on iOS and Android. Use the web link below if your product includes web checkout.",
+    "subscriptionOfferingsTitle": "Subscription not ready in the app",
+    "subscriptionOfferingsNoCurrent": "RevenueCat has no “current” offering for this build. In the RevenueCat dashboard, set a current offering and attach your App Store / Play subscription products.",
+    "subscriptionOfferingsNoPackages": "The current offering has no packages. Add packages (monthly / annual, etc.) to that offering and ensure the store products are approved and linked.",
+    "subscriptionPackageHintMonthlyFirst": "Default plan we open first: monthly, then annual if monthly isn’t offered. Set EXPO_PUBLIC_REVENUECAT_PREFERRED_PACKAGE=annual to prefer yearly.",
+    "subscriptionPackageHintAnnualFirst": "Default plan we open first: annual, then monthly. Set EXPO_PUBLIC_REVENUECAT_PREFERRED_PACKAGE=monthly (or remove it) to prefer monthly.",
+    "subscriptionPendingBanner": "Payment went through — we’re waiting for your subscription to show up on our servers. This usually takes under a minute.",
+    "subscriptionPendingFollowUp": "Still not seeing “active”? The webhook may be slow. Tap refresh, try Restore purchases, or wait a minute and open this screen again.",
+    "subscriptionPendingRefresh": "Refresh subscription status",
+    "subscriptionPurchaseImmediate": "You’re all set — your subscription is active.",
+    "subscriptionPurchaseError": "Purchase could not be completed. Try again or use Restore purchases.",
+    "subscriptionRestoreActive": "Restore worked — your subscription is active.",
+    "subscriptionManageNativeError": "Could not open subscription management. Open the App Store or Google Play subscription settings for this app."
   },
   "chooseGame": {
     "title": "Choose a game",
-    "subtitle": "Games need venue check-in (or a subscription where supported).",
+    "subtitle": "At a venue: games use that venue. With a subscription you can also play word games globally (no venue).",
     "wordTitle": "Word game",
     "wordDescription": "Solo, co-op, or versus guessing with venue challenges.",
-    "wordCta": "Open word lobby",
+    "wordCtaVenue": "Open word lobby (this venue)",
+    "wordCtaGlobal": "Open word lobby (global — subscribers)",
     "needVenue": "Check in at a venue first.",
     "brawlerTitle": "Brawler",
     "brawlerDescription": "Short arena battles with heroes and power-ups.",
-    "brawlerCta": "Open lobby"
+    "brawlerCta": "Open lobby",
+    "brawlerNeedVenue": "Brawler needs a venue check-in (arena is tied to a location)."
   },
   "staff": {
     "venuesTitle": "Your venues",
@@ -151,11 +171,11 @@
     "detectingVenue": "Detecting…",
     "currentVenue": "Current venue",
     "noVenueYet": "No partner venue detected. Loyalty, friends, and invites still work. Games open when you’re at a café — or from home if you have a subscription.",
-    "lockedHintStandard": "Games need a venue check-in: scan the QR or enter the code while you’re here. The rest of the app stays available.",
-    "lockedHintPremium": "Games need a check-in here (QR or code) or an active subscription so you can also play away from the venue.",
-    "unlockedHint": "Checked in. Venue games and challenges are available.",
+    "lockedHintStandard": "Venue games need location to confirm you’re on site. Loyalty and browsing stay available.",
+    "lockedHintPremium": "Venue games need location here, or use a subscription for global play from anywhere.",
+    "unlockedHint": "You’re at this venue — venue games and challenges are available.",
     "challengeTitle": "Your challenge",
-    "unlockToStart": "Check in at the venue or use a subscription (where offered) to play games.",
+    "unlockToStart": "Be at the venue with location on, or subscribe for global play.",
     "loadingChallenge": "Loading challenge…",
     "noChallenges": "No challenges available yet.",
     "challengeProgress": "{{title}} ({{current}}/{{target}})",
@@ -197,6 +217,7 @@
     "needPhoto": "Choose a receipt photo first.",
     "libraryDenied": "Photo library access is required.",
     "failed": "Could not upload receipt.",
+    "needLocationAtVenue": "Enable location and stand inside this venue to submit a receipt.",
     "sentTitle": "Sent",
     "sentBody": "Venue staff will review your submission."
   },
@@ -215,7 +236,8 @@
     "loadError": "Could not load daily word.",
     "guessError": "Guess failed.",
     "needVenue": "Detect a venue to play the venue daily.",
-    "notSignedIn": "Not signed in"
+    "notSignedIn": "Not signed in",
+    "globalRequiresSub": "The global daily word needs an active subscription."
   },
   "challenges": {
     "title": "Challenges",
@@ -231,20 +253,10 @@
     "loadError": "Failed to load challenges",
     "weekly": "Weekly challenge — progress resets each ISO week (UTC)."
   },
-  "chooseGame": {
-    "title": "Choose a game",
-    "subtitle": "Pick one of the available games to start your session.",
-    "wordTitle": "Word Game",
-    "wordDescription": "Solo, co-op, or versus guessing with venue challenges.",
-    "wordCta": "Open word lobby",
-    "wordNeedsVenue": "Detect a venue first to play.",
-    "brawlerTitle": "Brawler",
-    "brawlerDescription": "Short chaotic arena battles with heroes and power-ups.",
-    "brawlerCta": "Open lobby"
-  },
   "wordLobby": {
     "title": "Word Game",
     "venueLine": "Venue: {{venueId}}",
+    "globalLine": "Global play — not tied to a venue (subscription).",
     "appLanguageDeck": "Word deck language (solo & when you host): {{lang}}",
     "playModeTitle": "Play mode",
     "modeSolo": "Solo",
@@ -292,7 +304,8 @@
       "de": "German",
       "es": "Spanish"
     },
-    "socketReconnecting": "Reconnecting to room…"
+    "socketReconnecting": "Reconnecting to room…",
+    "needPresenceToCreate": "Enable location and be at the café to create a venue room."
   },
   "wordGame": {
     "title": "Word Game",
@@ -314,6 +327,8 @@
     "emptyDeck": "No words are available right now. Try again later.",
     "wrongGuess": "Not quite — try again.",
     "matchDeckError": "Could not load match deck. Ask the host to start the game.",
+    "needVenuePresence": "Enable location and be at this café to play.",
+    "needVenueForMatch": "Enable location and be at the venue for this match.",
     "matchOver": "Match over",
     "matchWon": "Nice! You won this round.",
     "matchLost": "Good effort — someone else finished first.",

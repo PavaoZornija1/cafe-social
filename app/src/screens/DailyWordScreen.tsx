@@ -36,7 +36,8 @@ export default function DailyWordScreen({ navigation }: Props) {
     const { t, i18n } = useTranslation();
     const { getToken } = useAuth();
     const [scope, setScope] = useState<'global' | 'venue'>('global');
-    const [detectedVenueId, setDetectedVenueId] = useState<string | null>(null);
+    const [subscriptionActive, setSubscriptionActive] = useState(false);
+    const [venueGps, setVenueGps] = useState<{ venueId: string; lat: number; lng: number } | null>(null);
     const [loading, setLoading] = useState(true);
     const [state, setState] = useState<DailyState | null>(null);
     const [guess, setGuess] = useState('');
@@ -47,9 +48,13 @@ export default function DailyWordScreen({ navigation }: Props) {
         setLoading(true);
         setError(null);
         try {
-            const detected = await fetchDetectedVenue();
-            setDetectedVenueId(detected?.id ?? null);
-            if (scope === 'venue' && !detected?.id) {
+            const { venue, coords } = await fetchDetectedVenue();
+            const gps =
+                venue && coords && venue.id
+                    ? { venueId: venue.id, lat: coords.lat, lng: coords.lng }
+                    : null;
+            setVenueGps(gps);
+            if (scope === 'venue' && !gps) {
                 setState(null);
                 setError(t('dailyWord.needVenue'));
                 return;
@@ -57,12 +62,29 @@ export default function DailyWordScreen({ navigation }: Props) {
             const token = await getToken();
             if (!token) throw new Error(t('dailyWord.notSignedIn'));
 
+            const summary = await apiGet<{ subscriptionActive?: boolean }>('/players/me/summary', token);
+            const subActive = summary.subscriptionActive ?? false;
+            setSubscriptionActive(subActive);
+
+            let effectiveScope = scope;
+            if (scope === 'global' && !subActive) {
+                if (gps) {
+                    effectiveScope = 'venue';
+                    setScope('venue');
+                } else {
+                    setState(null);
+                    setError(t('dailyWord.globalRequiresSub'));
+                    return;
+                }
+            }
+
             const qs = new URLSearchParams();
-            qs.set('scope', scope);
+            qs.set('scope', effectiveScope);
             qs.set('language', toApiWordLanguage(i18n.language));
-            if (scope === 'venue' && detected?.id) {
-                qs.set('venueId', detected.id);
-                qs.set('detectedVenueId', detected.id);
+            if (effectiveScope === 'venue' && gps) {
+                qs.set('venueId', gps.venueId);
+                qs.set('lat', String(gps.lat));
+                qs.set('lng', String(gps.lng));
             }
 
             const s = await apiGet<DailyState>(`/words/daily?${qs.toString()}`, token);
@@ -92,9 +114,10 @@ export default function DailyWordScreen({ navigation }: Props) {
                 language: toApiWordLanguage(i18n.language),
                 guess: guess.trim(),
             };
-            if (scope === 'venue' && detectedVenueId) {
-                body.venueId = detectedVenueId;
-                body.detectedVenueId = detectedVenueId;
+            if (scope === 'venue' && venueGps) {
+                body.venueId = venueGps.venueId;
+                body.latitude = venueGps.lat;
+                body.longitude = venueGps.lng;
             }
             const res = await apiPost<{
                 correct: boolean;
@@ -123,7 +146,8 @@ export default function DailyWordScreen({ navigation }: Props) {
         }
     };
 
-    const canVenue = !!detectedVenueId;
+    const canVenue = !!venueGps;
+    const canGlobalDaily = subscriptionActive;
 
     return (
         <SafeAreaView style={styles.safe}>
@@ -136,7 +160,12 @@ export default function DailyWordScreen({ navigation }: Props) {
 
             <View style={styles.scopeRow}>
                 <Pressable
-                    style={[styles.scopeBtn, scope === 'global' && styles.scopeBtnOn]}
+                    style={[
+                        styles.scopeBtn,
+                        scope === 'global' && styles.scopeBtnOn,
+                        !canGlobalDaily && styles.scopeDisabled,
+                    ]}
+                    disabled={!canGlobalDaily}
                     onPress={() => setScope('global')}
                 >
                     <Text style={styles.scopeText}>{t('dailyWord.scopeGlobal')}</Text>

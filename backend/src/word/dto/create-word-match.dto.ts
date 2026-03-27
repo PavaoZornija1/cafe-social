@@ -1,4 +1,4 @@
-import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 export type WordMatchMode = 'coop' | 'versus';
 
@@ -6,6 +6,14 @@ export class CreateWordMatchDto {
   @IsOptional()
   @IsUUID()
   venueId?: string;
+
+  @IsOptional()
+  @IsNumber()
+  latitude?: number;
+
+  @IsOptional()
+  @IsNumber()
+  longitude?: number;
 
   @IsString()
   @IsIn(['en', 'de', 'es', 'hr'])

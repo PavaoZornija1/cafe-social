@@ -12,9 +12,10 @@ import { PlayerModule } from '../player/player.module';
 import { AuthModule } from '../auth/auth.module';
 import { PushModule } from '../push/push.module';
 import { VenueFeedModule } from '../venue-feed/venue-feed.module';
+import { VenueModule } from '../venue/venue.module';
 
 @Module({
-  imports: [PrismaModule, PlayerModule, AuthModule, PushModule, VenueFeedModule],
+  imports: [PrismaModule, PlayerModule, AuthModule, PushModule, VenueFeedModule, VenueModule],
   controllers: [WordController, WordMatchController, DailyWordController],
   providers: [WordService, WordRepository, WordMatchService, WordMatchGateway, DailyWordService],
 })

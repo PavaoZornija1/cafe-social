@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { ReceiptSubmissionStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { VenueService } from '../venue/venue.service';
 
 const MAX_IMAGE_BYTES = 2_500_000;
 
@@ -14,20 +15,10 @@ function estimateBase64Bytes(s: string): number {
 
 @Injectable()
 export class VenueReceiptService {
-  constructor(private readonly prisma: PrismaService) {}
-
-  /** Same default as perks when `detectedVenueId` is omitted (dev / non-premium default venue). */
-  private async resolvePresenceVenueId(
-    detectedVenueId?: string | null,
-  ): Promise<string | null> {
-    if (detectedVenueId) return detectedVenueId;
-    const v = await this.prisma.venue.findFirst({
-      where: { isPremium: false },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true },
-    });
-    return v?.id ?? null;
-  }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly venues: VenueService,
+  ) {}
 
   async submit(params: {
     venueId: string;
@@ -35,10 +26,19 @@ export class VenueReceiptService {
     imageData: string;
     mimeType?: string;
     notePlayer?: string;
-    detectedVenueId?: string | null;
+    latitude?: number;
+    longitude?: number;
   }) {
-    const presenceVenueId = await this.resolvePresenceVenueId(params.detectedVenueId);
-    if (!presenceVenueId || presenceVenueId !== params.venueId) {
+    const hasCoords =
+      typeof params.latitude === 'number' &&
+      typeof params.longitude === 'number' &&
+      Number.isFinite(params.latitude) &&
+      Number.isFinite(params.longitude);
+    if (!hasCoords) {
+      throw new BadRequestException('Location (lat/lng) is required to submit a receipt here');
+    }
+    const at = await this.venues.findVenueAtCoordinates(params.latitude!, params.longitude!);
+    if (!at || at.id !== params.venueId) {
       throw new BadRequestException('You must be at this venue to submit a receipt');
     }
 

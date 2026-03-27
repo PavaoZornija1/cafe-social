@@ -105,22 +105,42 @@
     "staffHint": "Provjera kodova ako te je partner u CMS-u dodao kao EMPLOYEE, MANAGER ili OWNER.",
     "staffOpen": "Način osoblja — otkupi i QR",
     "subscription": "Pretplata",
-    "subscriptionHint": "Pretplata može otključati igranje od kuće i dodatke na premium lokacijama. Status dolazi s poslužitelja.",
+    "subscriptionHint": "Članstvo otključava igru od kuće i dodatke u odabranim premium lokacijama. Status ovdje je ono što naš poslužitelj ima nakon sinkronizacije trgovine i RevenueCata.",
+    "subscriptionPaywallLead": "Pretplati se u par koraka. Starije kupnje možeš obnoviti, naplatu upravljati u računu trgovine.",
     "subscriptionActive": "Pretplata je aktivna.",
     "subscriptionInactive": "Nema aktivne pretplate.",
     "subscriptionOpen": "Upravljanje ili pretplata (web)",
-    "subscriptionUrlMissing": "Postavi EXPO_PUBLIC_SUBSCRIPTION_URL u konfiguraciji aplikacije."
+    "subscriptionUrlMissing": "Postavi EXPO_PUBLIC_SUBSCRIPTION_URL ako nudiš web naplatu.",
+    "subscriptionSubscribe": "Pretplata putem App Storea / Google Playa",
+    "subscriptionRestore": "Vrati kupnje",
+    "subscriptionManageNative": "Upravljaj pretplatom u postavkama trgovine",
+    "subscriptionRcMissingKey": "Za pretplate u aplikaciji postavi EXPO_PUBLIC_REVENUECAT_IOS_API_KEY i EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY.",
+    "subscriptionWebOnlyHint": "Pretplate u aplikaciji koriste RevenueCat na iOS-u i Androidu. Web-poveznica ispod ako imate web naplatu.",
+    "subscriptionOfferingsTitle": "Pretplata u aplikaciji još nije spremna",
+    "subscriptionOfferingsNoCurrent": "RevenueCat nema \"current\" offering za ovaj build. U nadzornoj ploči postavi trenutačno offering i poveži App Store / Play pretplatničke proizvode.",
+    "subscriptionOfferingsNoPackages": "Trenutačno offering nema paketa. Dodaj pakete (mjesečni / godišnji itd.) i poveži odobrene proizvode u trgovini.",
+    "subscriptionPackageHintMonthlyFirst": "Zadano prvo: mjesečno, zatim godišnje. EXPO_PUBLIC_REVENUECAT_PREFERRED_PACKAGE=annual daje prednost godišnjem.",
+    "subscriptionPackageHintAnnualFirst": "Zadano prvo: godišnje, zatim mjesečno. EXPO_PUBLIC_REVENUECAT_PREFERRED_PACKAGE=monthly (ili prazno) daje prednost mjesečnom.",
+    "subscriptionPendingBanner": "Plaćanje je prošlo — čekamo da se pretplata pojavi na našem poslužitelju. Obično ispod minute.",
+    "subscriptionPendingFollowUp": "Jo uvijek nema \"aktivno\"? Webhook može kasniti. Osvježi, probaj Vrati kupnje ili pričekaj malo.",
+    "subscriptionPendingRefresh": "Osvježi status pretplate",
+    "subscriptionPurchaseImmediate": "Sve je spremno — pretplata je aktivna.",
+    "subscriptionPurchaseError": "Kupnja nije dovršena. Pokušaj ponovno ili Vrati kupnje.",
+    "subscriptionRestoreActive": "Obnova uspjela — pretplata je aktivna.",
+    "subscriptionManageNativeError": "Nije moguće otvoriti upravljanje pretplatom. Otvori postavke pretplate u App Storeu ili Google Playu."
   },
   "chooseGame": {
     "title": "Odaberi igru",
-    "subtitle": "Igre trebaju prijavu na lokalu (ili pretplatu gdje je podržano).",
+    "subtitle": "Na lokalu: igre su vezane za taj lokal. Uz pretplatu možeš i globalno igrati riječi (bez lokala).",
     "wordTitle": "Igra riječi",
     "wordDescription": "Solo, suradnja ili duel s izazovima lokala.",
-    "wordCta": "Otvori word lobby",
+    "wordCtaVenue": "Otvori lobby (ovaj lokal)",
+    "wordCtaGlobal": "Otvori lobby (globalno — pretplatnici)",
     "needVenue": "Prvo se prijavi na lokalu.",
     "brawlerTitle": "Brawler",
     "brawlerDescription": "Kratke arene s herojima i pojačanjima.",
-    "brawlerCta": "Otvori lobby"
+    "brawlerCta": "Otvori lobby",
+    "brawlerNeedVenue": "Brawler treba prijavu na lokalu."
   },
   "staff": {
     "venuesTitle": "Tvoji lokali",
@@ -151,11 +171,11 @@
     "detectingVenue": "Prepoznavanje…",
     "currentVenue": "Trenutačni lokal",
     "noVenueYet": "Nema prepoznatog partnerskog lokala. Lojalnost, prijatelji i pozivnice i dalje rade. Igre na lokalu — ili od kuće s pretplatom.",
-    "lockedHintStandard": "Igre trebaju prijavu na lokalu: skeniraj QR ili upiši kod dok si tamo. Ostatak appa ostaje dostupan.",
-    "lockedHintPremium": "Igre traže prijavu (QR ili kod) ili aktivnu pretplatu — uključujući igranje izvan lokala.",
-    "unlockedHint": "Prijava na lokalu. Igre i izazovi dostupni.",
+    "lockedHintStandard": "Igre na lokalu trebaju lokaciju da potvrdimo da si na mjestu. Ostatak appa ostaje dostupan.",
+    "lockedHintPremium": "Igre na lokalu trebaju lokaciju ovdje, ili pretplatu za globalno igranje.",
+    "unlockedHint": "Na lokalu si — igre i izazovi dostupni.",
     "challengeTitle": "Tvoj izazov",
-    "unlockToStart": "Prijavi se na lokalu ili koristi pretplatu (gdje postoji) za igranje.",
+    "unlockToStart": "Budi na lokalu s uključenom lokacijom ili pretplatom za globalno igranje.",
     "loadingChallenge": "Učitavanje izazova…",
     "noChallenges": "Još nema izazova.",
     "challengeProgress": "{{title}} ({{current}}/{{target}})",
@@ -197,6 +217,7 @@
     "needPhoto": "Prvo odaberi fotografiju.",
     "libraryDenied": "Potreban pristup galeriji.",
     "failed": "Prijenos nije uspio.",
+    "needLocationAtVenue": "Uključi lokaciju i budi unutar ovog lokala za slanje računa.",
     "sentTitle": "Poslano",
     "sentBody": "Osoblje će pregledati."
   },
@@ -215,7 +236,8 @@
     "loadError": "Dnevna riječ se nije učitala.",
     "guessError": "Pogodak nije uspio.",
     "needVenue": "Detektiraj lokal za dnevnu riječ lokala.",
-    "notSignedIn": "Nisi prijavljen"
+    "notSignedIn": "Nisi prijavljen",
+    "globalRequiresSub": "Globalna dnevna riječ treba aktivnu pretplatu."
   },
   "challenges": {
     "title": "Izazovi",
@@ -231,20 +253,10 @@
     "loadError": "Izazovi se nisu mogli učitati",
     "weekly": "Tjedni izazov — napredak se resetira svaki ISO tjedan (UTC)."
   },
-  "chooseGame": {
-    "title": "Odaberi igru",
-    "subtitle": "Odaberi igru za sesiju.",
-    "wordTitle": "Igra riječima",
-    "wordDescription": "Solo, co-op ili versus s izazovima u lokalu.",
-    "wordCta": "Otvori lobby",
-    "wordNeedsVenue": "Prvo otkrij lokal.",
-    "brawlerTitle": "Brawler",
-    "brawlerDescription": "Kratke arene s herojima.",
-    "brawlerCta": "Otvori lobby"
-  },
   "wordLobby": {
     "title": "Igra riječima",
     "venueLine": "Lokal: {{venueId}}",
+    "globalLine": "Globalna igra — bez lokala (pretplata).",
     "appLanguageDeck": "Jezik riječi (solo i kad ti hostaš): {{lang}}",
     "playModeTitle": "Način",
     "modeSolo": "Solo",
@@ -292,7 +304,8 @@
       "de": "njemački",
       "es": "španjolski"
     },
-    "socketReconnecting": "Ponovno povezivanje sobe…"
+    "socketReconnecting": "Ponovno povezivanje sobe…",
+    "needPresenceToCreate": "Uključi lokaciju i budi u kafiću da stvoriš sobu na lokalu."
   },
   "wordGame": {
     "title": "Igra riječima",
@@ -314,6 +327,8 @@
     "emptyDeck": "Trenutno nema dostupnih riječi. Pokušaj kasnije.",
     "wrongGuess": "Ne baš — pokušaj ponovno.",
     "matchDeckError": "Nije moguće učitati riječi. Zamoli domaćina da pokrene.",
+    "needVenuePresence": "Uključi lokaciju i budi u ovom kafiću za igranje.",
+    "needVenueForMatch": "Uključi lokaciju i budi na lokalu ovog meča.",
     "matchOver": "Meč gotov",
     "matchWon": "Bravo! Pobjeda.",
     "matchLost": "Dobar pokušaj — netko je brži.",

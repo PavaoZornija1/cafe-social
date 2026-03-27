@@ -71,10 +71,13 @@ export default function WordGameScreen({ navigation, route }: Props) {
     sessionWordsCount = 5,
     mode = 'solo',
     matchSessionId,
-  } = route.params;
+  } = route.params ?? {};
+  const globalSolo = !matchSessionId && !venueId;
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
+
+  const presenceCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -164,14 +167,27 @@ export default function WordGameScreen({ navigation, route }: Props) {
         if (!token) throw new Error('Not authenticated');
 
         const primary = toApiWordLanguage(i18n.language);
+        let venueQs = '';
+        if (!globalSolo) {
+          if (!venueId) throw new Error(t('wordGame.needVenuePresence'));
+          const { venue, coords } = await fetchDetectedVenue();
+          if (!coords || venue?.id !== venueId) {
+            throw new Error(t('wordGame.needVenuePresence'));
+          }
+          presenceCoordsRef.current = coords;
+          venueQs = `&venueId=${encodeURIComponent(venueId)}&lat=${encodeURIComponent(String(coords.lat))}&lng=${encodeURIComponent(String(coords.lng))}`;
+        } else {
+          presenceCoordsRef.current = null;
+        }
+        const globalQs = globalSolo ? '&globalPlay=1' : '';
         let res = await apiGet<{ words: WordRow[] }>(
-          `/words/session?language=${encodeURIComponent(primary)}&count=${encodeURIComponent(String(sessionWordsCount))}`,
+          `/words/session?language=${encodeURIComponent(primary)}&count=${encodeURIComponent(String(sessionWordsCount))}${globalQs}${venueQs}`,
           token,
         );
         if (cancelled) return;
         if (!res.words?.length && primary !== 'en') {
           res = await apiGet<{ words: WordRow[] }>(
-            `/words/session?language=en&count=${encodeURIComponent(String(sessionWordsCount))}`,
+            `/words/session?language=en&count=${encodeURIComponent(String(sessionWordsCount))}${globalQs}${venueQs}`,
             token,
           );
         }
@@ -195,7 +211,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [isLoaded, sessionWordsCount, t, matchSessionId, i18n.language]);
+  }, [isLoaded, sessionWordsCount, t, matchSessionId, i18n.language, globalSolo, venueId]);
 
   /** Multiplayer deck (match must be ACTIVE) */
   useEffect(() => {
@@ -209,8 +225,28 @@ export default function WordGameScreen({ navigation, route }: Props) {
         setError(null);
         const token = await getTokenRef.current();
         if (!token) throw new Error('Not authenticated');
+        const s = await apiGet<MatchState>(
+          `/words/matches/${encodeURIComponent(sid as string)}/state`,
+          token,
+        );
+        if (cancelled) return;
+        setMatchState(s);
+        let deckQs = '';
+        if (s.venueId) {
+          const { venue, coords } = await fetchDetectedVenue();
+          if (!coords || venue?.id !== s.venueId) {
+            presenceCoordsRef.current = null;
+            setError(t('wordGame.needVenueForMatch'));
+            setDeck([]);
+            return;
+          }
+          presenceCoordsRef.current = coords;
+          deckQs = `?lat=${encodeURIComponent(String(coords.lat))}&lng=${encodeURIComponent(String(coords.lng))}`;
+        } else {
+          presenceCoordsRef.current = null;
+        }
         const res = await apiGet<{ words: WordRow[] }>(
-          `/words/matches/${encodeURIComponent(sid as string)}/deck`,
+          `/words/matches/${encodeURIComponent(sid as string)}/deck${deckQs}`,
           token,
         );
         if (cancelled) return;
@@ -235,7 +271,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
   }, [matchSessionId, isLoaded, t]);
 
   const finishSession = async (opts: { claimChallenge: boolean }) => {
-    if (!opts.claimChallenge || !challengeId) {
+    if (!opts.claimChallenge || !challengeId || !venueId) {
       navigation.replace('Home');
       return;
     }
@@ -243,10 +279,14 @@ export default function WordGameScreen({ navigation, route }: Props) {
     try {
       const token = await getTokenRef.current();
       if (!token) throw new Error('Not authenticated');
-      const detected = await fetchDetectedVenue();
+      const { coords } = await fetchDetectedVenue();
       await apiPost<void>(
         `/venue-context/${encodeURIComponent(venueId)}/challenges/${encodeURIComponent(challengeId)}/progress`,
-        { increment: 1, detectedVenueId: detected?.id ?? null },
+        {
+          increment: 1,
+          latitude: coords?.lat,
+          longitude: coords?.lng,
+        },
         token,
       );
     } catch {
@@ -271,7 +311,11 @@ export default function WordGameScreen({ navigation, route }: Props) {
           newIndex: number;
         }>(
           `/words/matches/${encodeURIComponent(matchSessionId)}/coop-guess`,
-          { guess },
+          {
+            guess,
+            latitude: presenceCoordsRef.current?.lat,
+            longitude: presenceCoordsRef.current?.lng,
+          },
           token,
         );
         if (!res.correct) {
@@ -311,7 +355,11 @@ export default function WordGameScreen({ navigation, route }: Props) {
         if (!token) throw new Error('Not authenticated');
         const res = await apiPost<{ finished: boolean; yourScore: number; winner: boolean }>(
           `/words/matches/${encodeURIComponent(matchSessionId)}/versus-score`,
-          { increment: 1 },
+          {
+            increment: 1,
+            latitude: presenceCoordsRef.current?.lat,
+            longitude: presenceCoordsRef.current?.lng,
+          },
           token,
         );
         const nextIdx = idx + 1;

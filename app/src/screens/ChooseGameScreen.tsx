@@ -10,13 +10,14 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
     const { t } = useTranslation();
     const venueId = route.params?.venueId;
     const challengeId = route.params?.challengeId;
+    const hasVenueContext = Boolean(venueId);
 
     const onOpenWordGame = () => {
-        if (!venueId) return;
         navigation.navigate('WordLobby', { venueId, challengeId });
     };
 
     const onOpenBrawler = () => {
+        if (!venueId) return;
         navigation.navigate('BrawlerLobby', { venueId });
     };
 
@@ -28,29 +29,25 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
 
                 <Pressable
                     onPress={onOpenWordGame}
-                    disabled={!venueId}
-                    style={({ pressed }) => [
-                        styles.card,
-                        styles.wordCard,
-                        !venueId && styles.cardDisabled,
-                        pressed && styles.cardPressed,
-                    ]}
+                    style={({ pressed }) => [styles.card, styles.wordCard, pressed && styles.cardPressed]}
                 >
                     <Text style={styles.cardEmoji}>🧩</Text>
                     <View style={styles.cardBody}>
                         <Text style={styles.cardTitle}>{t('chooseGame.wordTitle')}</Text>
                         <Text style={styles.cardDescription}>{t('chooseGame.wordDescription')}</Text>
                         <Text style={styles.cardMeta}>
-                            {venueId ? t('chooseGame.wordCta') : t('chooseGame.needVenue')}
+                            {hasVenueContext ? t('chooseGame.wordCtaVenue') : t('chooseGame.wordCtaGlobal')}
                         </Text>
                     </View>
                 </Pressable>
 
                 <Pressable
                     onPress={onOpenBrawler}
+                    disabled={!hasVenueContext}
                     style={({ pressed }) => [
                         styles.card,
                         styles.brawlerCard,
+                        !hasVenueContext && styles.cardDisabled,
                         pressed && styles.cardPressed,
                     ]}
                 >
@@ -58,7 +55,9 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
                     <View style={styles.cardBody}>
                         <Text style={styles.cardTitle}>{t('chooseGame.brawlerTitle')}</Text>
                         <Text style={styles.cardDescription}>{t('chooseGame.brawlerDescription')}</Text>
-                        <Text style={styles.cardMeta}>{t('chooseGame.brawlerCta')}</Text>
+                        <Text style={styles.cardMeta}>
+                            {hasVenueContext ? t('chooseGame.brawlerCta') : t('chooseGame.brawlerNeedVenue')}
+                        </Text>
                     </View>
                 </Pressable>
 

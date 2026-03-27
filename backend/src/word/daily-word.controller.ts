@@ -29,15 +29,21 @@ export class DailyWordController {
     @CurrentUser() user: unknown,
     @Query('scope') scopeRaw?: string,
     @Query('venueId') venueId?: string,
-    @Query('detectedVenueId') detectedVenueId?: string,
+    @Query('lat') latRaw?: string,
+    @Query('lng') lngRaw?: string,
     @Query('language') language?: string,
   ) {
     const scope = (scopeRaw === 'venue' ? 'venue' : 'global') as DailyWordScope;
+    const lat = latRaw !== undefined && latRaw !== '' ? Number(latRaw) : NaN;
+    const lng = lngRaw !== undefined && lngRaw !== '' ? Number(lngRaw) : NaN;
+    const latOk = Number.isFinite(lat);
+    const lngOk = Number.isFinite(lng);
     return this.daily.getState({
       email: this.email(user),
       scope,
       venueId: venueId || undefined,
-      detectedVenueId: detectedVenueId || undefined,
+      latitude: latOk ? lat : undefined,
+      longitude: lngOk ? lng : undefined,
       language,
     });
   }

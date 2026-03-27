@@ -50,20 +50,19 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
       return;
     }
     let venueId = route.params?.venueId?.trim() ?? '';
+    const { venue, coords } = await fetchDetectedVenue();
     if (!venueId) {
-      const det = await fetchDetectedVenue();
-      venueId = det?.id ?? '';
+      venueId = venue?.id ?? '';
     }
     if (!venueId) {
       Alert.alert(t('common.error'), t('perk.needVenue'));
       return;
     }
-    const detected = await fetchDetectedVenue();
     setBusy(true);
     try {
       const res = await apiPost<RedeemOk>(
         `/venue-context/${encodeURIComponent(venueId)}/perks/redeem`,
-        { code: raw, detectedVenueId: detected?.id ?? null },
+        { code: raw, latitude: coords?.lat, longitude: coords?.lng },
         token,
       );
       setLastOk(res);

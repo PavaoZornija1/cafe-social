@@ -12,7 +12,7 @@ type PlayKind = 'solo' | 'coop' | 'versus';
 
 export default function WordLobbyScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
-  const { venueId, challengeId } = route.params;
+  const { venueId, challengeId } = route.params ?? {};
   const [difficulty, setDifficulty] = useState<Difficulty>('easy');
   const [playKind, setPlayKind] = useState<PlayKind>('solo');
 
@@ -51,7 +51,9 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.title}>{t('wordLobby.title')}</Text>
-        <Text style={styles.subtitle}>{t('wordLobby.venueLine', { venueId })}</Text>
+        <Text style={styles.subtitle}>
+          {venueId ? t('wordLobby.venueLine', { venueId }) : t('wordLobby.globalLine')}
+        </Text>
         <Text style={styles.languageHint}>
           {t('wordLobby.appLanguageDeck', { lang: appDeckLabel })}
         </Text>

@@ -46,7 +46,8 @@ export class ChallengeController {
   async incrementProgress(
     @Param('venueId') venueId: string,
     @Param('challengeId') challengeId: string,
-    @Body() body: { increment?: number; detectedVenueId?: string | null },
+    @Body()
+    body: { increment?: number; latitude?: number; longitude?: number },
     @CurrentUser() user: any,
   ) {
     const email = this.normalizeEmail(user);
@@ -57,7 +58,8 @@ export class ChallengeController {
       challengeId,
       email,
       increment: body?.increment ?? 1,
-      detectedVenueId: body?.detectedVenueId ?? null,
+      latitude: body?.latitude,
+      longitude: body?.longitude,
     });
   }
 }

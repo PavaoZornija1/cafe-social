@@ -48,11 +48,11 @@ export default function ChallengesScreen(_props: Props) {
       setLoading(true);
       setError(null);
       try {
-        const detected = await fetchDetectedVenue();
+        const { venue } = await fetchDetectedVenue();
         if (cancelled) return;
-        setVenue(detected);
+        setVenue(venue);
 
-        if (!detected) {
+        if (!venue) {
           setChallenges([]);
           return;
         }
@@ -63,7 +63,7 @@ export default function ChallengesScreen(_props: Props) {
         if (!token) throw new Error('Not authenticated');
 
         const list = await apiGet<VenueChallenge[]>(
-          `/venue-context/${encodeURIComponent(detected.id)}/challenges`,
+          `/venue-context/${encodeURIComponent(venue.id)}/challenges`,
           token,
         );
         if (cancelled) return;
@@ -91,11 +91,11 @@ export default function ChallengesScreen(_props: Props) {
       const token = await getTokenRef.current();
       if (!token) throw new Error('Not authenticated');
 
-      const detected = await fetchDetectedVenue();
+      const { coords } = await fetchDetectedVenue();
 
       await apiPost<void>(
         `/venue-context/${encodeURIComponent(venue.id)}/challenges/${encodeURIComponent(challengeId)}/progress`,
-        { increment: 1, detectedVenueId: detected?.id ?? null },
+        { increment: 1, latitude: coords?.lat, longitude: coords?.lng },
         token,
       );
 

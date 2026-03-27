@@ -31,14 +31,15 @@ export class VenuePerkController {
   async redeem(
     @CurrentUser() user: unknown,
     @Param('venueId', new ParseUUIDPipe()) venueId: string,
-    @Body() body: { code?: string; detectedVenueId?: string | null },
+    @Body() body: { code?: string; latitude?: number; longitude?: number },
   ) {
     const player = await this.players.findOrCreateByEmail(this.email(user));
     return this.perks.redeem({
       playerId: player.id,
       venueId,
       code: body?.code ?? '',
-      detectedVenueId: body?.detectedVenueId,
+      latitude: body?.latitude,
+      longitude: body?.longitude,
     });
   }
 }

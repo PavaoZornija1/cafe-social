@@ -105,22 +105,42 @@
     "staffHint": "Verifica códigos si tu local te añadió como EMPLOYEE, MANAGER u OWNER en el CMS.",
     "staffOpen": "Modo personal — canjes y QR",
     "subscription": "Suscripción",
-    "subscriptionHint": "La suscripción puede desbloquear juego desde casa y extras en locales premium. El estado viene del servidor.",
+    "subscriptionHint": "Los miembros desbloquean juego en casa y ventajas en locales premium seleccionados. El estado aquí es el que tienen nuestros servidores tras sincronizar tienda y RevenueCat.",
+    "subscriptionPaywallLead": "Suscríbete en pocos toques. Puedes restaurar compras o gestionar la facturación en tu cuenta de la tienda.",
     "subscriptionActive": "Suscripción activa.",
     "subscriptionInactive": "Sin suscripción activa.",
     "subscriptionOpen": "Gestionar o suscribirse (web)",
-    "subscriptionUrlMissing": "Configura EXPO_PUBLIC_SUBSCRIPTION_URL en la app."
+    "subscriptionUrlMissing": "Configura EXPO_PUBLIC_SUBSCRIPTION_URL si ofreces checkout web.",
+    "subscriptionSubscribe": "Suscribirse con App Store / Google Play",
+    "subscriptionRestore": "Restaurar compras",
+    "subscriptionManageNative": "Gestionar suscripción en la tienda",
+    "subscriptionRcMissingKey": "Añade EXPO_PUBLIC_REVENUECAT_IOS_API_KEY y EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY para suscripciones en la app.",
+    "subscriptionWebOnlyHint": "Las suscripciones en la app usan RevenueCat en iOS y Android. Usa el enlace web si tienes checkout web.",
+    "subscriptionOfferingsTitle": "La suscripción no está lista en la app",
+    "subscriptionOfferingsNoCurrent": "RevenueCat no tiene un offering \"current\" para esta compilación. En el panel, define un offering actual y enlaza los productos de suscripción de App Store / Play.",
+    "subscriptionOfferingsNoPackages": "El offering actual no tiene paquetes. Añade paquetes (mensual / anual, etc.) y vincula productos aprobados en la tienda.",
+    "subscriptionPackageHintMonthlyFirst": "Por defecto abrimos primero mensual, luego anual. EXPO_PUBLIC_REVENUECAT_PREFERRED_PACKAGE=annual prioriza anual.",
+    "subscriptionPackageHintAnnualFirst": "Por defecto abrimos primero anual, luego mensual. EXPO_PUBLIC_REVENUECAT_PREFERRED_PACKAGE=monthly (o sin variable) prioriza mensual.",
+    "subscriptionPendingBanner": "El pago se completó: esperando que la suscripción aparezca en nuestros servidores. Suele tardar menos de un minuto.",
+    "subscriptionPendingFollowUp": "¿Sigues sin ver \"activa\"? El webhook puede ir lento. Pulsa actualizar, prueba Restaurar compras o espera un momento.",
+    "subscriptionPendingRefresh": "Actualizar estado de suscripción",
+    "subscriptionPurchaseImmediate": "Listo: tu suscripción está activa.",
+    "subscriptionPurchaseError": "No se completó la compra. Reintenta o usa Restaurar compras.",
+    "subscriptionRestoreActive": "Restauración correcta: tu suscripción está activa.",
+    "subscriptionManageNativeError": "No se pudo abrir la gestión de suscripciones. Ábrela en App Store o Google Play."
   },
   "chooseGame": {
     "title": "Elige un juego",
-    "subtitle": "Los juegos requieren check-in en el local (o suscripción donde aplique).",
+    "subtitle": "En el local: los juegos usan ese local. Con suscripción también puedes jugar al modo palabras global (sin local).",
     "wordTitle": "Juego de palabras",
     "wordDescription": "Solo, cooperativo o versus con retos del local.",
-    "wordCta": "Abrir lobby de palabras",
+    "wordCtaVenue": "Abrir lobby (este local)",
+    "wordCtaGlobal": "Abrir lobby (global — suscriptores)",
     "needVenue": "Haz check-in en un local primero.",
     "brawlerTitle": "Brawler",
     "brawlerDescription": "Batallas cortas con héroes y potenciadores.",
-    "brawlerCta": "Abrir lobby"
+    "brawlerCta": "Abrir lobby",
+    "brawlerNeedVenue": "Brawler requiere check-in en un local."
   },
   "staff": {
     "venuesTitle": "Tus locales",
@@ -151,11 +171,11 @@
     "detectingVenue": "Detectando…",
     "currentVenue": "Local actual",
     "noVenueYet": "No hay local socio detectado. Fidelización, amigos e invitaciones siguen. Los juegos van en el café — o desde casa con suscripción.",
-    "lockedHintStandard": "Los juegos piden check-in en el local: escanea el QR o introduce el código estando ahí. El resto de la app sigue abierto.",
-    "lockedHintPremium": "Los juegos piden check-in (QR o código) o suscripción activa — también para jugar fuera del local.",
-    "unlockedHint": "Check-in hecho. Juegos y retos del local disponibles.",
+    "lockedHintStandard": "Los juegos del local necesitan ubicación para confirmar que estás ahí. El resto de la app sigue abierto.",
+    "lockedHintPremium": "Los juegos del local necesitan ubicación aquí, o suscripción para jugar en global.",
+    "unlockedHint": "Estás en el local — juegos y retos disponibles.",
     "challengeTitle": "Tu reto",
-    "unlockToStart": "Haz check-in en el local o usa suscripción (donde exista) para jugar.",
+    "unlockToStart": "Estate en el local con la ubicación activada, o suscríbete para jugar en global.",
     "loadingChallenge": "Cargando reto…",
     "noChallenges": "Aún no hay retos.",
     "challengeProgress": "{{title}} ({{current}}/{{target}})",
@@ -197,6 +217,7 @@
     "needPhoto": "Elige una foto primero.",
     "libraryDenied": "Se necesita acceso a fotos.",
     "failed": "No se pudo subir.",
+    "needLocationAtVenue": "Activa la ubicación y entra en este local para enviar el ticket.",
     "sentTitle": "Enviado",
     "sentBody": "El personal revisará el envío."
   },
@@ -215,7 +236,8 @@
     "loadError": "No se pudo cargar la palabra del día.",
     "guessError": "El intento falló.",
     "needVenue": "Detecta un local para la palabra del local.",
-    "notSignedIn": "No has iniciado sesión"
+    "notSignedIn": "No has iniciado sesión",
+    "globalRequiresSub": "La palabra global requiere suscripción activa."
   },
   "challenges": {
     "title": "Retos",
@@ -231,20 +253,10 @@
     "loadError": "No se pudieron cargar los retos",
     "weekly": "Reto semanal — el progreso se reinicia cada semana ISO (UTC)."
   },
-  "chooseGame": {
-    "title": "Elige un juego",
-    "subtitle": "Elige un juego para tu sesión.",
-    "wordTitle": "Juego de palabras",
-    "wordDescription": "Solo, cooperativo o versus con retos del local.",
-    "wordCta": "Abrir lobby",
-    "wordNeedsVenue": "Detecta un local primero.",
-    "brawlerTitle": "Brawler",
-    "brawlerDescription": "Batallas cortas en arena con héroes.",
-    "brawlerCta": "Abrir lobby"
-  },
   "wordLobby": {
     "title": "Juego de palabras",
     "venueLine": "Local: {{venueId}}",
+    "globalLine": "Modo global — sin local (suscripción).",
     "appLanguageDeck": "Idioma de palabras (solo y si eres anfitrión): {{lang}}",
     "playModeTitle": "Modo",
     "modeSolo": "Solo",
@@ -292,7 +304,8 @@
       "de": "alemán",
       "es": "español"
     },
-    "socketReconnecting": "Reconectando a la sala…"
+    "socketReconnecting": "Reconectando a la sala…",
+    "needPresenceToCreate": "Activa la ubicación y entra en el café para crear una sala del local."
   },
   "wordGame": {
     "title": "Juego de palabras",
@@ -314,6 +327,8 @@
     "emptyDeck": "No hay palabras disponibles ahora. Inténtalo más tarde.",
     "wrongGuess": "No es correcto — inténtalo de nuevo.",
     "matchDeckError": "No se pudo cargar la lista. Pide al anfitrión que inicie.",
+    "needVenuePresence": "Activa la ubicación y entra en este café para jugar.",
+    "needVenueForMatch": "Activa la ubicación y entra en el local de esta partida.",
     "matchOver": "Partida terminada",
     "matchWon": "¡Bien! Has ganado.",
     "matchLost": "Buen intento — alguien fue más rápido.",

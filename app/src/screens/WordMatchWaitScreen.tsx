@@ -12,6 +12,7 @@ import { useAuth } from '@clerk/expo';
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiGet, apiPost } from '../lib/api';
+import { fetchDetectedVenue } from '../lib/venueDetectClient';
 import { useWordMatchSocket } from '../lib/useWordMatchSocket';
 import { toApiWordLanguage } from '../lib/wordDeckLanguage';
 
@@ -39,7 +40,7 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
     difficulty,
     create = false,
     sessionId: initialSessionId,
-  } = route.params;
+  } = route.params ?? {};
   const { getToken, isLoaded } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
@@ -84,6 +85,16 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
         setError(null);
         const token = await getTokenRef.current();
         if (!token) throw new Error(t('qr.notAuthenticated'));
+        let latitude: number | undefined;
+        let longitude: number | undefined;
+        if (venueId) {
+          const { venue, coords } = await fetchDetectedVenue();
+          if (!coords || venue?.id !== venueId) {
+            throw new Error(t('wordMatch.needPresenceToCreate'));
+          }
+          latitude = coords.lat;
+          longitude = coords.lng;
+        }
         const res = await apiPost<{
           sessionId: string;
           inviteCode: string | null;
@@ -91,6 +102,8 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
           '/words/matches',
           {
             venueId,
+            latitude,
+            longitude,
             language: toApiWordLanguage(i18n.language),
             wordCount: 5,
             difficulty,

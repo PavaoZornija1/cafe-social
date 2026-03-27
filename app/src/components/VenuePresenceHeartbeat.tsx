@@ -23,8 +23,8 @@ export function VenuePresenceHeartbeat() {
             try {
                 const token = await getTokenRef.current();
                 if (!token) return;
-                const v = await fetchDetectedVenue();
-                await apiPost('/social/me/presence', { venueId: v?.id ?? null }, token);
+                const { venue } = await fetchDetectedVenue();
+                await apiPost('/social/me/presence', { venueId: venue?.id ?? null }, token);
             } catch {
                 /* non-blocking */
             }

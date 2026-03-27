@@ -2,11 +2,12 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth, useClerk } from '@clerk/expo';
 import { useFocusEffect } from '@react-navigation/native';
 import Constants from 'expo-constants';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Linking,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -15,12 +16,18 @@ import {
   Text,
   View,
 } from 'react-native';
+import Purchases, { PURCHASES_ERROR_CODE, type PurchasesError } from 'react-native-purchases';
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { LANGUAGE_OPTIONS, type AppLanguage, setAppLanguage } from '../i18n';
 import { apiGet, apiPatch } from '../lib/api';
 import { createAndShareFriendInviteLink } from '../lib/friendInviteShare';
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../lib/legalUrls';
+import {
+  getPreferredPackageOrder,
+  isRevenueCatNativeConfigured,
+  pickPrimaryPackage,
+} from '../lib/revenuecat';
 import { SUBSCRIPTION_MANAGE_URL } from '../lib/subscriptionUrl';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
@@ -48,26 +55,85 @@ export default function SettingsScreen({ navigation }: Props) {
   const [privacySaving, setPrivacySaving] = useState(false);
   const [friendLinkBusy, setFriendLinkBusy] = useState(false);
   const [subscriptionActive, setSubscriptionActive] = useState(false);
+  const [rcBusy, setRcBusy] = useState(false);
+  const [subscriptionPendingSync, setSubscriptionPendingSync] = useState(false);
+  const [subscriptionPendingFollowUp, setSubscriptionPendingFollowUp] = useState(false);
+  const [offeringsIssue, setOfferingsIssue] = useState<'none' | 'no_current' | 'no_packages'>('none');
   const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '—';
+  const rcNative = isRevenueCatNativeConfigured();
+  const packageOrder = getPreferredPackageOrder();
 
-  const loadPrivacy = useCallback(async () => {
-    if (!isLoaded) return;
+  const refreshSubscriptionOnly = useCallback(
+    async (silent: boolean): Promise<boolean> => {
+      if (!isLoaded) return false;
+      try {
+        const token = await getTokenRef.current();
+        if (!token) return false;
+        const s = await apiGet<MeSummary>('/players/me/summary', token);
+        const active = s.subscriptionActive ?? false;
+        setSubscriptionActive(active);
+        return active;
+      } catch {
+        if (!silent) Alert.alert(t('common.error'), t('settings.privacyLoadError'));
+        return false;
+      }
+    },
+    [isLoaded, t],
+  );
+
+  const loadPrivacy = useCallback(async (): Promise<boolean> => {
+    if (!isLoaded) return false;
     setPrivacyLoading(true);
+    let active = false;
     try {
       const token = await getTokenRef.current();
-      if (!token) return;
+      if (!token) return false;
       const s = await apiGet<MeSummary>('/players/me/summary', token);
       setDiscoverable(s.discoverable);
       setTotalPrivacy(s.totalPrivacy);
       setPartnerMarketingPush(s.partnerMarketingPush ?? true);
       setMatchActivityPush(s.matchActivityPush ?? true);
-      setSubscriptionActive(s.subscriptionActive ?? false);
+      active = s.subscriptionActive ?? false;
+      setSubscriptionActive(active);
     } catch {
       Alert.alert(t('common.error'), t('settings.privacyLoadError'));
     } finally {
       setPrivacyLoading(false);
     }
+    return active;
   }, [isLoaded, t]);
+
+  useEffect(() => {
+    if (subscriptionActive) {
+      setSubscriptionPendingSync(false);
+      setSubscriptionPendingFollowUp(false);
+    }
+  }, [subscriptionActive]);
+
+  useEffect(() => {
+    if (!subscriptionPendingSync) return;
+    let cancelled = false;
+    const run = async () => {
+      for (let attempt = 0; attempt < 15 && !cancelled; attempt++) {
+        const active = await refreshSubscriptionOnly(true);
+        if (cancelled) return;
+        if (active) {
+          setSubscriptionPendingSync(false);
+          setSubscriptionPendingFollowUp(false);
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+      if (!cancelled) {
+        setSubscriptionPendingSync(false);
+        setSubscriptionPendingFollowUp(true);
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [subscriptionPendingSync, refreshSubscriptionOnly]);
 
   useFocusEffect(
     useCallback(() => {
@@ -94,6 +160,86 @@ export default function SettingsScreen({ navigation }: Props) {
       await setAppLanguage(code);
     } catch {
       Alert.alert(t('common.error'), t('common.retry'));
+    }
+  };
+
+  const openRevenueCatSubscribe = async () => {
+    if (!isLoaded || Platform.OS === 'web' || !rcNative) return;
+    setRcBusy(true);
+    setOfferingsIssue('none');
+    try {
+      const offerings = await Purchases.getOfferings();
+      if (!offerings.current) {
+        setOfferingsIssue('no_current');
+        return;
+      }
+      const pkgs = offerings.current.availablePackages ?? [];
+      if (pkgs.length === 0) {
+        setOfferingsIssue('no_packages');
+        return;
+      }
+      const pkg = pickPrimaryPackage(pkgs, packageOrder);
+      if (!pkg) {
+        setOfferingsIssue('no_packages');
+        return;
+      }
+      await Purchases.purchasePackage(pkg);
+      setOfferingsIssue('none');
+      const active = await loadPrivacy();
+      if (active) {
+        Alert.alert(t('settings.subscription'), t('settings.subscriptionPurchaseImmediate'));
+      } else {
+        setSubscriptionPendingFollowUp(false);
+        setSubscriptionPendingSync(true);
+      }
+    } catch (e) {
+      const pe = e as PurchasesError;
+      if (pe.userCancelled || pe.code === PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) return;
+      Alert.alert(t('common.error'), pe.message || t('settings.subscriptionPurchaseError'));
+    } finally {
+      setRcBusy(false);
+    }
+  };
+
+  const restoreRevenueCat = async () => {
+    if (!isLoaded || Platform.OS === 'web' || !rcNative) return;
+    setRcBusy(true);
+    try {
+      await Purchases.restorePurchases();
+      setOfferingsIssue('none');
+      const active = await loadPrivacy();
+      if (active) {
+        Alert.alert(t('settings.subscription'), t('settings.subscriptionRestoreActive'));
+      } else {
+        setSubscriptionPendingFollowUp(false);
+        setSubscriptionPendingSync(true);
+      }
+    } catch (e) {
+      const pe = e as PurchasesError;
+      Alert.alert(t('common.error'), pe.message || t('common.retry'));
+    } finally {
+      setRcBusy(false);
+    }
+  };
+
+  const refreshSubscriptionStatus = async () => {
+    if (!isLoaded || privacyLoading) return;
+    setSubscriptionPendingFollowUp(false);
+    const active = await loadPrivacy();
+    if (!active && rcNative && Platform.OS !== 'web') {
+      setSubscriptionPendingSync(true);
+    }
+  };
+
+  const openStoreSubscriptions = async () => {
+    if (!isLoaded || Platform.OS === 'web' || !rcNative) return;
+    setRcBusy(true);
+    try {
+      await Purchases.showManageSubscriptions();
+    } catch {
+      Alert.alert(t('common.error'), t('settings.subscriptionManageNativeError'));
+    } finally {
+      setRcBusy(false);
     }
   };
 
@@ -247,6 +393,9 @@ export default function SettingsScreen({ navigation }: Props) {
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.subscription')}</Text>
         <Text style={styles.hint}>{t('settings.subscriptionHint')}</Text>
+        {(rcNative && Platform.OS !== 'web') || SUBSCRIPTION_MANAGE_URL ? (
+          <Text style={styles.paywallLead}>{t('settings.subscriptionPaywallLead')}</Text>
+        ) : null}
         <View style={styles.card}>
           <Text style={styles.cardText}>
             {privacyLoading
@@ -255,6 +404,85 @@ export default function SettingsScreen({ navigation }: Props) {
                 ? t('settings.subscriptionActive')
                 : t('settings.subscriptionInactive')}
           </Text>
+          {subscriptionPendingSync ? (
+            <View style={styles.pendingStrip}>
+              <Text style={styles.pendingStripText}>{t('settings.subscriptionPendingBanner')}</Text>
+            </View>
+          ) : null}
+          {subscriptionPendingFollowUp && !subscriptionActive ? (
+            <View style={styles.followUpStrip}>
+              <Text style={styles.followUpStripText}>{t('settings.subscriptionPendingFollowUp')}</Text>
+              <Pressable
+                disabled={privacyLoading}
+                style={({ pressed }) => [styles.refreshStatusBtn, pressed && styles.actionRowPressed]}
+                onPress={() => void refreshSubscriptionStatus()}
+              >
+                <Text style={styles.refreshStatusBtnText}>{t('settings.subscriptionPendingRefresh')}</Text>
+              </Pressable>
+            </View>
+          ) : null}
+          {Platform.OS !== 'web' && rcNative && offeringsIssue !== 'none' ? (
+            <View style={styles.offeringsIssueStrip}>
+              <Text style={styles.offeringsIssueTitle}>{t('settings.subscriptionOfferingsTitle')}</Text>
+              <Text style={styles.offeringsIssueBody}>
+                {offeringsIssue === 'no_current'
+                  ? t('settings.subscriptionOfferingsNoCurrent')
+                  : t('settings.subscriptionOfferingsNoPackages')}
+              </Text>
+            </View>
+          ) : null}
+          {Platform.OS !== 'web' && rcNative ? (
+            <Text style={styles.packageHint}>
+              {packageOrder === 'annual_first'
+                ? t('settings.subscriptionPackageHintAnnualFirst')
+                : t('settings.subscriptionPackageHintMonthlyFirst')}
+            </Text>
+          ) : null}
+          {Platform.OS !== 'web' && rcNative ? (
+            <>
+              {!subscriptionActive ? (
+                <Pressable
+                  disabled={rcBusy || privacyLoading}
+                  style={({ pressed }) => [
+                    styles.linkRow,
+                    pressed && styles.actionRowPressed,
+                    (rcBusy || privacyLoading) && styles.actionRowDisabled,
+                  ]}
+                  onPress={() => void openRevenueCatSubscribe()}
+                >
+                  <Text style={styles.linkText}>
+                    {rcBusy ? '…' : t('settings.subscriptionSubscribe')}
+                  </Text>
+                </Pressable>
+              ) : null}
+              <Pressable
+                disabled={rcBusy || privacyLoading}
+                style={({ pressed }) => [
+                  styles.linkRow,
+                  pressed && styles.actionRowPressed,
+                  (rcBusy || privacyLoading) && styles.actionRowDisabled,
+                ]}
+                onPress={() => void restoreRevenueCat()}
+              >
+                <Text style={styles.linkText}>{t('settings.subscriptionRestore')}</Text>
+              </Pressable>
+              <Pressable
+                disabled={rcBusy || privacyLoading}
+                style={({ pressed }) => [
+                  styles.linkRow,
+                  pressed && styles.actionRowPressed,
+                  (rcBusy || privacyLoading) && styles.actionRowDisabled,
+                ]}
+                onPress={() => void openStoreSubscriptions()}
+              >
+                <Text style={styles.linkText}>{t('settings.subscriptionManageNative')}</Text>
+              </Pressable>
+            </>
+          ) : Platform.OS !== 'web' ? (
+            <Text style={styles.cardTextMuted}>{t('settings.subscriptionRcMissingKey')}</Text>
+          ) : (
+            <Text style={styles.cardTextMuted}>{t('settings.subscriptionWebOnlyHint')}</Text>
+          )}
           {SUBSCRIPTION_MANAGE_URL ? (
             <Pressable
               style={({ pressed }) => [styles.linkRow, pressed && styles.actionRowPressed]}
@@ -262,9 +490,10 @@ export default function SettingsScreen({ navigation }: Props) {
             >
               <Text style={styles.linkText}>{t('settings.subscriptionOpen')}</Text>
             </Pressable>
-          ) : (
+          ) : null}
+          {!SUBSCRIPTION_MANAGE_URL && Platform.OS === 'web' ? (
             <Text style={styles.cardTextMuted}>{t('settings.subscriptionUrlMissing')}</Text>
-          )}
+          ) : null}
         </View>
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.account')}</Text>
@@ -432,4 +661,50 @@ const styles = StyleSheet.create({
     borderColor: '#312e81',
   },
   linkText: { color: '#a5b4fc', fontWeight: '800', fontSize: 14 },
+  paywallLead: {
+    color: '#a1a1aa',
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 8,
+  },
+  pendingStrip: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#1c1917',
+    borderWidth: 1,
+    borderColor: '#b45309',
+  },
+  pendingStripText: { color: '#fde68a', fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  followUpStrip: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#0c1729',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  followUpStripText: { color: '#94a3b8', fontSize: 13, lineHeight: 18 },
+  refreshStatusBtn: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#475569',
+  },
+  refreshStatusBtnText: { color: '#e2e8f0', fontWeight: '800', fontSize: 13 },
+  offeringsIssueStrip: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#1a1025',
+    borderWidth: 1,
+    borderColor: '#6b21a8',
+  },
+  offeringsIssueTitle: { color: '#e9d5ff', fontWeight: '900', fontSize: 13, marginBottom: 6 },
+  offeringsIssueBody: { color: '#c4b5fd', fontSize: 12, lineHeight: 17 },
+  packageHint: { color: '#64748b', fontSize: 11, lineHeight: 16, marginTop: 10, fontStyle: 'italic' },
 });

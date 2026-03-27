@@ -5,11 +5,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { VenueService } from '../venue/venue.service';
 import { staffVerificationCodeFromRedemptionId } from '../lib/redemption-staff-code';
 
 @Injectable()
 export class VenuePerkService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly venues: VenueService,
+  ) {}
 
   normalizeCode(raw: string): string {
     return raw.trim().toUpperCase().replace(/\s+/g, '');
@@ -19,23 +23,22 @@ export class VenuePerkService {
     playerId: string;
     venueId: string;
     code: string;
-    detectedVenueId?: string | null;
+    latitude?: number;
+    longitude?: number;
   }) {
     const code = this.normalizeCode(params.code);
     if (!code) throw new BadRequestException('code is required');
 
-    const presenceVenueId =
-      params.detectedVenueId ??
-      (
-        await this.prisma.venue.findFirst({
-          where: { isPremium: false },
-          orderBy: { createdAt: 'desc' },
-          select: { id: true },
-        })
-      )?.id ??
-      null;
-
-    if (!presenceVenueId || presenceVenueId !== params.venueId) {
+    const hasCoords =
+      typeof params.latitude === 'number' &&
+      typeof params.longitude === 'number' &&
+      Number.isFinite(params.latitude) &&
+      Number.isFinite(params.longitude);
+    if (!hasCoords) {
+      throw new BadRequestException('Location (lat/lng) is required to redeem at this venue');
+    }
+    const at = await this.venues.findVenueAtCoordinates(params.latitude!, params.longitude!);
+    if (!at || at.id !== params.venueId) {
       throw new BadRequestException('You must be at this venue to redeem this perk');
     }
 
@@ -62,7 +65,9 @@ export class VenuePerkService {
         },
       });
       if (!hasQr) {
-        throw new BadRequestException('Scan the venue QR to unlock this perk');
+        throw new BadRequestException(
+          'This perk requires you to have linked this venue first (e.g. invite or venue check-in)',
+        );
       }
     }
 

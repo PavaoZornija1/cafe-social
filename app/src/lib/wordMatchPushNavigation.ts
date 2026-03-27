@@ -79,7 +79,7 @@ export async function navigateWordMatchFromPush(
     typeof state.venueId === 'string' && state.venueId.trim() !== ''
       ? state.venueId.trim()
       : null;
-  const detected = await fetchDetectedVenue();
+  const { venue: detected } = await fetchDetectedVenue();
   const venueId = fromStateVenue ?? fromPushVenue ?? detected?.id ?? null;
 
   if (!venueId) {

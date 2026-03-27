@@ -8,8 +8,13 @@ import { VenueService } from './venue.service';
 export type VenueAccessResult = {
   venueId: string;
   isPremium: boolean;
-  hasQrUnlock: boolean;
+  /** Player has a prior link to this venue (e.g. saved via QR/onboarding); not required for play. */
+  visitedBefore: boolean;
   subscriptionActive: boolean;
+  /**
+   * True when GPS (lat/lng) places the player inside this venue’s geofence.
+   * Games and venue-scoped challenges require this, regardless of subscription.
+   */
   canEnterVenueContext: boolean;
 };
 
@@ -24,8 +29,7 @@ export class VenueAccessService {
 
   /**
    * If latitude/longitude are provided, returns the venue geofence that contains the point
-   * (closest match if multiple). If outside all fences, returns null.
-   * If coordinates are omitted (simulator / no permission), falls back to default venue.
+   * (closest match if multiple). If outside all fences, or coordinates are missing, returns null.
    */
   async detectVenue(latitude?: number, longitude?: number): Promise<Venue | null> {
     const hasCoords =
@@ -34,11 +38,8 @@ export class VenueAccessService {
       Number.isFinite(latitude) &&
       Number.isFinite(longitude);
 
-    if (hasCoords) {
-      return this.venues.findVenueAtCoordinates(latitude!, longitude!);
-    }
-
-    return this.venues.findDefaultVenue();
+    if (!hasCoords) return null;
+    return this.venues.findVenueAtCoordinates(latitude!, longitude!);
   }
 
   private computeSubscriptionActive(subscription: { active: boolean; expiresAt: Date | null } | null): boolean {
@@ -62,24 +63,40 @@ export class VenueAccessService {
     });
   }
 
-  async getVenueAccess(venueId: string, email: string): Promise<VenueAccessResult> {
+  async getVenueAccess(
+    venueId: string,
+    email: string,
+    latitude?: number,
+    longitude?: number,
+  ): Promise<VenueAccessResult> {
     if (!email) throw new UnauthorizedException('Missing user email');
 
     const venue = await this.venues.findOne(venueId);
     const player = await this.players.findOrCreateByEmail(email);
 
     const playerVenue = await this.playerVenues.findByPlayerAndVenue(player.id, venueId);
-    const hasQrUnlock = !!playerVenue;
+    const visitedBefore = !!playerVenue;
 
     const subscription = await this.subscriptions.findByPlayerId(player.id);
     const subscriptionActive = this.computeSubscriptionActive(subscription);
 
-    const canEnterVenueContext = venue.isPremium ? subscriptionActive || hasQrUnlock : hasQrUnlock;
+    let isPhysicallyAtVenue = false;
+    if (
+      typeof latitude === 'number' &&
+      typeof longitude === 'number' &&
+      Number.isFinite(latitude) &&
+      Number.isFinite(longitude)
+    ) {
+      const at = await this.venues.findVenueAtCoordinates(latitude, longitude);
+      isPhysicallyAtVenue = at?.id === venueId;
+    }
+
+    const canEnterVenueContext = isPhysicallyAtVenue;
 
     return {
       venueId: venue.id,
       isPremium: venue.isPremium,
-      hasQrUnlock,
+      visitedBefore,
       subscriptionActive,
       canEnterVenueContext,
     };

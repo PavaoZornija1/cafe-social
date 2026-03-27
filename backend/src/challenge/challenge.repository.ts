@@ -27,23 +27,6 @@ export class ChallengeRepository {
     });
   }
 
-  detectDefaultVenueId(): Promise<string | null> {
-    return this.prisma.venue.findFirst({
-      where: { isPremium: false },
-      select: { id: true },
-      orderBy: { createdAt: 'desc' },
-    }).then((v) => v?.id ?? null);
-  }
-
-  hasPlayerVenue(playerId: string, venueId: string): Promise<boolean> {
-    return this.prisma.playerVenue
-      .findUnique({
-        where: { playerId_venueId: { playerId, venueId } },
-        select: { id: true },
-      })
-      .then((row) => !!row);
-  }
-
   getChallengeTarget(challengeId: string): Promise<{
     id: string;
     venueId: string;

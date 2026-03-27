@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import type { Challenge, ChallengeProgress } from '@prisma/client';
 import { PlayerService } from '../player/player.service';
+import { VenueService } from '../venue/venue.service';
 import { ChallengeRepository } from './challenge.repository';
 import { PlayerVenueStatsRepository } from '../stats/player-venue-stats.repository';
 import { isoWeekKeyUTC } from '../lib/week-key';
@@ -24,6 +25,7 @@ export class ChallengeService {
     private readonly challenges: ChallengeRepository,
     private readonly players: PlayerService,
     private readonly venueStats: PlayerVenueStatsRepository,
+    private readonly venues: VenueService,
   ) {}
 
   async getVenueChallengesForPlayer(venueId: string, email: string): Promise<VenueChallengeDto[]> {
@@ -73,13 +75,14 @@ export class ChallengeService {
     challengeId: string;
     email: string;
     increment: number;
-    detectedVenueId?: string | null;
+    latitude?: number;
+    longitude?: number;
   }): Promise<{
     challengeId: string;
     progressCount: number;
     isCompleted: boolean;
   }> {
-    const { venueId, challengeId, email, increment, detectedVenueId } = params;
+    const { venueId, challengeId, email, increment, latitude, longitude } = params;
 
     if (!email) throw new UnauthorizedException('Missing user email');
     if (increment <= 0) throw new BadRequestException('increment must be > 0');
@@ -93,28 +96,23 @@ export class ChallengeService {
       throw new BadRequestException('This challenge is not active during the current time window');
     }
 
-    const venueIsPremium = await this.challenges.getVenueIsPremium(venueId);
-
-    const hasQrUnlock = await this.challenges.hasPlayerVenue(player.id, venueId);
-
-    // Presence gate logic:
-    // - locationRequired always requires presence (detected venue == venueId)
-    // - premium + rewardVenueSpecific without QR unlock requires presence (exception rule)
-    const requiresPresence =
-      challenge.locationRequired || (challenge.rewardVenueSpecific && venueIsPremium && !hasQrUnlock);
+    const requiresPresence = challenge.locationRequired || challenge.rewardVenueSpecific;
 
     if (requiresPresence) {
-      const presenceVenueId = detectedVenueId ?? (await this.challenges.detectDefaultVenueId());
-      if (!presenceVenueId || presenceVenueId !== venueId) {
+      const hasCoords =
+        typeof latitude === 'number' &&
+        typeof longitude === 'number' &&
+        Number.isFinite(latitude) &&
+        Number.isFinite(longitude);
+      if (!hasCoords) {
+        throw new UnauthorizedException(
+          'Location (lat/lng) is required to progress this challenge at the venue',
+        );
+      }
+      const at = await this.venues.findVenueAtCoordinates(latitude!, longitude!);
+      if (!at || at.id !== venueId) {
         throw new UnauthorizedException('You must be physically at the venue to progress this challenge');
       }
-    }
-
-    // QR membership gate:
-    // - Non-premium rewardVenueSpecific challenges require QR unlock.
-    // - Premium rewardVenueSpecific challenges are allowed with subscription, but presence is required above.
-    if (challenge.rewardVenueSpecific && !venueIsPremium && !hasQrUnlock) {
-      throw new UnauthorizedException('Scan QR to unlock this venue-specific challenge');
     }
 
     const weekKey = isoWeekKeyUTC();

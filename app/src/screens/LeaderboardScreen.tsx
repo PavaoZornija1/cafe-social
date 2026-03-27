@@ -46,7 +46,7 @@ export default function LeaderboardScreen({ navigation }: Props) {
     setLoading(true);
     setHint(null);
     try {
-      const detected = await fetchDetectedVenue();
+      const { venue: detected } = await fetchDetectedVenue();
       setVenueId(detected?.id ?? null);
       setVenueName(detected?.name ?? null);
       setDetectedCity(detected?.city?.trim() || null);

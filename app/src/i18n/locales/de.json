@@ -105,22 +105,42 @@
     "staffHint": "Codes prüfen, wenn du im Partner-CMS als EMPLOYEE, MANAGER oder OWNER eingetragen bist.",
     "staffOpen": "Personalmodus — Einlösungen & QR",
     "subscription": "Abo",
-    "subscriptionHint": "Ein Abo kann Heimspiel und Extras an Premium-Partnern freischalten. Status kommt vom Server.",
+    "subscriptionHint": "Mitglieder schalten Heimspiel und Extras bei ausgewählten Premium-Partnern frei. Der Status hier ist das, was nach Store- und RevenueCat-Sync auf unseren Servern liegt.",
+    "subscriptionPaywallLead": "Abonnieren in wenigen Schritten. Wiederherstellung und Abo-Verwaltung jederzeit im Store-Konto.",
     "subscriptionActive": "Abo aktiv.",
     "subscriptionInactive": "Kein aktives Abo hinterlegt.",
     "subscriptionOpen": "Verwalten / abschließen (Web)",
-    "subscriptionUrlMissing": "EXPO_PUBLIC_SUBSCRIPTION_URL in der App-Konfiguration setzen."
+    "subscriptionUrlMissing": "EXPO_PUBLIC_SUBSCRIPTION_URL setzen, falls es Web-Checkout gibt.",
+    "subscriptionSubscribe": "Mit App Store / Google Play abonnieren",
+    "subscriptionRestore": "Käufe wiederherstellen",
+    "subscriptionManageNative": "Abo in den Store-Einstellungen verwalten",
+    "subscriptionRcMissingKey": "Für In-App-Abos EXPO_PUBLIC_REVENUECAT_IOS_API_KEY und EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY setzen.",
+    "subscriptionWebOnlyHint": "In-App-Abos laufen über RevenueCat auf iOS und Android. Nutze den Web-Link unten, falls es Web-Checkout gibt.",
+    "subscriptionOfferingsTitle": "Abo in der App noch nicht bereit",
+    "subscriptionOfferingsNoCurrent": "RevenueCat hat kein aktuelles „Offering“ für diesen Build. Im Dashboard ein aktuelles Offering setzen und App-Store-/Play-Abo-Produkte anbinden.",
+    "subscriptionOfferingsNoPackages": "Das aktuelle Offering hat keine Pakete. Pakete (monatlich / jährlich usw.) hinzufügen und freigegebene Store-Produkte verknüpfen.",
+    "subscriptionPackageHintMonthlyFirst": "Standard zuerst: monatlich, sonst jährlich. Mit EXPO_PUBLIC_REVENUECAT_PREFERRED_PACKAGE=annual zuerst jährlich.",
+    "subscriptionPackageHintAnnualFirst": "Standard zuerst: jährlich, dann monatlich. Mit EXPO_PUBLIC_REVENUECAT_PREFERRED_PACKAGE=monthly (oder leer) monatlich bevorzugen.",
+    "subscriptionPendingBanner": "Zahlung war erfolgreich — wir warten, bis das Abo auf unseren Servern erscheint. Meist unter einer Minute.",
+    "subscriptionPendingFollowUp": "Noch nicht „aktiv“? Webhook kann trödeln. Aktualisieren tippen, Wiederherstellen versuchen oder kurz warten.",
+    "subscriptionPendingRefresh": "Abo-Status aktualisieren",
+    "subscriptionPurchaseImmediate": "Fertig — dein Abo ist aktiv.",
+    "subscriptionPurchaseError": "Kauf nicht abgeschlossen. Erneut versuchen oder „Käufe wiederherstellen“.",
+    "subscriptionRestoreActive": "Wiederherstellung ok — Abo ist aktiv.",
+    "subscriptionManageNativeError": "Abo-Verwaltung konnte nicht geöffnet werden. Bitte in App Store bzw. Google Play unter Abos öffnen."
   },
   "chooseGame": {
     "title": "Spiel wählen",
-    "subtitle": "Spiele brauchen Check-in vor Ort (oder Abo, wo unterstützt).",
+    "subtitle": "Vor Ort: Spiele hängen an diesem Venue. Mit Abo zusätzlich global spielen (ohne Venue).",
     "wordTitle": "Wortspiel",
     "wordDescription": "Solo, Koop oder Duell mit Venue-Challenges.",
-    "wordCta": "Wort-Lobby öffnen",
+    "wordCtaVenue": "Wort-Lobby (dieses Venue)",
+    "wordCtaGlobal": "Wort-Lobby (global — Abonnenten)",
     "needVenue": "Erst am Venue einchecken.",
     "brawlerTitle": "Brawler",
     "brawlerDescription": "Kurze Arena-Kämpfe mit Helden und Power-ups.",
-    "brawlerCta": "Lobby öffnen"
+    "brawlerCta": "Lobby öffnen",
+    "brawlerNeedVenue": "Brawler braucht Check-in (Arena ist ortsgebunden)."
   },
   "staff": {
     "venuesTitle": "Deine Venues",
@@ -151,11 +171,11 @@
     "detectingVenue": "Erkennung…",
     "currentVenue": "Aktuelles Lokal",
     "noVenueYet": "Kein Partner-Lokal erkannt. Treue, Freunde und Einladungen gehen trotzdem. Spiele starten am Café — mit Abo oft auch von zu Hause.",
-    "lockedHintStandard": "Spiele brauchen Check-in vor Ort: QR scannen oder Code eingeben. Der Rest der App bleibt offen.",
-    "lockedHintPremium": "Spiele brauchen Check-in (QR/Code) oder aktives Abo — damit auch Spielen außerhalb des Lokals möglich ist.",
-    "unlockedHint": "Eingecheckt. Venue-Spiele und Challenges sind aktiv.",
+    "lockedHintStandard": "Lokal-Spiele brauchen deinen Standort vor Ort. Der Rest der App bleibt offen.",
+    "lockedHintPremium": "Lokal-Spiele brauchen Standort hier oder ein Abo für globales Spielen.",
+    "unlockedHint": "Du bist im Lokal — Spiele und Challenges sind aktiv.",
     "challengeTitle": "Deine Challenge",
-    "unlockToStart": "Vor Ort einchecken oder Abo nutzen (wo angeboten), um zu spielen.",
+    "unlockToStart": "Sei im Café mit Standort an oder nutze ein Abo für globales Spielen.",
     "loadingChallenge": "Challenge wird geladen…",
     "noChallenges": "Noch keine Challenges.",
     "challengeProgress": "{{title}} ({{current}}/{{target}})",
@@ -197,6 +217,7 @@
     "needPhoto": "Bitte zuerst ein Foto wählen.",
     "libraryDenied": "Fotomediathek-Zugriff nötig.",
     "failed": "Upload fehlgeschlagen.",
+    "needLocationAtVenue": "Standort aktivieren und im Lokal sein, um den Beleg zu senden.",
     "sentTitle": "Gesendet",
     "sentBody": "Das Personal prüft deine Einsendung."
   },
@@ -215,7 +236,8 @@
     "loadError": "Tageswort konnte nicht geladen werden.",
     "guessError": "Tipp fehlgeschlagen.",
     "needVenue": "Café erkennen für das lokale Tageswort.",
-    "notSignedIn": "Nicht angemeldet"
+    "notSignedIn": "Nicht angemeldet",
+    "globalRequiresSub": "Das globale Tageswort braucht ein aktives Abo."
   },
   "challenges": {
     "title": "Challenges",
@@ -231,20 +253,10 @@
     "loadError": "Challenges konnten nicht geladen werden",
     "weekly": "Wöchentliche Challenge — Fortschritt setzt sich jede ISO-Woche (UTC) zurück."
   },
-  "chooseGame": {
-    "title": "Spiel wählen",
-    "subtitle": "Wähle ein Spiel für deine Session.",
-    "wordTitle": "Wortspiel",
-    "wordDescription": "Solo, Koop oder Versus mit Venue-Challenges.",
-    "wordCta": "Lobby öffnen",
-    "wordNeedsVenue": "Zuerst ein Lokal erkennen.",
-    "brawlerTitle": "Brawler",
-    "brawlerDescription": "Kurze Arena-Kämpfe mit Helden.",
-    "brawlerCta": "Lobby öffnen"
-  },
   "wordLobby": {
     "title": "Wortspiel",
     "venueLine": "Lokal: {{venueId}}",
+    "globalLine": "Global — kein Venue (Abo).",
     "appLanguageDeck": "Wortsprache (Solo & wenn du hostest): {{lang}}",
     "playModeTitle": "Modus",
     "modeSolo": "Solo",
@@ -292,7 +304,8 @@
       "de": "Deutsch",
       "es": "Spanisch"
     },
-    "socketReconnecting": "Verbindung zum Raum wird wiederhergestellt…"
+    "socketReconnecting": "Verbindung zum Raum wird wiederhergestellt…",
+    "needPresenceToCreate": "Standort aktivieren und im Café sein, um einen Lokal-Raum zu erstellen."
   },
   "wordGame": {
     "title": "Wortspiel",
@@ -314,6 +327,8 @@
     "emptyDeck": "Gerade sind keine Wörter verfügbar. Bitte später erneut versuchen.",
     "wrongGuess": "Noch nicht — versuch es noch einmal.",
     "matchDeckError": "Wortliste konnte nicht geladen werden. Bitte den Host starten lassen.",
+    "needVenuePresence": "Standort aktivieren und im Café sein, um zu spielen.",
+    "needVenueForMatch": "Standort aktivieren und am Ort dieses Matches sein.",
     "matchOver": "Match vorbei",
     "matchWon": "Geschafft — du hast gewonnen.",
     "matchLost": "Knapp — jemand war schneller.",

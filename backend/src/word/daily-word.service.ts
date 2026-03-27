@@ -1,14 +1,17 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { PlayerService } from '../player/player.service';
+import { SubscriptionRepository } from '../venue/subscription.repository';
 import { WordRepository } from './word.repository';
 import { normalizeGuess } from './word-match.util';
 import { utcDayKey, previousUtcDayKey } from '../lib/day-key';
 import { VenueFeedService } from '../venue-feed/venue-feed.service';
+import { VenueService } from '../venue/venue.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { DailyWordGuessDto, DailyWordScope } from './dto/daily-word-guess.dto';
 
@@ -21,6 +24,8 @@ export class DailyWordService {
     private readonly words: WordRepository,
     private readonly feed: VenueFeedService,
     private readonly prisma: PrismaService,
+    private readonly subscriptions: SubscriptionRepository,
+    private readonly venues: VenueService,
   ) {}
 
   private scopeKey(scope: DailyWordScope, venueId?: string): string {
@@ -32,33 +37,41 @@ export class DailyWordService {
   private async assertVenueDailyAccess(params: {
     playerId: string;
     venueId: string;
-    detectedVenueId?: string | null;
+    latitude?: number;
+    longitude?: number;
   }): Promise<void> {
-    const { playerId, venueId, detectedVenueId } = params;
+    const { playerId, venueId, latitude, longitude } = params;
     const venue = await this.prisma.venue.findUnique({
       where: { id: venueId },
       select: { isPremium: true },
     });
     if (!venue) throw new BadRequestException('Venue not found');
 
-    const defaultVenue = await this.prisma.venue.findFirst({
-      where: { isPremium: false },
-      select: { id: true },
-      orderBy: { createdAt: 'desc' },
-    });
-    const presenceVenueId = detectedVenueId ?? defaultVenue?.id ?? null;
-    if (!presenceVenueId || presenceVenueId !== venueId) {
+    const hasCoords =
+      typeof latitude === 'number' &&
+      typeof longitude === 'number' &&
+      Number.isFinite(latitude) &&
+      Number.isFinite(longitude);
+    if (!hasCoords) {
+      throw new UnauthorizedException('Location is required for the venue daily word');
+    }
+    const at = await this.venues.findVenueAtCoordinates(latitude!, longitude!);
+    if (!at || at.id !== venueId) {
       throw new UnauthorizedException('You must be physically at the venue for the venue daily word');
     }
 
-    if (venue.isPremium) {
-      const hasQr = await this.prisma.playerVenue.findUnique({
-        where: { playerId_venueId: { playerId, venueId } },
-        select: { id: true },
-      });
-      if (!hasQr) {
-        throw new UnauthorizedException('Scan QR to unlock this venue daily word');
-      }
+    const subscriptionActive = await this.subscriptions.isActiveSubscriber(playerId);
+    if (venue.isPremium && !subscriptionActive) {
+      throw new UnauthorizedException(
+        'This premium venue’s daily word requires an active subscription',
+      );
+    }
+  }
+
+  private async assertGlobalDailySubscription(playerId: string): Promise<void> {
+    const active = await this.subscriptions.isActiveSubscriber(playerId);
+    if (!active) {
+      throw new ForbiddenException('Global daily word requires an active subscription');
     }
   }
 
@@ -66,7 +79,8 @@ export class DailyWordService {
     email: string;
     scope: DailyWordScope;
     venueId?: string;
-    detectedVenueId?: string | null;
+    latitude?: number;
+    longitude?: number;
     language?: string;
   }) {
     const language = params.language ?? 'en';
@@ -74,11 +88,16 @@ export class DailyWordService {
     const dayKey = utcDayKey();
     const sk = this.scopeKey(params.scope, params.venueId);
 
+    if (params.scope === 'global') {
+      await this.assertGlobalDailySubscription(player.id);
+    }
+
     if (params.scope === 'venue' && params.venueId) {
       await this.assertVenueDailyAccess({
         playerId: player.id,
         venueId: params.venueId,
-        detectedVenueId: params.detectedVenueId,
+        latitude: params.latitude,
+        longitude: params.longitude,
       });
     }
 
@@ -120,11 +139,16 @@ export class DailyWordService {
     const dayKey = utcDayKey();
     const sk = this.scopeKey(dto.scope, dto.venueId);
 
+    if (dto.scope === 'global') {
+      await this.assertGlobalDailySubscription(player.id);
+    }
+
     if (dto.scope === 'venue' && dto.venueId) {
       await this.assertVenueDailyAccess({
         playerId: player.id,
         venueId: dto.venueId,
-        detectedVenueId: dto.detectedVenueId,
+        latitude: dto.latitude,
+        longitude: dto.longitude,
       });
     }
 
