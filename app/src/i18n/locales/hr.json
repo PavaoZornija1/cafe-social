@@ -206,7 +206,19 @@
     "badgeRegularWeek": "Redovan posjet ovaj tjedan",
     "badgeVenueExplorer": "Istraživač lokala",
     "linkRedeemPerk": "Iskoristi pogodnost",
-    "linkReceipt": "Račun"
+    "linkReceipt": "Račun",
+    "linkPartnerMap": "Karta partnera"
+  },
+  "partnerMap": {
+    "title": "Partnerski lokali",
+    "subtitle": "Pronađi kafiće gdje Cafe Social radi. U lokalu se otvaraju igre i izazovi.",
+    "loading": "Učitavam lokale…",
+    "loadError": "Ne mogu učitati partnere.",
+    "empty": "Još nema upisanih partnera.",
+    "openInMaps": "Otvori u kartama",
+    "checkInQr": "Prijava QR kodom",
+    "hintAtVenue": "Kad stigneš, ostavi lokaciju uključenu — igre se otvaraju unutar zone (ili pretplata odakle god).",
+    "webListHint": "Karta u pregledniku je ograničena — dodirni lokal za detalje i navigaciju."
   },
   "receiptSubmit": {
     "title": "Pošalji račun",

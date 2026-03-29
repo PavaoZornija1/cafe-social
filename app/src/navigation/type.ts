@@ -3,6 +3,7 @@ export type RootStackParamList = {
     SignUp: undefined;
     Onboarding: undefined;
     Home: undefined;
+    PartnerVenuesMap: undefined;
     DailyWord: undefined;
     ChooseGame: { venueId?: string; challengeId?: string } | undefined;
     BrawlerLobby: { venueId?: string } | undefined;

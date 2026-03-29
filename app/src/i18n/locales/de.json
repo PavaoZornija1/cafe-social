@@ -206,7 +206,19 @@
     "badgeRegularWeek": "Stammgast diese Woche",
     "badgeVenueExplorer": "Lokal-Entdecker",
     "linkRedeemPerk": "Vorteil einlösen",
-    "linkReceipt": "Kassenbon"
+    "linkReceipt": "Kassenbon",
+    "linkPartnerMap": "Partner-Karte"
+  },
+  "partnerMap": {
+    "title": "Partner-Cafés",
+    "subtitle": "Finde Cafés mit Cafe Social. Vor Ort schaltest du Venue-Spiele und Challenges frei.",
+    "loading": "Lade Orte…",
+    "loadError": "Partner-Orte konnten nicht geladen werden.",
+    "empty": "Noch keine Partner-Orte eingetragen.",
+    "openInMaps": "In Maps öffnen",
+    "checkInQr": "Check-in per QR",
+    "hintAtVenue": "Vor Ort Standort aktiv lassen — Spiele gelten in der Partner-Zone (oder Abo von überall).",
+    "webListHint": "Karten im Browser sind begrenzt — tippe auf ein Café für Details und Route."
   },
   "receiptSubmit": {
     "title": "Beleg senden",

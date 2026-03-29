@@ -55,6 +55,18 @@ export class VenueService {
     return this.venues.findAll();
   }
 
+  /** Safe, unauthenticated list for the in-app partner discovery map. */
+  async listForPublicDiscoveryMap() {
+    const rows = await this.venues.findAllForDiscoveryMap();
+    return rows.filter(
+      (r) =>
+        Number.isFinite(r.latitude) &&
+        Number.isFinite(r.longitude) &&
+        Math.abs(r.latitude) <= 90 &&
+        Math.abs(r.longitude) <= 180,
+    );
+  }
+
   async findDefaultVenue(): Promise<Venue | null> {
     return (
       (await this.venues.findDefaultNonPremium()) ??

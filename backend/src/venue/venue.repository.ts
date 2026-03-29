@@ -14,6 +14,36 @@ export class VenueRepository {
     return this.prisma.venue.findMany({ orderBy: { createdAt: 'desc' } });
   }
 
+  /** Public map pins only — never includes staff secrets. */
+  findAllForDiscoveryMap(): Promise<
+    Array<{
+      id: string;
+      name: string;
+      latitude: number;
+      longitude: number;
+      address: string | null;
+      city: string | null;
+      country: string | null;
+      isPremium: boolean;
+      radiusMeters: number;
+    }>
+  > {
+    return this.prisma.venue.findMany({
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        latitude: true,
+        longitude: true,
+        address: true,
+        city: true,
+        country: true,
+        isPremium: true,
+        radiusMeters: true,
+      },
+    });
+  }
+
   findDefaultNonPremium(): Promise<Venue | null> {
     // Default venue for MVP "locationRequired" gating: prefer non-premium.
     return this.prisma.venue.findFirst({

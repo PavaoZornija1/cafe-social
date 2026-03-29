@@ -27,6 +27,12 @@ export class VenueController {
     return this.venueService.findAll();
   }
 
+  /** No auth — sanitized pins for the app map (no staff secrets). */
+  @Get('discovery/map')
+  discoveryMap() {
+    return this.venueService.listForPublicDiscoveryMap();
+  }
+
   @Get('leaderboard/xp/global')
   globalXpLeaderboard(@Query('limit') limit?: string) {
     const n = limit ? Number(limit) : 50;

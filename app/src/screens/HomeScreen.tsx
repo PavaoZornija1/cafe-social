@@ -548,6 +548,12 @@ export default function HomeScreen({ navigation }: Props) {
                     </Pressable>
                     <Pressable
                         style={({ pressed }) => [styles.quickLink, pressed && styles.quickLinkPressed]}
+                        onPress={() => navigation.navigate('PartnerVenuesMap')}
+                    >
+                        <Text style={styles.quickLinkText}>{t('home.linkPartnerMap')}</Text>
+                    </Pressable>
+                    <Pressable
+                        style={({ pressed }) => [styles.quickLink, pressed && styles.quickLinkPressed]}
                         onPress={() => navigation.navigate('Parties')}
                     >
                         <Text style={styles.quickLinkText}>{t('home.linkParties')}</Text>

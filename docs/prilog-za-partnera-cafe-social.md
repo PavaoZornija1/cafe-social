@@ -1,0 +1,91 @@
+# Cafe Social — kratak pregled za partnere (kafići)
+
+**Prilog uz sastanak**  
+**Datum:** _________________  
+**Za:** _________________ (naziv kafića)  
+**Od:** _________________ (ime / firma / kontakt)
+
+---
+
+## 1. Šta je Cafe Social?
+
+Cafe Social je mobilna aplikacija koja povezuje **goste** i **partnerske kafiće** kroz iskustvo u lokalu: kratke igre, dnevne aktivnosti, elementi lojalnosti i društveni kontekst vezan za vaš brend.
+
+Aplikacija **prepoznaje da je korisnik kod vas** (uz korištenje lokacije i geografske zone vašeg prostora), pa su **igranje i nagrade u kontekstu baš vašeg kafića** — ne generičko iskustvo bez veze s vama.
+
+Za vas to znači: **digitalni kanal** koji može podstaknuti ponovne posjete, duži boravak i jasniju ponudu — bez očekivanja da gost preuzima mnogo različitih aplikacija.
+
+---
+
+## 2. Šta aplikacija radi? (sažetak)
+
+| Područje | Opis |
+|----------|------|
+| **Kontekst lokala** | Korisnik vidi sadržaj i aktivnosti vezane za vaš kafić kada je fizički na vašoj lokaciji. |
+| **Igre** | Kratke word‑igre (solo i u paru / soba s kodom) — pogodno za stol, čekanje ili društvo. |
+| **Dnevna riječ i izazovi** | Redovan razlog za povratak; jednostavni ciljevi koje definišemo zajedno. |
+| **Pogodnosti (perks)** | Vi nudite poklon ili beneficiju uz **kod koji osoblje potvrdi** — jasan i merljiv mehanizam. |
+| **Društveni sloj** | Prijatelji, rang liste i aktivnost u lokalu — prema dogovoru i vašem tonu brenda. |
+| **Pretplata (opciono)** | Dio sadržaja može biti namijenjen pretplatnicima koji žele širi proizvod; **u lokalu** i dalje ostaje fokus na iskustvu kod vas. |
+
+**Materijal u lokalu:** QR na stolovima ili druga vidljiva tačka usmjerava gosta ka aplikaciji i vašem profilu. Dizajn i prva kampanja dogovaraju se u pilotu; kratka obuka osoblja za redeem kodova uključena je u onboarding.
+
+---
+
+## 3. Benefiti za kafić
+
+1. **Ponovni posjeti** — mali rituali (dnevna riječ, izazov) daju konkretan razlog da se neko vrati.  
+2. **Veza s brendom** — gost ne koristi “anonimnu” zabavu; veže je za **vaše ime i prostor**.  
+3. **Merljiv angažman** — u pilotu biramo jednostavne pokazatelje (aktivacije, iskorištene pogodnosti, sedmični odziv) da vidimo šta funkcioniše.  
+4. **Promocija bez agresivnog marketinga** — predstavljate se kroz iskustvo za stolom.  
+5. **Diferencijacija** — posebno u konkurentskom okruženju gdje su vizueli slični, a **razlog za povratak** rijetkost.  
+6. **Manje papirne frikcije** — digitalni tok umjesto kartica koje se gube.
+
+---
+
+## 4. Benefiti za goste
+
+1. **Kratka zabava** (par minuta) dok čekaju ili uživaju u društvu.  
+2. **Osjećaj pripadnosti lokalu** — aktivnosti su vezane za mjesto gdje jesu.  
+3. **Jasne nagrade** koje vi kontrolišete (šta, kad i kako se otkupljuje).  
+4. **Opcija društvenog igranja** gdje je to uključeno — bez komplikovane organizacije.
+
+---
+
+## 5. Prihod i vrijednost za sve strane
+
+**Kafić**
+
+- **Direktno:** bolji potencijal za **učestalije posjete** i **veći promet po gostu** ako su perkovi i izazovi mudro postavljeni (npr. vezanost uz određenu kategoriju ponude ili “redovan posjet”).  
+- **Indirektno:** priča o lokalu, preporuke, **drugačiji dojam** u odnosu na kafiće bez digitalnog sloja.
+
+**Cafe Social (mi)**
+
+- **Mjesečna naknada po lokaciji** (ili pilot pa ugovoreni nastavak), skladno s obimom podrške.  
+- **Opciono:** jednokratni **onboarding** (geozona, prvi QR set, obuka, prvi kampanjski paket).
+
+**Gosti**
+
+- Osnovno iskustvo u lokalu **uz jasna pravila**; gdje postoji smisao, **pretplata** za širi proizvod za one koji žele više izvan pojedinog kafića.
+
+**Zajednički princip:** pilot s **jednim jasnim ciljem** i **minimalnim obavezama** (npr. vidljiv QR + jedna osoba u osoblju kao kontakt). Nakon evaluacije: nastavak, prilagođavanje kampanje ili prekid bez komplikacija — sve transparentno.
+
+---
+
+## 6. Predloženi sljedeći koraci
+
+1. Potvrda interesa za **kratak pilot** (npr. 2–4 sedmice).  
+2. Dogovor: **šta nudite u prvim sedmicama** (jednostavno, izvodljivo za osoblje).  
+3. **Start:** QR materijal, postavljanje, kratka obuka osoblja.  
+4. **Pregled rezultata** i odluka o **trajnoj saradnji i cijeni**.
+
+---
+
+**Kontakt:** _________________________  
+
+Srdačan pozdrav,  
+_________________________
+
+---
+
+*Napomena: ovaj dokument je informativni prilog; uslove pilot programa, cijenu i ugovorni oblik dogovaramo pismeno nakon obostrane potvrde.*

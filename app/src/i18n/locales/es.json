@@ -206,7 +206,19 @@
     "badgeRegularWeek": "Habitual esta semana",
     "badgeVenueExplorer": "Explorador de locales",
     "linkRedeemPerk": "Canjear beneficio",
-    "linkReceipt": "Ticket"
+    "linkReceipt": "Ticket",
+    "linkPartnerMap": "Mapa de socios"
+  },
+  "partnerMap": {
+    "title": "Locales asociados",
+    "subtitle": "Encuentra cafés con Cafe Social. En el local se desbloquean juegos y retos.",
+    "loading": "Cargando locales…",
+    "loadError": "No se pudieron cargar los locales.",
+    "empty": "Aún no hay locales listados.",
+    "openInMaps": "Abrir en mapas",
+    "checkInQr": "Entrar con QR",
+    "hintAtVenue": "Al llegar, mantén la ubicación activa — los juegos se desbloquean en la zona (o con suscripción desde cualquier sitio).",
+    "webListHint": "El mapa en el navegador es limitado — toca un local para detalles y cómo llegar."
   },
   "receiptSubmit": {
     "title": "Enviar ticket",

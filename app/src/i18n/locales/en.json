@@ -206,7 +206,19 @@
     "badgeRegularWeek": "Regular this week",
     "badgeVenueExplorer": "Venue explorer",
     "linkRedeemPerk": "Redeem perk",
-    "linkReceipt": "Receipt proof"
+    "linkReceipt": "Receipt proof",
+    "linkPartnerMap": "Partner map"
+  },
+  "partnerMap": {
+    "title": "Partner venues",
+    "subtitle": "Find cafés where Cafe Social is live. Visit in person to unlock venue games and challenges.",
+    "loading": "Loading venues…",
+    "loadError": "Could not load partner venues.",
+    "empty": "No partner venues are listed yet. Check back soon.",
+    "openInMaps": "Open in Maps",
+    "checkInQr": "Check in with QR",
+    "hintAtVenue": "When you arrive, keep location on — games unlock inside the partner zone (or use a subscription from anywhere).",
+    "webListHint": "Maps in the browser are limited — tap a venue for details and directions."
   },
   "receiptSubmit": {
     "title": "Submit receipt",
