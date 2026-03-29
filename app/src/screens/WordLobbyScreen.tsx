@@ -49,8 +49,13 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <View style={styles.topHeader}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.back}>
+          <Text style={styles.backText}>{t('common.back')}</Text>
+        </Pressable>
+        <Text style={styles.topHeaderTitle}>{t('wordLobby.title')}</Text>
+      </View>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>{t('wordLobby.title')}</Text>
         <Text style={styles.subtitle}>
           {venueId ? t('wordLobby.venueLine', { venueId }) : t('wordLobby.globalLine')}
         </Text>
@@ -142,8 +147,23 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#050816' },
-  scroll: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 40 },
-  title: { color: '#fff', fontSize: 22, fontWeight: '900' },
+  topHeader: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 4,
+  },
+  back: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: '#111827',
+  },
+  backText: { color: '#cbd5e1', fontWeight: '600' },
+  topHeaderTitle: { color: '#fff', fontSize: 22, fontWeight: '900', flex: 1 },
+  scroll: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 40 },
   subtitle: { color: '#9ca3af', marginTop: 8, fontSize: 13 },
   languageHint: { color: '#6b7280', marginTop: 6, fontSize: 11, fontWeight: '700' },
   sectionTitle: { color: '#fff', fontWeight: '900', marginTop: 22, marginBottom: 10, fontSize: 14 },

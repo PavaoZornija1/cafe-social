@@ -209,9 +209,22 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
     }
   };
 
+  const leaveWait = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.replace('Home');
+    }
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
+        <View style={styles.navHeader}>
+          <Pressable onPress={leaveWait} style={styles.navBack}>
+            <Text style={styles.navBackText}>{t('common.back')}</Text>
+          </Pressable>
+        </View>
         <View style={styles.center}>
           <ActivityIndicator color="#a78bfa" />
           <Text style={styles.sub}>{t('wordMatch.creating')}</Text>
@@ -223,9 +236,14 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
   if (error && !sessionId) {
     return (
       <SafeAreaView style={styles.safe}>
+        <View style={styles.navHeader}>
+          <Pressable onPress={leaveWait} style={styles.navBack}>
+            <Text style={styles.navBackText}>{t('common.back')}</Text>
+          </Pressable>
+        </View>
         <View style={styles.center}>
           <Text style={styles.error}>{error}</Text>
-          <Pressable style={styles.btn} onPress={() => navigation.goBack()}>
+          <Pressable style={styles.btn} onPress={leaveWait}>
             <Text style={styles.btnText}>{t('common.back')}</Text>
           </Pressable>
         </View>
@@ -241,6 +259,11 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <View style={styles.navHeader}>
+        <Pressable onPress={leaveWait} style={styles.navBack}>
+          <Text style={styles.navBackText}>{t('common.back')}</Text>
+        </Pressable>
+      </View>
       <View style={styles.container}>
         <Text style={styles.title}>{t('wordMatch.waitTitle')}</Text>
         <Text style={styles.sub}>
@@ -296,7 +319,21 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#050816' },
-  container: { flex: 1, paddingHorizontal: 24, paddingTop: 24 },
+  navHeader: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  navBack: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: '#111827',
+  },
+  navBackText: { color: '#cbd5e1', fontWeight: '600' },
+  container: { flex: 1, paddingHorizontal: 24, paddingTop: 8 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   title: { color: '#fff', fontSize: 22, fontWeight: '900' },
   sub: { color: '#9ca3af', marginTop: 8, fontSize: 14, lineHeight: 20 },

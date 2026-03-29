@@ -79,10 +79,14 @@ export default function QrScanScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <View style={styles.header}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.back} disabled={loading}>
+          <Text style={styles.backText}>{t('common.back')}</Text>
+        </Pressable>
+        <Text style={styles.headerTitle}>{t('qr.title')}</Text>
+      </View>
       <View style={styles.container}>
-        <Text style={styles.title}>{t('qr.title')}</Text>
-        <Text style={styles.subtitle}>{t('qr.subtitle')}</Text>
-
+        <Text style={styles.screenLead}>{t('qr.subtitle')}</Text>
         <View style={styles.scannerWrap}>
           {canUseCamera && permission?.granted ? (
             <CameraView
@@ -142,9 +146,6 @@ export default function QrScanScreen({ navigation, route }: Props) {
           {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{t('qr.unlock')}</Text>}
         </Pressable>
 
-        <Pressable style={styles.link} onPress={() => navigation.goBack()} disabled={loading}>
-          <Text style={styles.linkText}>{t('common.cancel')}</Text>
-        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -152,9 +153,24 @@ export default function QrScanScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#050816' },
-  container: { flex: 1, paddingHorizontal: 24, paddingTop: 24 },
-  title: { color: '#fff', fontSize: 22, fontWeight: '800' },
-  subtitle: { color: '#9ca3af', fontSize: 14, marginTop: 8, lineHeight: 20 },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 4,
+  },
+  back: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: '#111827',
+  },
+  backText: { color: '#cbd5e1', fontWeight: '600' },
+  headerTitle: { color: '#fff', fontSize: 22, fontWeight: '800', flex: 1 },
+  container: { flex: 1, paddingHorizontal: 24, paddingTop: 8 },
+  screenLead: { color: '#9ca3af', fontSize: 14, marginBottom: 8, lineHeight: 20 },
   label: { color: '#d1d5db', fontSize: 14, fontWeight: '600', marginTop: 18, marginBottom: 6 },
   scannerWrap: {
     marginTop: 16,
@@ -209,6 +225,4 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.7 },
   buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
-  link: { marginTop: 14, alignItems: 'center' },
-  linkText: { color: '#a5b4fc', fontWeight: '600', fontSize: 14 },
 });

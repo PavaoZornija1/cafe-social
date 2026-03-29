@@ -23,8 +23,13 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
 
     return (
         <SafeAreaView style={styles.safe}>
+            <View style={styles.header}>
+                <Pressable onPress={() => navigation.goBack()} style={styles.back}>
+                    <Text style={styles.backText}>{t('common.back')}</Text>
+                </Pressable>
+                <Text style={styles.headerTitle}>{t('chooseGame.title')}</Text>
+            </View>
             <View style={styles.container}>
-                <Text style={styles.title}>{t('chooseGame.title')}</Text>
                 <Text style={styles.subtitle}>{t('chooseGame.subtitle')}</Text>
 
                 <Pressable
@@ -61,9 +66,6 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
                     </View>
                 </Pressable>
 
-                <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Text style={styles.backButtonText}>{t('common.back')}</Text>
-                </Pressable>
             </View>
         </SafeAreaView>
     );
@@ -71,8 +73,23 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: '#050816' },
-    container: { flex: 1, paddingHorizontal: 20, paddingTop: 20, gap: 14 },
-    title: { color: '#fff', fontSize: 28, fontWeight: '900' },
+    header: {
+        paddingHorizontal: 20,
+        paddingTop: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: 4,
+    },
+    back: {
+        paddingVertical: 8,
+        paddingHorizontal: 10,
+        borderRadius: 10,
+        backgroundColor: '#111827',
+    },
+    backText: { color: '#cbd5e1', fontWeight: '600' },
+    headerTitle: { color: '#fff', fontSize: 24, fontWeight: '900', flex: 1 },
+    container: { flex: 1, paddingHorizontal: 20, paddingTop: 12, gap: 14 },
     subtitle: { color: '#9ca3af', fontSize: 14, lineHeight: 20, marginBottom: 6 },
     card: {
         borderRadius: 18,

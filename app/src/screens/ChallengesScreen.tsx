@@ -30,7 +30,7 @@ type VenueChallenge = {
   resetsWeekly?: boolean;
 };
 
-export default function ChallengesScreen(_props: Props) {
+export default function ChallengesScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
@@ -113,8 +113,13 @@ export default function ChallengesScreen(_props: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <View style={styles.header}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.back}>
+          <Text style={styles.backText}>{t('common.back')}</Text>
+        </Pressable>
+        <Text style={styles.headerTitle}>{t('challenges.title')}</Text>
+      </View>
       <View style={styles.container}>
-        <Text style={styles.title}>{t('challenges.title')}</Text>
         {venue ? <Text style={styles.venueName}>{venue.name}</Text> : null}
 
         {loading ? (
@@ -163,8 +168,23 @@ export default function ChallengesScreen(_props: Props) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#050816' },
-  container: { flex: 1, paddingHorizontal: 24, paddingTop: 24 },
-  title: { color: '#fff', fontSize: 22, fontWeight: '800' },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 4,
+  },
+  back: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: '#111827',
+  },
+  backText: { color: '#cbd5e1', fontWeight: '600' },
+  headerTitle: { color: '#fff', fontSize: 22, fontWeight: '800', flex: 1 },
+  container: { flex: 1, paddingHorizontal: 24, paddingTop: 12 },
   venueName: { color: '#9ca3af', marginTop: 8, fontSize: 14, fontWeight: '600' },
   placeholder: { color: '#9ca3af', marginTop: 10, fontSize: 14, lineHeight: 20, textAlign: 'center' },
   error: { color: '#f87171', marginTop: 10, fontSize: 14, lineHeight: 20 },

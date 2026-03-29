@@ -93,6 +93,13 @@ export default function WordGameScreen({ navigation, route }: Props) {
   const deckLoadedRef = useRef(false);
 
   const matchMode = matchSessionId ? mode : 'solo';
+  const leaveGame = useCallback(() => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.replace('Home');
+    }
+  }, [navigation]);
   const coopIdx = matchState?.sharedWordIndex ?? 0;
   const versusOrSoloIdx = idx;
 
@@ -396,6 +403,11 @@ export default function WordGameScreen({ navigation, route }: Props) {
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
+        <View style={styles.navHeader}>
+          <Pressable onPress={leaveGame} style={styles.navBack}>
+            <Text style={styles.navBackText}>{t('common.back')}</Text>
+          </Pressable>
+        </View>
         <View style={styles.center}>
           <ActivityIndicator color="#a78bfa" />
           <Text style={styles.sub}>{t('wordGame.loadingWords')}</Text>
@@ -407,10 +419,15 @@ export default function WordGameScreen({ navigation, route }: Props) {
   if (error) {
     return (
       <SafeAreaView style={styles.safe}>
+        <View style={styles.navHeader}>
+          <Pressable onPress={leaveGame} style={styles.navBack}>
+            <Text style={styles.navBackText}>{t('common.back')}</Text>
+          </Pressable>
+        </View>
         <View style={styles.center}>
           <Text style={styles.error}>{error}</Text>
-          <Pressable style={styles.playBtn} onPress={() => navigation.replace('Home')}>
-            <Text style={styles.playBtnText}>{t('wordGame.back')}</Text>
+          <Pressable style={styles.playBtn} onPress={leaveGame}>
+            <Text style={styles.playBtnText}>{t('common.back')}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -421,6 +438,11 @@ export default function WordGameScreen({ navigation, route }: Props) {
     const won = matchMode === 'coop' || myResult === 'WIN';
     return (
       <SafeAreaView style={styles.safe}>
+        <View style={styles.navHeader}>
+          <Pressable onPress={leaveGame} style={styles.navBack}>
+            <Text style={styles.navBackText}>{t('common.back')}</Text>
+          </Pressable>
+        </View>
         <View style={styles.center}>
           <Text style={styles.title}>{t('wordGame.matchOver')}</Text>
           <Text style={styles.sub}>
@@ -454,6 +476,11 @@ export default function WordGameScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <View style={styles.navHeader}>
+        <Pressable onPress={leaveGame} style={styles.navBack}>
+          <Text style={styles.navBackText}>{t('common.back')}</Text>
+        </Pressable>
+      </View>
       <View style={styles.container}>
         <Text style={styles.title}>{t('wordGame.title')}</Text>
         <Text style={styles.sub}>
@@ -541,8 +568,8 @@ export default function WordGameScreen({ navigation, route }: Props) {
 
         <View style={styles.footer}>
           <Text style={styles.score}>{t('wordGame.correct', { count: correctCount })}</Text>
-          <Pressable style={styles.secondaryBtn} onPress={() => navigation.replace('Home')}>
-            <Text style={styles.secondaryBtnText}>{t('wordGame.exit')}</Text>
+          <Pressable style={styles.secondaryBtn} onPress={leaveGame}>
+            <Text style={styles.secondaryBtnText}>{t('common.back')}</Text>
           </Pressable>
         </View>
       </View>
@@ -552,7 +579,21 @@ export default function WordGameScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#050816' },
-  container: { flex: 1, paddingHorizontal: 24, paddingTop: 24 },
+  navHeader: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  navBack: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: '#111827',
+  },
+  navBackText: { color: '#cbd5e1', fontWeight: '600' },
+  container: { flex: 1, paddingHorizontal: 24, paddingTop: 8 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
   title: { color: '#fff', fontSize: 22, fontWeight: '900' },
   sub: { color: '#9ca3af', marginTop: 8, fontSize: 13, textAlign: 'center' },

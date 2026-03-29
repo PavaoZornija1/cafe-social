@@ -95,8 +95,13 @@ export default function ProfileScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <View style={styles.header}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.back}>
+          <Text style={styles.backText}>{t('common.back')}</Text>
+        </Pressable>
+        <Text style={styles.headerTitle}>{t('profile.title')}</Text>
+      </View>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>{t('profile.title')}</Text>
         <Text style={styles.subtitle}>{t('profile.subtitle')}</Text>
 
         <View style={styles.linkRow}>
@@ -170,8 +175,23 @@ export default function ProfileScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#050816' },
-  scroll: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 32 },
-  title: { color: '#fff', fontSize: 22, fontWeight: '800' },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 4,
+  },
+  back: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: '#111827',
+  },
+  backText: { color: '#cbd5e1', fontWeight: '600' },
+  headerTitle: { color: '#fff', fontSize: 22, fontWeight: '800', flex: 1 },
+  scroll: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 32 },
   subtitle: { color: '#9ca3af', marginTop: 8, fontSize: 14, lineHeight: 20 },
   linkRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
   linkBtn: {

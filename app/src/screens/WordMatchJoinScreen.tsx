@@ -64,8 +64,13 @@ export default function WordMatchJoinScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <View style={styles.header}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.back}>
+          <Text style={styles.backText}>{t('common.back')}</Text>
+        </Pressable>
+        <Text style={styles.headerTitle}>{t('wordMatch.joinTitle')}</Text>
+      </View>
       <View style={styles.container}>
-        <Text style={styles.title}>{t('wordMatch.joinTitle')}</Text>
         <Text style={styles.sub}>{t('wordMatch.joinSubtitle')}</Text>
         <TextInput
           style={styles.input}
@@ -89,9 +94,6 @@ export default function WordMatchJoinScreen({ navigation, route }: Props) {
             <Text style={styles.btnText}>{t('wordMatch.joinCta')}</Text>
           )}
         </Pressable>
-        <Pressable style={styles.link} onPress={() => navigation.goBack()}>
-          <Text style={styles.linkText}>{t('common.back')}</Text>
-        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -99,9 +101,24 @@ export default function WordMatchJoinScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#050816' },
-  container: { flex: 1, paddingHorizontal: 24, paddingTop: 24 },
-  title: { color: '#fff', fontSize: 22, fontWeight: '900' },
-  sub: { color: '#9ca3af', marginTop: 8, fontSize: 14, lineHeight: 20 },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 4,
+  },
+  back: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: '#111827',
+  },
+  backText: { color: '#cbd5e1', fontWeight: '600' },
+  headerTitle: { color: '#fff', fontSize: 22, fontWeight: '900', flex: 1 },
+  container: { flex: 1, paddingHorizontal: 24, paddingTop: 8 },
+  sub: { color: '#9ca3af', fontSize: 14, lineHeight: 20 },
   input: {
     marginTop: 20,
     backgroundColor: '#0f172a',
@@ -126,6 +143,4 @@ const styles = StyleSheet.create({
   },
   btnDisabled: { opacity: 0.7 },
   btnText: { color: '#fff', fontWeight: '900', fontSize: 16 },
-  link: { marginTop: 16, alignItems: 'center' },
-  linkText: { color: '#a5b4fc', fontWeight: '800' },
 });
