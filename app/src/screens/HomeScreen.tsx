@@ -1,6 +1,7 @@
 import { useAuth, useUser } from '@clerk/expo';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -421,7 +422,7 @@ export default function HomeScreen({ navigation }: Props) {
                         onPress={() => navigation.navigate('Settings')}
                         style={styles.settingsBtn}
                     >
-                        <Text style={styles.settingsIcon}>⚙️</Text>
+                        <Ionicons name="settings-outline" size={24} color="#fff" />
                     </Pressable>
                 </View>
 
@@ -518,8 +519,8 @@ export default function HomeScreen({ navigation }: Props) {
                                 {loadingFriendsVisit
                                     ? '…'
                                     : t('home.friendsVisitedVenue', {
-                                          count: friendsVisit.friendsWithVisitsLast30Days,
-                                      })}
+                                        count: friendsVisit.friendsWithVisitsLast30Days,
+                                    })}
                             </Text>
                         ) : null}
                         {engagement && !loadingEngagement ? (
@@ -629,9 +630,9 @@ export default function HomeScreen({ navigation }: Props) {
                                     <Text style={styles.feedLine}>
                                         {ev.actorUsername
                                             ? t('home.venueFeedActor', {
-                                                  user: ev.actorUsername,
-                                                  action: ev.subtitle ?? ev.title,
-                                              })
+                                                user: ev.actorUsername,
+                                                action: ev.subtitle ?? ev.title,
+                                            })
                                             : ev.title}
                                     </Text>
                                     <Text style={styles.feedSub}>{ev.title}</Text>
@@ -651,15 +652,15 @@ export default function HomeScreen({ navigation }: Props) {
                                 : venueChallenges[0]
                                     ? venueChallenges[0].resetsWeekly
                                         ? t('home.challengeProgressWeekly', {
-                                              title: venueChallenges[0].title,
-                                              current: venueChallenges[0].progressCount,
-                                              target: venueChallenges[0].targetCount,
-                                          })
+                                            title: venueChallenges[0].title,
+                                            current: venueChallenges[0].progressCount,
+                                            target: venueChallenges[0].targetCount,
+                                        })
                                         : t('home.challengeProgress', {
-                                              title: venueChallenges[0].title,
-                                              current: venueChallenges[0].progressCount,
-                                              target: venueChallenges[0].targetCount,
-                                          })
+                                            title: venueChallenges[0].title,
+                                            current: venueChallenges[0].progressCount,
+                                            target: venueChallenges[0].targetCount,
+                                        })
                                     : t('home.noChallenges')}
                     </Text>
                 </View>
@@ -687,26 +688,46 @@ export default function HomeScreen({ navigation }: Props) {
                     <Pressable
                         style={({ pressed }) => [styles.navItem, pressed && styles.navItemPressed]}
                         onPress={() => navigation.navigate('Challenges')}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('home.navChallenges')}
                     >
-                        <Text style={styles.navText}>{t('home.navChallenges')}</Text>
+                        <Text style={styles.navIcon} accessibilityElementsHidden>
+                            <Ionicons name="trophy-outline" size={24} color="#fff" />
+                        </Text>
+                        {/*<Text style={styles.navText}>{t('home.navChallenges')}</Text>*/}
                     </Pressable>
                     <Pressable
                         style={({ pressed }) => [styles.navItem, pressed && styles.navItemPressed]}
                         onPress={() => navigation.navigate('Leaderboard')}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('home.navLeaderboard')}
                     >
-                        <Text style={styles.navText}>{t('home.navLeaderboard')}</Text>
+                        <Text style={styles.navIcon} accessibilityElementsHidden>
+                            <Ionicons name="bar-chart-outline" size={24} color="#fff" />
+                        </Text>
+                        {/*<Text style={styles.navText}>{t('home.navLeaderboard')}</Text>*/}
                     </Pressable>
                     <Pressable
                         style={({ pressed }) => [styles.navItem, pressed && styles.navItemPressed]}
                         onPress={() => navigation.navigate('Profile')}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('home.navProfile')}
                     >
-                        <Text style={styles.navText}>{t('home.navProfile')}</Text>
+                        <Text style={styles.navIcon} accessibilityElementsHidden>
+                            <Ionicons name="person-outline" size={24} color="#fff" />
+                        </Text>
+                        {/*<Text style={styles.navText}>{t('home.navProfile')}</Text>*/}
                     </Pressable>
                     <Pressable
                         style={({ pressed }) => [styles.navItem, pressed && styles.navItemPressed]}
                         onPress={() => navigation.navigate('Settings')}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('home.navSettings')}
                     >
-                        <Text style={styles.navText}>{t('home.navSettings')}</Text>
+                        <Text style={styles.navIcon} accessibilityElementsHidden>
+                            <Ionicons name="settings-outline" size={24} color="#fff" />
+                        </Text>
+                        {/*<Text style={styles.navText}>{t('home.navSettings')}</Text>*/}
                     </Pressable>
                 </View>
             </View>
@@ -866,8 +887,8 @@ const styles = StyleSheet.create({
         paddingBottom: 10,
     },
     playButton: {
-        width: 200,
-        height: 200,
+        width: 150,
+        height: 150,
         borderRadius: 100,
         backgroundColor: '#7c3aed',
         alignItems: 'center',
@@ -910,7 +931,12 @@ const styles = StyleSheet.create({
         borderColor: '#1f2937',
         paddingVertical: 14,
         alignItems: 'center',
+        justifyContent: 'center',
     },
     navItemPressed: { opacity: 0.85 },
+    navIcon: {
+        fontSize: 18,
+        marginBottom: 6,
+    },
     navText: { color: '#f9fafb', fontWeight: '900', fontSize: 12 },
 });
