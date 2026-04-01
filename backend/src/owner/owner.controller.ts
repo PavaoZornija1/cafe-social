@@ -6,19 +6,29 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  Req,
   Res,
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import type { Response } from 'express';
-import { PlatformRole, ReceiptSubmissionStatus, VenueStaffRole } from '@prisma/client';
+import type { Request, Response } from 'express';
+import {
+  PlatformRole,
+  ReceiptSubmissionStatus,
+  VenueStaff,
+  VenueStaffRole,
+} from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { normalizeUserEmail } from '../auth/user-email.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { MinVenueRole } from '../venue-staff/min-venue-role.decorator';
 import { VenueStaffGuard } from '../venue-staff/venue-staff.guard';
+import { OrganizationStaffGuard } from '../venue-staff/organization-staff.guard';
 import { VenueStaffService } from '../venue-staff/venue-staff.service';
+import { VenueStaffInviteService } from '../venue-staff/venue-staff-invite.service';
+import { CreateStaffInviteDto } from '../venue-staff/dto/create-staff-invite.dto';
+import { AcceptStaffInviteDto } from '../venue-staff/dto/accept-staff-invite.dto';
 import { OwnerAnalyticsService } from './owner-analytics.service';
 import { StaffRedemptionsService } from '../staff/staff-redemptions.service';
 import { OwnerCampaignService } from './owner-campaign.service';
@@ -44,6 +54,7 @@ export class OwnerController {
     private readonly prisma: PrismaService,
     private readonly players: PlayerService,
     private readonly venueStaff: VenueStaffService,
+    private readonly staffInvites: VenueStaffInviteService,
     private readonly analytics: OwnerAnalyticsService,
     private readonly staffRedemptions: StaffRedemptionsService,
     private readonly campaigns: OwnerCampaignService,
@@ -71,7 +82,27 @@ export class OwnerController {
     playerId: string;
     email: string;
     username: string;
-    venues: { role: VenueStaffRole; venue: { id: string; name: string; city: string | null; country: string | null; address: string | null } }[];
+    venues: {
+      role: VenueStaffRole;
+      venue: {
+        id: string;
+        name: string;
+        city: string | null;
+        country: string | null;
+        address: string | null;
+        organizationId: string | null;
+        locked: boolean;
+        organization: {
+          id: string;
+          name: string;
+          slug: string | null;
+          platformBillingPlan: string | null;
+          platformBillingStatus: string;
+          platformBillingRenewsAt: Date | null;
+          billingPortalUrl: string | null;
+        } | null;
+      };
+    }[];
   }> {
     const email = normalizeUserEmail(user);
     if (!email) throw new UnauthorizedException('Missing user email');
@@ -90,7 +121,26 @@ export class OwnerController {
 
     if (row.platformRole === PlatformRole.SUPER_ADMIN) {
       const all = await this.prisma.venue.findMany({
-        select: { id: true, name: true, city: true, country: true, address: true },
+        select: {
+          id: true,
+          name: true,
+          city: true,
+          country: true,
+          address: true,
+          organizationId: true,
+          locked: true,
+          organization: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              platformBillingPlan: true,
+              platformBillingStatus: true,
+              platformBillingRenewsAt: true,
+              billingPortalUrl: true,
+            },
+          },
+        },
         orderBy: { name: 'asc' },
       });
       return {
@@ -133,6 +183,54 @@ export class OwnerController {
     };
   }
 
+  @Post('accept-staff-invite')
+  async acceptStaffInvite(
+    @CurrentUser() user: unknown,
+    @Body() body: AcceptStaffInviteDto,
+  ) {
+    const email = normalizeUserEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    return this.staffInvites.acceptInvite(body.token, email);
+  }
+
+  @Get('organizations/:organizationId/analytics')
+  @UseGuards(OrganizationStaffGuard)
+  orgAnalytics(
+    @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
+    @Query('days') daysRaw: string | undefined,
+  ) {
+    const days =
+      daysRaw !== undefined && daysRaw !== ''
+        ? Number.parseInt(daysRaw, 10)
+        : 30;
+    const safe = Number.isFinite(days) ? days : 30;
+    return this.analytics.getOrganizationSummary(organizationId, safe);
+  }
+
+  @Get('organizations/:organizationId/analytics/export.csv')
+  @UseGuards(OrganizationStaffGuard)
+  async orgAnalyticsExportCsv(
+    @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
+    @Query('days') daysRaw: string | undefined,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const days =
+      daysRaw !== undefined && daysRaw !== ''
+        ? Number.parseInt(daysRaw, 10)
+        : 30;
+    const safe = Number.isFinite(days) ? days : 30;
+    const csv = await this.analytics.buildOrganizationRedemptionsCsv(
+      organizationId,
+      safe,
+    );
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="cafe-social-org-redemptions.csv"',
+    );
+    return csv;
+  }
+
   @Get('venues/:venueId/analytics')
   @UseGuards(VenueStaffGuard)
   @MinVenueRole(VenueStaffRole.MANAGER)
@@ -168,6 +266,56 @@ export class OwnerController {
       'attachment; filename="cafe-social-redemptions.csv"',
     );
     return csv;
+  }
+
+  @Get('venues/:venueId/staff-invites')
+  @UseGuards(VenueStaffGuard)
+  @MinVenueRole(VenueStaffRole.MANAGER)
+  listStaffInvites(@Param('venueId', new ParseUUIDPipe()) venueId: string) {
+    return this.staffInvites.listForVenue(venueId);
+  }
+
+  @Post('venues/:venueId/staff-invites')
+  @UseGuards(VenueStaffGuard)
+  @MinVenueRole(VenueStaffRole.MANAGER)
+  async createStaffInvite(
+    @CurrentUser() user: unknown,
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+    @Body() body: CreateStaffInviteDto,
+    @Req() req: Request & { venueStaffMembership?: VenueStaff },
+  ) {
+    const membership = req.venueStaffMembership;
+    if (!membership) {
+      throw new UnauthorizedException('Staff context missing');
+    }
+    const playerId = await this.staffPlayerId(user);
+    return this.staffInvites.createInvite({
+      venueId,
+      email: body.email,
+      role: body.role,
+      invitedByPlayerId: playerId,
+      inviterVenueRole: membership.role,
+    });
+  }
+
+  @Post('venues/:venueId/staff-invites/:inviteId/cancel')
+  @UseGuards(VenueStaffGuard)
+  @MinVenueRole(VenueStaffRole.MANAGER)
+  async cancelStaffInvite(
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+    @Param('inviteId', new ParseUUIDPipe()) inviteId: string,
+    @Req() req: Request & { venueStaffMembership?: VenueStaff },
+  ) {
+    const membership = req.venueStaffMembership;
+    if (!membership) {
+      throw new UnauthorizedException('Staff context missing');
+    }
+    await this.staffInvites.cancelInvite({
+      venueId,
+      inviteId,
+      actorRole: membership.role,
+    });
+    return { ok: true };
   }
 
   @Get('venues/:venueId/redemptions')

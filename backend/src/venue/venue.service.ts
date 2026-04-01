@@ -80,6 +80,7 @@ export class VenueService {
     const venues = await this.venues.findAll();
     let best: { venue: Venue; distance: number } | null = null;
     for (const v of venues) {
+      if (v.locked) continue;
       const d = haversineMeters(latitude, longitude, v.latitude, v.longitude);
       if (d <= v.radiusMeters) {
         if (!best || d < best.distance) {
@@ -104,13 +105,34 @@ export class VenueService {
   }
 
   async updateForAdmin(id: string, dto: AdminPatchVenueDto) {
-    const patch = dto as UpdateVenueDto;
-    const hasVenueFields = Object.keys(patch).some(
-      (k) => (patch as Record<string, unknown>)[k] !== undefined,
+    await this.findOne(id);
+    const {
+      organizationId,
+      locked,
+      lockReason,
+      ...venueFields
+    } = dto as AdminPatchVenueDto & Record<string, unknown>;
+    const hasVenueFields = Object.keys(venueFields).some(
+      (k) => (venueFields as Record<string, unknown>)[k] !== undefined,
     );
     if (hasVenueFields) {
-      await this.update(id, patch);
+      await this.update(id, venueFields as UpdateVenueDto);
     }
+
+    const adminPatch: Prisma.VenueUpdateInput = {};
+    if (organizationId !== undefined) {
+      adminPatch.organization =
+        organizationId && typeof organizationId === 'string'
+          ? { connect: { id: organizationId } }
+          : { disconnect: true };
+    }
+    if (locked !== undefined) adminPatch.locked = locked;
+    if (lockReason !== undefined) adminPatch.lockReason = lockReason;
+
+    if (Object.keys(adminPatch).length > 0) {
+      await this.venues.update(id, adminPatch);
+    }
+
     const v = await this.findOne(id);
     return this.sanitizeVenueForAdmin(v);
   }

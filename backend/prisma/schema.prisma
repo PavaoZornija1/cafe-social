@@ -6,6 +6,25 @@ datasource db {
   provider = "postgresql"
 }
 
+/// Franchise / multi-location group. Rollup analytics for all linked venues.
+model VenueOrganization {
+  id     String  @id @default(uuid())
+  name   String
+  slug   String? @unique
+  /// Cafe Social platform billing (owner-facing); super admin maintains.
+  platformBillingPlan      String?
+  platformBillingStatus    String  @default("NONE")
+  platformBillingRenewsAt  DateTime?
+  stripeCustomerId         String?
+  /// Optional link shown to venue owners (e.g. Stripe Customer Portal).
+  billingPortalUrl         String?
+
+  venues Venue[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 /// A physical venue (café, bar, etc.) where games can be played.
 model Venue {
   id           String  @id @default(uuid())
@@ -15,6 +34,13 @@ model Venue {
   longitude    Float
   radiusMeters Int     @default(50)
   isPremium    Boolean @default(false)
+
+  organizationId String?
+  organization   VenueOrganization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  /// Super admin: suspend play / detection at this venue.
+  locked     Boolean @default(false)
+  lockReason String?
 
   /// Geo ladder (venue → city → country → region → global)
   city    String?
@@ -46,11 +72,41 @@ model Venue {
   perks            VenuePerk[]
   visitDays        PlayerVenueVisitDay[]
   staffMembers     VenueStaff[]
+  staffInvites     VenueStaffInvite[]
   campaigns        VenueCampaign[]
   receiptSubmissions VenueReceiptSubmission[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+enum VenueStaffInviteStatus {
+  PENDING
+  ACCEPTED
+  CANCELLED
+  EXPIRED
+}
+
+model VenueStaffInvite {
+  id           String                 @id @default(uuid())
+  venueId      String
+  email        String
+  role         VenueStaffRole
+  token        String                 @unique
+  invitedById  String
+  status       VenueStaffInviteStatus @default(PENDING)
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+
+  venue     Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  invitedBy Player @relation("StaffInviteSentBy", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([venueId])
+  @@index([email])
 }
 
 enum CampaignStatus {
@@ -215,6 +271,7 @@ model Player {
   perkRedemptions  VenuePerkRedemption[] @relation("RedemptionGuest")
 
   venueStaff VenueStaff[]
+  staffInvitesSent VenueStaffInvite[] @relation("StaffInviteSentBy")
   campaignSends VenueCampaignSend[]
   receiptSubmissions VenueReceiptSubmission[] @relation("ReceiptSubmitter")
   receiptsReviewed VenueReceiptSubmission[] @relation("ReceiptReviewer")

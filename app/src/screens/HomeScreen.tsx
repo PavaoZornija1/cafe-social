@@ -28,6 +28,8 @@ type Venue = { id: string; name: string; isPremium: boolean };
 type VenueAccess = {
     venueId: string;
     isPremium: boolean;
+    /** Present when venue is admin-locked (no play). */
+    locked?: boolean;
     visitedBefore: boolean;
     subscriptionActive: boolean;
     canEnterVenueContext: boolean;

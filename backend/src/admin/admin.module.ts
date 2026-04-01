@@ -5,6 +5,7 @@ import { VenueModule } from '../venue/venue.module';
 import { PlayerModule } from '../player/player.module';
 import { VenueStaffModule } from '../venue-staff/venue-staff.module';
 import { AdminVenueController } from './admin-venue.controller';
+import { AdminOrganizationController } from './admin-organization.controller';
 import { AdminVenueStaffController } from './admin-venue-staff.controller';
 import { AdminWordController } from './admin-word.controller';
 import { AdminChallengeController } from './admin-challenge.controller';
@@ -21,6 +22,7 @@ import { PlatformSuperAdminGuard } from '../auth/platform-super-admin.guard';
   ],
   controllers: [
     AdminVenueController,
+    AdminOrganizationController,
     AdminVenueStaffController,
     AdminWordController,
     AdminChallengeController,

@@ -14,7 +14,7 @@ export class VenueRepository {
     return this.prisma.venue.findMany({ orderBy: { createdAt: 'desc' } });
   }
 
-  /** Public map pins only — never includes staff secrets. */
+  /** Public map pins only — never includes staff secrets. Locked venues excluded. */
   findAllForDiscoveryMap(): Promise<
     Array<{
       id: string;
@@ -29,6 +29,7 @@ export class VenueRepository {
     }>
   > {
     return this.prisma.venue.findMany({
+      where: { locked: false },
       orderBy: { name: 'asc' },
       select: {
         id: true,
@@ -47,13 +48,16 @@ export class VenueRepository {
   findDefaultNonPremium(): Promise<Venue | null> {
     // Default venue for MVP "locationRequired" gating: prefer non-premium.
     return this.prisma.venue.findFirst({
-      where: { isPremium: false },
+      where: { isPremium: false, locked: false },
       orderBy: { createdAt: 'desc' },
     });
   }
 
   findFallbackVenue(): Promise<Venue | null> {
-    return this.prisma.venue.findFirst({ orderBy: { createdAt: 'desc' } });
+    return this.prisma.venue.findFirst({
+      where: { locked: false },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   findById(id: string): Promise<Venue | null> {

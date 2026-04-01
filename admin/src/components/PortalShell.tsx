@@ -82,6 +82,12 @@ export default function PortalShell({
                 >
                   CMS — all venues
                 </Link>
+                <Link
+                  href="/organizations"
+                  className={navClass(pathname?.startsWith("/organizations") ?? false)}
+                >
+                  Organizations
+                </Link>
                 <Link href="/words" className={navClass(pathname?.startsWith("/words") ?? false)}>
                   Word deck
                 </Link>

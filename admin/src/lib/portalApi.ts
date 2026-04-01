@@ -1,5 +1,15 @@
 import { apiBase } from "./api";
 
+export type PortalMeOrg = {
+  id: string;
+  name: string;
+  slug: string | null;
+  platformBillingPlan: string | null;
+  platformBillingStatus: string;
+  platformBillingRenewsAt: string | null;
+  billingPortalUrl: string | null;
+};
+
 export type PortalMeVenueRow = {
   role: "EMPLOYEE" | "MANAGER" | "OWNER";
   venue: {
@@ -8,6 +18,9 @@ export type PortalMeVenueRow = {
     city: string | null;
     country: string | null;
     address: string | null;
+    organizationId: string | null;
+    locked: boolean;
+    organization: PortalMeOrg | null;
   };
 };
 

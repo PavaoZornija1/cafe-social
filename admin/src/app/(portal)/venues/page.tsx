@@ -11,6 +11,8 @@ type Venue = {
   menuUrl: string | null;
   orderingUrl: string | null;
   featuredOfferTitle: string | null;
+  locked?: boolean;
+  organizationId?: string | null;
 };
 
 export default function VenuesPage() {
@@ -56,7 +58,14 @@ export default function VenuesPage() {
         <ul className="space-y-3">
           {rows.map((v) => (
             <li key={v.id} className="border border-zinc-800 rounded-lg p-3">
-              <div className="font-semibold">{v.name}</div>
+              <div className="font-semibold flex flex-wrap items-center gap-2">
+                {v.name}
+                {v.locked ? (
+                  <span className="text-[10px] uppercase text-red-400 border border-red-900 rounded px-1.5">
+                    locked
+                  </span>
+                ) : null}
+              </div>
               <div className="text-xs text-zinc-500 font-mono mt-1">{v.id}</div>
               <div className="flex gap-3 mt-2 text-sm flex-wrap">
                 <Link

@@ -5,10 +5,35 @@ import { UserButton, useAuth } from "@clerk/nextjs";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiBase } from "@/lib/api";
+import { OwnerAnalyticsCharts } from "@/components/OwnerAnalyticsCharts";
 
 type VenueRow = {
   role: "EMPLOYEE" | "MANAGER" | "OWNER";
-  venue: { id: string; name: string };
+  venue: {
+    id: string;
+    name: string;
+    organizationId: string | null;
+    locked: boolean;
+    organization: {
+      id: string;
+      name: string;
+      billingPortalUrl: string | null;
+      platformBillingPlan: string | null;
+      platformBillingStatus: string;
+      platformBillingRenewsAt: string | null;
+    } | null;
+  };
+};
+
+type StaffInviteRow = {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+  createdAt: string;
+  invitedBy: { id: string; email: string; username: string };
 };
 
 type Analytics = {
@@ -121,6 +146,18 @@ export default function OwnerVenueDetailPage() {
   const [voidReason, setVoidReason] = useState("");
   const [actionBusy, setActionBusy] = useState<string | null>(null);
 
+  const [franchiseId, setFranchiseId] = useState<string | null>(null);
+  const [orgBilling, setOrgBilling] = useState<
+    VenueRow["venue"]["organization"] | null
+  >(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"EMPLOYEE" | "MANAGER">(
+    "EMPLOYEE",
+  );
+  const [invites, setInvites] = useState<StaffInviteRow[]>([]);
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [lastCreatedToken, setLastCreatedToken] = useState<string | null>(null);
+
   const canAnalytics = useMemo(
     () => role === "OWNER" || role === "MANAGER",
     [role],
@@ -134,7 +171,8 @@ export default function OwnerVenueDetailPage() {
     });
     if (!res.ok) return null;
     const data = (await res.json()) as { venues: VenueRow[] };
-    return data.venues.find((v) => v.venue.id === venueId) ?? null;
+    const row = data.venues.find((v) => v.venue.id === venueId) ?? null;
+    return row;
   }, [getToken, venueId]);
 
   const loadAnalytics = useCallback(async () => {
@@ -176,6 +214,17 @@ export default function OwnerVenueDetailPage() {
     setCampaigns((await res.json()) as CampaignRow[]);
   }, [getToken, venueId]);
 
+  const loadStaffInvites = useCallback(async () => {
+    const token = await getToken();
+    if (!token) return;
+    const res = await fetch(
+      `${apiBase()}/owner/venues/${venueId}/staff-invites`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!res.ok) return;
+    setInvites((await res.json()) as StaffInviteRow[]);
+  }, [getToken, venueId]);
+
   const loadReceipts = useCallback(async () => {
     const token = await getToken();
     if (!token) return;
@@ -206,6 +255,8 @@ export default function OwnerVenueDetailPage() {
         }
         setRole(meta.role);
         setVenueName(meta.venue.name);
+        setFranchiseId(meta.venue.organizationId);
+        setOrgBilling(meta.venue.organization);
 
         if (meta.role === "OWNER" || meta.role === "MANAGER") {
           const a = await loadAnalytics();
@@ -213,6 +264,7 @@ export default function OwnerVenueDetailPage() {
           setAnalytics(a);
           await loadCampaigns();
           await loadReceipts();
+          await loadStaffInvites();
         } else {
           setAnalytics(null);
         }
@@ -228,7 +280,15 @@ export default function OwnerVenueDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [isLoaded, venueId, loadVenueMeta, loadAnalytics, loadCampaigns, loadReceipts]);
+  }, [
+    isLoaded,
+    venueId,
+    loadVenueMeta,
+    loadAnalytics,
+    loadCampaigns,
+    loadReceipts,
+    loadStaffInvites,
+  ]);
 
   useEffect(() => {
     if (!isLoaded || !venueId || !canAnalytics) return;
@@ -414,6 +474,57 @@ export default function OwnerVenueDetailPage() {
     }
   };
 
+  const createStaffInvite = async () => {
+    if (!inviteEmail.trim()) return;
+    setInviteBusy(true);
+    setError(null);
+    setLastCreatedToken(null);
+    try {
+      const token = await getToken();
+      if (!token) throw new Error("Sign in");
+      const res = await fetch(
+        `${apiBase()}/owner/venues/${venueId}/staff-invites`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
+        },
+      );
+      const text = await res.text();
+      if (!res.ok) throw new Error(text || res.statusText);
+      const data = text ? (JSON.parse(text) as { token?: string }) : {};
+      if (data.token) setLastCreatedToken(data.token);
+      setInviteEmail("");
+      await loadStaffInvites();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Invite failed");
+    } finally {
+      setInviteBusy(false);
+    }
+  };
+
+  const cancelStaffInvite = async (inviteId: string) => {
+    setInviteBusy(true);
+    setError(null);
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const res = await fetch(
+        `${apiBase()}/owner/venues/${venueId}/staff-invites/${inviteId}/cancel`,
+        { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!res.ok) throw new Error(await res.text());
+      await loadStaffInvites();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Cancel failed");
+    } finally {
+      setInviteBusy(false);
+    }
+  };
+
   const voidRedemption = async (redemptionId: string) => {
     if (!voidReason.trim()) {
       setError("Enter a void reason (manager/owner).");
@@ -453,6 +564,13 @@ export default function OwnerVenueDetailPage() {
 
   const title = venueName || "Venue";
 
+  const hourSeriesForCharts = useMemo(() => {
+    if (!analytics) return null;
+    return analytics.analyticsTimeZone && analytics.redemptions.byHourVenue
+      ? analytics.redemptions.byHourVenue
+      : analytics.redemptions.byHourUtc;
+  }, [analytics]);
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between gap-4">
@@ -471,6 +589,35 @@ export default function OwnerVenueDetailPage() {
               </span>
             )}
           </h1>
+          {franchiseId ? (
+            <p className="text-sm mt-2">
+              <Link
+                href={`/owner/organizations/${franchiseId}`}
+                className="text-amber-400 hover:underline"
+              >
+                Franchise rollup (all locations) →
+              </Link>
+            </p>
+          ) : null}
+          {orgBilling?.billingPortalUrl ? (
+            <p className="text-sm mt-2">
+              <a
+                href={orgBilling.billingPortalUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-emerald-400 hover:underline"
+              >
+                Subscription / billing portal →
+              </a>
+              <span className="text-zinc-500 ml-2">
+                {orgBilling.platformBillingPlan ?? "—"} ·{" "}
+                {orgBilling.platformBillingStatus}
+                {orgBilling.platformBillingRenewsAt
+                  ? ` · renews ${orgBilling.platformBillingRenewsAt.slice(0, 10)}`
+                  : ""}
+              </span>
+            </p>
+          ) : null}
         </div>
         <UserButton />
       </header>
@@ -551,6 +698,12 @@ export default function OwnerVenueDetailPage() {
                 </p>
               </div>
             </div>
+
+            <OwnerAnalyticsCharts
+              visitsByDay={analytics.visits.byDay}
+              redemptionsByDay={analytics.redemptions.byDay}
+              byHour={hourSeriesForCharts}
+            />
 
             <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
@@ -674,6 +827,96 @@ export default function OwnerVenueDetailPage() {
                 </div>
               </div>
             </div>
+          </section>
+        )}
+
+        {canAnalytics && (
+          <section className="border border-zinc-800 rounded-xl p-4 space-y-4">
+            <h2 className="text-lg font-medium">Staff invites</h2>
+            <p className="text-xs text-zinc-500">
+              Share a one-time link. The recipient signs in with the invited email, then opens{" "}
+              <Link href="/owner/accept-invite" className="text-violet-400 hover:underline">
+                Accept invite
+              </Link>
+              . Managers can invite employees; owners can invite managers and employees.
+            </p>
+            {lastCreatedToken && typeof window !== "undefined" ? (
+              <div className="rounded-lg border border-emerald-900/80 bg-emerald-950/30 px-3 py-2 text-xs">
+                <p className="text-emerald-200 font-medium mb-1">Invite link (copy now)</p>
+                <code className="text-zinc-300 break-all block select-all">
+                  {`${window.location.origin}/owner/accept-invite?token=${lastCreatedToken}`}
+                </code>
+              </div>
+            ) : null}
+            <div className="flex flex-wrap gap-2 items-end">
+              <label className="block text-sm text-zinc-400 flex-1 min-w-[200px]">
+                Email
+                <input
+                  type="email"
+                  className="mt-1 w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="staff@venue.com"
+                />
+              </label>
+              <label className="block text-sm text-zinc-400">
+                Role
+                <select
+                  className="mt-1 block w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm"
+                  value={inviteRole}
+                  onChange={(e) =>
+                    setInviteRole(e.target.value as "EMPLOYEE" | "MANAGER")
+                  }
+                >
+                  <option value="EMPLOYEE">EMPLOYEE</option>
+                  {role === "OWNER" ? (
+                    <option value="MANAGER">MANAGER</option>
+                  ) : null}
+                </select>
+              </label>
+              <button
+                type="button"
+                disabled={inviteBusy || !inviteEmail.trim()}
+                onClick={() => void createStaffInvite()}
+                className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 rounded-lg px-4 py-2 text-sm h-[38px]"
+              >
+                Create invite
+              </button>
+            </div>
+            <ul className="divide-y divide-zinc-800 border border-zinc-800 rounded-lg overflow-hidden text-sm">
+              {invites.length === 0 ? (
+                <li className="p-3 text-zinc-500">No invite history yet.</li>
+              ) : (
+                invites.map((inv) => (
+                  <li
+                    key={inv.id}
+                    className="p-3 flex flex-wrap gap-2 justify-between items-center bg-zinc-900/30"
+                  >
+                    <div>
+                      <span className="text-zinc-200">{inv.email}</span>
+                      <span className="text-xs font-mono text-violet-300 ml-2">
+                        {inv.role}
+                      </span>
+                      <p className="text-xs text-zinc-500 mt-1">
+                        {inv.status} · expires{" "}
+                        {new Date(inv.expiresAt).toISOString().slice(0, 10)} · by{" "}
+                        {inv.invitedBy.email}
+                      </p>
+                    </div>
+                    {inv.status === "PENDING" ? (
+                      <button
+                        type="button"
+                        disabled={inviteBusy}
+                        onClick={() => void cancelStaffInvite(inv.id)}
+                        className="text-xs text-red-400 hover:underline"
+                      >
+                        Cancel
+                      </button>
+                    ) : null}
+                  </li>
+                ))
+              )}
+            </ul>
           </section>
         )}
 

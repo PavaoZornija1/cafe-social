@@ -24,7 +24,12 @@ type Venue = {
   featuredOfferBody: string | null;
   featuredOfferEndsAt: string | null;
   analyticsTimeZone?: string | null;
+  organizationId: string | null;
+  locked: boolean;
+  lockReason: string | null;
 };
+
+type OrgOption = { id: string; name: string };
 
 export default function EditVenuePage() {
   const { id } = useParams<{ id: string }>();
@@ -37,6 +42,7 @@ export default function EditVenuePage() {
   const [staffEmail, setStaffEmail] = useState("");
   const [staffRole, setStaffRole] = useState<VenueStaffRow["role"]>("EMPLOYEE");
   const [staffBusy, setStaffBusy] = useState(false);
+  const [orgs, setOrgs] = useState<OrgOption[]>([]);
 
   useEffect(() => {
     if (!isLoaded || !id) return;
@@ -46,7 +52,13 @@ export default function EditVenuePage() {
         const data = await portalFetch<Venue>(getToken, `/admin/venues/${id}`, {
           method: "GET",
         });
-        if (!c) setV(data);
+        if (!c)
+          setV({
+            ...data,
+            organizationId: data.organizationId ?? null,
+            locked: data.locked ?? false,
+            lockReason: data.lockReason ?? null,
+          });
       } catch (e) {
         if (!c) setErr((e as Error).message);
       }
@@ -55,6 +67,26 @@ export default function EditVenuePage() {
       c = true;
     };
   }, [isLoaded, id, getToken]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    let c = false;
+    (async () => {
+      try {
+        const list = await portalFetch<
+          { id: string; name: string }[]
+        >(getToken, "/admin/organizations", {
+          method: "GET",
+        });
+        if (!c) setOrgs(list.map((o) => ({ id: o.id, name: o.name })));
+      } catch {
+        if (!c) setOrgs([]);
+      }
+    })();
+    return () => {
+      c = true;
+    };
+  }, [isLoaded, getToken]);
 
   useEffect(() => {
     if (!isLoaded || !id) return;
@@ -90,6 +122,9 @@ export default function EditVenuePage() {
         featuredOfferBody: v.featuredOfferBody || null,
         featuredOfferEndsAt: v.featuredOfferEndsAt || null,
         analyticsTimeZone: v.analyticsTimeZone?.trim() || null,
+        organizationId: v.organizationId || null,
+        locked: v.locked,
+        lockReason: v.lockReason?.trim() || null,
       };
       await portalFetch(getToken, `/admin/venues/${id}`, {
         method: "PATCH",
@@ -196,6 +231,42 @@ export default function EditVenuePage() {
       </Link>
       <h1 className="text-xl font-bold mt-4 mb-1">{v.name}</h1>
       <p className="text-xs text-zinc-500 font-mono mb-6">{v.id}</p>
+      <label className="block mb-3">
+        <span className="text-sm text-zinc-400">Franchise / organization</span>
+        <select
+          className="mt-1 w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm"
+          value={v.organizationId ?? ""}
+          onChange={(e) =>
+            setV({
+              ...v,
+              organizationId: e.target.value || null,
+            })
+          }
+        >
+          <option value="">— None —</option>
+          {orgs.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.name}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-zinc-500 mt-1">
+          Manage orgs under{" "}
+          <Link href="/organizations" className="text-violet-400 hover:underline">
+            Organizations
+          </Link>
+          .
+        </p>
+      </label>
+      <label className="flex items-center gap-2 mb-3">
+        <input
+          type="checkbox"
+          checked={v.locked}
+          onChange={(e) => setV({ ...v, locked: e.target.checked })}
+        />
+        <span className="text-sm text-zinc-300">Locked (suspend play & map)</span>
+      </label>
+      {field("Lock reason (optional)", "lockReason")}
       {field("Menu URL", "menuUrl")}
       {field("Ordering URL", "orderingUrl")}
       {field("Order nudge title ({{venueName}} ok)", "orderNudgeTitle")}

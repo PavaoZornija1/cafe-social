@@ -8,6 +8,8 @@ import { VenueService } from './venue.service';
 export type VenueAccessResult = {
   venueId: string;
   isPremium: boolean;
+  /** Super admin: venue suspended — no play at geofence. */
+  locked: boolean;
   /** Player has a prior link to this venue (e.g. saved via QR/onboarding); not required for play. */
   visitedBefore: boolean;
   subscriptionActive: boolean;
@@ -91,11 +93,12 @@ export class VenueAccessService {
       isPhysicallyAtVenue = at?.id === venueId;
     }
 
-    const canEnterVenueContext = isPhysicallyAtVenue;
+    const canEnterVenueContext = !venue.locked && isPhysicallyAtVenue;
 
     return {
       venueId: venue.id,
       isPremium: venue.isPremium,
+      locked: venue.locked,
       visitedBefore,
       subscriptionActive,
       canEnterVenueContext,

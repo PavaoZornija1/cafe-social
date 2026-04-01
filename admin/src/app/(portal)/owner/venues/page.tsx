@@ -13,6 +13,9 @@ type VenueRow = {
     city: string | null;
     country: string | null;
     address: string | null;
+    organizationId: string | null;
+    locked: boolean;
+    organization: { id: string; name: string } | null;
   };
 };
 
@@ -80,38 +83,81 @@ export default function OwnerVenuesPage() {
         )}
         {venues && venues.length > 0 && (
           <ul className="mt-6 space-y-3">
-            {venues.map((row) => (
-              <li key={row.venue.id}>
-                <Link
-                  href={`/owner/venues/${row.venue.id}`}
-                  className="block rounded-xl border border-zinc-800 bg-zinc-900/50 hover:border-violet-600/50 transition px-4 py-4"
-                >
-                  <div className="flex justify-between gap-3 items-start">
-                    <div>
-                      <p className="font-medium text-zinc-100">
-                        {row.venue.name}
+            {(() => {
+              const byOrg = new Map<
+                string,
+                { label: string; orgId: string | null; rows: VenueRow[] }
+              >();
+              for (const row of venues) {
+                const orgId = row.venue.organizationId;
+                const key = orgId ?? `__single:${row.venue.id}`;
+                const label =
+                  row.venue.organization?.name ??
+                  (orgId ? "Franchise" : "Independent venues");
+                if (!byOrg.has(key)) {
+                  byOrg.set(key, { label, orgId, rows: [] });
+                }
+                byOrg.get(key)!.rows.push(row);
+              }
+              const groups = [...byOrg.values()].sort((a, b) =>
+                a.label.localeCompare(b.label),
+              );
+              return groups.flatMap((g) => {
+                const header = g.orgId ? (
+                  <li key={`hdr-${g.orgId}`} className="list-none pt-4 first:pt-0">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                        {g.label}
                       </p>
-                      <p className="text-sm text-zinc-500 mt-1">
-                        {[row.venue.address, row.venue.city, row.venue.country]
-                          .filter(Boolean)
-                          .join(" · ") || "—"}
-                      </p>
+                      <Link
+                        href={`/owner/organizations/${g.orgId}`}
+                        className="text-xs text-amber-400 hover:underline"
+                      >
+                        Rollup analytics →
+                      </Link>
                     </div>
-                    <span className="text-xs font-mono uppercase tracking-wide text-violet-300 bg-violet-950/80 px-2 py-1 rounded">
-                      {row.role}
-                    </span>
-                  </div>
-                </Link>
-                <div className="mt-2 text-sm">
-                  <Link
-                    href={`/staff/${row.venue.id}`}
-                    className="text-emerald-400 hover:underline"
-                  >
-                    Today&apos;s redemptions only →
-                  </Link>
-                </div>
-              </li>
-            ))}
+                  </li>
+                ) : null;
+                const items = g.rows.map((row) => (
+                  <li key={row.venue.id}>
+                    <Link
+                      href={`/owner/venues/${row.venue.id}`}
+                      className="block rounded-xl border border-zinc-800 bg-zinc-900/50 hover:border-violet-600/50 transition px-4 py-4"
+                    >
+                      <div className="flex justify-between gap-3 items-start">
+                        <div>
+                          <p className="font-medium text-zinc-100 flex flex-wrap items-center gap-2">
+                            {row.venue.name}
+                            {row.venue.locked ? (
+                              <span className="text-[10px] font-mono uppercase text-red-400 border border-red-900/80 rounded px-1.5 py-0.5">
+                                Locked
+                              </span>
+                            ) : null}
+                          </p>
+                          <p className="text-sm text-zinc-500 mt-1">
+                            {[row.venue.address, row.venue.city, row.venue.country]
+                              .filter(Boolean)
+                              .join(" · ") || "—"}
+                          </p>
+                        </div>
+                        <span className="text-xs font-mono uppercase tracking-wide text-violet-300 bg-violet-950/80 px-2 py-1 rounded shrink-0">
+                          {row.role}
+                        </span>
+                      </div>
+                    </Link>
+                    <div className="mt-2 text-sm">
+                      <Link
+                        href={`/staff/${row.venue.id}`}
+                        className="text-emerald-400 hover:underline"
+                      >
+                        Today&apos;s redemptions only →
+                      </Link>
+                    </div>
+                  </li>
+                ));
+                return header ? [header, ...items] : items;
+              });
+            })()}
           </ul>
         )}
       </main>
