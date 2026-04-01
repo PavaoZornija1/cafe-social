@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useAuth } from "@clerk/nextjs";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { adminFetch } from "../../../lib/adminApi";
+import { portalFetch } from "../../../../lib/portalApi";
 
 type Ch = {
   id: string;
@@ -14,16 +15,18 @@ type Ch = {
 
 export default function ChallengesAdminPage() {
   const { venueId } = useParams<{ venueId: string }>();
+  const { isLoaded, getToken } = useAuth();
   const [rows, setRows] = useState<Ch[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [edits, setEdits] = useState<Record<string, { from: string; to: string }>>({});
 
   useEffect(() => {
-    if (!venueId) return;
+    if (!isLoaded || !venueId) return;
     let c = false;
     (async () => {
       try {
-        const data = await adminFetch<Ch[]>(
+        const data = await portalFetch<Ch[]>(
+          getToken,
           `/admin/venues/${venueId}/challenges`,
           { method: "GET" },
         );
@@ -45,14 +48,14 @@ export default function ChallengesAdminPage() {
     return () => {
       c = true;
     };
-  }, [venueId]);
+  }, [isLoaded, venueId, getToken]);
 
   const patch = async (id: string) => {
     const ed = edits[id];
     if (!ed) return;
     setErr(null);
     try {
-      await adminFetch(`/admin/challenges/${id}`, {
+      await portalFetch(getToken, `/admin/challenges/${id}`, {
         method: "PATCH",
         body: JSON.stringify({
           activeFrom: ed.from ? new Date(ed.from).toISOString() : null,

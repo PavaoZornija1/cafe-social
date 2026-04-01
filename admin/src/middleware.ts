@@ -1,13 +1,27 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-const isProtectedOwner = createRouteMatcher(["/owner/venues(.*)"]);
+const isPublicRoute = createRouteMatcher([
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/owner/sign-in(.*)",
+  "/owner/sign-up(.*)",
+]);
 
 export default clerkMiddleware(async (auth, req) => {
-  if (isProtectedOwner(req)) {
+  if (!isPublicRoute(req)) {
     await auth.protect();
   }
 });
 
 export const config = {
-  matcher: ["/owner/:path*"],
+  matcher: [
+    "/",
+    "/dashboard(.*)",
+    "/owner(.*)",
+    "/venues(.*)",
+    "/words(.*)",
+    "/challenges(.*)",
+    "/perks(.*)",
+    "/staff(.*)",
+  ],
 };

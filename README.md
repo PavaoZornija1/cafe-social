@@ -8,7 +8,7 @@
 |------|-------------|
 | `backend/` | NestJS API (`/api`), PostgreSQL via Prisma, Clerk JWT auth |
 | `app/` | Expo SDK 54 app (iOS/Android), Clerk, React Navigation |
-| `admin/` | **Next.js 15** partner CMS (`ADMIN_API_KEY`): venues (menu / ordering URLs, nudges, featured offer), words, challenge windows, perk codes; **Clerk owner portal** (`/owner`) for venue analytics + JWT staff redemption lists |
+| `admin/` | **Next.js 15** partner portal (**Clerk** only): **super admins** (`Player.platformRole`) get full CMS (venues, words, challenges, perks); **OWNER / MANAGER / EMPLOYEE** get venue dashboards, campaigns, receipts, JWT **staff redemptions** (`/staff/[venueId]`) |
 
 ## What’s implemented
 
@@ -29,9 +29,8 @@
 - **Venue public card (no auth)**: `GET /venues/:id/public-card` — `menuUrl`, `orderingUrl`, optional **featured offer** (respects `featuredOfferEndsAt`).
 - **Perks (JWT)**: `POST /venue-context/:venueId/perks/redeem` `{ code, detectedVenueId? }` — presence + optional QR-unlock perks (admin-configured).
 - **Friends at venue (aggregate)**: `GET /social/venues/:venueId/friends-visit-summary` — count of accepted friends with any visit day at this venue in the last **30 UTC days** (no per-friend leakage).
-- **Admin API**: `X-Admin-Key` or `Authorization: Bearer` with **`ADMIN_API_KEY`** — `/api/admin/...` for venues, words, challenge schedules, **VenuePerk** CRUD (see `admin/` app). **`GET/POST /admin/venues/:venueId/staff`**, **`DELETE /admin/venues/:venueId/staff/:playerId`** assign **Clerk** identities to a venue with roles **`EMPLOYEE` | `MANAGER` | `OWNER`** (creates `Player` by email if needed). Last **OWNER** cannot be removed or demoted without adding another OWNER first. Venue PATCH may set a **hashed staff PIN** (`staffPortalPin`, `clearStaffPortalPin`) — never returned in JSON; **`staffPortalConfigured`** boolean is safe.
-- **Owner API (Clerk JWT)**: **`GET /owner/venues`** — venues you are on staff for; **`GET /owner/venues/:venueId/analytics?days=`** ( **`MANAGER`** or **`OWNER`** ) — redemptions, visit-day rows, feed events by UTC day; **`GET /owner/venues/:venueId/redemptions?date=YYYY-MM-DD`** ( **`EMPLOYEE`**+ ) — same payload as the PIN staff portal, without sharing the venue tablet PIN.
-- **Staff portal (browser, no admin key)**: `GET /api/staff/venues/:venueId/redemptions?date=YYYY-MM-DD` with header **`X-Venue-Staff-Pin`** — today’s perk redemptions (UTC day) with **staff verification code** matching the guest app after **`POST .../perks/redeem`**. Enables barista check without sharing **`ADMIN_API_KEY`**. **CORS** is enabled on the API (`origin: true`) so the **Next.js admin** staff page can call the API from another port; tighten `origin` in production.
+- **Admin API (Clerk JWT, super admin only)**: **`Authorization: Bearer`** with a **Clerk session token** — only if **`Player.platformRole === SUPER_ADMIN`** — `/api/admin/...` for venues, words, challenge schedules, **VenuePerk** CRUD (see `admin/` app). Grant super admin in the **database**: set **`Player.platformRole`** to **`SUPER_ADMIN`** for the right row (e.g. Prisma Studio or SQL after the user has signed in once so a `Player` exists). **`GET/POST /admin/venues/:venueId/staff`**, **`DELETE /admin/venues/:venueId/staff/:playerId`** assign **Clerk** identities with roles **`EMPLOYEE` | `MANAGER` | `OWNER`** (creates `Player` by email if needed). Last **OWNER** cannot be removed or demoted without adding another OWNER first.
+- **Owner API (Clerk JWT)**: **`GET /owner/me`** — platform role + venue staff rows; **`GET /owner/venues`** — same list (includes **`platformRole`**); super admins get **all** venues with effective **OWNER** access for analytics APIs. **`GET /owner/venues/:venueId/analytics?days=`** ( **`MANAGER`** or **`OWNER`** , or super admin ) — redemptions, visit-day rows, feed events; **`GET /owner/venues/:venueId/redemptions?date=YYYY-MM-DD`** ( **`EMPLOYEE`**+ ) — today’s perk redemptions with **staff verification codes** (used by the admin **`/staff/[venueId]`** page — **signed-in** staff only).
 - **Challenges schedule**: optional **`activeFrom` / `activeTo`** (UTC) on **`Challenge`** — listed progress respects the window (“happy hour” style).
 - **Push (Expo)**: `POST /players/me/push-token` `{ expoPushToken }`, `DELETE /players/me/push-token?expoPushToken=…` — stores **Expo push tokens** per device; **word match** sends notifications when someone **joins** the room or the host **starts** the match (**channel** `match`, payload `pushCategory: match`). **Venue order nudge** uses **channel** `partner_marketing` and includes `orderingUrl` / `menuUrl` in `data` (`pushCategory: partner_marketing`); recipients must have **`partnerMarketingPush`** and not **`totalPrivacy`**. Server-side category filtering is the baseline; OS notification settings still apply on device.
 - **Per-venue XP**: earned on **challenge progress** at that venue (+10 per increment, +50 on first completion).
@@ -161,7 +160,13 @@ cd admin && npm install && npm run dev
 # Docker: docker build -t cafe-social-admin . && docker run -p 3000:3000 cafe-social-admin
 ```
 
-Partner CMS: venues (copy, URLs, featured offer, **staff PIN**, **venue staff list** for Clerk owner/employee roles), words, challenge windows, perks; **Staff verification** page at **`/staff/[venueId]`** (venue PIN only). **Owner portal**: **`/owner`** — set **`NEXT_PUBLIC_API_URL`**, **`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`**, and **`CLERK_SECRET_KEY`** (same Clerk application as the mobile app so JWTs validate on the API).
+**Clerk-only** sign-in (`/sign-in`). **Super admins** see **CMS** (`/venues`, `/words`, …) when **`Player.platformRole`** is **`SUPER_ADMIN`** in Postgres (set via **`npx prisma studio`**, a migration/seed, or SQL — after that user has a `Player` row, e.g. first sign-in). Example:
+
+```sql
+UPDATE "Player" SET "platformRole" = 'SUPER_ADMIN' WHERE LOWER(email) = LOWER('you@yourcompany.com');
+```
+
+**Venue staff** use **`/owner/venues`** and **`/staff/[venueId]`** (JWT redemptions). Env: **`NEXT_PUBLIC_API_URL`**, **`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`**, **`CLERK_SECRET_KEY`** (same Clerk app as mobile).
 
 ## Environment variables (app)
 

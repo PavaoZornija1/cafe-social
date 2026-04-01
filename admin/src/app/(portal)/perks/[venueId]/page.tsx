@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useAuth } from "@clerk/nextjs";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { adminFetch } from "../../../lib/adminApi";
+import { portalFetch } from "../../../../lib/portalApi";
 
 type Perk = {
   id: string;
@@ -14,6 +15,7 @@ type Perk = {
 
 export default function PerksAdminPage() {
   const { venueId } = useParams<{ venueId: string }>();
+  const { isLoaded, getToken } = useAuth();
   const [rows, setRows] = useState<Perk[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [code, setCode] = useState("");
@@ -21,13 +23,17 @@ export default function PerksAdminPage() {
   const [requiresQr, setRequiresQr] = useState(false);
 
   useEffect(() => {
-    if (!venueId) return;
+    if (!isLoaded || !venueId) return;
     let c = false;
     (async () => {
       try {
-        const data = await adminFetch<Perk[]>(`/admin/venues/${venueId}/perks`, {
-          method: "GET",
-        });
+        const data = await portalFetch<Perk[]>(
+          getToken,
+          `/admin/venues/${venueId}/perks`,
+          {
+            method: "GET",
+          },
+        );
         if (!c) setRows(data);
       } catch (e) {
         if (!c) setErr((e as Error).message);
@@ -36,13 +42,13 @@ export default function PerksAdminPage() {
     return () => {
       c = true;
     };
-  }, [venueId]);
+  }, [isLoaded, venueId, getToken]);
 
   const create = async () => {
     if (!venueId) return;
     setErr(null);
     try {
-      await adminFetch(`/admin/venues/${venueId}/perks`, {
+      await portalFetch(getToken, `/admin/venues/${venueId}/perks`, {
         method: "POST",
         body: JSON.stringify({
           code,
@@ -52,9 +58,13 @@ export default function PerksAdminPage() {
       });
       setCode("");
       setTitle("");
-      const data = await adminFetch<Perk[]>(`/admin/venues/${venueId}/perks`, {
-        method: "GET",
-      });
+      const data = await portalFetch<Perk[]>(
+        getToken,
+        `/admin/venues/${venueId}/perks`,
+        {
+          method: "GET",
+        },
+      );
       setRows(data);
     } catch (e) {
       setErr((e as Error).message);
@@ -64,10 +74,14 @@ export default function PerksAdminPage() {
   const remove = async (id: string) => {
     setErr(null);
     try {
-      await adminFetch(`/admin/perks/${id}`, { method: "DELETE" });
-      const data = await adminFetch<Perk[]>(`/admin/venues/${venueId}/perks`, {
-        method: "GET",
-      });
+      await portalFetch(getToken, `/admin/perks/${id}`, { method: "DELETE" });
+      const data = await portalFetch<Perk[]>(
+        getToken,
+        `/admin/venues/${venueId}/perks`,
+        {
+          method: "GET",
+        },
+      );
       setRows(data);
     } catch (e) {
       setErr((e as Error).message);

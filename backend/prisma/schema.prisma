@@ -34,9 +34,6 @@ model Venue {
   featuredOfferBody   String?
   featuredOfferEndsAt DateTime?
 
-  /// PBKDF2 hash for staff tablet browser (`GET /staff/venues/.../redemptions`). Never exposed in public APIs.
-  staffPortalPinHash String?
-
   /// Optional IANA timezone (e.g. `Europe/Zagreb`) for owner analytics hour-of-day buckets. UTC used when null.
   analyticsTimeZone String?
 
@@ -139,6 +136,12 @@ enum VenueStaffRole {
   OWNER
 }
 
+/// Platform operators (Cafe Social team). Separate from per-venue VenueStaffRole.
+enum PlatformRole {
+  NONE
+  SUPER_ADMIN
+}
+
 model VenueStaff {
   id        String         @id @default(uuid())
   venueId   String
@@ -159,6 +162,9 @@ model Player {
   id       String @id @default(uuid())
   email    String @unique
   username String @unique
+
+  /// Cafe Social operators: full CMS + any venue via portal (Clerk JWT).
+  platformRole PlatformRole @default(NONE)
 
   /// Open to being seen / challenged (default on). Subscribers get extra remote discoverability when this is on.
   discoverable Boolean @default(true)

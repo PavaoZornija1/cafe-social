@@ -9,7 +9,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { AdminApiKeyGuard } from './admin-api-key.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PlatformSuperAdminGuard } from '../auth/platform-super-admin.guard';
 
 class AdminCreatePerkDto {
   code!: string;
@@ -23,7 +24,7 @@ class AdminCreatePerkDto {
 }
 
 @Controller('admin')
-@UseGuards(AdminApiKeyGuard)
+@UseGuards(JwtAuthGuard, PlatformSuperAdminGuard)
 export class AdminPerkController {
   constructor(private readonly prisma: PrismaService) {}
 

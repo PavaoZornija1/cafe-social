@@ -102,7 +102,8 @@ export class RevenueCatSyncService {
    */
   async applyWebhookEventFallback(body: RcWebhookBody): Promise<boolean> {
     const event = body.event;
-    const playerId = event?.app_user_id?.trim();
+    if (!event) return false;
+    const playerId = event.app_user_id?.trim();
     if (!playerId) return false;
     const type = event.type ?? '';
     const expMs = event.expiration_at_ms;

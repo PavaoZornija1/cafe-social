@@ -1,4 +1,13 @@
-import { Controller, Headers, HttpCode, HttpStatus, Logger, Post, Req } from '@nestjs/common';
+import {
+  Controller,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Logger,
+  Post,
+  Req,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
 import { RevenueCatSyncService, type RcWebhookBody } from './revenuecat-sync.service';

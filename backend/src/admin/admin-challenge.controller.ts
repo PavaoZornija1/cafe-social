@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, UseGuards } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { AdminApiKeyGuard } from './admin-api-key.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PlatformSuperAdminGuard } from '../auth/platform-super-admin.guard';
 
 class AdminPatchChallengeDto {
   title?: string;
@@ -14,7 +15,7 @@ class AdminPatchChallengeDto {
 }
 
 @Controller('admin')
-@UseGuards(AdminApiKeyGuard)
+@UseGuards(JwtAuthGuard, PlatformSuperAdminGuard)
 export class AdminChallengeController {
   constructor(private readonly prisma: PrismaService) {}
 

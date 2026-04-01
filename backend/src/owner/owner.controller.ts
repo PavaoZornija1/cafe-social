@@ -11,7 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { ReceiptSubmissionStatus, VenueStaffRole } from '@prisma/client';
+import { PlatformRole, ReceiptSubmissionStatus, VenueStaffRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { normalizeUserEmail } from '../auth/user-email.util';
@@ -62,18 +62,74 @@ export class OwnerController {
     return p.id;
   }
 
-  @Get('venues')
-  async myVenues(@CurrentUser() user: unknown) {
+  /**
+   * Shared venue list for portal: super admins see all venues as OWNER;
+   * others see `VenueStaff` memberships only.
+   */
+  private async portalVenuesForUser(user: unknown): Promise<{
+    platformRole: PlatformRole;
+    playerId: string;
+    email: string;
+    username: string;
+    venues: { role: VenueStaffRole; venue: { id: string; name: string; city: string | null; country: string | null; address: string | null } }[];
+  }> {
     const email = normalizeUserEmail(user);
     if (!email) throw new UnauthorizedException('Missing user email');
 
     const player = await this.players.findOrCreateByEmail(email.trim());
-    const rows = await this.venueStaff.listVenuesForPlayer(player.id);
+    const row = await this.prisma.player.findUnique({
+      where: { id: player.id },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        platformRole: true,
+      },
+    });
+    if (!row) throw new UnauthorizedException('Player not found');
+
+    if (row.platformRole === PlatformRole.SUPER_ADMIN) {
+      const all = await this.prisma.venue.findMany({
+        select: { id: true, name: true, city: true, country: true, address: true },
+        orderBy: { name: 'asc' },
+      });
+      return {
+        platformRole: row.platformRole,
+        playerId: row.id,
+        email: row.email,
+        username: row.username,
+        venues: all.map((venue) => ({ role: VenueStaffRole.OWNER, venue })),
+      };
+    }
+
+    const staffRows = await this.venueStaff.listVenuesForPlayer(row.id);
     return {
-      venues: rows.map((r) => ({
-        role: r.role,
-        venue: r.venue,
-      })),
+      platformRole: row.platformRole,
+      playerId: row.id,
+      email: row.email,
+      username: row.username,
+      venues: staffRows.map((r) => ({ role: r.role, venue: r.venue })),
+    };
+  }
+
+  @Get('me')
+  async portalMe(@CurrentUser() user: unknown) {
+    const ctx = await this.portalVenuesForUser(user);
+    return {
+      platformRole: ctx.platformRole,
+      playerId: ctx.playerId,
+      email: ctx.email,
+      username: ctx.username,
+      venues: ctx.venues,
+    };
+  }
+
+  @Get('venues')
+  async myVenues(@CurrentUser() user: unknown) {
+    const ctx = await this.portalVenuesForUser(user);
+    return {
+      platformRole: ctx.platformRole,
+      venues: ctx.venues,
     };
   }
 

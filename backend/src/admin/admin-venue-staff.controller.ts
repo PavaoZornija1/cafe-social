@@ -9,13 +9,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { VenueStaffRole } from '@prisma/client';
-import { AdminApiKeyGuard } from './admin-api-key.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PlatformSuperAdminGuard } from '../auth/platform-super-admin.guard';
 import { AdminUpsertVenueStaffDto } from './dto/admin-upsert-venue-staff.dto';
 import { VenueStaffService } from '../venue-staff/venue-staff.service';
 import { PlayerService } from '../player/player.service';
 
 @Controller('admin/venues')
-@UseGuards(AdminApiKeyGuard)
+@UseGuards(JwtAuthGuard, PlatformSuperAdminGuard)
 export class AdminVenueStaffController {
   constructor(
     private readonly venueStaff: VenueStaffService,

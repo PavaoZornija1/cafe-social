@@ -1,11 +1,12 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { AdminApiKeyGuard } from './admin-api-key.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PlatformSuperAdminGuard } from '../auth/platform-super-admin.guard';
 import { VenueService } from '../venue/venue.service';
 import { CreateVenueDto } from '../venue/dto/create-venue.dto';
 import { AdminPatchVenueDto } from '../venue/dto/admin-patch-venue.dto';
 
 @Controller('admin/venues')
-@UseGuards(AdminApiKeyGuard)
+@UseGuards(JwtAuthGuard, PlatformSuperAdminGuard)
 export class AdminVenueController {
   constructor(private readonly venues: VenueService) {}
 

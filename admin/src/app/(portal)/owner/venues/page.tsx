@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { UserButton, useAuth } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
 import { useCallback, useEffect, useState } from "react";
 import { apiBase } from "@/lib/api";
 
@@ -19,6 +19,7 @@ type VenueRow = {
 export default function OwnerVenuesPage() {
   const { getToken, isLoaded } = useAuth();
   const [venues, setVenues] = useState<VenueRow[] | null>(null);
+  const [platformRole, setPlatformRole] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -37,7 +38,11 @@ export default function OwnerVenuesPage() {
         setError(t || res.statusText);
         return;
       }
-      const data = (await res.json()) as { venues: VenueRow[] };
+      const data = (await res.json()) as {
+        platformRole?: string;
+        venues: VenueRow[];
+      };
+      setPlatformRole(data.platformRole ?? "NONE");
       setVenues(data.venues);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Request failed");
@@ -50,26 +55,17 @@ export default function OwnerVenuesPage() {
   }, [isLoaded, load]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold">Venue dashboard</h1>
-          <p className="text-sm text-zinc-400 mt-1">
-            Analytics and redemptions for venues you manage.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/"
-            className="text-sm text-violet-400 hover:text-violet-300"
-          >
-            Partner CMS →
-          </Link>
-          <UserButton />
-        </div>
+    <div className="bg-zinc-950 text-zinc-100">
+      <header className="border-b border-zinc-800 px-6 py-4">
+        <h1 className="text-xl font-semibold">Venue dashboard</h1>
+        <p className="text-sm text-zinc-400 mt-1">
+          {platformRole === "SUPER_ADMIN"
+            ? "Super admin — all venues."
+            : "Analytics and redemptions for venues you manage."}
+        </p>
       </header>
 
-      <main className="p-6 max-w-2xl mx-auto">
+      <main className="p-6 max-w-2xl">
         {!isLoaded && <p className="text-zinc-400">Loading…</p>}
         {error && (
           <div className="rounded-lg border border-red-900/80 bg-red-950/40 px-4 py-3 text-red-200 text-sm">
@@ -78,9 +74,8 @@ export default function OwnerVenuesPage() {
         )}
         {venues && venues.length === 0 && !error && (
           <p className="text-zinc-400">
-            No venues yet. Your operator must add your Clerk email under{" "}
-            <strong className="text-zinc-200">Admin → venue → staff</strong> with
-            role OWNER or MANAGER (or EMPLOYEE for verification-only).
+            No venues yet. A platform admin must add your Clerk email to a
+            venue as OWNER, MANAGER, or EMPLOYEE.
           </p>
         )}
         {venues && venues.length > 0 && (
@@ -107,6 +102,14 @@ export default function OwnerVenuesPage() {
                     </span>
                   </div>
                 </Link>
+                <div className="mt-2 text-sm">
+                  <Link
+                    href={`/staff/${row.venue.id}`}
+                    className="text-emerald-400 hover:underline"
+                  >
+                    Today&apos;s redemptions only →
+                  </Link>
+                </div>
               </li>
             ))}
           </ul>

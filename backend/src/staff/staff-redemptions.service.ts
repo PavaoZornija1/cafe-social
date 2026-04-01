@@ -1,12 +1,5 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { verifyStaffPortalPin } from '../lib/staff-pin';
 import { staffVerificationCodeFromRedemptionId } from '../lib/redemption-staff-code';
 
 function utcDayBounds(dateYmd: string): { start: Date; end: Date } {
@@ -25,34 +18,6 @@ function utcDayBounds(dateYmd: string): { start: Date; end: Date } {
 @Injectable()
 export class StaffRedemptionsService {
   constructor(private readonly prisma: PrismaService) {}
-
-  async listRedemptions(params: { venueId: string; pin: string; dateYmd: string }) {
-    const pin = params.pin.trim();
-    if (!pin) {
-      throw new UnauthorizedException('Missing or empty PIN');
-    }
-    const venue = await this.prisma.venue.findUnique({
-      where: { id: params.venueId },
-      select: {
-        id: true,
-        name: true,
-        staffPortalPinHash: true,
-      },
-    });
-    if (!venue) {
-      throw new NotFoundException('Venue not found');
-    }
-    if (!venue.staffPortalPinHash) {
-      throw new ForbiddenException(
-        'Staff portal is not configured for this venue (set a PIN in the partner CMS).',
-      );
-    }
-    if (!verifyStaffPortalPin(pin, venue.staffPortalPinHash)) {
-      throw new UnauthorizedException('Invalid PIN');
-    }
-
-    return this.listRedemptionsPayload(params.venueId, params.dateYmd);
-  }
 
   /** JWT staff / owner: already authorized by VenueStaffGuard. */
   listRedemptionsForStaffUser(venueId: string, dateYmd: string) {

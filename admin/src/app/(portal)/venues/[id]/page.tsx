@@ -1,9 +1,10 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { adminFetch } from "../../../lib/adminApi";
+import { portalFetch } from "../../../../lib/portalApi";
 
 type VenueStaffRow = {
   id: string;
@@ -22,29 +23,27 @@ type Venue = {
   featuredOfferTitle: string | null;
   featuredOfferBody: string | null;
   featuredOfferEndsAt: string | null;
-  staffPortalConfigured?: boolean;
   analyticsTimeZone?: string | null;
 };
 
 export default function EditVenuePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { isLoaded, getToken } = useAuth();
   const [v, setV] = useState<Venue | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [newStaffPin, setNewStaffPin] = useState("");
-  const [clearStaffPin, setClearStaffPin] = useState(false);
   const [staffList, setStaffList] = useState<VenueStaffRow[]>([]);
   const [staffEmail, setStaffEmail] = useState("");
   const [staffRole, setStaffRole] = useState<VenueStaffRow["role"]>("EMPLOYEE");
   const [staffBusy, setStaffBusy] = useState(false);
 
   useEffect(() => {
-    if (!id) return;
+    if (!isLoaded || !id) return;
     let c = false;
     (async () => {
       try {
-        const data = await adminFetch<Venue>(`/admin/venues/${id}`, {
+        const data = await portalFetch<Venue>(getToken, `/admin/venues/${id}`, {
           method: "GET",
         });
         if (!c) setV(data);
@@ -55,14 +54,15 @@ export default function EditVenuePage() {
     return () => {
       c = true;
     };
-  }, [id]);
+  }, [isLoaded, id, getToken]);
 
   useEffect(() => {
-    if (!id) return;
+    if (!isLoaded || !id) return;
     let c = false;
     (async () => {
       try {
-        const rows = await adminFetch<VenueStaffRow[]>(
+        const rows = await portalFetch<VenueStaffRow[]>(
+          getToken,
           `/admin/venues/${id}/staff`,
           { method: "GET" },
         );
@@ -74,18 +74,13 @@ export default function EditVenuePage() {
     return () => {
       c = true;
     };
-  }, [id]);
+  }, [isLoaded, id, getToken]);
 
   const save = async () => {
     if (!v || !id) return;
     setSaving(true);
     setErr(null);
     try {
-      if (clearStaffPin && newStaffPin.trim().length >= 4) {
-        setErr("Choose either a new PIN or clear — not both.");
-        setSaving(false);
-        return;
-      }
       const body: Record<string, unknown> = {
         menuUrl: v.menuUrl || null,
         orderingUrl: v.orderingUrl || null,
@@ -96,14 +91,10 @@ export default function EditVenuePage() {
         featuredOfferEndsAt: v.featuredOfferEndsAt || null,
         analyticsTimeZone: v.analyticsTimeZone?.trim() || null,
       };
-      if (clearStaffPin) body.clearStaffPortalPin = true;
-      else if (newStaffPin.trim().length >= 4) body.staffPortalPin = newStaffPin.trim();
-      await adminFetch(`/admin/venues/${id}`, {
+      await portalFetch(getToken, `/admin/venues/${id}`, {
         method: "PATCH",
         body: JSON.stringify(body),
       });
-      setNewStaffPin("");
-      setClearStaffPin(false);
       router.push("/venues");
     } catch (e) {
       setErr((e as Error).message);
@@ -114,7 +105,8 @@ export default function EditVenuePage() {
 
   const refreshStaff = async () => {
     if (!id) return;
-    const rows = await adminFetch<VenueStaffRow[]>(
+    const rows = await portalFetch<VenueStaffRow[]>(
+      getToken,
       `/admin/venues/${id}/staff`,
       { method: "GET" },
     );
@@ -126,7 +118,7 @@ export default function EditVenuePage() {
     setStaffBusy(true);
     setErr(null);
     try {
-      await adminFetch(`/admin/venues/${id}/staff`, {
+      await portalFetch(getToken, `/admin/venues/${id}/staff`, {
         method: "POST",
         body: JSON.stringify({
           email: staffEmail.trim(),
@@ -147,7 +139,7 @@ export default function EditVenuePage() {
     setStaffBusy(true);
     setErr(null);
     try {
-      await adminFetch(`/admin/venues/${id}/staff/${playerId}`, {
+      await portalFetch(getToken, `/admin/venues/${id}/staff/${playerId}`, {
         method: "DELETE",
       });
       await refreshStaff();
@@ -160,7 +152,7 @@ export default function EditVenuePage() {
 
   if (err && !v) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-red-300 p-8">
+      <div className="bg-zinc-950 text-red-300 p-8">
         {err}{" "}
         <Link href="/venues" className="text-violet-400">
           Back
@@ -170,7 +162,7 @@ export default function EditVenuePage() {
   }
   if (!v) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-zinc-100 p-8">Loading…</div>
+      <div className="bg-zinc-950 text-zinc-100 p-8">Loading…</div>
     );
   }
 
@@ -198,7 +190,7 @@ export default function EditVenuePage() {
   );
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-8 max-w-2xl mx-auto">
+    <div className="bg-zinc-950 text-zinc-100 p-8 max-w-2xl">
       <Link href="/venues" className="text-violet-400 text-sm">
         ← Venues
       </Link>
@@ -224,50 +216,14 @@ export default function EditVenuePage() {
           placeholder="e.g. Europe/Zagreb"
         />
       </label>
-      <div className="border border-zinc-700 rounded-lg p-4 mb-4 mt-6 space-y-3">
-        <p className="text-sm text-zinc-300 font-semibold">Staff tablet — perk verification</p>
-        <p className="text-xs text-zinc-500">
-          Set a 4–10 digit PIN. Baristas open the staff page (no admin key), enter PIN, and
-          match the guest&apos;s 8-character code after redeem.
-        </p>
-        <p className="text-xs text-amber-200">
-          PIN status:{" "}
-          {v.staffPortalConfigured ? "configured ✓" : "not set — verification portal disabled"}
-        </p>
-        <Link
-          href={`/staff/${v.id}`}
-          className="text-emerald-400 text-sm inline-block"
-        >
-          Open staff verification page →
-        </Link>
-        <label className="block text-sm text-zinc-400">
-          New staff PIN (digits only, leave blank to leave unchanged)
-          <input
-            type="password"
-            autoComplete="off"
-            className="mt-1 w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm"
-            value={newStaffPin}
-            onChange={(e) => setNewStaffPin(e.target.value.replace(/\D/g, "").slice(0, 10))}
-          />
-        </label>
-        <label className="flex items-center gap-2 text-sm text-zinc-400">
-          <input
-            type="checkbox"
-            checked={clearStaffPin}
-            onChange={(e) => setClearStaffPin(e.target.checked)}
-          />
-          Clear staff PIN on save
-        </label>
-      </div>
       <div className="border border-zinc-700 rounded-lg p-4 mb-4 space-y-3">
         <p className="text-sm text-zinc-300 font-semibold">
           Owner / manager / employee (Clerk)
         </p>
         <p className="text-xs text-zinc-500">
-          Invite people with their real sign-in email. They use the{" "}
-          <strong className="text-zinc-400">Venue owner portal</strong> with the
-          same Clerk project: managers and owners see analytics; employees see
-          perk verification lists.
+          Invite people with their real sign-in email. They use this partner
+          portal with the same Clerk project: employees see verification lists;
+          managers and owners see analytics and campaigns.
         </p>
         <div className="flex flex-wrap gap-2 items-end">
           <label className="block text-sm text-zinc-400 flex-1 min-w-[200px]">

@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useAuth } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
-import { adminFetch } from "../../lib/adminApi";
+import { portalFetch } from "../../../lib/portalApi";
 
 type WordRow = { id: string; text: string; language: string; category: string };
 
 export default function WordsPage() {
+  const { isLoaded, getToken } = useAuth();
   const [rows, setRows] = useState<WordRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [text, setText] = useState("");
@@ -17,12 +19,15 @@ export default function WordsPage() {
   const [emojiHints, setEmojiHints] = useState("☕");
 
   useEffect(() => {
+    if (!isLoaded) return;
     let c = false;
     (async () => {
       try {
-        const data = await adminFetch<WordRow[]>("/admin/words?take=80", {
-          method: "GET",
-        });
+        const data = await portalFetch<WordRow[]>(
+          getToken,
+          "/admin/words?take=80",
+          { method: "GET" },
+        );
         if (!c) setRows(data);
       } catch (e) {
         if (!c) setErr((e as Error).message);
@@ -31,12 +36,12 @@ export default function WordsPage() {
     return () => {
       c = true;
     };
-  }, []);
+  }, [isLoaded, getToken]);
 
   const add = async () => {
     setErr(null);
     try {
-      await adminFetch("/admin/words", {
+      await portalFetch(getToken, "/admin/words", {
         method: "POST",
         body: JSON.stringify({
           text,
@@ -48,9 +53,11 @@ export default function WordsPage() {
         }),
       });
       setText("");
-      const data = await adminFetch<WordRow[]>("/admin/words?take=80", {
-        method: "GET",
-      });
+      const data = await portalFetch<WordRow[]>(
+        getToken,
+        "/admin/words?take=80",
+        { method: "GET" },
+      );
       setRows(data);
     } catch (e) {
       setErr((e as Error).message);
@@ -59,19 +66,19 @@ export default function WordsPage() {
 
   if (err && !rows) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-red-300 p-8">
+      <div className="bg-zinc-950 text-red-300 p-8">
         {err}{" "}
-        <Link href="/" className="text-violet-400">
-          Login
+        <Link href="/dashboard" className="text-violet-400">
+          Dashboard
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-8">
-      <Link href="/" className="text-violet-400 text-sm">
-        ← Home
+    <div className="bg-zinc-950 text-zinc-100 p-8">
+      <Link href="/dashboard" className="text-violet-400 text-sm">
+        ← Dashboard
       </Link>
       <h1 className="text-xl font-bold mt-4 mb-4">Words</h1>
       <div className="border border-zinc-800 rounded-lg p-4 mb-6 space-y-2 max-w-lg">

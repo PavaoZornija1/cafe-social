@@ -8,8 +8,9 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { VenueStaffRole } from '@prisma/client';
+import { PlatformRole, VenueStaff, VenueStaffRole } from '@prisma/client';
 import { normalizeUserEmail } from '../auth/user-email.util';
+import { PrismaService } from '../prisma/prisma.service';
 import { MIN_VENUE_ROLE_KEY } from './min-venue-role.decorator';
 import { VenueStaffService } from './venue-staff.service';
 
@@ -18,6 +19,7 @@ export class VenueStaffGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly venueStaff: VenueStaffService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -41,6 +43,36 @@ export class VenueStaffGuard implements CanActivate {
     const venueId = req.params.venueId;
     if (!venueId?.trim()) {
       throw new BadRequestException('venueId route param is required');
+    }
+
+    const player = await this.prisma.player.findFirst({
+      where: { email: { equals: email.trim(), mode: 'insensitive' } },
+      select: { id: true, platformRole: true },
+    });
+
+    if (player?.platformRole === PlatformRole.SUPER_ADMIN) {
+      const v = await this.prisma.venue.findUnique({
+        where: { id: venueId },
+        select: { id: true },
+      });
+      if (!v) {
+        throw new ForbiddenException('You do not have access to this venue');
+      }
+      if (!VenueStaffService.roleAtLeast(VenueStaffRole.OWNER, minRole)) {
+        throw new InternalServerErrorException('Invalid min role for super admin bypass');
+      }
+      const now = new Date();
+      const synthetic: VenueStaff = {
+        id: `super-admin:${venueId}:${player.id}`,
+        venueId,
+        playerId: player.id,
+        role: VenueStaffRole.OWNER,
+        createdAt: now,
+        updatedAt: now,
+      };
+      (req as unknown as { venueStaffMembership: VenueStaff }).venueStaffMembership =
+        synthetic;
+      return true;
     }
 
     const membership = await this.venueStaff.findMembershipForEmail(

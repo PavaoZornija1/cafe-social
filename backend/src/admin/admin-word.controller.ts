@@ -1,7 +1,8 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import type { WordCategory } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { AdminApiKeyGuard } from './admin-api-key.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PlatformSuperAdminGuard } from '../auth/platform-super-admin.guard';
 
 class AdminCreateWordDto {
   text!: string;
@@ -13,7 +14,7 @@ class AdminCreateWordDto {
 }
 
 @Controller('admin/words')
-@UseGuards(AdminApiKeyGuard)
+@UseGuards(JwtAuthGuard, PlatformSuperAdminGuard)
 export class AdminWordController {
   constructor(private readonly prisma: PrismaService) {}
 
