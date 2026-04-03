@@ -26,6 +26,8 @@ export const queryKeys = {
       ["owner", "venues", venueId, "redemptions", dateYmd] as const,
     venueCampaigns: (venueId: string) => ["owner", "venues", venueId, "campaigns"] as const,
     venueReceipts: (venueId: string) => ["owner", "venues", venueId, "receipts"] as const,
+    venueReceipt: (venueId: string, receiptId: string) =>
+      ["owner", "venues", venueId, "receipts", receiptId] as const,
     venueStaffInvites: (venueId: string) =>
       ["owner", "venues", venueId, "staff-invites"] as const,
     orgAnalytics: (organizationId: string, days: number) =>
