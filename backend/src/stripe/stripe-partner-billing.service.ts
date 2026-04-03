@@ -5,12 +5,17 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service';
 
 /**
  * Stripe Billing for franchise / partner organizations (B2B SaaS).
  * Player subscriptions remain on RevenueCat — see RevenueCatModule.
+ *
+ * `platformBillingStatus` (Stripe-driven):
+ * - ACTIVE, TRIALING, PAST_DUE, CANCELED, … mirror Stripe where applicable.
+ * - ACTIVE_CANCELING: subscription still in paid period but `cancel_at_period_end` (access until `platformBillingRenewsAt`).
  */
 @Injectable()
 export class StripePartnerBillingService {
@@ -72,8 +77,11 @@ export class StripePartnerBillingService {
       incomplete_expired: 'INCOMPLETE_EXPIRED',
       paused: 'PAUSED',
     };
-    const platformBillingStatus =
+    let platformBillingStatus =
       statusMap[sub.status] ?? sub.status.toUpperCase();
+    if (sub.status === 'active' && sub.cancel_at_period_end) {
+      platformBillingStatus = 'ACTIVE_CANCELING';
+    }
     const platformBillingRenewsAt = sub.current_period_end
       ? new Date(sub.current_period_end * 1000)
       : null;
@@ -99,6 +107,10 @@ export class StripePartnerBillingService {
     return typeof customer === 'string' ? customer : customer.id;
   }
 
+  private stripeSyncNow(): Date {
+    return new Date();
+  }
+
   async applySubscriptionEvent(sub: Stripe.Subscription): Promise<void> {
     const customerId = this.customerIdFromStripe(sub.customer);
     let org = customerId
@@ -118,7 +130,13 @@ export class StripePartnerBillingService {
 
     if (!org) {
       this.log.warn(
-        `Stripe subscription ${sub.id}: no VenueOrganization for customer ${customerId ?? '—'} metadata org ${metaOrgId ?? '—'}`,
+        JSON.stringify({
+          msg: 'stripe_subscription_no_organization',
+          subscriptionId: sub.id,
+          customerId: customerId ?? null,
+          metadataOrganizationId: metaOrgId ?? null,
+          subscriptionStatus: sub.status,
+        }),
       );
       return;
     }
@@ -129,6 +147,7 @@ export class StripePartnerBillingService {
       where: { id: org.id },
       data: {
         ...data,
+        platformBillingSyncedAt: this.stripeSyncNow(),
         ...(customerId && !org.stripeCustomerId
           ? { stripeCustomerId: customerId }
           : {}),
@@ -150,7 +169,17 @@ export class StripePartnerBillingService {
         })
       : null;
     const target = org ?? orgByMeta;
-    if (!target) return;
+    if (!target) {
+      this.log.warn(
+        JSON.stringify({
+          msg: 'stripe_subscription_deleted_no_organization',
+          subscriptionId: sub.id,
+          customerId: customerId ?? null,
+          metadataOrganizationId: metaOrgId ?? null,
+        }),
+      );
+      return;
+    }
 
     await this.prisma.venueOrganization.update({
       where: { id: target.id },
@@ -158,6 +187,7 @@ export class StripePartnerBillingService {
         platformBillingStatus: 'CANCELED',
         platformBillingRenewsAt: null,
         stripeSubscriptionId: null,
+        platformBillingSyncedAt: this.stripeSyncNow(),
       },
     });
   }
@@ -169,17 +199,54 @@ export class StripePartnerBillingService {
     const orgId =
       session.metadata?.organizationId?.trim() ??
       session.client_reference_id?.trim();
-    if (!orgId) return;
+    if (!orgId) {
+      this.log.warn(
+        JSON.stringify({
+          msg: 'stripe_checkout_missing_organization_id',
+          sessionId: session.id,
+          mode: session.mode,
+        }),
+      );
+      return;
+    }
     const customerId = this.customerIdFromStripe(session.customer);
-    if (!customerId) return;
+    if (!customerId) {
+      this.log.warn(
+        JSON.stringify({
+          msg: 'stripe_checkout_missing_customer',
+          sessionId: session.id,
+          organizationId: orgId,
+        }),
+      );
+      return;
+    }
+
+    const exists = await this.prisma.venueOrganization.findUnique({
+      where: { id: orgId },
+      select: { id: true },
+    });
+    if (!exists) {
+      this.log.warn(
+        JSON.stringify({
+          msg: 'stripe_checkout_organization_not_found',
+          sessionId: session.id,
+          organizationId: orgId,
+          customerId,
+        }),
+      );
+      return;
+    }
 
     await this.prisma.venueOrganization.update({
       where: { id: orgId },
-      data: { stripeCustomerId: customerId },
+      data: {
+        stripeCustomerId: customerId,
+        platformBillingSyncedAt: this.stripeSyncNow(),
+      },
     });
   }
 
-  async handleStripeEvent(event: Stripe.Event): Promise<void> {
+  private async dispatchStripeEvent(event: Stripe.Event): Promise<void> {
     switch (event.type) {
       case 'checkout.session.completed':
         await this.applyCheckoutSessionCompleted(
@@ -198,9 +265,58 @@ export class StripePartnerBillingService {
         );
         return;
       default:
-        /* ignore */
         return;
     }
+  }
+
+  /**
+   * Idempotent: same `event.id` is only applied once (concurrent deliveries may race on create; P2002 is OK).
+   */
+  async handleStripeEvent(event: Stripe.Event): Promise<void> {
+    const existing = await this.prisma.stripeProcessedWebhookEvent.findUnique({
+      where: { id: event.id },
+    });
+    if (existing) {
+      this.log.log(
+        JSON.stringify({
+          msg: 'stripe_webhook_skip_duplicate',
+          eventId: event.id,
+          type: event.type,
+        }),
+      );
+      return;
+    }
+
+    await this.dispatchStripeEvent(event);
+
+    try {
+      await this.prisma.stripeProcessedWebhookEvent.create({
+        data: { id: event.id, type: event.type },
+      });
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        this.log.log(
+          JSON.stringify({
+            msg: 'stripe_webhook_race_duplicate',
+            eventId: event.id,
+            type: event.type,
+          }),
+        );
+        return;
+      }
+      throw e;
+    }
+
+    this.log.log(
+      JSON.stringify({
+        msg: 'stripe_webhook_recorded',
+        eventId: event.id,
+        type: event.type,
+      }),
+    );
   }
 
   async createPartnerCheckoutSession(

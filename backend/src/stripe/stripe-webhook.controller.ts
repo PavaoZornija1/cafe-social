@@ -26,12 +26,28 @@ export class StripeWebhookController {
       throw new BadRequestException('Raw body required');
     }
     const sig = req.headers['stripe-signature'];
+    let eventId: string | null = null;
+    let eventType: string | null = null;
     try {
       const event = this.billing.verifyWebhookEvent(raw, sig);
+      eventId = event.id;
+      eventType = event.type;
+      this.log.log(
+        JSON.stringify({
+          msg: 'stripe_webhook_received',
+          eventId: event.id,
+          type: event.type,
+        }),
+      );
       await this.billing.handleStripeEvent(event);
     } catch (e) {
       this.log.warn(
-        `Stripe webhook error: ${e instanceof Error ? e.message : e}`,
+        JSON.stringify({
+          msg: 'stripe_webhook_handler_failed',
+          eventId,
+          type: eventType,
+          error: e instanceof Error ? e.message : String(e),
+        }),
       );
       throw e;
     }

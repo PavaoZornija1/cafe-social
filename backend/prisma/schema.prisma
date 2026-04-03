@@ -20,11 +20,22 @@ model VenueOrganization {
   stripeSubscriptionId     String?
   /// Optional link shown to venue owners (e.g. Stripe Customer Portal).
   billingPortalUrl         String?
+  /// Last time franchise billing fields were updated from a Stripe webhook (Checkout/subscription events).
+  platformBillingSyncedAt  DateTime?
 
   venues Venue[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Processed Stripe webhook events (idempotency; `id` is Stripe evt_…).
+model StripeProcessedWebhookEvent {
+  id        String   @id
+  type      String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 /// A physical venue (café, bar, etc.) where games can be played.

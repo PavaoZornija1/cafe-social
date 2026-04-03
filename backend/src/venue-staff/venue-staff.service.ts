@@ -66,6 +66,7 @@ export class VenueStaffService {
                 platformBillingPlan: true,
                 platformBillingStatus: true,
                 platformBillingRenewsAt: true,
+                platformBillingSyncedAt: true,
                 billingPortalUrl: true,
               },
             },

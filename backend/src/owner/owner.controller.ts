@@ -99,6 +99,7 @@ export class OwnerController {
           platformBillingPlan: string | null;
           platformBillingStatus: string;
           platformBillingRenewsAt: Date | null;
+          platformBillingSyncedAt: Date | null;
           billingPortalUrl: string | null;
         } | null;
       };
@@ -137,6 +138,7 @@ export class OwnerController {
               platformBillingPlan: true,
               platformBillingStatus: true,
               platformBillingRenewsAt: true,
+              platformBillingSyncedAt: true,
               billingPortalUrl: true,
             },
           },
