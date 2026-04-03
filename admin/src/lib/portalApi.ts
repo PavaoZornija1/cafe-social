@@ -150,6 +150,23 @@ export async function ownerFetch(
   });
 }
 
+/** Parse JSON from an `/owner/*` response; throws on non-OK (for TanStack Query). */
+export async function ownerJson<T>(
+  getToken: () => Promise<string | null>,
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
+  const res = await ownerFetch(getToken, path, init ?? { method: "GET" });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(text?.trim() || res.statusText);
+  }
+  if (!text) {
+    return undefined as T;
+  }
+  return JSON.parse(text) as T;
+}
+
 export async function partnerOnboardingBootstrap(
   getToken: () => Promise<string | null>,
   body: PartnerOnboardingPayload,

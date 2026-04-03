@@ -3,8 +3,14 @@
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { portalFetch } from "../../../../lib/portalApi";
+import {
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import { useMemo, useState } from "react";
+import { useStaffRedemptionsQuery } from "@/lib/queries";
 
 type Row = {
   redemptionId: string;
@@ -17,11 +23,7 @@ type Row = {
   staffAcknowledgedAt: string | null;
 };
 
-type ResponseOk = {
-  venueName: string;
-  date: string;
-  redemptions: Row[];
-};
+const colHelper = createColumnHelper<Row>();
 
 function todayUtcYmd(): string {
   const n = new Date();
@@ -35,37 +37,54 @@ export default function StaffRedemptionsPage() {
   const { venueId } = useParams<{ venueId: string }>();
   const { isLoaded, getToken } = useAuth();
   const [date, setDate] = useState(todayUtcYmd);
-  const [data, setData] = useState<ResponseOk | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!venueId) return;
-    setErr(null);
-    setLoading(true);
-    try {
-      const q = new URLSearchParams({ date });
-      const parsed = await portalFetch<ResponseOk>(
-        getToken,
-        `/owner/venues/${venueId}/redemptions?${q}`,
-        { method: "GET" },
-      );
-      setData(parsed);
-    } catch (e) {
-      setData(null);
-      setErr((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [venueId, date, getToken]);
+  const q = useStaffRedemptionsQuery(venueId, date, getToken, isLoaded && Boolean(venueId));
 
-  useEffect(() => {
-    if (!isLoaded || !venueId) return;
-    void load();
-  }, [isLoaded, venueId, load]);
+  const rows = q.data?.redemptions ?? [];
+
+  const columns = useMemo(
+    () => [
+      colHelper.accessor("staffVerificationCode", {
+        header: "Code",
+        cell: (c) => (
+          <span className="font-mono text-amber-900 text-lg font-bold">{c.getValue()}</span>
+        ),
+      }),
+      colHelper.accessor("redeemedAt", {
+        header: "Redeemed",
+        cell: (c) => <span className="text-slate-600 text-xs">{c.getValue()}</span>,
+      }),
+      colHelper.display({
+        id: "perk",
+        header: "Perk",
+        cell: ({ row }) => (
+          <span>
+            {row.original.perkCode} — {row.original.perkTitle}
+          </span>
+        ),
+      }),
+      colHelper.display({
+        id: "void",
+        header: "Status",
+        cell: ({ row }) =>
+          row.original.voidedAt ? (
+            <span className="text-red-600 text-xs">Voided {row.original.voidedAt}</span>
+          ) : (
+            <span className="text-emerald-700 text-xs">Active</span>
+          ),
+      }),
+    ],
+    [],
+  );
+
+  const table = useReactTable({
+    data: rows,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
 
   return (
-    <div className="bg-slate-50 text-slate-900 p-6 max-w-lg">
+    <div className="bg-slate-50 text-slate-900 p-6 max-w-4xl">
       <Link href="/owner/venues" className="text-brand text-sm">
         ← My venues
       </Link>
@@ -73,10 +92,10 @@ export default function StaffRedemptionsPage() {
       <p className="text-xs text-slate-500 mb-4 font-mono">{venueId}</p>
       <p className="text-sm text-slate-600 mb-4">
         Signed in with your staff account. Match the guest&apos;s{" "}
-        <strong className="text-slate-800">8-character code</strong> after they
-        redeem — it must appear on this list for the selected UTC date.
+        <strong className="text-slate-800">8-character code</strong> after they redeem — it must
+        appear on this list for the selected UTC date.
       </p>
-      <div className="space-y-3 border border-slate-200 rounded-lg p-3 mb-4">
+      <div className="space-y-3 border border-slate-200 rounded-lg p-3 mb-4 max-w-lg">
         <label className="block text-sm">
           Date (UTC, YYYY-MM-DD)
           <input
@@ -88,46 +107,55 @@ export default function StaffRedemptionsPage() {
         </label>
         <button
           type="button"
-          onClick={() => void load()}
-          disabled={loading}
+          onClick={() => void q.refetch()}
+          disabled={q.isFetching}
           className="w-full bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 rounded py-2 font-semibold"
         >
-          {loading ? "Loading…" : "Refresh"}
+          {q.isFetching ? "Loading…" : "Refresh"}
         </button>
       </div>
-      {err ? <p className="text-red-600 text-sm mb-3">{err}</p> : null}
-      {data ? (
+      {q.isError && q.error instanceof Error ? (
+        <p className="text-red-600 text-sm mb-3">{q.error.message}</p>
+      ) : null}
+      {q.data ? (
         <div>
-          <h2 className="font-semibold text-slate-800">{data.venueName}</h2>
+          <h2 className="font-semibold text-slate-800">{q.data.venueName}</h2>
           <p className="text-xs text-slate-500 mb-2">
-            {data.date} UTC · newest first
+            {q.data.date} UTC · newest first
           </p>
-          {data.redemptions.length === 0 ? (
+          {rows.length === 0 ? (
             <p className="text-slate-500 text-sm">No redemptions for this day.</p>
           ) : (
-            <ul className="space-y-2">
-              {data.redemptions.map((r) => (
-                <li
-                  key={r.redemptionId}
-                  className="border border-slate-200 rounded p-2 text-sm"
-                >
-                  <div className="font-mono text-amber-900 text-lg font-bold">
-                    {r.staffVerificationCode}
-                  </div>
-                  <div className="text-slate-600 text-xs">{r.redeemedAt}</div>
-                  <div>
-                    {r.perkCode} — {r.perkTitle}
-                  </div>
-                  {r.voidedAt ? (
-                    <div className="text-red-600 text-xs mt-1">
-                      Voided {r.voidedAt}
-                    </div>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
+            <div className="rounded-xl border border-slate-200 bg-white overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  {table.getHeaderGroups().map((hg) => (
+                    <tr key={hg.id} className="border-b border-slate-200 bg-slate-50">
+                      {hg.headers.map((h) => (
+                        <th key={h.id} className="text-left px-3 py-2 text-xs uppercase text-slate-500">
+                          {flexRender(h.column.columnDef.header, h.getContext())}
+                        </th>
+                      ))}
+                    </tr>
+                  ))}
+                </thead>
+                <tbody>
+                  {table.getRowModel().rows.map((row) => (
+                    <tr key={row.id} className="border-b border-slate-100">
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className="px-3 py-2">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
+      ) : q.isPending ? (
+        <p className="text-slate-600">Loading…</p>
       ) : null}
     </div>
   );

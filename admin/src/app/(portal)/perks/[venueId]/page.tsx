@@ -3,8 +3,19 @@
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import { portalFetch } from "../../../../lib/portalApi";
+import { useForm } from "@tanstack/react-form";
+import {
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import { useMemo } from "react";
+import {
+  useCreatePerkMutation,
+  useDeletePerkMutation,
+  useVenuePerksQuery,
+} from "@/lib/queries";
 
 type Perk = {
   id: string;
@@ -13,137 +24,159 @@ type Perk = {
   redemptionCount: number;
 };
 
+const colHelper = createColumnHelper<Perk>();
+
 export default function PerksAdminPage() {
   const { venueId } = useParams<{ venueId: string }>();
   const { isLoaded, getToken } = useAuth();
-  const [rows, setRows] = useState<Perk[]>([]);
-  const [err, setErr] = useState<string | null>(null);
-  const [code, setCode] = useState("");
-  const [title, setTitle] = useState("");
-  const [requiresQr, setRequiresQr] = useState(false);
+  const perksQ = useVenuePerksQuery(venueId, getToken, isLoaded && Boolean(venueId));
+  const createMut = useCreatePerkMutation(venueId, getToken);
+  const deleteMut = useDeletePerkMutation(venueId, getToken);
 
-  useEffect(() => {
-    if (!isLoaded || !venueId) return;
-    let c = false;
-    (async () => {
-      try {
-        const data = await portalFetch<Perk[]>(
-          getToken,
-          `/admin/venues/${venueId}/perks`,
-          {
-            method: "GET",
-          },
-        );
-        if (!c) setRows(data);
-      } catch (e) {
-        if (!c) setErr((e as Error).message);
-      }
-    })();
-    return () => {
-      c = true;
-    };
-  }, [isLoaded, venueId, getToken]);
-
-  const create = async () => {
-    if (!venueId) return;
-    setErr(null);
-    try {
-      await portalFetch(getToken, `/admin/venues/${venueId}/perks`, {
-        method: "POST",
-        body: JSON.stringify({
-          code,
-          title,
-          requiresQrUnlock: requiresQr,
-        }),
+  const form = useForm({
+    defaultValues: { code: "", title: "", requiresQr: false },
+    onSubmit: async ({ value }) => {
+      await createMut.mutateAsync({
+        code: value.code,
+        title: value.title,
+        requiresQrUnlock: value.requiresQr,
       });
-      setCode("");
-      setTitle("");
-      const data = await portalFetch<Perk[]>(
-        getToken,
-        `/admin/venues/${venueId}/perks`,
-        {
-          method: "GET",
-        },
-      );
-      setRows(data);
-    } catch (e) {
-      setErr((e as Error).message);
-    }
-  };
+      form.reset();
+    },
+  });
 
-  const remove = async (id: string) => {
-    setErr(null);
-    try {
-      await portalFetch(getToken, `/admin/perks/${id}`, { method: "DELETE" });
-      const data = await portalFetch<Perk[]>(
-        getToken,
-        `/admin/venues/${venueId}/perks`,
-        {
-          method: "GET",
-        },
-      );
-      setRows(data);
-    } catch (e) {
-      setErr((e as Error).message);
-    }
-  };
+  const columns = useMemo(
+    () => [
+      colHelper.display({
+        id: "perk",
+        header: "Perk",
+        cell: ({ row }) => (
+          <span>
+            <span className="font-mono text-amber-900">{row.original.code}</span> —{" "}
+            {row.original.title}{" "}
+            <span className="text-slate-500">({row.original.redemptionCount})</span>
+          </span>
+        ),
+      }),
+      colHelper.display({
+        id: "del",
+        header: "",
+        cell: ({ row }) => (
+          <button
+            type="button"
+            disabled={deleteMut.isPending}
+            onClick={() => void deleteMut.mutateAsync(row.original.id)}
+            className="text-red-600 text-xs"
+          >
+            Delete
+          </button>
+        ),
+      }),
+    ],
+    [],
+  );
+
+  const table = useReactTable({
+    data: perksQ.data ?? [],
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
+  const err =
+    perksQ.isError && perksQ.error instanceof Error
+      ? perksQ.error.message
+      : createMut.error instanceof Error
+        ? createMut.error.message
+        : deleteMut.error instanceof Error
+          ? deleteMut.error.message
+          : null;
+
+  if (!venueId) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 p-8 max-w-lg">
+    <div className="min-h-screen bg-slate-50 text-slate-900 p-8 max-w-3xl">
       <Link href="/venues" className="text-brand text-sm">
         ← Venues
       </Link>
       <h1 className="text-xl font-bold mt-4 mb-4">Perk codes</h1>
       {err ? <p className="text-red-600 text-sm mb-2">{err}</p> : null}
-      <div className="border border-slate-200 rounded p-3 mb-4 space-y-2">
-        <input
-          className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
-          placeholder="CODE (e.g. COFFEE10)"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-        />
-        <input
-          className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
-          placeholder="Title shown after redeem"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={requiresQr}
-            onChange={(e) => setRequiresQr(e.target.checked)}
-          />
-          Requires QR unlock
-        </label>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void form.handleSubmit();
+        }}
+        className="border border-slate-200 rounded p-3 mb-4 space-y-2 max-w-lg"
+      >
+        <form.Field name="code">
+          {(f) => (
+            <input
+              className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
+              placeholder="CODE (e.g. COFFEE10)"
+              value={f.state.value}
+              onChange={(e) => f.handleChange(e.target.value)}
+            />
+          )}
+        </form.Field>
+        <form.Field name="title">
+          {(f) => (
+            <input
+              className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
+              placeholder="Title shown after redeem"
+              value={f.state.value}
+              onChange={(e) => f.handleChange(e.target.value)}
+            />
+          )}
+        </form.Field>
+        <form.Field name="requiresQr">
+          {(f) => (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={f.state.value}
+                onChange={(e) => f.handleChange(e.target.checked)}
+              />
+              Requires QR unlock
+            </label>
+          )}
+        </form.Field>
         <button
-          type="button"
-          onClick={() => void create()}
-          className="bg-amber-600 rounded px-3 py-1 text-sm font-medium"
+          type="submit"
+          disabled={createMut.isPending}
+          className="bg-amber-600 rounded px-3 py-1 text-sm font-medium disabled:opacity-50"
         >
           Create
         </button>
-      </div>
-      <ul className="space-y-2 text-sm">
-        {rows.map((p) => (
-          <li
-            key={p.id}
-            className="flex justify-between items-center border border-slate-200 rounded px-2 py-1"
-          >
-            <span>
-              <span className="font-mono text-amber-900">{p.code}</span> — {p.title}{" "}
-              <span className="text-slate-500">({p.redemptionCount})</span>
-            </span>
-            <button
-              type="button"
-              onClick={() => void remove(p.id)}
-              className="text-red-600 text-xs"
-            >
-              Delete
-            </button>
-          </li>
-        ))}
-      </ul>
+      </form>
+      {perksQ.isPending && !perksQ.data ? (
+        <p className="text-slate-600">Loading…</p>
+      ) : (
+        <div className="rounded-xl border border-slate-200 bg-white overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              {table.getHeaderGroups().map((hg) => (
+                <tr key={hg.id} className="border-b border-slate-200 bg-slate-50">
+                  {hg.headers.map((h) => (
+                    <th key={h.id} className="text-left px-3 py-2 text-xs uppercase text-slate-500">
+                      {flexRender(h.column.columnDef.header, h.getContext())}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody>
+              {table.getRowModel().rows.map((row) => (
+                <tr key={row.id} className="border-b border-slate-100">
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id} className="px-3 py-2">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo } from "react";
 import { PartnerReadOnlyBanner } from "@/components/PartnerReadOnlyBanner";
 import { uniquePartnerReadOnlyMessages } from "@/lib/partnerVenueReadOnly";
-import { ownerFetch } from "@/lib/portalApi";
+import { useInvalidatePartnerContext, useOwnerVenuesListQuery } from "@/lib/queries";
+import { queryKeys } from "@/lib/queries/keys";
 import { PORTAL_VENUE_CONTEXT_EVENT } from "@/lib/portalVenueContext";
+
 type VenueRow = {
   role: "EMPLOYEE" | "MANAGER" | "OWNER";
   venue: {
@@ -33,50 +36,26 @@ type VenueRow = {
 
 export default function OwnerVenuesPage() {
   const { getToken, isLoaded } = useAuth();
-  const [venues, setVenues] = useState<VenueRow[] | null>(null);
-  const [platformRole, setPlatformRole] = useState<string | null>(null);
-  const [actingPartnerVenueId, setActingPartnerVenueId] = useState<string | null>(
-    null,
-  );
-  const [error, setError] = useState<string | null>(null);
+  const qc = useQueryClient();
+  const invalidatePartner = useInvalidatePartnerContext();
 
-  const load = useCallback(async () => {
-    setError(null);
-    try {
-      const token = await getToken();
-      if (!token) {
-        setError("Not signed in.");
-        return;
-      }
-      const res = await ownerFetch(getToken, "/owner/venues", { method: "GET" });
-      if (!res.ok) {
-        const t = await res.text();
-        setError(t || res.statusText);
-        return;
-      }
-      const data = (await res.json()) as {
-        platformRole?: string;
-        venues: VenueRow[];
-        actingPartnerVenueId?: string | null;
-      };
-      setPlatformRole(data.platformRole ?? "NONE");
-      setActingPartnerVenueId(data.actingPartnerVenueId ?? null);
-      setVenues(data.venues);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Request failed");
-    }
-  }, [getToken]);
+  const venuesQ = useOwnerVenuesListQuery(getToken, isLoaded);
 
   useEffect(() => {
-    if (!isLoaded) return;
-    void load();
-  }, [isLoaded, load]);
-
-  useEffect(() => {
-    const fn = () => void load();
+    const fn = () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.owner.venuesList });
+      invalidatePartner();
+    };
     window.addEventListener(PORTAL_VENUE_CONTEXT_EVENT, fn);
     return () => window.removeEventListener(PORTAL_VENUE_CONTEXT_EVENT, fn);
-  }, [load]);
+  }, [qc, invalidatePartner]);
+
+  const venues = venuesQ.data?.venues ?? null;
+  const platformRole = venuesQ.data?.platformRole ?? null;
+  const actingPartnerVenueId = venuesQ.data?.actingPartnerVenueId ?? null;
+
+  const error =
+    venuesQ.isError && venuesQ.error instanceof Error ? venuesQ.error.message : null;
 
   const readOnlyBannerMessages = useMemo(() => {
     if (!venues?.length) return [];
@@ -92,7 +71,7 @@ export default function OwnerVenuesPage() {
     }));
     return uniquePartnerReadOnlyMessages(
       snaps,
-      platformRole,
+      platformRole ?? "NONE",
       actingPartnerVenueId,
     );
   }, [venues, platformRole, actingPartnerVenueId]);
@@ -109,12 +88,12 @@ export default function OwnerVenuesPage() {
       </header>
 
       <main className="p-6 max-w-2xl space-y-4">
-        {!isLoaded && <p className="text-slate-600">Loading…</p>}
-        {error && (
+        {!isLoaded || venuesQ.isPending ? <p className="text-slate-600">Loading…</p> : null}
+        {error ? (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800 text-sm">
             {error}
           </div>
-        )}
+        ) : null}
         {readOnlyBannerMessages.map((msg) => (
           <PartnerReadOnlyBanner key={msg} message={msg} />
         ))}

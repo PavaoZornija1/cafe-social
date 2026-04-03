@@ -3,8 +3,21 @@
 import Link from 'next/link';
 import { useAuth } from '@clerk/nextjs';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
-import { portalFetch } from '../../../../lib/portalApi';
+import {
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { portalFetch } from '@/lib/portalApi';
+import {
+  useAdminOrganizationDeleteMutation,
+  useAdminOrganizationDetailQuery,
+  useAdminOrganizationPatchMutation,
+  useAdminOrganizationVenuesLinkMutation,
+  useAdminVenuesForOrgLinkQuery,
+} from '@/lib/queries';
 
 type OrgDetail = {
   id: string;
@@ -35,20 +48,46 @@ type VenueListRow = {
   organizationId: string | null;
 };
 
+const venueColHelper = createColumnHelper<VenueListRow>();
+
 export default function EditOrganizationPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isLoaded, getToken } = useAuth();
   const [o, setO] = useState<OrgDetail | null>(null);
-  const [allVenues, setAllVenues] = useState<VenueListRow[]>([]);
   const [linkedVenueIds, setLinkedVenueIds] = useState<string[]>([]);
   const [err, setErr] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [linkBusy, setLinkBusy] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [stripeBusy, setStripeBusy] = useState(false);
   const [stripeErr, setStripeErr] = useState<string | null>(null);
+  const seededForOrgId = useRef<string | null>(null);
+
+  const orgQ = useAdminOrganizationDetailQuery(id, getToken, Boolean(isLoaded && id));
+  const venuesQ = useAdminVenuesForOrgLinkQuery(getToken, Boolean(isLoaded && id));
+  const patchMut = useAdminOrganizationPatchMutation(id, getToken);
+  const linkMut = useAdminOrganizationVenuesLinkMutation(id, getToken);
+  const deleteMut = useAdminOrganizationDeleteMutation(id, getToken);
+
+  useEffect(() => {
+    if (!orgQ.data || !id) return;
+    if (seededForOrgId.current !== id) {
+      seededForOrgId.current = id;
+      setO(orgQ.data as OrgDetail);
+      setLinkedVenueIds((orgQ.data as OrgDetail).venues.map((v) => v.id));
+    }
+  }, [id, orgQ.data]);
+
+  const allVenues: VenueListRow[] = useMemo(
+    () =>
+      (venuesQ.data ?? []).map((v) => ({
+        id: v.id,
+        name: v.name,
+        city: v.city ?? null,
+        country: v.country ?? null,
+        organizationId: v.organizationId ?? null,
+      })),
+    [venuesQ.data],
+  );
 
   const formatDt = (iso: string | null | undefined) => {
     if (!iso) return '—';
@@ -79,45 +118,68 @@ export default function EditOrganizationPage() {
     }
   };
 
-  useEffect(() => {
-    if (!isLoaded || !id) return;
-    let c = false;
-    void (async () => {
-      try {
-        const [orgData, venuesData] = await Promise.all([
-          portalFetch<OrgDetail>(getToken, `/admin/organizations/${id}`, {
-            method: 'GET',
-          }),
-          portalFetch<VenueListRow[]>(getToken, '/admin/venues', {
-            method: 'GET',
-          }),
-        ]);
-        if (!c) {
-          setO(orgData);
-          setLinkedVenueIds(orgData.venues.map((v) => v.id));
-          setAllVenues(
-            venuesData.map((v) => ({
-              id: v.id,
-              name: v.name,
-              city: v.city ?? null,
-              country: v.country ?? null,
-              organizationId: v.organizationId ?? null,
-            })),
-          );
-        }
-      } catch (e) {
-        if (!c) setErr((e as Error).message);
-      }
-    })();
-    return () => {
-      c = true;
-    };
-  }, [isLoaded, id, getToken]);
-
   const sortedVenues = useMemo(
     () => [...allVenues].sort((a, b) => a.name.localeCompare(b.name)),
     [allVenues],
   );
+
+  const toggleVenue = useCallback((vid: string) => {
+    setLinkedVenueIds((prev) =>
+      prev.includes(vid) ? prev.filter((x) => x !== vid) : [...prev, vid],
+    );
+  }, []);
+
+  const venueColumns = useMemo(
+    () => [
+      venueColHelper.display({
+        id: 'link',
+        header: '',
+        cell: ({ row }) => (
+          <input
+            type="checkbox"
+            checked={linkedVenueIds.includes(row.original.id)}
+            onChange={() => toggleVenue(row.original.id)}
+            className="mt-1"
+            aria-label={`Link ${row.original.name}`}
+          />
+        ),
+      }),
+      venueColHelper.accessor('name', {
+        header: 'Venue',
+        cell: (c) => (
+          <span className="text-sm text-slate-800">
+            {c.getValue()}
+            <span className="text-slate-500 text-xs block font-mono">{c.row.original.id}</span>
+          </span>
+        ),
+      }),
+      venueColHelper.display({
+        id: 'loc',
+        header: 'Location',
+        cell: ({ row }) => (
+          <span className="text-slate-500 text-xs">
+            {[row.original.city, row.original.country].filter(Boolean).join(' · ') || '—'}
+          </span>
+        ),
+      }),
+      venueColHelper.display({
+        id: 'orgmove',
+        header: '',
+        cell: ({ row }) =>
+          row.original.organizationId && row.original.organizationId !== id ? (
+            <span className="text-amber-800 text-xs">Other org</span>
+          ) : null,
+      }),
+    ],
+    [linkedVenueIds, id, toggleVenue],
+  );
+
+  const venueTable = useReactTable({
+    data: sortedVenues,
+    columns: venueColumns,
+    getCoreRowModel: getCoreRowModel(),
+    getRowId: (r) => r.id,
+  });
 
   const linkDirty = useMemo(() => {
     if (!o) return false;
@@ -128,12 +190,6 @@ export default function EditOrganizationPage() {
     return false;
   }, [o, linkedVenueIds]);
 
-  const toggleVenue = (vid: string) => {
-    setLinkedVenueIds((prev) =>
-      prev.includes(vid) ? prev.filter((x) => x !== vid) : [...prev, vid],
-    );
-  };
-
   const saveVenueLinks = async () => {
     if (!o || !id) return;
     const initial = new Set(o.venues.map((v) => v.id));
@@ -141,51 +197,35 @@ export default function EditOrganizationPage() {
     const attach = linkedVenueIds.filter((vid) => !initial.has(vid));
     const detach = o.venues.map((v) => v.id).filter((vid) => !next.has(vid));
     if (attach.length === 0 && detach.length === 0) return;
-    setLinkBusy(true);
     setErr(null);
     try {
-      const updated = await portalFetch<OrgDetail>(
-        getToken,
-        `/admin/organizations/${id}/venues`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify({
-            attachVenueIds: attach,
-            detachVenueIds: detach,
-          }),
-        },
-      );
+      const updated = (await linkMut.mutateAsync({
+        attachVenueIds: attach,
+        detachVenueIds: detach,
+      })) as OrgDetail;
       setO(updated);
       setLinkedVenueIds(updated.venues.map((v) => v.id));
     } catch (e) {
       setErr((e as Error).message);
-    } finally {
-      setLinkBusy(false);
     }
   };
 
   const save = async () => {
     if (!o || !id) return;
-    setSaving(true);
     setErr(null);
     try {
-      await portalFetch(getToken, `/admin/organizations/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          name: o.name.trim(),
-          slug: o.slug?.trim() || null,
-          platformBillingPlan: o.platformBillingPlan?.trim() || null,
-          platformBillingStatus: o.platformBillingStatus?.trim() || 'NONE',
-          platformBillingRenewsAt: o.platformBillingRenewsAt || null,
-          stripeCustomerId: o.stripeCustomerId?.trim() || null,
-          billingPortalUrl: o.billingPortalUrl?.trim() || null,
-        }),
+      await patchMut.mutateAsync({
+        name: o.name.trim(),
+        slug: o.slug?.trim() || null,
+        platformBillingPlan: o.platformBillingPlan?.trim() || null,
+        platformBillingStatus: o.platformBillingStatus?.trim() || 'NONE',
+        platformBillingRenewsAt: o.platformBillingRenewsAt || null,
+        stripeCustomerId: o.stripeCustomerId?.trim() || null,
+        billingPortalUrl: o.billingPortalUrl?.trim() || null,
       });
       router.push('/organizations');
     } catch (e) {
       setErr((e as Error).message);
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -236,24 +276,26 @@ export default function EditOrganizationPage() {
     ) {
       return;
     }
-    setDeleting(true);
     setErr(null);
     try {
-      await portalFetch(getToken, `/admin/organizations/${id}`, {
-        method: 'DELETE',
-      });
+      await deleteMut.mutateAsync();
       router.push('/organizations');
     } catch (e) {
       setErr((e as Error).message);
-    } finally {
-      setDeleting(false);
     }
   };
 
-  if (err && !o) {
+  const loadErr =
+    orgQ.isError && orgQ.error instanceof Error
+      ? orgQ.error.message
+      : venuesQ.isError && venuesQ.error instanceof Error
+        ? venuesQ.error.message
+        : null;
+
+  if ((loadErr || err) && !o) {
     return (
       <div className="bg-slate-50 text-red-700 p-8">
-        {err}{' '}
+        {(loadErr ?? err ?? 'Error')}{' '}
         <Link href="/organizations" className="text-brand">
           Back
         </Link>
@@ -404,66 +446,64 @@ export default function EditOrganizationPage() {
           Check venues to attach; uncheck to detach. Assigning a venue that belongs to another org
           moves it here (super admin).
         </p>
-        <div className="max-h-72 overflow-y-auto rounded-lg border border-slate-200 divide-y divide-slate-200">
-          {sortedVenues.map((v) => {
-            const otherOrg =
-              v.organizationId && v.organizationId !== id
-                ? ' (currently other org)'
-                : '';
-            return (
-              <label
-                key={v.id}
-                className="flex items-start gap-3 px-3 py-2 hover:bg-slate-100 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={linkedVenueIds.includes(v.id)}
-                  onChange={() => toggleVenue(v.id)}
-                  className="mt-1"
-                />
-                <span className="text-sm">
-                  <span className="text-slate-800">{v.name}</span>
-                  <span className="text-slate-500 text-xs block font-mono">{v.id}</span>
-                  <span className="text-slate-500 text-xs">
-                    {[v.city, v.country].filter(Boolean).join(' · ') || '—'}
-                    {otherOrg ? (
-                      <span className="text-amber-800">{otherOrg}</span>
-                    ) : null}
-                  </span>
-                </span>
-              </label>
-            );
-          })}
+        <div className="max-h-72 overflow-y-auto rounded-lg border border-slate-200 bg-white">
+          <table className="min-w-full text-sm">
+            <thead>
+              {venueTable.getHeaderGroups().map((hg) => (
+                <tr key={hg.id} className="border-b border-slate-200 bg-slate-50">
+                  {hg.headers.map((h) => (
+                    <th
+                      key={h.id}
+                      className="text-left px-3 py-2 text-xs uppercase text-slate-500 font-normal"
+                    >
+                      {flexRender(h.column.columnDef.header, h.getContext())}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody>
+              {venueTable.getRowModel().rows.map((row) => (
+                <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50">
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id} className="px-3 py-2 align-top">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
         <button
           type="button"
-          disabled={linkBusy || !linkDirty}
+          disabled={linkMut.isPending || !linkDirty}
           onClick={() => void saveVenueLinks()}
           className="mt-3 text-sm bg-slate-200 hover:bg-slate-300 disabled:opacity-50 rounded-lg px-4 py-2"
         >
-          {linkBusy ? 'Saving links…' : 'Apply venue links'}
+          {linkMut.isPending ? 'Saving links…' : 'Apply venue links'}
         </button>
       </div>
 
       {err ? <p className="text-red-600 text-sm mt-3">{err}</p> : null}
       <button
         type="button"
-        disabled={saving}
+        disabled={patchMut.isPending}
         onClick={() => void save()}
         className="mt-6 w-full bg-brand hover:bg-brand-hover disabled:opacity-50 rounded-lg py-2 font-semibold"
       >
-        {saving ? 'Saving…' : 'Save organization'}
+        {patchMut.isPending ? 'Saving…' : 'Save organization'}
       </button>
 
       <div className="mt-10 pt-8 border-t border-slate-200">
         <h2 className="text-sm font-semibold text-red-700 mb-2">Danger zone</h2>
         <button
           type="button"
-          disabled={deleting}
+          disabled={deleteMut.isPending}
           onClick={() => void deleteOrg()}
           className="text-sm bg-red-600 border border-red-700 text-white hover:bg-red-700 rounded-lg px-4 py-2 disabled:opacity-50"
         >
-          {deleting ? 'Deleting…' : 'Delete organization'}
+          {deleteMut.isPending ? 'Deleting…' : 'Delete organization'}
         </button>
       </div>
     </div>

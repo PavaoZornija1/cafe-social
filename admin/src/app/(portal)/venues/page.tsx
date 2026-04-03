@@ -2,61 +2,40 @@
 
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
-import { useEffect, useMemo, useState } from "react";
-import { fetchPortalMe, portalFetch } from "../../../lib/portalApi";
+import {
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import { useMemo, useState } from "react";
+import {
+  type AdminVenueListRow,
+  useAdminOrganizationsQuery,
+  useAdminVenuesQuery,
+  usePortalMeQuery,
+} from "@/lib/queries";
 
-type Venue = {
-  id: string;
-  name: string;
-  city: string | null;
-  country: string | null;
-  menuUrl: string | null;
-  orderingUrl: string | null;
-  featuredOfferTitle: string | null;
-  locked?: boolean;
-  organizationId?: string | null;
-};
-
-type OrgOpt = { id: string; name: string };
+const colHelper = createColumnHelper<AdminVenueListRow>();
 
 export default function VenuesPage() {
   const { isLoaded, getToken } = useAuth();
-  const [rows, setRows] = useState<Venue[] | null>(null);
-  const [orgs, setOrgs] = useState<OrgOpt[]>([]);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [cityQ, setCityQ] = useState("");
   const [lockedOnly, setLockedOnly] = useState(false);
   const [orgFilter, setOrgFilter] = useState<string>("");
 
-  useEffect(() => {
-    if (!isLoaded) return;
-    let c = false;
-    (async () => {
-      try {
-        const me = await fetchPortalMe(getToken);
-        if (!c) setIsSuperAdmin(me.platformRole === "SUPER_ADMIN");
-        const [venueData, orgData] = await Promise.all([
-          portalFetch<Venue[]>(getToken, "/admin/venues", { method: "GET" }),
-          me.platformRole === "SUPER_ADMIN"
-            ? portalFetch<{ id: string; name: string }[]>(getToken, "/admin/organizations", {
-                method: "GET",
-              }).catch(() => [] as { id: string; name: string }[])
-            : Promise.resolve([] as { id: string; name: string }[]),
-        ]);
-        if (!c) {
-          setRows(venueData);
-          setOrgs(orgData.map((o) => ({ id: o.id, name: o.name })));
-        }
-      } catch (e) {
-        if (!c) setErr((e as Error).message);
-      }
-    })();
-    return () => {
-      c = true;
-    };
-  }, [isLoaded, getToken]);
+  const meQ = usePortalMeQuery(getToken, isLoaded);
+  const isSuperAdmin = meQ.data?.platformRole === "SUPER_ADMIN";
+
+  const venuesQ = useAdminVenuesQuery(getToken, isLoaded);
+  const orgsQ = useAdminOrganizationsQuery(getToken, isLoaded && isSuperAdmin);
+
+  const rows = venuesQ.data ?? null;
+  const orgs = useMemo(
+    () => (orgsQ.data ?? []).map((o) => ({ id: o.id, name: o.name })),
+    [orgsQ.data],
+  );
 
   const orgNameById = useMemo(() => new Map(orgs.map((o) => [o.id, o.name])), [orgs]);
 
@@ -78,6 +57,85 @@ export default function VenuesPage() {
       return true;
     });
   }, [rows, q, cityQ, lockedOnly, orgFilter]);
+
+  const columns = useMemo(
+    () => [
+      colHelper.accessor("name", {
+        header: "Venue",
+        cell: (info) => {
+          const v = info.row.original;
+          return (
+            <div>
+              <div className="font-semibold flex flex-wrap items-center gap-2">
+                {info.getValue()}
+                {v.locked ? (
+                  <span className="text-[10px] uppercase text-red-700 border border-red-200 rounded px-1.5">
+                    locked
+                  </span>
+                ) : null}
+              </div>
+              <div className="text-xs text-slate-500 font-mono mt-1">{v.id}</div>
+            </div>
+          );
+        },
+      }),
+      colHelper.display({
+        id: "location",
+        header: "Location",
+        cell: ({ row }) => (
+          <span className="text-xs text-slate-600">
+            {[row.original.city, row.original.country].filter(Boolean).join(" · ") || "—"}
+          </span>
+        ),
+      }),
+      colHelper.display({
+        id: "organization",
+        header: "Organization",
+        cell: ({ row }) => {
+          const oid = row.original.organizationId;
+          return (
+            <span className="text-xs text-brand">
+              {oid ? (orgNameById.get(oid) ?? "org") : "—"}
+            </span>
+          );
+        },
+      }),
+      colHelper.display({
+        id: "actions",
+        header: "",
+        cell: ({ row }) => {
+          const v = row.original;
+          return (
+            <div className="flex gap-3 text-sm flex-wrap">
+              <Link href={`/venues/${v.id}`} className="text-brand hover:underline">
+                Edit copy & links
+              </Link>
+              <Link href={`/perks/${v.id}`} className="text-amber-700 hover:underline">
+                Perks
+              </Link>
+              <Link href={`/challenges/${v.id}`} className="text-emerald-700 hover:underline">
+                Challenges
+              </Link>
+            </div>
+          );
+        },
+      }),
+    ],
+    [orgNameById],
+  );
+
+  const table = useReactTable({
+    data: filtered,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
+  const err =
+    venuesQ.isError && venuesQ.error instanceof Error
+      ? venuesQ.error.message
+      : orgsQ.isError && orgsQ.error instanceof Error
+        ? orgsQ.error.message
+        : null;
 
   if (err) {
     return (
@@ -101,7 +159,7 @@ export default function VenuesPage() {
           : "Scoped to venues where you are owner or manager."}{" "}
         {rows ? `${filtered.length} of ${rows.length} shown` : "Loading…"}
       </p>
-      {!rows ? (
+      {venuesQ.isPending && !rows ? (
         <p className="text-slate-600">Loading…</p>
       ) : (
         <>
@@ -149,49 +207,37 @@ export default function VenuesPage() {
               </select>
             </label>
           </div>
-          <ul className="space-y-3">
-            {filtered.map((v) => (
-              <li key={v.id} className="border border-slate-200 rounded-lg p-3">
-                <div className="font-semibold flex flex-wrap items-center gap-2">
-                  {v.name}
-                  {v.locked ? (
-                    <span className="text-[10px] uppercase text-red-700 border border-red-200 rounded px-1.5">
-                      locked
-                    </span>
-                  ) : null}
-                </div>
-                <div className="text-xs text-slate-500 font-mono mt-1">{v.id}</div>
-                <div className="text-xs text-slate-600 mt-1">
-                  {[v.city, v.country].filter(Boolean).join(" · ") || "—"}
-                  {v.organizationId ? (
-                    <span className="text-brand ml-2">
-                      · {orgNameById.get(v.organizationId) ?? "org"}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="flex gap-3 mt-2 text-sm flex-wrap">
-                  <Link
-                    href={`/venues/${v.id}`}
-                    className="text-brand hover:underline"
-                  >
-                    Edit copy & links
-                  </Link>
-                  <Link
-                    href={`/perks/${v.id}`}
-                    className="text-amber-700 hover:underline"
-                  >
-                    Perks
-                  </Link>
-                  <Link
-                    href={`/challenges/${v.id}`}
-                    className="text-emerald-700 hover:underline"
-                  >
-                    Challenges
-                  </Link>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                {table.getHeaderGroups().map((hg) => (
+                  <tr key={hg.id} className="border-b border-slate-200 bg-slate-50/90">
+                    {hg.headers.map((h) => (
+                      <th
+                        key={h.id}
+                        className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500"
+                      >
+                        {h.isPlaceholder
+                          ? null
+                          : flexRender(h.column.columnDef.header, h.getContext())}
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody>
+                {table.getRowModel().rows.map((row) => (
+                  <tr key={row.id} className="border-b border-slate-100 hover:bg-brand-light/30">
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-4 py-3 align-top">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           {filtered.length === 0 ? (
             <p className="text-slate-500 mt-6 text-sm">No venues match filters.</p>
           ) : null}

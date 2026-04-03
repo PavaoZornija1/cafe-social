@@ -1,317 +1,415 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
+import { useForm } from "@tanstack/react-form";
+import {
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { portalFetch } from "../../../../lib/portalApi";
-
-type VenueStaffRow = {
-  id: string;
-  playerId: string;
-  role: "EMPLOYEE" | "MANAGER" | "OWNER";
-  player: { id: string; email: string; username: string };
-};
-
-type Venue = {
-  id: string;
-  name: string;
-  menuUrl: string | null;
-  orderingUrl: string | null;
-  orderNudgeTitle: string | null;
-  orderNudgeBody: string | null;
-  featuredOfferTitle: string | null;
-  featuredOfferBody: string | null;
-  featuredOfferEndsAt: string | null;
-  analyticsTimeZone?: string | null;
-  organizationId: string | null;
-  locked: boolean;
-  lockReason: string | null;
-};
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  type AdminVenueDetail,
+  type AdminVenueStaffRow,
+  useAdminOrganizationsQuery,
+  useAdminVenueDetailQuery,
+  useAdminVenuePatchMutation,
+  useAdminVenueStaffQuery,
+  useAdminVenueStaffRemoveMutation,
+  useAdminVenueStaffUpsertMutation,
+} from "@/lib/queries";
 
 type OrgOption = { id: string; name: string };
+
+type VenueEditForm = {
+  menuUrl: string;
+  orderingUrl: string;
+  orderNudgeTitle: string;
+  orderNudgeBody: string;
+  featuredOfferTitle: string;
+  featuredOfferBody: string;
+  featuredOfferEndsAt: string;
+  analyticsTimeZone: string;
+  organizationId: string;
+  locked: boolean;
+  lockReason: string;
+};
+
+const staffColHelper = createColumnHelper<AdminVenueStaffRow>();
+
+function venueToForm(v: AdminVenueDetail): VenueEditForm {
+  return {
+    menuUrl: v.menuUrl ?? "",
+    orderingUrl: v.orderingUrl ?? "",
+    orderNudgeTitle: v.orderNudgeTitle ?? "",
+    orderNudgeBody: v.orderNudgeBody ?? "",
+    featuredOfferTitle: v.featuredOfferTitle ?? "",
+    featuredOfferBody: v.featuredOfferBody ?? "",
+    featuredOfferEndsAt: v.featuredOfferEndsAt ?? "",
+    analyticsTimeZone: v.analyticsTimeZone ?? "",
+    organizationId: v.organizationId ?? "",
+    locked: v.locked ?? false,
+    lockReason: v.lockReason ?? "",
+  };
+}
 
 export default function EditVenuePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { isLoaded, getToken } = useAuth();
-  const [v, setV] = useState<Venue | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [staffList, setStaffList] = useState<VenueStaffRow[]>([]);
+  const [pageErr, setPageErr] = useState<string | null>(null);
   const [staffEmail, setStaffEmail] = useState("");
-  const [staffRole, setStaffRole] = useState<VenueStaffRow["role"]>("EMPLOYEE");
-  const [staffBusy, setStaffBusy] = useState(false);
-  const [orgs, setOrgs] = useState<OrgOption[]>([]);
-  const lockedWhenLoaded = useRef(false);
+  const [staffRole, setStaffRole] = useState<AdminVenueStaffRow["role"]>("EMPLOYEE");
+  const seededVenueId = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (!isLoaded || !id) return;
-    let c = false;
-    (async () => {
+  const venueQ = useAdminVenueDetailQuery(id, getToken, Boolean(isLoaded && id));
+  const orgsQ = useAdminOrganizationsQuery(getToken, isLoaded);
+  const staffQ = useAdminVenueStaffQuery(id, getToken, Boolean(isLoaded && id));
+  const patchMut = useAdminVenuePatchMutation(id, getToken);
+  const staffAddMut = useAdminVenueStaffUpsertMutation(id, getToken);
+  const staffRemoveMut = useAdminVenueStaffRemoveMutation(id, getToken);
+
+  const orgs: OrgOption[] = useMemo(
+    () => (orgsQ.data ?? []).map((o) => ({ id: o.id, name: o.name })),
+    [orgsQ.data],
+  );
+
+  const venueForm = useForm({
+    defaultValues: {
+      menuUrl: "",
+      orderingUrl: "",
+      orderNudgeTitle: "",
+      orderNudgeBody: "",
+      featuredOfferTitle: "",
+      featuredOfferBody: "",
+      featuredOfferEndsAt: "",
+      analyticsTimeZone: "",
+      organizationId: "",
+      locked: false,
+      lockReason: "",
+    } as VenueEditForm,
+    onSubmit: async ({ value }) => {
+      setPageErr(null);
       try {
-        const data = await portalFetch<Venue>(getToken, `/admin/venues/${id}`, {
-          method: "GET",
+        await patchMut.mutateAsync({
+          menuUrl: value.menuUrl || null,
+          orderingUrl: value.orderingUrl || null,
+          orderNudgeTitle: value.orderNudgeTitle || null,
+          orderNudgeBody: value.orderNudgeBody || null,
+          featuredOfferTitle: value.featuredOfferTitle || null,
+          featuredOfferBody: value.featuredOfferBody || null,
+          featuredOfferEndsAt: value.featuredOfferEndsAt || null,
+          analyticsTimeZone: value.analyticsTimeZone?.trim() || null,
+          organizationId: value.organizationId || null,
+          locked: value.locked,
+          lockReason: value.lockReason?.trim() || null,
         });
-        if (!c) {
-          const merged = {
-            ...data,
-            organizationId: data.organizationId ?? null,
-            locked: data.locked ?? false,
-            lockReason: data.lockReason ?? null,
-          };
-          lockedWhenLoaded.current = merged.locked;
-          setV(merged);
-        }
+        router.push("/venues");
       } catch (e) {
-        if (!c) setErr((e as Error).message);
+        setPageErr((e as Error).message);
       }
-    })();
-    return () => {
-      c = true;
-    };
-  }, [isLoaded, id, getToken]);
+    },
+  });
 
   useEffect(() => {
-    if (!isLoaded) return;
-    let c = false;
-    (async () => {
-      try {
-        const list = await portalFetch<
-          { id: string; name: string }[]
-        >(getToken, "/admin/organizations", {
-          method: "GET",
-        });
-        if (!c) setOrgs(list.map((o) => ({ id: o.id, name: o.name })));
-      } catch {
-        if (!c) setOrgs([]);
-      }
-    })();
-    return () => {
-      c = true;
-    };
-  }, [isLoaded, getToken]);
-
-  useEffect(() => {
-    if (!isLoaded || !id) return;
-    let c = false;
-    (async () => {
-      try {
-        const rows = await portalFetch<VenueStaffRow[]>(
-          getToken,
-          `/admin/venues/${id}/staff`,
-          { method: "GET" },
-        );
-        if (!c) setStaffList(rows);
-      } catch {
-        if (!c) setStaffList([]);
-      }
-    })();
-    return () => {
-      c = true;
-    };
-  }, [isLoaded, id, getToken]);
-
-  const save = async () => {
-    if (!v || !id) return;
-    setSaving(true);
-    setErr(null);
-    try {
-      const body: Record<string, unknown> = {
-        menuUrl: v.menuUrl || null,
-        orderingUrl: v.orderingUrl || null,
-        orderNudgeTitle: v.orderNudgeTitle || null,
-        orderNudgeBody: v.orderNudgeBody || null,
-        featuredOfferTitle: v.featuredOfferTitle || null,
-        featuredOfferBody: v.featuredOfferBody || null,
-        featuredOfferEndsAt: v.featuredOfferEndsAt || null,
-        analyticsTimeZone: v.analyticsTimeZone?.trim() || null,
-        organizationId: v.organizationId || null,
-        locked: v.locked,
-        lockReason: v.lockReason?.trim() || null,
-      };
-      await portalFetch(getToken, `/admin/venues/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(body),
-      });
-      lockedWhenLoaded.current = v.locked;
-      router.push("/venues");
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setSaving(false);
+    if (!venueQ.data) return;
+    const merged = {
+      ...venueQ.data,
+      organizationId: venueQ.data.organizationId ?? null,
+      locked: venueQ.data.locked ?? false,
+      lockReason: venueQ.data.lockReason ?? null,
+    } as AdminVenueDetail;
+    if (seededVenueId.current !== merged.id) {
+      seededVenueId.current = merged.id;
+      venueForm.reset(venueToForm(merged));
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once per venue id; form API stable
+  }, [venueQ.data]);
 
-  const refreshStaff = async () => {
-    if (!id) return;
-    const rows = await portalFetch<VenueStaffRow[]>(
-      getToken,
-      `/admin/venues/${id}/staff`,
-      { method: "GET" },
-    );
-    setStaffList(rows);
-  };
+  const staffRows = staffQ.data ?? [];
 
-  const addStaff = async () => {
-    if (!id || !staffEmail.trim()) return;
-    setStaffBusy(true);
-    setErr(null);
-    try {
-      await portalFetch(getToken, `/admin/venues/${id}/staff`, {
-        method: "POST",
-        body: JSON.stringify({
-          email: staffEmail.trim(),
-          role: staffRole,
-        }),
-      });
-      setStaffEmail("");
-      await refreshStaff();
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setStaffBusy(false);
-    }
-  };
+  const staffColumns = useMemo(
+    () => [
+      staffColHelper.accessor((r) => r.player.email, {
+        id: "email",
+        header: "Email",
+        cell: (c) => <span className="text-slate-800">{c.getValue()}</span>,
+      }),
+      staffColHelper.accessor("role", {
+        header: "Role",
+        cell: (c) => (
+          <span className="text-xs font-mono text-brand">{c.getValue()}</span>
+        ),
+      }),
+      staffColHelper.display({
+        id: "rm",
+        header: "",
+        cell: ({ row }) => (
+          <button
+            type="button"
+            disabled={staffRemoveMut.isPending || staffAddMut.isPending}
+            onClick={() => void staffRemoveMut.mutateAsync(row.original.playerId)}
+            className="text-red-600 hover:text-red-800 text-xs"
+          >
+            Remove
+          </button>
+        ),
+      }),
+    ],
+    [staffAddMut.isPending, staffRemoveMut.isPending],
+  );
 
-  const removeStaffMember = async (playerId: string) => {
-    if (!id) return;
-    setStaffBusy(true);
-    setErr(null);
-    try {
-      await portalFetch(getToken, `/admin/venues/${id}/staff/${playerId}`, {
-        method: "DELETE",
-      });
-      await refreshStaff();
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setStaffBusy(false);
-    }
-  };
+  const staffTable = useReactTable({
+    data: staffRows,
+    columns: staffColumns,
+    getCoreRowModel: getCoreRowModel(),
+    getRowId: (r) => r.id,
+  });
 
-  if (err && !v) {
+  const loadErr =
+    venueQ.isError && venueQ.error instanceof Error ? venueQ.error.message : pageErr;
+
+  if (loadErr && !venueQ.data) {
     return (
       <div className="bg-slate-50 text-red-700 p-8">
-        {err}{" "}
+        {loadErr}{" "}
         <Link href="/venues" className="text-brand">
           Back
         </Link>
       </div>
     );
   }
-  if (!v) {
+  if (!venueQ.data) {
     return (
       <div className="bg-slate-50 text-slate-900 p-8">Loading…</div>
     );
   }
 
-  const field = (
-    label: string,
-    key: keyof Venue,
-    multiline?: boolean,
-  ) => (
-    <label className="block mb-3">
-      <span className="text-sm text-slate-600">{label}</span>
-      {multiline ? (
-        <textarea
-          className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm min-h-[72px]"
-          value={(v[key] as string) ?? ""}
-          onChange={(e) => setV({ ...v, [key]: e.target.value })}
-        />
-      ) : (
-        <input
-          className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
-          value={(v[key] as string) ?? ""}
-          onChange={(e) => setV({ ...v, [key]: e.target.value })}
-        />
-      )}
-    </label>
-  );
+  const v = venueQ.data;
+
+  const addStaff = async () => {
+    if (!id || !staffEmail.trim()) return;
+    setPageErr(null);
+    try {
+      await staffAddMut.mutateAsync({
+        email: staffEmail.trim(),
+        role: staffRole,
+      });
+      setStaffEmail("");
+    } catch (e) {
+      setPageErr((e as Error).message);
+    }
+  };
 
   return (
-    <div className="bg-slate-50 text-slate-900 p-8 max-w-2xl">
+    <form
+      className="bg-slate-50 text-slate-900 p-8 max-w-2xl"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void venueForm.handleSubmit();
+      }}
+    >
       <Link href="/venues" className="text-brand text-sm">
         ← Venues
       </Link>
       <h1 className="text-xl font-bold mt-4 mb-1">{v.name}</h1>
       <p className="text-xs text-slate-500 font-mono mb-6">{v.id}</p>
-      <label className="block mb-3">
-        <span className="text-sm text-slate-600">Franchise / organization</span>
-        <select
-          className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
-          value={v.organizationId ?? ""}
-          onChange={(e) =>
-            setV({
-              ...v,
-              organizationId: e.target.value || null,
-            })
-          }
-        >
-          <option value="">— None —</option>
-          {orgs.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.name}
-            </option>
-          ))}
-        </select>
-        <p className="text-xs text-slate-500 mt-1">
-          Manage orgs under{" "}
-          <Link href="/organizations" className="text-brand hover:underline">
-            Organizations
-          </Link>
-          .
-        </p>
-      </label>
-      <label className="flex items-center gap-2 mb-3">
-        <input
-          type="checkbox"
-          checked={v.locked}
-          onChange={(e) => {
-            const next = e.target.checked;
-            if (next && !v.locked) {
-              if (
-                !window.confirm(
-                  "Lock this venue? Save to apply — players lose access until unlocked.",
-                )
-              ) {
-                return;
-              }
-            }
-            setV({ ...v, locked: next });
-          }}
-        />
-        <span className="text-sm text-slate-800">Locked (suspend play & map)</span>
-      </label>
-      {field("Lock reason (optional)", "lockReason")}
-      {field("Menu URL", "menuUrl")}
-      {field("Ordering URL", "orderingUrl")}
-      {field("Order nudge title ({{venueName}} ok)", "orderNudgeTitle")}
-      {field("Order nudge body", "orderNudgeBody", true)}
-      {field("Featured offer title", "featuredOfferTitle")}
-      {field("Featured offer body", "featuredOfferBody", true)}
-      {field("Featured offer ends at (ISO, optional)", "featuredOfferEndsAt")}
-      <label className="block mb-3">
-        <span className="text-sm text-slate-600">
-          Analytics timezone (IANA, optional — hour-of-day charts for owners)
-        </span>
-        <input
-          className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
-          value={v.analyticsTimeZone ?? ""}
-          onChange={(e) =>
-            setV({ ...v, analyticsTimeZone: e.target.value || null })
-          }
-          placeholder="e.g. Europe/Zagreb"
-        />
-      </label>
+
+      <venueForm.Field name="organizationId">
+        {(field) => (
+          <label className="block mb-3">
+            <span className="text-sm text-slate-600">Franchise / organization</span>
+            <select
+              className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+              onBlur={field.handleBlur}
+            >
+              <option value="">— None —</option>
+              {orgs.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-500 mt-1">
+              Manage orgs under{" "}
+              <Link href="/organizations" className="text-brand hover:underline">
+                Organizations
+              </Link>
+              .
+            </p>
+          </label>
+        )}
+      </venueForm.Field>
+
+      <venueForm.Field name="locked">
+        {(field) => (
+          <label className="flex items-center gap-2 mb-3">
+            <input
+              type="checkbox"
+              checked={field.state.value}
+              onChange={(e) => {
+                const next = e.target.checked;
+                if (next && !field.state.value) {
+                  if (
+                    !window.confirm(
+                      "Lock this venue? Save to apply — players lose access until unlocked.",
+                    )
+                  ) {
+                    return;
+                  }
+                }
+                field.handleChange(next);
+              }}
+            />
+            <span className="text-sm text-slate-800">Locked (suspend play & map)</span>
+          </label>
+        )}
+      </venueForm.Field>
+
+      <venueForm.Field name="lockReason">
+        {(field) => (
+          <label className="block mb-3">
+            <span className="text-sm text-slate-600">Lock reason (optional)</span>
+            <input
+              className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+              onBlur={field.handleBlur}
+            />
+          </label>
+        )}
+      </venueForm.Field>
+
+      <venueForm.Field name="menuUrl">
+        {(field) => (
+          <label className="block mb-3">
+            <span className="text-sm text-slate-600">Menu URL</span>
+            <input
+              className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+              onBlur={field.handleBlur}
+            />
+          </label>
+        )}
+      </venueForm.Field>
+
+      <venueForm.Field name="orderingUrl">
+        {(field) => (
+          <label className="block mb-3">
+            <span className="text-sm text-slate-600">Ordering URL</span>
+            <input
+              className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+              onBlur={field.handleBlur}
+            />
+          </label>
+        )}
+      </venueForm.Field>
+
+      <venueForm.Field name="orderNudgeTitle">
+        {(field) => (
+          <label className="block mb-3">
+            <span className="text-sm text-slate-600">
+              {"Order nudge title ({{venueName}} ok)"}
+            </span>
+            <input
+              className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+              onBlur={field.handleBlur}
+            />
+          </label>
+        )}
+      </venueForm.Field>
+
+      <venueForm.Field name="orderNudgeBody">
+        {(field) => (
+          <label className="block mb-3">
+            <span className="text-sm text-slate-600">Order nudge body</span>
+            <textarea
+              className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm min-h-[72px]"
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+              onBlur={field.handleBlur}
+            />
+          </label>
+        )}
+      </venueForm.Field>
+
+      <venueForm.Field name="featuredOfferTitle">
+        {(field) => (
+          <label className="block mb-3">
+            <span className="text-sm text-slate-600">Featured offer title</span>
+            <input
+              className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+              onBlur={field.handleBlur}
+            />
+          </label>
+        )}
+      </venueForm.Field>
+
+      <venueForm.Field name="featuredOfferBody">
+        {(field) => (
+          <label className="block mb-3">
+            <span className="text-sm text-slate-600">Featured offer body</span>
+            <textarea
+              className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm min-h-[72px]"
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+              onBlur={field.handleBlur}
+            />
+          </label>
+        )}
+      </venueForm.Field>
+
+      <venueForm.Field name="featuredOfferEndsAt">
+        {(field) => (
+          <label className="block mb-3">
+            <span className="text-sm text-slate-600">Featured offer ends at (ISO, optional)</span>
+            <input
+              className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+              onBlur={field.handleBlur}
+            />
+          </label>
+        )}
+      </venueForm.Field>
+
+      <venueForm.Field name="analyticsTimeZone">
+        {(field) => (
+          <label className="block mb-3">
+            <span className="text-sm text-slate-600">
+              Analytics timezone (IANA, optional — hour-of-day charts for owners)
+            </span>
+            <input
+              className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+              onBlur={field.handleBlur}
+              placeholder="e.g. Europe/Zagreb"
+            />
+          </label>
+        )}
+      </venueForm.Field>
+
       <div className="border border-slate-300 rounded-lg p-4 mb-4 space-y-3">
         <p className="text-sm text-slate-800 font-semibold">
           Owner / manager / employee (Clerk)
         </p>
         <p className="text-xs text-slate-500">
-          Invite people with their real sign-in email. They use this partner
-          portal with the same Clerk project: employees see verification lists;
-          managers and owners see analytics and campaigns.
+          Invite people with their real sign-in email. They use this partner portal with the same
+          Clerk project: employees see verification lists; managers and owners see analytics and
+          campaigns.
         </p>
         <div className="flex flex-wrap gap-2 items-end">
           <label className="block text-sm text-slate-600 flex-1 min-w-[200px]">
@@ -329,9 +427,7 @@ export default function EditVenuePage() {
             <select
               className="mt-1 block w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
               value={staffRole}
-              onChange={(e) =>
-                setStaffRole(e.target.value as VenueStaffRow["role"])
-              }
+              onChange={(e) => setStaffRole(e.target.value as AdminVenueStaffRow["role"])}
             >
               <option value="EMPLOYEE">EMPLOYEE</option>
               <option value="MANAGER">MANAGER</option>
@@ -340,48 +436,56 @@ export default function EditVenuePage() {
           </label>
           <button
             type="button"
-            disabled={staffBusy}
+            disabled={staffAddMut.isPending}
             onClick={() => void addStaff()}
             className="bg-slate-200 hover:bg-slate-300 disabled:opacity-50 rounded-lg px-4 py-2 text-sm h-[38px]"
           >
             Add / update
           </button>
         </div>
-        <ul className="divide-y divide-slate-200 rounded border border-slate-200 overflow-hidden">
-          {staffList.length === 0 ? (
-            <li className="text-sm text-slate-500 p-3">No staff yet.</li>
+        <div className="rounded border border-slate-200 overflow-x-auto bg-white">
+          {staffRows.length === 0 ? (
+            <p className="text-sm text-slate-500 p-3">No staff yet.</p>
           ) : (
-            staffList.map((s) => (
-              <li
-                key={s.id}
-                className="flex flex-wrap items-center gap-2 justify-between p-3 text-sm bg-slate-50"
-              >
-                <span className="text-slate-800">{s.player.email}</span>
-                <span className="text-xs font-mono text-brand">
-                  {s.role}
-                </span>
-                <button
-                  type="button"
-                  disabled={staffBusy}
-                  onClick={() => void removeStaffMember(s.playerId)}
-                  className="text-red-600 hover:text-red-800 text-xs"
-                >
-                  Remove
-                </button>
-              </li>
-            ))
+            <table className="min-w-full text-sm">
+              <thead>
+                {staffTable.getHeaderGroups().map((hg) => (
+                  <tr key={hg.id} className="border-b border-slate-200 bg-slate-50">
+                    {hg.headers.map((h) => (
+                      <th
+                        key={h.id}
+                        className="text-left px-3 py-2 text-xs uppercase text-slate-500"
+                      >
+                        {flexRender(h.column.columnDef.header, h.getContext())}
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody>
+                {staffTable.getRowModel().rows.map((row) => (
+                  <tr key={row.id} className="border-b border-slate-100 bg-slate-50">
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-3 py-2">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
-        </ul>
+        </div>
       </div>
-      {err ? <p className="text-red-600 text-sm mb-2">{err}</p> : null}
+
+      {pageErr ? <p className="text-red-600 text-sm mb-2">{pageErr}</p> : null}
       <button
-        type="button"
-        disabled={saving}
-        onClick={() => void save()}
+        type="submit"
+        disabled={patchMut.isPending}
         className="mt-4 w-full bg-brand hover:bg-brand-hover disabled:opacity-50 rounded-lg py-2 font-semibold"
       >
-        {saving ? "Saving…" : "Save"}
+        {patchMut.isPending ? "Saving…" : "Save"}
       </button>
-    </div>
+    </form>
   );
 }

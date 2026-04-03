@@ -2,8 +2,14 @@
 
 import Link from 'next/link';
 import { UserButton, useAuth } from '@clerk/nextjs';
+import {
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ownerFetch } from '@/lib/portalApi';
 import { OwnerAnalyticsCharts } from '@/components/OwnerAnalyticsCharts';
 import { PartnerReadOnlyBanner } from '@/components/PartnerReadOnlyBanner';
@@ -11,6 +17,7 @@ import {
   partnerOrganizationMutationsBlockedReason,
   partnerVenueMutationsBlockedReason,
 } from '@/lib/partnerVenueReadOnly';
+import { useOwnerOrganizationAnalyticsQuery, useOwnerVenuesListQuery } from '@/lib/queries';
 
 type OrgAnalytics = {
   organizationId: string;
@@ -54,58 +61,40 @@ type PortalVenueListRow = {
   };
 };
 
+const perkColHelper = createColumnHelper<OrgAnalytics['redemptions']['perPerk'][number]>();
+
 export default function OwnerOrganizationPage() {
   const params = useParams();
   const organizationId = params.organizationId as string;
   const { getToken, isLoaded } = useAuth();
-  const [analytics, setAnalytics] = useState<OrgAnalytics | null>(null);
   const [days, setDays] = useState(30);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [orgReadOnlyMessage, setOrgReadOnlyMessage] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    const token = await getToken();
-    if (!token) throw new Error('Not signed in');
-    const res = await ownerFetch(
-      getToken,
-      `/owner/organizations/${organizationId}/analytics?days=${days}`,
-      { method: 'GET' },
-    );
-    if (!res.ok) {
-      const t = await res.text();
-      throw new Error(t || res.statusText);
-    }
-    return (await res.json()) as OrgAnalytics;
-  }, [getToken, organizationId, days]);
+  const analyticsQ = useOwnerOrganizationAnalyticsQuery(
+    organizationId,
+    days,
+    getToken,
+    Boolean(isLoaded && organizationId),
+  );
+  const venuesListQ = useOwnerVenuesListQuery(getToken, Boolean(isLoaded));
 
-  const loadPortalVenuesMeta = useCallback(async () => {
-    const token = await getToken();
-    if (!token) return;
-    const res = await ownerFetch(getToken, '/owner/venues', { method: 'GET' });
-    if (!res.ok) return;
-    const data = (await res.json()) as {
-      platformRole?: string;
-      venues: PortalVenueListRow[];
-      actingPartnerVenueId?: string | null;
-    };
+  const analytics = analyticsQ.data ?? null;
+
+  const orgReadOnlyMessage = useMemo(() => {
+    const data = venuesListQ.data;
+    if (!data) return null;
     const platformRole = data.platformRole ?? 'NONE';
     const actingId = data.actingPartnerVenueId ?? null;
     const rows = data.venues.filter(
-      (r) => r.venue.organizationId === organizationId,
+      (r: PortalVenueListRow) => r.venue.organizationId === organizationId,
     );
     if (platformRole === 'SUPER_ADMIN' && !actingId) {
-      setOrgReadOnlyMessage(null);
-      return;
+      return null;
     }
     const org = rows[0]?.venue.organization ?? null;
     const orgMsg = partnerOrganizationMutationsBlockedReason(org);
-    if (orgMsg) {
-      setOrgReadOnlyMessage(orgMsg);
-      return;
-    }
+    if (orgMsg) return orgMsg;
     const venueMsg = rows
-      .map((r) =>
+      .map((r: PortalVenueListRow) =>
         partnerVenueMutationsBlockedReason({
           locked: r.venue.locked,
           lockReason: r.venue.lockReason ?? null,
@@ -113,33 +102,8 @@ export default function OwnerOrganizationPage() {
         }),
       )
       .find((m) => m != null);
-    setOrgReadOnlyMessage(venueMsg ?? null);
-  }, [getToken, organizationId]);
-
-  useEffect(() => {
-    if (!isLoaded || !organizationId) return;
-    let c = false;
-    void (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await load();
-        if (!c) setAnalytics(data);
-      } catch (e) {
-        if (!c) setError(e instanceof Error ? e.message : 'Failed');
-      } finally {
-        if (!c) setLoading(false);
-      }
-    })();
-    return () => {
-      c = true;
-    };
-  }, [isLoaded, organizationId, load]);
-
-  useEffect(() => {
-    if (!isLoaded || !organizationId) return;
-    void loadPortalVenuesMeta();
-  }, [isLoaded, organizationId, loadPortalVenuesMeta]);
+    return venueMsg ?? null;
+  }, [venuesListQ.data, organizationId]);
 
   const hourSeries = useMemo(() => {
     if (!analytics) return null;
@@ -149,6 +113,38 @@ export default function OwnerOrganizationPage() {
   }, [analytics]);
 
   const readOnlyDisabled = Boolean(orgReadOnlyMessage);
+
+  const perkRows = useMemo(
+    () => analytics?.redemptions.perPerk.slice(0, 12) ?? [],
+    [analytics],
+  );
+
+  const perkColumns = useMemo(
+    () => [
+      perkColHelper.display({
+        id: 'perk',
+        header: 'Perk',
+        cell: ({ row }) => (
+          <span>
+            <span className="font-mono text-brand">{row.original.code}</span>{' '}
+            <span className="text-slate-800">{row.original.title}</span>
+          </span>
+        ),
+      }),
+      perkColHelper.accessor('count', {
+        header: 'Count',
+        cell: (c) => <span className="text-slate-600">{c.getValue()}</span>,
+      }),
+    ],
+    [],
+  );
+
+  const perkTable = useReactTable({
+    data: perkRows,
+    columns: perkColumns,
+    getCoreRowModel: getCoreRowModel(),
+    getRowId: (r) => r.perkId,
+  });
 
   const exportCsv = async () => {
     if (readOnlyDisabled) return;
@@ -169,6 +165,11 @@ export default function OwnerOrganizationPage() {
     URL.revokeObjectURL(url);
   };
 
+  const loadErr =
+    analyticsQ.isError && analyticsQ.error instanceof Error
+      ? analyticsQ.error.message
+      : null;
+
   return (
     <div className="bg-slate-50 text-slate-900 min-h-full">
       <header className="border-b border-slate-200 px-6 py-4 flex flex-wrap justify-between gap-3">
@@ -182,10 +183,12 @@ export default function OwnerOrganizationPage() {
         <UserButton />
       </header>
       <main className="p-6 max-w-4xl">
-        {!isLoaded || loading ? <p className="text-slate-600">Loading…</p> : null}
-        {error ? (
+        {!isLoaded || analyticsQ.isPending ? (
+          <p className="text-slate-600">Loading…</p>
+        ) : null}
+        {loadErr ? (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800 text-sm">
-            {error}
+            {loadErr}
           </div>
         ) : null}
         {orgReadOnlyMessage ? (
@@ -255,17 +258,35 @@ export default function OwnerOrganizationPage() {
             />
             <div className="mt-8">
               <h3 className="text-sm font-semibold text-slate-800 mb-2">Top perks (all locations)</h3>
-              <ul className="text-sm divide-y divide-slate-200 border border-slate-200 rounded-lg overflow-hidden">
-                {analytics.redemptions.perPerk.slice(0, 12).map((p) => (
-                  <li key={p.perkId} className="flex justify-between px-3 py-2 bg-slate-50">
-                    <span>
-                      <span className="font-mono text-brand">{p.code}</span>{' '}
-                      <span className="text-slate-800">{p.title}</span>
-                    </span>
-                    <span className="text-slate-600">{p.count}</span>
-                  </li>
-                ))}
-              </ul>
+              <div className="text-sm border border-slate-200 rounded-lg overflow-hidden">
+                <table className="min-w-full">
+                  <thead>
+                    {perkTable.getHeaderGroups().map((hg) => (
+                      <tr key={hg.id} className="bg-slate-50 border-b border-slate-200">
+                        {hg.headers.map((h) => (
+                          <th
+                            key={h.id}
+                            className="text-left px-3 py-2 text-xs font-semibold text-slate-600"
+                          >
+                            {flexRender(h.column.columnDef.header, h.getContext())}
+                          </th>
+                        ))}
+                      </tr>
+                    ))}
+                  </thead>
+                  <tbody>
+                    {perkTable.getRowModel().rows.map((row) => (
+                      <tr key={row.id} className="border-b border-slate-100 bg-slate-50 last:border-0">
+                        {row.getVisibleCells().map((cell) => (
+                          <td key={cell.id} className="px-3 py-2">
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </>
         ) : null}

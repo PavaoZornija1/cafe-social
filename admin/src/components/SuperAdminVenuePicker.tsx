@@ -1,19 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   dispatchPortalVenueContextChanged,
   setStoredPortalVenueContext,
 } from "@/lib/portalVenueContext";
-import { portalFetch } from "@/lib/portalApi";
-
-type VenueOption = {
-  id: string;
-  name: string;
-  city: string | null;
-  country: string | null;
-};
+import { useSuperAdminVenuePickerQuery } from "@/lib/queries";
 
 export function SuperAdminVenuePicker({
   getToken,
@@ -25,24 +17,7 @@ export function SuperAdminVenuePicker({
   onChanged: () => void;
 }) {
   const { t } = useTranslation();
-  const [options, setOptions] = useState<VenueOption[]>([]);
-
-  const loadOptions = useCallback(async () => {
-    try {
-      const rows = await portalFetch<VenueOption[]>(
-        getToken,
-        "/owner/super-admin/venue-picker",
-        { method: "GET" },
-      );
-      setOptions(rows);
-    } catch {
-      setOptions([]);
-    }
-  }, [getToken]);
-
-  useEffect(() => {
-    void loadOptions();
-  }, [loadOptions]);
+  const q = useSuperAdminVenuePickerQuery(getToken, true);
 
   return (
     <div className="rounded-xl border border-amber-200/90 bg-amber-50/50 px-3 py-3">
@@ -54,6 +29,7 @@ export function SuperAdminVenuePicker({
         <select
           className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm text-slate-900"
           value={actingVenueId ?? ""}
+          disabled={q.isPending}
           onChange={(e) => {
             const v = e.target.value.trim();
             setStoredPortalVenueContext(v || null);
@@ -62,7 +38,7 @@ export function SuperAdminVenuePicker({
           }}
         >
           <option value="">{t("admin.picker.placeholder")}</option>
-          {options.map((v) => (
+          {(q.data ?? []).map((v) => (
             <option key={v.id} value={v.id}>
               {v.name}
               {v.city ? ` · ${v.city}` : ""}

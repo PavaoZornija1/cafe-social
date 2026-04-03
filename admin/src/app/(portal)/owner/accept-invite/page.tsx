@@ -2,46 +2,29 @@
 
 import Link from 'next/link';
 import { useAuth } from '@clerk/nextjs';
+import { useForm } from '@tanstack/react-form';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useEffect, useState } from 'react';
-import { ownerFetch } from '@/lib/portalApi';
+import { Suspense, useEffect } from 'react';
+import { useAcceptStaffInviteMutation } from '@/lib/queries';
 
 function AcceptStaffInviteInner() {
   const searchParams = useSearchParams();
   const initial = searchParams.get('token') ?? '';
   const { getToken, isLoaded, isSignedIn } = useAuth();
-  const [token, setToken] = useState(initial);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const acceptMut = useAcceptStaffInviteMutation(getToken);
+
+  const form = useForm({
+    defaultValues: { token: initial },
+    onSubmit: async ({ value, formApi }) => {
+      await acceptMut.mutateAsync(value.token.trim());
+      formApi.reset({ token: '' });
+    },
+  });
 
   useEffect(() => {
-    setToken(initial);
+    form.reset({ token: initial });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync URL token to form; form API stable
   }, [initial]);
-
-  const submit = useCallback(async () => {
-    setErr(null);
-    setMsg(null);
-    setBusy(true);
-    try {
-      const t = await getToken();
-      if (!t) throw new Error('Sign in first with the invited email.');
-      const res = await ownerFetch(getToken, '/owner/accept-staff-invite', {
-        method: 'POST',
-        body: JSON.stringify({ token: token.trim() }),
-      });
-      const text = await res.text();
-      if (!res.ok) throw new Error(text || res.statusText);
-      const data = text ? JSON.parse(text) : {};
-      setMsg(
-        `You're on the team for ${data.venueName ?? 'the venue'} as ${data.role ?? 'staff'}.`,
-      );
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Failed');
-    } finally {
-      setBusy(false);
-    }
-  }, [getToken, token]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 p-8 max-w-lg mx-auto">
@@ -58,31 +41,43 @@ function AcceptStaffInviteInner() {
       ) : !isSignedIn ? (
         <p className="mt-4 text-amber-800 text-sm">Sign in using Clerk first.</p>
       ) : (
-        <>
-          <label className="block mt-6 text-sm text-slate-600">
-            Invite token
-            <textarea
-              className="mt-1 w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono min-h-[100px]"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              placeholder="Paste token"
-            />
-          </label>
+        <form
+          className="mt-6 space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void form.handleSubmit();
+          }}
+        >
+          <form.Field name="token">
+            {(field) => (
+              <label className="block text-sm text-slate-600">
+                Invite token
+                <textarea
+                  className="mt-1 w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono min-h-[100px]"
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                  placeholder="Paste token"
+                />
+              </label>
+            )}
+          </form.Field>
           <button
-            type="button"
-            disabled={busy || !token.trim()}
-            onClick={() => void submit()}
-            className="mt-4 w-full bg-brand hover:bg-brand-hover disabled:opacity-50 rounded-lg py-2 font-medium"
+            type="submit"
+            disabled={acceptMut.isPending || !form.state.values.token.trim()}
+            className="w-full bg-brand hover:bg-brand-hover disabled:opacity-50 rounded-lg py-2 font-medium"
           >
-            {busy ? 'Working…' : 'Accept invite'}
+            {acceptMut.isPending ? 'Working…' : 'Accept invite'}
           </button>
-        </>
+        </form>
       )}
-      {msg ? (
-        <p className="mt-4 text-emerald-300 text-sm">{msg}</p>
+      {acceptMut.isSuccess && acceptMut.data ? (
+        <p className="mt-4 text-emerald-800 text-sm">
+          {`You're on the team for ${acceptMut.data.venueName ?? 'the venue'} as ${acceptMut.data.role ?? 'staff'}.`}
+        </p>
       ) : null}
-      {err ? (
-        <p className="mt-4 text-red-700 text-sm">{err}</p>
+      {acceptMut.isError && acceptMut.error instanceof Error ? (
+        <p className="mt-4 text-red-700 text-sm">{acceptMut.error.message}</p>
       ) : null}
     </div>
   );

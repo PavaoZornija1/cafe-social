@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { portalFetch } from "@/lib/portalApi";
+import { queryKeys } from "./keys";
 
 export type PlatformMetrics = {
   organizationCount: number;
@@ -13,7 +14,7 @@ export type PlatformMetrics = {
 
 export function usePlatformMetrics(getToken: () => Promise<string | null>, enabled: boolean) {
   return useQuery({
-    queryKey: ["admin", "dashboard", "metrics"] as const,
+    queryKey: queryKeys.admin.dashboardMetrics,
     queryFn: () =>
       portalFetch<PlatformMetrics>(getToken, "/admin/dashboard/metrics", { method: "GET" }),
     enabled,

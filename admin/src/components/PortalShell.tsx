@@ -3,14 +3,11 @@
 import { UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { AdminLanguageSelect } from "@/i18n/AdminLanguageSelect";
-import {
-  fetchPortalMe,
-  type PortalMeOrg,
-  type PortalMeResponse,
-} from "../lib/portalApi";
+import { useInvalidatePartnerContext, usePortalMeQuery } from "@/lib/queries";
+import type { PortalMeOrg, PortalMeResponse } from "../lib/portalApi";
 import { TrialContactBar } from "./TrialContactBar";
 import { SuperAdminVenuePicker } from "./SuperAdminVenuePicker";
 
@@ -36,8 +33,17 @@ export default function PortalShell({
   const router = useRouter();
   const { t } = useTranslation();
   const { isLoaded, getToken } = useAuth();
-  const [me, setMe] = useState<PortalMeResponse | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const invalidatePartnerContext = useInvalidatePartnerContext();
+
+  const meQ = usePortalMeQuery(getToken, isLoaded, {
+    retry: 1,
+  });
+  const me = meQ.data ?? null;
+  const err = meQ.isError
+    ? meQ.error instanceof Error
+      ? meQ.error.message
+      : t("admin.shell.loadProfileError")
+    : null;
 
   const trialOrganizations = useMemo((): PortalMeOrg[] => {
     if (!me?.venues) return [];
@@ -49,27 +55,6 @@ export default function PortalShell({
     return Array.from(m.values());
   }, [me?.venues]);
 
-  const load = useCallback(async () => {
-    setErr(null);
-    try {
-      const token = await getToken();
-      if (!token) {
-        setMe(null);
-        return;
-      }
-      const data = await fetchPortalMe(getToken);
-      setMe(data);
-    } catch (e) {
-      setMe(null);
-      setErr(e instanceof Error ? e.message : t("admin.shell.loadProfileError"));
-    }
-  }, [getToken, t]);
-
-  useEffect(() => {
-    if (!isLoaded) return;
-    void load();
-  }, [isLoaded, load]);
-
   useEffect(() => {
     if (!isLoaded || !me) return;
     if (me.needsPartnerOnboarding && pathname !== "/onboarding") {
@@ -78,6 +63,20 @@ export default function PortalShell({
   }, [isLoaded, me, pathname, router]);
 
   if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-brand-lighter flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div
+            className="h-9 w-9 rounded-xl bg-brand animate-pulse shadow-portal-card"
+            aria-hidden
+          />
+          <p className="text-sm font-medium text-brand-muted">{t("common.loading")}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (meQ.isPending && !meQ.data) {
     return (
       <div className="min-h-screen bg-brand-lighter flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
@@ -166,7 +165,10 @@ export default function PortalShell({
                 <SuperAdminVenuePicker
                   getToken={getToken}
                   actingVenueId={me?.actingPartnerVenueId ?? null}
-                  onChanged={() => void load()}
+                  onChanged={() => {
+                    invalidatePartnerContext();
+                    void meQ.refetch();
+                  }}
                 />
               </>
             ) : (

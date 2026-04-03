@@ -2,69 +2,84 @@
 
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
-import { useEffect, useState } from "react";
-import { portalFetch } from "../../../lib/portalApi";
+import { useForm } from "@tanstack/react-form";
+import {
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import { useMemo } from "react";
+import { useAddWordMutation, useWordsQuery } from "@/lib/queries";
 
 type WordRow = { id: string; text: string; language: string; category: string };
 
+const colHelper = createColumnHelper<WordRow>();
+const WORDS_TAKE = 80;
+
 export default function WordsPage() {
   const { isLoaded, getToken } = useAuth();
-  const [rows, setRows] = useState<WordRow[] | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [text, setText] = useState("");
-  const [language, setLanguage] = useState("en");
-  const [category, setCategory] = useState("DRINK_FOOD");
-  const [sentenceHint, setSentenceHint] = useState("");
-  const [wordHints, setWordHints] = useState("coffee, drink");
-  const [emojiHints, setEmojiHints] = useState("☕");
+  const wordsQ = useWordsQuery(getToken, isLoaded, WORDS_TAKE);
+  const addMut = useAddWordMutation(getToken, WORDS_TAKE);
 
-  useEffect(() => {
-    if (!isLoaded) return;
-    let c = false;
-    (async () => {
-      try {
-        const data = await portalFetch<WordRow[]>(
-          getToken,
-          "/admin/words?take=80",
-          { method: "GET" },
-        );
-        if (!c) setRows(data);
-      } catch (e) {
-        if (!c) setErr((e as Error).message);
-      }
-    })();
-    return () => {
-      c = true;
-    };
-  }, [isLoaded, getToken]);
-
-  const add = async () => {
-    setErr(null);
-    try {
-      await portalFetch(getToken, "/admin/words", {
-        method: "POST",
-        body: JSON.stringify({
-          text,
-          language,
-          category,
-          sentenceHint,
-          wordHints: wordHints.split(",").map((s) => s.trim()).filter(Boolean),
-          emojiHints: emojiHints.split(",").map((s) => s.trim()).filter(Boolean),
-        }),
+  const addForm = useForm({
+    defaultValues: {
+      text: "",
+      language: "en",
+      category: "DRINK_FOOD",
+      sentenceHint: "",
+      wordHints: "coffee, drink",
+      emojiHints: "☕",
+    },
+    onSubmit: async ({ value }) => {
+      await addMut.mutateAsync({
+        text: value.text,
+        language: value.language,
+        category: value.category,
+        sentenceHint: value.sentenceHint,
+        wordHints: value.wordHints
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+        emojiHints: value.emojiHints
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
       });
-      setText("");
-      const data = await portalFetch<WordRow[]>(
-        getToken,
-        "/admin/words?take=80",
-        { method: "GET" },
-      );
-      setRows(data);
-    } catch (e) {
-      setErr((e as Error).message);
-    }
-  };
+      addForm.reset();
+    },
+  });
 
-  if (err && !rows) {
+  const rows = useMemo(() => (wordsQ.data ?? []).slice(0, 40), [wordsQ.data]);
+
+  const columns = useMemo(
+    () => [
+      colHelper.accessor("language", {
+        header: "Lang",
+        cell: (c) => <span className="font-mono text-xs">{c.getValue()}</span>,
+      }),
+      colHelper.accessor("text", {
+        header: "Text",
+        cell: (c) => <span className="font-mono text-sm">{c.getValue()}</span>,
+      }),
+      colHelper.accessor("category", {
+        header: "Category",
+        cell: (c) => <span className="text-xs text-slate-600">{c.getValue()}</span>,
+      }),
+    ],
+    [],
+  );
+
+  const table = useReactTable({
+    data: rows,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
+  const err =
+    wordsQ.isError && wordsQ.error instanceof Error ? wordsQ.error.message : null;
+
+  if (err && !wordsQ.data) {
     return (
       <div className="bg-slate-50 text-red-700 p-8">
         {err}{" "}
@@ -81,63 +96,114 @@ export default function WordsPage() {
         ← Dashboard
       </Link>
       <h1 className="text-xl font-bold mt-4 mb-4">Words</h1>
-      <div className="border border-slate-200 rounded-lg p-4 mb-6 space-y-2 max-w-lg">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void addForm.handleSubmit();
+        }}
+        className="border border-slate-200 rounded-lg p-4 mb-6 space-y-2 max-w-lg"
+      >
         <p className="text-sm text-slate-600">Add word</p>
-        <input
-          className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
-          placeholder="text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-        />
-        <input
-          className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
-          placeholder="language"
-          value={language}
-          onChange={(e) => setLanguage(e.target.value)}
-        />
-        <input
-          className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
-          placeholder="category (enum, e.g. DRINK_FOOD)"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-        />
-        <input
-          className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
-          placeholder="sentence hint"
-          value={sentenceHint}
-          onChange={(e) => setSentenceHint(e.target.value)}
-        />
-        <input
-          className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
-          placeholder="word hints comma-separated"
-          value={wordHints}
-          onChange={(e) => setWordHints(e.target.value)}
-        />
-        <input
-          className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
-          placeholder="emoji hints comma-separated"
-          value={emojiHints}
-          onChange={(e) => setEmojiHints(e.target.value)}
-        />
-        {err ? <p className="text-red-600 text-sm">{err}</p> : null}
+        <addForm.Field name="text">
+          {(f) => (
+            <input
+              className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
+              placeholder="text"
+              value={f.state.value}
+              onChange={(e) => f.handleChange(e.target.value)}
+            />
+          )}
+        </addForm.Field>
+        <addForm.Field name="language">
+          {(f) => (
+            <input
+              className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
+              placeholder="language"
+              value={f.state.value}
+              onChange={(e) => f.handleChange(e.target.value)}
+            />
+          )}
+        </addForm.Field>
+        <addForm.Field name="category">
+          {(f) => (
+            <input
+              className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
+              placeholder="category (enum, e.g. DRINK_FOOD)"
+              value={f.state.value}
+              onChange={(e) => f.handleChange(e.target.value)}
+            />
+          )}
+        </addForm.Field>
+        <addForm.Field name="sentenceHint">
+          {(f) => (
+            <input
+              className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
+              placeholder="sentence hint"
+              value={f.state.value}
+              onChange={(e) => f.handleChange(e.target.value)}
+            />
+          )}
+        </addForm.Field>
+        <addForm.Field name="wordHints">
+          {(f) => (
+            <input
+              className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
+              placeholder="word hints comma-separated"
+              value={f.state.value}
+              onChange={(e) => f.handleChange(e.target.value)}
+            />
+          )}
+        </addForm.Field>
+        <addForm.Field name="emojiHints">
+          {(f) => (
+            <input
+              className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
+              placeholder="emoji hints comma-separated"
+              value={f.state.value}
+              onChange={(e) => f.handleChange(e.target.value)}
+            />
+          )}
+        </addForm.Field>
+        {addMut.isError && addMut.error instanceof Error ? (
+          <p className="text-red-600 text-sm">{addMut.error.message}</p>
+        ) : null}
         <button
-          type="button"
-          onClick={() => void add()}
-          className="bg-brand rounded px-3 py-1 text-sm font-medium"
+          type="submit"
+          disabled={addMut.isPending}
+          className="bg-brand rounded px-3 py-1 text-sm font-medium disabled:opacity-50"
         >
           Add
         </button>
-      </div>
-      {!rows ? (
+      </form>
+      {wordsQ.isPending && !wordsQ.data ? (
         <p>Loading…</p>
       ) : (
-        <ul className="text-sm font-mono text-slate-800 space-y-1">
-          {rows.slice(0, 40).map((w) => (
-            <li key={w.id}>
-              {w.language} · {w.text}
-            </li>
-          ))}
-        </ul>
+        <div className="rounded-xl border border-slate-200 bg-white overflow-x-auto max-w-3xl">
+          <table className="min-w-full text-sm">
+            <thead>
+              {table.getHeaderGroups().map((hg) => (
+                <tr key={hg.id} className="border-b border-slate-200 bg-slate-50">
+                  {hg.headers.map((h) => (
+                    <th key={h.id} className="text-left px-3 py-2 text-xs uppercase text-slate-500">
+                      {flexRender(h.column.columnDef.header, h.getContext())}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody>
+              {table.getRowModel().rows.map((row) => (
+                <tr key={row.id} className="border-b border-slate-100">
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id} className="px-3 py-2">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

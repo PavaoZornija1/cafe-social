@@ -10,9 +10,13 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { fetchPortalMe, portalFetch } from "@/lib/portalApi";
+import {
+  useAdminOrganizationsQuery,
+  useCreateOrganizationMutation,
+  usePortalMeQuery,
+} from "@/lib/queries";
 
 type OrgRow = {
   id: string;
@@ -43,74 +47,37 @@ function formatShortDate(iso: string | null | undefined) {
 export default function OrganizationsPage() {
   const { t } = useTranslation();
   const { isLoaded, getToken } = useAuth();
-  const [rows, setRows] = useState<OrgRow[] | null>(null);
-  const [portalGate, setPortalGate] = useState<"loading" | "super_admin" | "partner">(
-    "loading",
-  );
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [formErr, setFormErr] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
-    const data = await portalFetch<OrgRow[]>(getToken, "/admin/organizations", {
-      method: "GET",
-    });
-    setRows(data);
-  }, [getToken]);
+  const meQ = usePortalMeQuery(getToken, isLoaded);
+  const portalGate =
+    meQ.isPending && !meQ.data
+      ? "loading"
+      : meQ.data?.platformRole === "SUPER_ADMIN"
+        ? "super_admin"
+        : "partner";
+
+  const orgsQ = useAdminOrganizationsQuery(getToken, portalGate === "super_admin");
+  const createMut = useCreateOrganizationMutation(getToken);
 
   const createOrgForm = useForm({
     defaultValues: { name: "" },
     onSubmit: async ({ value }) => {
       const trimmed = value.name.trim();
       if (!trimmed) return;
-      setBusy(true);
-      setErr(null);
+      setFormErr(null);
       try {
-        await portalFetch(getToken, "/admin/organizations", {
-          method: "POST",
-          body: JSON.stringify({ name: trimmed }),
-        });
+        await createMut.mutateAsync(trimmed);
         createOrgForm.reset();
-        await refresh();
       } catch (e) {
-        setErr((e as Error).message);
-      } finally {
-        setBusy(false);
+        setFormErr((e as Error).message);
       }
     },
   });
 
-  useEffect(() => {
-    if (!isLoaded) return;
-    let c = false;
-    void (async () => {
-      try {
-        const me = await fetchPortalMe(getToken);
-        if (!c) {
-          setPortalGate(me.platformRole === "SUPER_ADMIN" ? "super_admin" : "partner");
-        }
-      } catch {
-        if (!c) setPortalGate("partner");
-      }
-    })();
-    return () => {
-      c = true;
-    };
-  }, [isLoaded, getToken]);
-
-  useEffect(() => {
-    if (!isLoaded || portalGate !== "super_admin") return;
-    let c = false;
-    void (async () => {
-      try {
-        await refresh();
-      } catch (e) {
-        if (!c) setErr((e as Error).message);
-      }
-    })();
-    return () => {
-      c = true;
-    };
-  }, [isLoaded, portalGate, refresh]);
+  const rows = orgsQ.data ?? null;
+  const listErr =
+    orgsQ.isError && orgsQ.error instanceof Error ? orgsQ.error.message : null;
 
   const columns = useMemo(
     () => [
@@ -224,11 +191,11 @@ export default function OrganizationsPage() {
           </div>
         </div>
 
-        {err ? (
+        {(listErr || formErr) && (
           <div className="mb-4 text-sm text-red-800 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
-            {err}
+            {listErr ?? formErr}
           </div>
-        ) : null}
+        )}
 
         <form
           onSubmit={(e) => {
@@ -253,14 +220,14 @@ export default function OrganizationsPage() {
           </createOrgForm.Field>
           <button
             type="submit"
-            disabled={busy}
+            disabled={createMut.isPending}
             className="bg-brand hover:bg-brand-hover disabled:opacity-50 rounded-lg px-4 py-2 text-sm font-medium h-[38px] text-brand-foreground"
           >
             {t("admin.organizations.createButton")}
           </button>
         </form>
 
-        {!rows ? (
+        {orgsQ.isPending && !rows ? (
           <p className="text-slate-500">{t("admin.organizations.loading")}</p>
         ) : (
           <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
@@ -296,7 +263,7 @@ export default function OrganizationsPage() {
                 ))}
               </tbody>
             </table>
-            {rows.length === 0 ? (
+            {(rows?.length ?? 0) === 0 && !orgsQ.isPending ? (
               <p className="px-4 py-8 text-center text-slate-500 text-sm">
                 {t("admin.organizations.empty")}
               </p>
