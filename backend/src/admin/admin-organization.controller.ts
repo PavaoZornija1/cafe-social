@@ -15,11 +15,17 @@ import { PlatformSuperAdminGuard } from '../auth/platform-super-admin.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateVenueOrganizationDto } from './dto/create-venue-organization.dto';
 import { PatchVenueOrganizationDto } from './dto/patch-venue-organization.dto';
+import { OrgVenueMembershipDto } from './dto/org-venue-membership.dto';
+import { StripePartnerCheckoutDto } from './dto/stripe-partner-checkout.dto';
+import { StripePartnerBillingService } from '../stripe/stripe-partner-billing.service';
 
 @Controller('admin/organizations')
 @UseGuards(JwtAuthGuard, PlatformSuperAdminGuard)
 export class AdminOrganizationController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly stripePartner: StripePartnerBillingService,
+  ) {}
 
   @Get()
   list() {
@@ -66,6 +72,59 @@ export class AdminOrganizationController {
           : null,
         stripeCustomerId: body.stripeCustomerId?.trim() || null,
         billingPortalUrl: body.billingPortalUrl?.trim() || null,
+      },
+    });
+  }
+
+  @Post(':id/stripe/checkout-session')
+  stripeCheckout(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: StripePartnerCheckoutDto,
+  ) {
+    return this.stripePartner.createPartnerCheckoutSession(id, body.priceId);
+  }
+
+  @Post(':id/stripe/billing-portal')
+  stripeBillingPortal(@Param('id', new ParseUUIDPipe()) id: string) {
+    return this.stripePartner.createPartnerBillingPortalSession(id);
+  }
+
+  @Patch(':id/venues')
+  async patchVenueMembership(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: OrgVenueMembershipDto,
+  ) {
+    await this.prisma.venueOrganization.findUniqueOrThrow({ where: { id } });
+    const attach = body.attachVenueIds ?? [];
+    const detach = body.detachVenueIds ?? [];
+    await this.prisma.$transaction(async (tx) => {
+      if (attach.length > 0) {
+        await tx.venue.updateMany({
+          where: { id: { in: attach } },
+          data: { organizationId: id },
+        });
+      }
+      if (detach.length > 0) {
+        await tx.venue.updateMany({
+          where: { id: { in: detach }, organizationId: id },
+          data: { organizationId: null },
+        });
+      }
+    });
+    return this.prisma.venueOrganization.findUnique({
+      where: { id },
+      include: {
+        venues: {
+          select: {
+            id: true,
+            name: true,
+            locked: true,
+            city: true,
+            country: true,
+            address: true,
+          },
+          orderBy: { name: 'asc' },
+        },
       },
     });
   }

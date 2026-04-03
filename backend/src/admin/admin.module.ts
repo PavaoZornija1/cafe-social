@@ -4,6 +4,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { VenueModule } from '../venue/venue.module';
 import { PlayerModule } from '../player/player.module';
 import { VenueStaffModule } from '../venue-staff/venue-staff.module';
+import { StripeModule } from '../stripe/stripe.module';
 import { AdminVenueController } from './admin-venue.controller';
 import { AdminOrganizationController } from './admin-organization.controller';
 import { AdminVenueStaffController } from './admin-venue-staff.controller';
@@ -19,6 +20,7 @@ import { PlatformSuperAdminGuard } from '../auth/platform-super-admin.guard';
     VenueModule,
     PlayerModule,
     VenueStaffModule,
+    StripeModule,
   ],
   controllers: [
     AdminVenueController,

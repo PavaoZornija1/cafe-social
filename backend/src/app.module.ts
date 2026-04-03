@@ -18,6 +18,7 @@ import { AdminModule } from './admin/admin.module';
 import { OwnerModule } from './owner/owner.module';
 import { StaffModule } from './staff/staff.module';
 import { RevenueCatModule } from './revenuecat/revenuecat.module';
+import { StripeModule } from './stripe/stripe.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { RevenueCatModule } from './revenuecat/revenuecat.module';
     OwnerModule,
     StaffModule,
     RevenueCatModule,
+    StripeModule,
   ],
   controllers: [HealthController],
   providers: [],

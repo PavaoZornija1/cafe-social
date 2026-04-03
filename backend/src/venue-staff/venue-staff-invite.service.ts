@@ -10,6 +10,7 @@ import { VenueStaffInviteStatus, VenueStaffRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlayerService } from '../player/player.service';
 import { VenueStaffService } from './venue-staff.service';
+import { ClerkPartnerInviteService } from '../auth/clerk-partner-invite.service';
 
 const INVITE_TTL_DAYS = 14;
 
@@ -19,6 +20,7 @@ export class VenueStaffInviteService {
     private readonly prisma: PrismaService,
     private readonly venueStaff: VenueStaffService,
     private readonly players: PlayerService,
+    private readonly clerkInvites: ClerkPartnerInviteService,
   ) {}
 
   assertInviteRoleAllowed(
@@ -93,7 +95,7 @@ export class VenueStaffInviteService {
 
     const token = randomBytes(24).toString('hex');
 
-    return this.prisma.venueStaffInvite.create({
+    const row = await this.prisma.venueStaffInvite.create({
       data: {
         venueId: params.venueId,
         email: normEmail,
@@ -106,6 +108,17 @@ export class VenueStaffInviteService {
         venue: { select: { id: true, name: true } },
       },
     });
+
+    const clerk = await this.clerkInvites.sendStaffPortalInvitation({
+      email: row.email,
+      staffInviteToken: row.token,
+    });
+
+    return {
+      ...row,
+      clerkInvitationSent: clerk.sent,
+      ...(clerk.clerkError ? { clerkInvitationError: clerk.clerkError } : {}),
+    };
   }
 
   listForVenue(venueId: string) {

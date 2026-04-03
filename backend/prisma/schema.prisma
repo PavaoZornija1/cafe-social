@@ -16,6 +16,8 @@ model VenueOrganization {
   platformBillingStatus    String  @default("NONE")
   platformBillingRenewsAt  DateTime?
   stripeCustomerId         String?
+  /// Primary Stripe Subscription id (partner SaaS); webhooks keep status in sync.
+  stripeSubscriptionId     String?
   /// Optional link shown to venue owners (e.g. Stripe Customer Portal).
   billingPortalUrl         String?
 
