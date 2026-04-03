@@ -23,6 +23,7 @@ export default function VenuesPage() {
   const { isLoaded, getToken } = useAuth();
   const [rows, setRows] = useState<Venue[] | null>(null);
   const [orgs, setOrgs] = useState<OrgOpt[]>([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [cityQ, setCityQ] = useState("");
