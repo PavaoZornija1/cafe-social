@@ -11,7 +11,10 @@ import { AdminVenueStaffController } from './admin-venue-staff.controller';
 import { AdminWordController } from './admin-word.controller';
 import { AdminChallengeController } from './admin-challenge.controller';
 import { AdminPerkController } from './admin-perk.controller';
+import { AdminDashboardController } from './admin-dashboard.controller';
 import { PlatformSuperAdminGuard } from '../auth/platform-super-admin.guard';
+import { AdminCmsAccessService } from './admin-cms-access.service';
+import { AdminCmsGuard } from './admin-cms.guard';
 
 @Module({
   imports: [
@@ -24,12 +27,17 @@ import { PlatformSuperAdminGuard } from '../auth/platform-super-admin.guard';
   ],
   controllers: [
     AdminVenueController,
+    AdminDashboardController,
     AdminOrganizationController,
     AdminVenueStaffController,
     AdminWordController,
     AdminChallengeController,
     AdminPerkController,
   ],
-  providers: [PlatformSuperAdminGuard],
+  providers: [
+    PlatformSuperAdminGuard,
+    AdminCmsAccessService,
+    AdminCmsGuard,
+  ],
 })
 export class AdminModule {}

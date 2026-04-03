@@ -4,8 +4,11 @@ import Link from "next/link";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { apiBase } from "@/lib/api";
+import { ownerFetch } from "@/lib/portalApi";
+import { PORTAL_VENUE_CONTEXT_EVENT } from "@/lib/portalVenueContext";
 import { OwnerAnalyticsCharts } from "@/components/OwnerAnalyticsCharts";
+import { PartnerReadOnlyBanner } from "@/components/PartnerReadOnlyBanner";
+import { partnerVenueMutationsBlockedReason } from "@/lib/partnerVenueReadOnly";
 
 type VenueRow = {
   role: "EMPLOYEE" | "MANAGER" | "OWNER";
@@ -14,6 +17,7 @@ type VenueRow = {
     name: string;
     organizationId: string | null;
     locked: boolean;
+    lockReason: string | null;
     organization: {
       id: string;
       name: string;
@@ -21,6 +25,8 @@ type VenueRow = {
       platformBillingPlan: string | null;
       platformBillingStatus: string;
       platformBillingRenewsAt: string | null;
+      platformBillingSyncedAt: string | null;
+      trialEndsAt: string | null;
     } | null;
   };
 };
@@ -157,20 +163,60 @@ export default function OwnerVenueDetailPage() {
   const [invites, setInvites] = useState<StaffInviteRow[]>([]);
   const [inviteBusy, setInviteBusy] = useState(false);
   const [lastCreatedToken, setLastCreatedToken] = useState<string | null>(null);
+  const [platformRole, setPlatformRole] = useState<string | null>(null);
+  const [actingPartnerVenueId, setActingPartnerVenueId] = useState<string | null>(
+    null,
+  );
+  const [venueLocked, setVenueLocked] = useState(false);
+  const [venueLockReason, setVenueLockReason] = useState<string | null>(null);
+  const [contextRev, setContextRev] = useState(0);
+  const [clerkInviteNotice, setClerkInviteNotice] = useState<string | null>(
+    null,
+  );
 
   const canAnalytics = useMemo(
     () => role === "OWNER" || role === "MANAGER",
     [role],
   );
+  const isOwner = role === "OWNER";
+  const hidePartnerFinancialUi =
+    platformRole === "SUPER_ADMIN" && Boolean(actingPartnerVenueId);
+
+  const readOnlyMessage = useMemo(() => {
+    if (platformRole === "SUPER_ADMIN" && !actingPartnerVenueId) {
+      return null;
+    }
+    return partnerVenueMutationsBlockedReason({
+      locked: venueLocked,
+      lockReason: venueLockReason,
+      organization: orgBilling
+        ? {
+            platformBillingStatus: orgBilling.platformBillingStatus,
+            trialEndsAt: orgBilling.trialEndsAt ?? null,
+          }
+        : null,
+    });
+  }, [
+    platformRole,
+    actingPartnerVenueId,
+    venueLocked,
+    venueLockReason,
+    orgBilling,
+  ]);
+  const readOnlyDisabled = Boolean(readOnlyMessage);
 
   const loadVenueMeta = useCallback(async () => {
     const token = await getToken();
     if (!token) return null;
-    const res = await fetch(`${apiBase()}/owner/venues`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await ownerFetch(getToken, "/owner/venues", { method: "GET" });
     if (!res.ok) return null;
-    const data = (await res.json()) as { venues: VenueRow[] };
+    const data = (await res.json()) as {
+      venues: VenueRow[];
+      platformRole: string;
+      actingPartnerVenueId?: string | null;
+    };
+    setPlatformRole(data.platformRole);
+    setActingPartnerVenueId(data.actingPartnerVenueId ?? null);
     const row = data.venues.find((v) => v.venue.id === venueId) ?? null;
     return row;
   }, [getToken, venueId]);
@@ -178,9 +224,10 @@ export default function OwnerVenueDetailPage() {
   const loadAnalytics = useCallback(async () => {
     const token = await getToken();
     if (!token) throw new Error("Not signed in");
-    const res = await fetch(
-      `${apiBase()}/owner/venues/${venueId}/analytics?days=${days}`,
-      { headers: { Authorization: `Bearer ${token}` } },
+    const res = await ownerFetch(
+      getToken,
+      `/owner/venues/${venueId}/analytics?days=${days}`,
+      { method: "GET" },
     );
     if (!res.ok) {
       const t = await res.text();
@@ -193,9 +240,10 @@ export default function OwnerVenueDetailPage() {
     const token = await getToken();
     if (!token) throw new Error("Not signed in");
     const q = new URLSearchParams({ date: dateYmd });
-    const res = await fetch(
-      `${apiBase()}/owner/venues/${venueId}/redemptions?${q}`,
-      { headers: { Authorization: `Bearer ${token}` } },
+    const res = await ownerFetch(
+      getToken,
+      `/owner/venues/${venueId}/redemptions?${q}`,
+      { method: "GET" },
     );
     if (!res.ok) {
       const t = await res.text();
@@ -207,8 +255,8 @@ export default function OwnerVenueDetailPage() {
   const loadCampaigns = useCallback(async () => {
     const token = await getToken();
     if (!token) return;
-    const res = await fetch(`${apiBase()}/owner/venues/${venueId}/campaigns`, {
-      headers: { Authorization: `Bearer ${token}` },
+    const res = await ownerFetch(getToken, `/owner/venues/${venueId}/campaigns`, {
+      method: "GET",
     });
     if (!res.ok) return;
     setCampaigns((await res.json()) as CampaignRow[]);
@@ -217,9 +265,10 @@ export default function OwnerVenueDetailPage() {
   const loadStaffInvites = useCallback(async () => {
     const token = await getToken();
     if (!token) return;
-    const res = await fetch(
-      `${apiBase()}/owner/venues/${venueId}/staff-invites`,
-      { headers: { Authorization: `Bearer ${token}` } },
+    const res = await ownerFetch(
+      getToken,
+      `/owner/venues/${venueId}/staff-invites`,
+      { method: "GET" },
     );
     if (!res.ok) return;
     setInvites((await res.json()) as StaffInviteRow[]);
@@ -228,12 +277,18 @@ export default function OwnerVenueDetailPage() {
   const loadReceipts = useCallback(async () => {
     const token = await getToken();
     if (!token) return;
-    const res = await fetch(`${apiBase()}/owner/venues/${venueId}/receipts`, {
-      headers: { Authorization: `Bearer ${token}` },
+    const res = await ownerFetch(getToken, `/owner/venues/${venueId}/receipts`, {
+      method: "GET",
     });
     if (!res.ok) return;
     setReceipts((await res.json()) as ReceiptSummary[]);
   }, [getToken, venueId]);
+
+  useEffect(() => {
+    const fn = () => setContextRev((r) => r + 1);
+    window.addEventListener(PORTAL_VENUE_CONTEXT_EVENT, fn);
+    return () => window.removeEventListener(PORTAL_VENUE_CONTEXT_EVENT, fn);
+  }, []);
 
   useEffect(() => {
     if (!isLoaded || !venueId) return;
@@ -250,6 +305,8 @@ export default function OwnerVenueDetailPage() {
             "You do not have access to this venue or it does not exist.",
           );
           setRole(null);
+          setVenueLocked(false);
+          setVenueLockReason(null);
           setLoading(false);
           return;
         }
@@ -257,6 +314,8 @@ export default function OwnerVenueDetailPage() {
         setVenueName(meta.venue.name);
         setFranchiseId(meta.venue.organizationId);
         setOrgBilling(meta.venue.organization);
+        setVenueLocked(meta.venue.locked);
+        setVenueLockReason(meta.venue.lockReason ?? null);
 
         if (meta.role === "OWNER" || meta.role === "MANAGER") {
           const a = await loadAnalytics();
@@ -264,9 +323,13 @@ export default function OwnerVenueDetailPage() {
           setAnalytics(a);
           await loadCampaigns();
           await loadReceipts();
-          await loadStaffInvites();
         } else {
           setAnalytics(null);
+        }
+        if (meta.role === "OWNER") {
+          await loadStaffInvites();
+        } else {
+          setInvites([]);
         }
       } catch (e) {
         if (!cancelled) {
@@ -288,6 +351,7 @@ export default function OwnerVenueDetailPage() {
     loadCampaigns,
     loadReceipts,
     loadStaffInvites,
+    contextRev,
   ]);
 
   useEffect(() => {
@@ -331,9 +395,10 @@ export default function OwnerVenueDetailPage() {
     try {
       const token = await getToken();
       if (!token) throw new Error("Sign in required");
-      const res = await fetch(
-        `${apiBase()}/owner/venues/${venueId}/analytics/export.csv?days=${days}`,
-        { headers: { Authorization: `Bearer ${token}` } },
+      const res = await ownerFetch(
+        getToken,
+        `/owner/venues/${venueId}/analytics/export.csv?days=${days}`,
+        { method: "GET" },
       );
       if (!res.ok) throw new Error(await res.text());
       const blob = await res.blob();
@@ -354,12 +419,12 @@ export default function OwnerVenueDetailPage() {
     try {
       const token = await getToken();
       if (!token) throw new Error("Sign in");
-      const res = await fetch(
-        `${apiBase()}/owner/venues/${venueId}/campaigns`,
+      const res = await ownerFetch(
+        getToken,
+        `/owner/venues/${venueId}/campaigns`,
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -388,12 +453,10 @@ export default function OwnerVenueDetailPage() {
     try {
       const token = await getToken();
       if (!token) throw new Error("Sign in");
-      const res = await fetch(
-        `${apiBase()}/owner/venues/${venueId}/campaigns/${campaignId}/send`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        },
+      const res = await ownerFetch(
+        getToken,
+        `/owner/venues/${venueId}/campaigns/${campaignId}/send`,
+        { method: "POST" },
       );
       if (!res.ok) throw new Error(await res.text());
       await loadCampaigns();
@@ -410,9 +473,10 @@ export default function OwnerVenueDetailPage() {
     try {
       const token = await getToken();
       if (!token) throw new Error("Sign in");
-      const res = await fetch(
-        `${apiBase()}/owner/venues/${venueId}/receipts/${id}`,
-        { headers: { Authorization: `Bearer ${token}` } },
+      const res = await ownerFetch(
+        getToken,
+        `/owner/venues/${venueId}/receipts/${id}`,
+        { method: "GET" },
       );
       if (!res.ok) throw new Error(await res.text());
       setReceiptDetail((await res.json()) as ReceiptDetail);
@@ -432,14 +496,12 @@ export default function OwnerVenueDetailPage() {
     try {
       const token = await getToken();
       if (!token) throw new Error("Sign in");
-      const res = await fetch(
-        `${apiBase()}/owner/venues/${venueId}/receipts/${rid}/review`,
+      const res = await ownerFetch(
+        getToken,
+        `/owner/venues/${venueId}/receipts/${rid}/review`,
         {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status, staffNote: "" }),
         },
       );
@@ -458,12 +520,10 @@ export default function OwnerVenueDetailPage() {
     try {
       const token = await getToken();
       if (!token) return;
-      const res = await fetch(
-        `${apiBase()}/owner/venues/${venueId}/redemptions/${redemptionId}/acknowledge`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        },
+      const res = await ownerFetch(
+        getToken,
+        `/owner/venues/${venueId}/redemptions/${redemptionId}/acknowledge`,
+        { method: "POST" },
       );
       if (!res.ok) throw new Error(await res.text());
       setRedemptions(await loadRedemptions());
@@ -479,24 +539,42 @@ export default function OwnerVenueDetailPage() {
     setInviteBusy(true);
     setError(null);
     setLastCreatedToken(null);
+    setClerkInviteNotice(null);
     try {
       const token = await getToken();
       if (!token) throw new Error("Sign in");
-      const res = await fetch(
-        `${apiBase()}/owner/venues/${venueId}/staff-invites`,
+      const res = await ownerFetch(
+        getToken,
+        `/owner/venues/${venueId}/staff-invites`,
         {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
         },
       );
       const text = await res.text();
       if (!res.ok) throw new Error(text || res.statusText);
-      const data = text ? (JSON.parse(text) as { token?: string }) : {};
+      const data = text
+        ? (JSON.parse(text) as {
+            token?: string;
+            clerkInvitationSent?: boolean;
+            clerkInvitationError?: string;
+          })
+        : {};
       if (data.token) setLastCreatedToken(data.token);
+      if (data.clerkInvitationSent) {
+        setClerkInviteNotice(
+          "Clerk sent an invitation email with a sign-up link to this address (when your project has email delivery enabled).",
+        );
+      } else if (data.clerkInvitationError) {
+        setClerkInviteNotice(
+          `Clerk did not send email (${data.clerkInvitationError.slice(0, 120)}). Share the manual link below.`,
+        );
+      } else {
+        setClerkInviteNotice(
+          "Configure CLERK_SECRET_KEY and ADMIN_PORTAL_ORIGIN on the API to email invites via Clerk; otherwise share the link below.",
+        );
+      }
       setInviteEmail("");
       await loadStaffInvites();
     } catch (e) {
@@ -512,9 +590,10 @@ export default function OwnerVenueDetailPage() {
     try {
       const token = await getToken();
       if (!token) return;
-      const res = await fetch(
-        `${apiBase()}/owner/venues/${venueId}/staff-invites/${inviteId}/cancel`,
-        { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+      const res = await ownerFetch(
+        getToken,
+        `/owner/venues/${venueId}/staff-invites/${inviteId}/cancel`,
+        { method: "POST" },
       );
       if (!res.ok) throw new Error(await res.text());
       await loadStaffInvites();
@@ -534,14 +613,12 @@ export default function OwnerVenueDetailPage() {
     try {
       const token = await getToken();
       if (!token) return;
-      const res = await fetch(
-        `${apiBase()}/owner/venues/${venueId}/redemptions/${redemptionId}/void`,
+      const res = await ownerFetch(
+        getToken,
+        `/owner/venues/${venueId}/redemptions/${redemptionId}/void`,
         {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ reason: voidReason.trim() }),
         },
       );
@@ -572,48 +649,75 @@ export default function OwnerVenueDetailPage() {
   }, [analytics]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between gap-4">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <header className="border-b border-slate-200 px-6 py-4 flex items-center justify-between gap-4">
         <div>
           <Link
             href="/owner/venues"
-            className="text-sm text-violet-400 hover:text-violet-300"
+            className="text-sm text-brand hover:text-brand"
           >
             ← All venues
           </Link>
           <h1 className="text-xl font-semibold mt-2">
             {title}
             {role && (
-              <span className="ml-3 text-xs font-mono uppercase tracking-wide text-violet-300 align-middle">
+              <span className="ml-3 text-xs font-mono uppercase tracking-wide text-brand align-middle">
                 {role}
               </span>
             )}
           </h1>
+          {role === "EMPLOYEE" ? (
+            <p className="text-sm text-slate-500 mt-1 max-w-xl">
+              Staff view — verify redemptions and acknowledgments. Open{" "}
+              <Link href={`/staff/${venueId}`} className="text-emerald-700 hover:underline">
+                Today&apos;s list
+              </Link>{" "}
+              for a focused screen.
+            </p>
+          ) : null}
+          {role === "MANAGER" ? (
+            <p className="text-sm text-slate-500 mt-1 max-w-xl">
+              Manager — analytics, campaigns, receipts, and redemptions. Team
+              invites are owner-only.
+            </p>
+          ) : null}
+          {isOwner ? (
+            <p className="text-sm text-slate-500 mt-1 max-w-xl">
+              Owner — includes staff invitations and subscription links when your
+              org has a billing portal URL.
+            </p>
+          ) : null}
           {franchiseId ? (
             <p className="text-sm mt-2">
               <Link
                 href={`/owner/organizations/${franchiseId}`}
-                className="text-amber-400 hover:underline"
+                className="text-amber-700 hover:underline"
               >
                 Franchise rollup (all locations) →
               </Link>
             </p>
           ) : null}
-          {orgBilling?.billingPortalUrl ? (
+          {isOwner && orgBilling?.billingPortalUrl && !hidePartnerFinancialUi ? (
             <p className="text-sm mt-2">
               <a
                 href={orgBilling.billingPortalUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="text-emerald-400 hover:underline"
+                className="text-emerald-700 hover:underline"
               >
                 Subscription / billing portal →
               </a>
-              <span className="text-zinc-500 ml-2">
+              <span className="text-slate-500 ml-2">
                 {orgBilling.platformBillingPlan ?? "—"} ·{" "}
                 {orgBilling.platformBillingStatus}
                 {orgBilling.platformBillingRenewsAt
                   ? ` · renews ${orgBilling.platformBillingRenewsAt.slice(0, 10)}`
+                  : ""}
+                {orgBilling.platformBillingStatus === "ACTIVE_CANCELING"
+                  ? " · ends at period end"
+                  : ""}
+                {orgBilling.platformBillingStatus === "CANCELED"
+                  ? " · contact support to restore franchise billing"
                   : ""}
               </span>
             </p>
@@ -623,12 +727,15 @@ export default function OwnerVenueDetailPage() {
       </header>
 
       <main className="p-6 max-w-4xl mx-auto space-y-10 pb-24">
-        {loading && <p className="text-zinc-400">Loading…</p>}
+        {loading && <p className="text-slate-600">Loading…</p>}
         {error && (
-          <div className="rounded-lg border border-red-900/80 bg-red-950/40 px-4 py-3 text-red-200 text-sm">
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800 text-sm">
             {error}
           </div>
         )}
+        {readOnlyMessage ? (
+          <PartnerReadOnlyBanner message={readOnlyMessage} />
+        ) : null}
 
         {canAnalytics && analytics && !error && (
           <section>
@@ -637,17 +744,18 @@ export default function OwnerVenueDetailPage() {
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
+                  disabled={readOnlyDisabled}
                   onClick={() => void downloadCsv()}
-                  className="text-sm bg-emerald-900/50 border border-emerald-800 text-emerald-200 px-3 py-1 rounded-lg hover:bg-emerald-900/70"
+                  className="text-sm bg-emerald-50 border border-emerald-300 text-emerald-900 px-3 py-1 rounded-lg hover:bg-emerald-100 disabled:opacity-50"
                 >
                   Download CSV
                 </button>
-                <label className="text-sm text-zinc-400 flex items-center gap-2">
+                <label className="text-sm text-slate-600 flex items-center gap-2">
                   Period (days)
                   <select
                     value={days}
                     onChange={(e) => setDays(Number(e.target.value))}
-                    className="bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-zinc-100"
+                    className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-900"
                   >
                     {[7, 14, 30, 60, 90].map((d) => (
                       <option key={d} value={d}>
@@ -658,41 +766,41 @@ export default function OwnerVenueDetailPage() {
                 </label>
               </div>
             </div>
-            <p className="text-xs text-zinc-500 mb-4">
+            <p className="text-xs text-slate-500 mb-4">
               UTC range {analytics.period.startDay} → {analytics.period.endDay}
               {analytics.analyticsTimeZone
                 ? ` · Venue TZ: ${analytics.analyticsTimeZone}`
                 : ""}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-                <p className="text-sm text-zinc-400">Active redemptions</p>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm text-slate-600">Active redemptions</p>
                 <p className="text-2xl font-semibold mt-1">
                   {analytics.redemptions.total}
                 </p>
-                <p className="text-xs text-zinc-500 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   Voided: {analytics.redemptions.voided}
                 </p>
               </div>
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-                <p className="text-sm text-zinc-400">Unique visitors</p>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm text-slate-600">Unique visitors</p>
                 <p className="text-2xl font-semibold mt-1">
                   {analytics.visits.uniquePlayers}
                 </p>
               </div>
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-                <p className="text-sm text-zinc-400">Funnel</p>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm text-slate-600">Funnel</p>
                 <p className="text-lg font-semibold mt-1">
                   {analytics.funnel.uniqueRedeemers} /{" "}
                   {analytics.funnel.uniqueVisitors} redeemers
                 </p>
-                <p className="text-xs text-zinc-500 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   ≈ {analytics.funnel.visitToRedeemPercent}% of visitors
                   redeemed
                 </p>
               </div>
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-                <p className="text-sm text-zinc-400">Feed events</p>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm text-slate-600">Feed events</p>
                 <p className="text-2xl font-semibold mt-1">
                   {analytics.feedEvents.total}
                 </p>
@@ -707,12 +815,12 @@ export default function OwnerVenueDetailPage() {
 
             <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-sm font-medium text-zinc-300 mb-2">
+                <h3 className="text-sm font-medium text-slate-800 mb-2">
                   Per perk
                 </h3>
-                <div className="max-h-48 overflow-auto rounded-lg border border-zinc-800">
+                <div className="max-h-48 overflow-auto rounded-lg border border-slate-200">
                   <table className="w-full text-sm">
-                    <thead className="bg-zinc-900 sticky top-0 text-zinc-500">
+                    <thead className="bg-slate-100 sticky top-0 text-slate-600">
                       <tr>
                         <th className="p-2 text-left">Perk</th>
                         <th className="p-2 text-left">Count</th>
@@ -720,10 +828,10 @@ export default function OwnerVenueDetailPage() {
                     </thead>
                     <tbody>
                       {analytics.redemptions.perPerk.map((p) => (
-                        <tr key={p.perkId} className="border-t border-zinc-800">
+                        <tr key={p.perkId} className="border-t border-slate-200">
                           <td className="p-2">
                             {p.title}{" "}
-                            <span className="text-zinc-500 text-xs">
+                            <span className="text-slate-500 text-xs">
                               ({p.code})
                             </span>
                           </td>
@@ -735,10 +843,10 @@ export default function OwnerVenueDetailPage() {
                 </div>
               </div>
               <div>
-                <h3 className="text-sm font-medium text-zinc-300 mb-2">
+                <h3 className="text-sm font-medium text-slate-800 mb-2">
                   Redemptions by hour (UTC)
                 </h3>
-                <div className="max-h-48 overflow-auto rounded-lg border border-zinc-800 text-xs font-mono p-2 text-zinc-400">
+                <div className="max-h-48 overflow-auto rounded-lg border border-slate-200 text-xs font-mono p-2 text-slate-600">
                   {analytics.redemptions.byHourUtc
                     .filter((h) => h.count > 0)
                     .map((h) => (
@@ -751,10 +859,10 @@ export default function OwnerVenueDetailPage() {
             </div>
             {analytics.redemptions.byHourVenue && (
               <div className="mt-6">
-                <h3 className="text-sm font-medium text-zinc-300 mb-2">
+                <h3 className="text-sm font-medium text-slate-800 mb-2">
                   Redemptions by hour (venue TZ)
                 </h3>
-                <div className="max-h-48 overflow-auto rounded-lg border border-zinc-800 text-xs font-mono p-2 text-zinc-400">
+                <div className="max-h-48 overflow-auto rounded-lg border border-slate-200 text-xs font-mono p-2 text-slate-600">
                   {analytics.redemptions.byHourVenue
                     .filter((h) => h.count > 0)
                     .map((h) => (
@@ -767,13 +875,13 @@ export default function OwnerVenueDetailPage() {
             )}
             <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-sm font-medium text-zinc-300 mb-2">
+                <h3 className="text-sm font-medium text-slate-800 mb-2">
                   Redemptions by day
                 </h3>
-                <div className="max-h-56 overflow-auto rounded-lg border border-zinc-800">
+                <div className="max-h-56 overflow-auto rounded-lg border border-slate-200">
                   <table className="w-full text-sm">
-                    <thead className="bg-zinc-900 sticky top-0">
-                      <tr className="text-left text-zinc-500">
+                    <thead className="bg-slate-100 sticky top-0">
+                      <tr className="text-left text-slate-500">
                         <th className="p-2 font-medium">Day (UTC)</th>
                         <th className="p-2 font-medium">Count</th>
                       </tr>
@@ -784,9 +892,9 @@ export default function OwnerVenueDetailPage() {
                         .map((r) => (
                           <tr
                             key={r.day}
-                            className="border-t border-zinc-800/80"
+                            className="border-t border-slate-200"
                           >
-                            <td className="p-2 font-mono text-zinc-300">
+                            <td className="p-2 font-mono text-slate-800">
                               {r.day}
                             </td>
                             <td className="p-2">{r.count}</td>
@@ -797,13 +905,13 @@ export default function OwnerVenueDetailPage() {
                 </div>
               </div>
               <div>
-                <h3 className="text-sm font-medium text-zinc-300 mb-2">
+                <h3 className="text-sm font-medium text-slate-800 mb-2">
                   Visit days by day
                 </h3>
-                <div className="max-h-56 overflow-auto rounded-lg border border-zinc-800">
+                <div className="max-h-56 overflow-auto rounded-lg border border-slate-200">
                   <table className="w-full text-sm">
-                    <thead className="bg-zinc-900 sticky top-0">
-                      <tr className="text-left text-zinc-500">
+                    <thead className="bg-slate-100 sticky top-0">
+                      <tr className="text-left text-slate-500">
                         <th className="p-2 font-medium">Day (UTC)</th>
                         <th className="p-2 font-medium">Visits</th>
                       </tr>
@@ -814,9 +922,9 @@ export default function OwnerVenueDetailPage() {
                         .map((r) => (
                           <tr
                             key={r.day}
-                            className="border-t border-zinc-800/80"
+                            className="border-t border-slate-200"
                           >
-                            <td className="p-2 font-mono text-zinc-300">
+                            <td className="p-2 font-mono text-slate-800">
                               {r.day}
                             </td>
                             <td className="p-2">{r.count}</td>
@@ -830,39 +938,50 @@ export default function OwnerVenueDetailPage() {
           </section>
         )}
 
-        {canAnalytics && (
-          <section className="border border-zinc-800 rounded-xl p-4 space-y-4">
+        {isOwner && (
+          <section className="border border-slate-200 rounded-xl p-4 space-y-4">
             <h2 className="text-lg font-medium">Staff invites</h2>
-            <p className="text-xs text-zinc-500">
-              Share a one-time link. The recipient signs in with the invited email, then opens{" "}
-              <Link href="/owner/accept-invite" className="text-violet-400 hover:underline">
+            <p className="text-xs text-slate-500">
+              We create a venue invite and, when the API has{" "}
+              <code className="text-slate-600">CLERK_SECRET_KEY</code> +{" "}
+              <code className="text-slate-600">ADMIN_PORTAL_ORIGIN</code>, Clerk
+              emails a sign-up link. The invitee must use the same email, then
+              complete{" "}
+              <Link href="/owner/accept-invite" className="text-brand hover:underline">
                 Accept invite
               </Link>
-              . Managers can invite employees; owners can invite managers and employees.
+              .
             </p>
+            {clerkInviteNotice ? (
+              <p className="text-xs text-amber-900 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2">
+                {clerkInviteNotice}
+              </p>
+            ) : null}
             {lastCreatedToken && typeof window !== "undefined" ? (
-              <div className="rounded-lg border border-emerald-900/80 bg-emerald-950/30 px-3 py-2 text-xs">
-                <p className="text-emerald-200 font-medium mb-1">Invite link (copy now)</p>
-                <code className="text-zinc-300 break-all block select-all">
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs">
+                <p className="text-emerald-800 font-medium mb-1">Invite link (copy now)</p>
+                <code className="text-slate-800 break-all block select-all">
                   {`${window.location.origin}/owner/accept-invite?token=${lastCreatedToken}`}
                 </code>
               </div>
             ) : null}
             <div className="flex flex-wrap gap-2 items-end">
-              <label className="block text-sm text-zinc-400 flex-1 min-w-[200px]">
+              <label className="block text-sm text-slate-600 flex-1 min-w-[200px]">
                 Email
                 <input
                   type="email"
-                  className="mt-1 w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm"
+                  disabled={readOnlyDisabled}
+                  className="mt-1 w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm disabled:opacity-60"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                   placeholder="staff@venue.com"
                 />
               </label>
-              <label className="block text-sm text-zinc-400">
+              <label className="block text-sm text-slate-600">
                 Role
                 <select
-                  className="mt-1 block w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm"
+                  disabled={readOnlyDisabled}
+                  className="mt-1 block w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm disabled:opacity-60"
                   value={inviteRole}
                   onChange={(e) =>
                     setInviteRole(e.target.value as "EMPLOYEE" | "MANAGER")
@@ -876,28 +995,32 @@ export default function OwnerVenueDetailPage() {
               </label>
               <button
                 type="button"
-                disabled={inviteBusy || !inviteEmail.trim()}
+                disabled={
+                  readOnlyDisabled || inviteBusy || !inviteEmail.trim()
+                }
                 onClick={() => void createStaffInvite()}
-                className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 rounded-lg px-4 py-2 text-sm h-[38px]"
+                className="bg-slate-200 hover:bg-slate-300 disabled:opacity-50 rounded-lg px-4 py-2 text-sm h-[38px]"
               >
-                Create invite
+                Send invite
               </button>
             </div>
-            <ul className="divide-y divide-zinc-800 border border-zinc-800 rounded-lg overflow-hidden text-sm">
+            <ul className="divide-y divide-slate-200 border border-slate-200 rounded-lg overflow-hidden text-sm">
               {invites.length === 0 ? (
-                <li className="p-3 text-zinc-500">No invite history yet.</li>
+                <li className="p-3 text-slate-500">
+                  No invite history yet for this venue.
+                </li>
               ) : (
                 invites.map((inv) => (
                   <li
                     key={inv.id}
-                    className="p-3 flex flex-wrap gap-2 justify-between items-center bg-zinc-900/30"
+                    className="p-3 flex flex-wrap gap-2 justify-between items-center bg-brand-light/60"
                   >
                     <div>
-                      <span className="text-zinc-200">{inv.email}</span>
-                      <span className="text-xs font-mono text-violet-300 ml-2">
+                      <span className="text-slate-800">{inv.email}</span>
+                      <span className="text-xs font-mono text-brand ml-2">
                         {inv.role}
                       </span>
-                      <p className="text-xs text-zinc-500 mt-1">
+                      <p className="text-xs text-slate-500 mt-1">
                         {inv.status} · expires{" "}
                         {new Date(inv.expiresAt).toISOString().slice(0, 10)} · by{" "}
                         {inv.invitedBy.email}
@@ -906,9 +1029,9 @@ export default function OwnerVenueDetailPage() {
                     {inv.status === "PENDING" ? (
                       <button
                         type="button"
-                        disabled={inviteBusy}
+                        disabled={readOnlyDisabled || inviteBusy}
                         onClick={() => void cancelStaffInvite(inv.id)}
-                        className="text-xs text-red-400 hover:underline"
+                        className="text-xs text-red-600 hover:underline disabled:opacity-50"
                       >
                         Cancel
                       </button>
@@ -921,16 +1044,17 @@ export default function OwnerVenueDetailPage() {
         )}
 
         {canAnalytics && (
-          <section className="border border-zinc-800 rounded-xl p-4 space-y-4">
+          <section className="border border-slate-200 rounded-xl p-4 space-y-4">
             <h2 className="text-lg font-medium">Marketing campaigns</h2>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-slate-500">
               Push to players who visited this venue in the last N UTC days.
               Only sends to accounts with partner marketing on and not in total
               privacy (server-side).
             </p>
             <div className="grid gap-2 sm:grid-cols-2">
               <input
-                className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm"
+                disabled={readOnlyDisabled}
+                className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm disabled:opacity-60"
                 placeholder="Internal name"
                 value={campName}
                 onChange={(e) => setCampName(e.target.value)}
@@ -939,18 +1063,21 @@ export default function OwnerVenueDetailPage() {
                 type="number"
                 min={1}
                 max={365}
-                className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm"
+                disabled={readOnlyDisabled}
+                className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm disabled:opacity-60"
                 value={campSeg}
                 onChange={(e) => setCampSeg(Number(e.target.value))}
               />
               <input
-                className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm sm:col-span-2"
+                disabled={readOnlyDisabled}
+                className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm sm:col-span-2 disabled:opacity-60"
                 placeholder="Notification title"
                 value={campTitle}
                 onChange={(e) => setCampTitle(e.target.value)}
               />
               <textarea
-                className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm min-h-[80px] sm:col-span-2"
+                disabled={readOnlyDisabled}
+                className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm min-h-[80px] sm:col-span-2 disabled:opacity-60"
                 placeholder="Notification body"
                 value={campBody}
                 onChange={(e) => setCampBody(e.target.value)}
@@ -958,123 +1085,123 @@ export default function OwnerVenueDetailPage() {
             </div>
             <button
               type="button"
-              disabled={campBusy}
+              disabled={readOnlyDisabled || campBusy}
               onClick={() => void createCampaign()}
-              className="bg-violet-700 hover:bg-violet-600 disabled:opacity-50 rounded-lg px-4 py-2 text-sm font-semibold"
+              className="bg-brand hover:bg-brand-hover disabled:opacity-50 rounded-lg px-4 py-2 text-sm font-semibold"
             >
               Save draft campaign
             </button>
-            <ul className="divide-y divide-zinc-800 border border-zinc-800 rounded-lg overflow-hidden">
+            <ul className="divide-y divide-slate-200 border border-slate-200 rounded-lg overflow-hidden">
               {campaigns.map((c) => (
                 <li
                   key={c.id}
-                  className="p-3 flex flex-wrap gap-3 items-center justify-between bg-zinc-900/30"
+                  className="p-3 flex flex-wrap gap-3 items-center justify-between bg-brand-light/60"
                 >
                   <div>
-                    <p className="font-medium text-zinc-200">{c.name}</p>
-                    <p className="text-xs text-zinc-500">
+                    <p className="font-medium text-slate-800">{c.name}</p>
+                    <p className="text-xs text-slate-500">
                       {c.status} · segment {c.segmentDays}d
                       {c.recipientCount != null
                         ? ` · recipients ${c.recipientCount}`
                         : ""}
                     </p>
                     {c.lastError ? (
-                      <p className="text-xs text-red-400 mt-1">{c.lastError}</p>
+                      <p className="text-xs text-red-600 mt-1">{c.lastError}</p>
                     ) : null}
                   </div>
                   {c.status !== "COMPLETED" ? (
                     <button
                       type="button"
-                      disabled={campBusy}
+                      disabled={readOnlyDisabled || campBusy}
                       onClick={() => void sendCampaign(c.id)}
-                      className="text-sm bg-amber-900/40 border border-amber-800 text-amber-200 px-3 py-1 rounded-lg"
+                      className="text-sm bg-amber-50 border border-amber-300 text-amber-900 px-3 py-1 rounded-lg disabled:opacity-50"
                     >
                       Send now
                     </button>
                   ) : (
-                    <span className="text-xs text-zinc-500">Sent</span>
+                    <span className="text-xs text-slate-500">Sent</span>
                   )}
                 </li>
               ))}
               {campaigns.length === 0 ? (
-                <li className="p-4 text-zinc-500 text-sm">No campaigns yet.</li>
+                <li className="p-4 text-slate-500 text-sm">No campaigns yet.</li>
               ) : null}
             </ul>
           </section>
         )}
 
         {canAnalytics && (
-          <section className="border border-zinc-800 rounded-xl p-4 space-y-4">
+          <section className="border border-slate-200 rounded-xl p-4 space-y-4">
             <h2 className="text-lg font-medium">Receipt submissions</h2>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-slate-500">
               90-day retention target per submission. Approve or reject from
               detail view.
             </p>
             <button
               type="button"
               onClick={() => void loadReceipts()}
-              className="text-sm text-violet-400"
+              className="text-sm text-brand"
             >
               Refresh list
             </button>
-            <ul className="divide-y divide-zinc-800 border border-zinc-800 rounded-lg">
+            <ul className="divide-y divide-slate-200 border border-slate-200 rounded-lg">
               {receipts.map((r) => (
                 <li key={r.id}>
                   <button
                     type="button"
-                    className="w-full text-left p-3 hover:bg-zinc-900/50 flex justify-between gap-2"
+                    className="w-full text-left p-3 hover:bg-slate-100 flex justify-between gap-2"
                     onClick={() => void openReceipt(r.id)}
                   >
-                    <span className="text-sm text-zinc-300">
+                    <span className="text-sm text-slate-800">
                       {r.player.email} · {r.status}
                     </span>
-                    <span className="text-xs text-zinc-500">
+                    <span className="text-xs text-slate-500">
                       {new Date(r.createdAt).toISOString()}
                     </span>
                   </button>
                 </li>
               ))}
               {receipts.length === 0 ? (
-                <li className="p-4 text-zinc-500 text-sm">No receipts.</li>
+                <li className="p-4 text-slate-500 text-sm">No receipts.</li>
               ) : null}
             </ul>
             {receiptDetail && (
-              <div className="border border-zinc-700 rounded-lg p-4 space-y-3 bg-zinc-900/40">
-                <p className="text-sm text-zinc-400">
+              <div className="border border-slate-300 rounded-lg p-4 space-y-3 bg-slate-50">
+                <p className="text-sm text-slate-600">
                   {receiptDetail.player.email} — {receiptDetail.status}
                 </p>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={receiptDetail.imageData}
                   alt="Receipt"
-                  className="max-h-64 rounded border border-zinc-700"
+                  className="max-h-64 rounded border border-slate-300"
                 />
                 {receiptDetail.status === "PENDING" && (
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      disabled={receiptBusy}
+                      disabled={readOnlyDisabled || receiptBusy}
                       onClick={() =>
                         void reviewReceipt("APPROVED", receiptDetail.id)
                       }
-                      className="bg-emerald-800 text-white px-3 py-2 rounded-lg text-sm"
+                      className="bg-emerald-800 text-white px-3 py-2 rounded-lg text-sm disabled:opacity-50"
                     >
                       Approve
                     </button>
                     <button
                       type="button"
-                      disabled={receiptBusy}
+                      disabled={readOnlyDisabled || receiptBusy}
                       onClick={() =>
                         void reviewReceipt("REJECTED", receiptDetail.id)
                       }
-                      className="bg-red-900/80 text-red-100 px-3 py-2 rounded-lg text-sm"
+                      className="bg-red-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-red-700 disabled:opacity-50"
                     >
                       Reject
                     </button>
                     <button
                       type="button"
                       onClick={() => setReceiptDetail(null)}
-                      className="text-zinc-400 text-sm px-2"
+                      className="text-slate-600 text-sm px-2"
                     >
                       Close
                     </button>
@@ -1091,7 +1218,8 @@ export default function OwnerVenueDetailPage() {
             {canAnalytics && (
               <div className="mb-4 flex flex-wrap items-center gap-2">
                 <input
-                  className="bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-sm flex-1 min-w-[200px]"
+                  disabled={readOnlyDisabled}
+                  className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-sm flex-1 min-w-[200px] disabled:opacity-60"
                   placeholder="Void reason (managers)"
                   value={voidReason}
                   onChange={(e) => setVoidReason(e.target.value)}
@@ -1099,13 +1227,13 @@ export default function OwnerVenueDetailPage() {
               </div>
             )}
             <div className="flex flex-wrap items-center gap-4 mb-4">
-              <label className="text-sm text-zinc-400 flex items-center gap-2">
+              <label className="text-sm text-slate-600 flex items-center gap-2">
                 Date (UTC)
                 <input
                   type="date"
                   value={dateYmd}
                   onChange={(e) => setDateYmd(e.target.value)}
-                  className="bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-zinc-100"
+                  className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-900"
                 />
               </label>
               <button
@@ -1123,14 +1251,14 @@ export default function OwnerVenueDetailPage() {
                     }
                   })();
                 }}
-                className="text-sm bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded-lg"
+                className="text-sm bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded-lg"
               >
                 Refresh
               </button>
             </div>
-            <div className="rounded-xl border border-zinc-800 overflow-x-auto">
+            <div className="rounded-xl border border-slate-200 overflow-x-auto">
               <table className="w-full text-sm min-w-[640px]">
-                <thead className="bg-zinc-900 text-zinc-500 text-left">
+                <thead className="bg-slate-100 text-slate-600 text-left">
                   <tr>
                     <th className="p-3 font-medium">Staff code</th>
                     <th className="p-3 font-medium">Time (UTC)</th>
@@ -1143,21 +1271,21 @@ export default function OwnerVenueDetailPage() {
                   {redemptions.redemptions.map((r) => (
                     <tr
                       key={r.redemptionId}
-                      className={`border-t border-zinc-800 ${r.voidedAt ? "opacity-50" : ""}`}
+                      className={`border-t border-slate-200 ${r.voidedAt ? "opacity-50" : ""}`}
                     >
-                      <td className="p-3 font-mono text-amber-200">
+                      <td className="p-3 font-mono text-amber-900">
                         {r.staffVerificationCode}
                       </td>
-                      <td className="p-3 text-zinc-400">
+                      <td className="p-3 text-slate-600">
                         {new Date(r.redeemedAt).toISOString()}
                       </td>
                       <td className="p-3">
-                        <span className="text-zinc-200">{r.perkTitle}</span>
-                        <span className="text-zinc-500 text-xs ml-2">
+                        <span className="text-slate-800">{r.perkTitle}</span>
+                        <span className="text-slate-500 text-xs ml-2">
                           ({r.perkCode})
                         </span>
                       </td>
-                      <td className="p-3 text-xs text-zinc-500">
+                      <td className="p-3 text-xs text-slate-500">
                         {r.voidedAt
                           ? `Voided`
                           : r.staffAcknowledgedAt
@@ -1169,20 +1297,24 @@ export default function OwnerVenueDetailPage() {
                           <div className="flex flex-col gap-1">
                             <button
                               type="button"
-                              disabled={!!actionBusy || !!r.staffAcknowledgedAt}
+                              disabled={
+                                readOnlyDisabled ||
+                                !!actionBusy ||
+                                !!r.staffAcknowledgedAt
+                              }
                               onClick={() => void ackRedemption(r.redemptionId)}
-                              className="text-xs text-violet-400 text-left"
+                              className="text-xs text-brand text-left disabled:opacity-50"
                             >
                               Acknowledge
                             </button>
                             {canAnalytics ? (
                               <button
                                 type="button"
-                                disabled={!!actionBusy}
+                                disabled={readOnlyDisabled || !!actionBusy}
                                 onClick={() =>
                                   void voidRedemption(r.redemptionId)
                                 }
-                                className="text-xs text-red-400 text-left"
+                                className="text-xs text-red-600 text-left disabled:opacity-50"
                               >
                                 Void
                               </button>
@@ -1195,7 +1327,7 @@ export default function OwnerVenueDetailPage() {
                 </tbody>
               </table>
               {redemptions.redemptions.length === 0 && (
-                <p className="p-6 text-zinc-500">No redemptions for this day.</p>
+                <p className="p-6 text-slate-500">No redemptions for this day.</p>
               )}
             </div>
           </section>

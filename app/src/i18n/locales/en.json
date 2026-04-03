@@ -174,6 +174,8 @@
     "lockedHintStandard": "Venue games need location to confirm you’re on site. Loyalty and browsing stay available.",
     "lockedHintPremium": "Venue games need location here, or use a subscription for global play from anywhere.",
     "unlockedHint": "You’re at this venue — venue games and challenges are available.",
+    "venueTemporarilyUnavailable": "This café isn’t running Cafe Social games right now. Offers and the rest of the app still work.",
+    "venueTemporarilyUnavailableShort": "Games aren’t available at this venue for the moment.",
     "challengeTitle": "Your challenge",
     "unlockToStart": "Be at the venue with location on, or subscribe for global play.",
     "loadingChallenge": "Loading challenge…",

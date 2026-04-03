@@ -1,6 +1,8 @@
 import {
+  BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   ParseUUIDPipe,
@@ -9,6 +11,7 @@ import {
   Req,
   Res,
   UnauthorizedException,
+  UseFilters,
   UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
@@ -16,6 +19,7 @@ import {
   PlatformRole,
   ReceiptSubmissionStatus,
   VenueStaff,
+  VenueStaffInviteStatus,
   VenueStaffRole,
 } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -38,6 +42,15 @@ import { VenueReceiptService } from '../receipt/venue-receipt.service';
 import { CreateOwnerCampaignDto } from './dto/create-owner-campaign.dto';
 import { ReviewReceiptDto } from './dto/review-receipt.dto';
 import { VoidRedemptionDto } from './dto/void-redemption.dto';
+import { PartnerOnboardingDto } from './dto/partner-onboarding.dto';
+import { PartnerOrgAccessService } from './partner-org-access.service';
+import { PartnerOnboardingService } from './partner-onboarding.service';
+import { OwnerOrganizationVenueService } from './owner-organization-venue.service';
+import { CreateVenueDto } from '../venue/dto/create-venue.dto';
+import { PartnerVenueWriteGuard } from './partner-venue-write.guard';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { PartnerOnboardingThrottlerFilter } from './partner-onboarding-throttle.filter';
+import { PORTAL_VENUE_CONTEXT_HEADER } from './portal-context.constants';
 
 function utcTodayYmd(): string {
   const n = new Date();
@@ -47,6 +60,12 @@ function utcTodayYmd(): string {
   return `${y}-${m}-${d}`;
 }
 
+/**
+ * Partner portal API. Venue mutations use `PartnerVenueWriteGuard` + `PartnerOrgAccessService`
+ * (trial / lock). `POST organizations/:id/venues` calls `assertPartnerMayMutateOrganization`.
+ * Super admins: send `X-Portal-Venue-Context: <venueId>` to load one venue as partner context;
+ * partner write bypass applies only when that header does not match the route `venueId`.
+ */
 @Controller('owner')
 @UseGuards(JwtAuthGuard)
 export class OwnerController {
@@ -60,6 +79,9 @@ export class OwnerController {
     private readonly campaigns: OwnerCampaignService,
     private readonly redemptionActions: OwnerRedemptionActionsService,
     private readonly receipts: VenueReceiptService,
+    private readonly partnerOrgAccess: PartnerOrgAccessService,
+    private readonly partnerOnboarding: PartnerOnboardingService,
+    private readonly ownerOrgVenues: OwnerOrganizationVenueService,
   ) {}
 
   private async staffPlayerId(user: unknown): Promise<string> {
@@ -73,11 +95,48 @@ export class OwnerController {
     return p.id;
   }
 
+  private static isUuidSegment(v: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      v.trim(),
+    );
+  }
+
+  /** Resolved venue id when a super admin sends {@link PORTAL_VENUE_CONTEXT_HEADER}. */
+  private async resolvePortalVenueContext(
+    req: Request,
+    user: unknown,
+  ): Promise<string | null> {
+    const raw = req.headers[PORTAL_VENUE_CONTEXT_HEADER];
+    const val =
+      typeof raw === 'string' ? raw : Array.isArray(raw) ? raw[0] : undefined;
+    const id = typeof val === 'string' ? val.trim() : '';
+    if (!id || !OwnerController.isUuidSegment(id)) {
+      return null;
+    }
+    const email = normalizeUserEmail(user);
+    if (!email) return null;
+    const p = await this.prisma.player.findFirst({
+      where: { email: { equals: email.trim(), mode: 'insensitive' } },
+      select: { platformRole: true },
+    });
+    if (p?.platformRole !== PlatformRole.SUPER_ADMIN) {
+      return null;
+    }
+    const v = await this.prisma.venue.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    return v ? id : null;
+  }
+
   /**
-   * Shared venue list for portal: super admins see all venues as OWNER;
-   * others see `VenueStaff` memberships only.
+   * Shared venue list for portal: super admins get no venues until they pick one
+   * via `X-Portal-Venue-Context`; others see `VenueStaff` memberships only.
    */
-  private async portalVenuesForUser(user: unknown): Promise<{
+  private async buildPortalVenuesForUser(
+    user: unknown,
+    actingPartnerVenueId: string | null,
+  ): Promise<{
     platformRole: PlatformRole;
     playerId: string;
     email: string;
@@ -92,10 +151,14 @@ export class OwnerController {
         address: string | null;
         organizationId: string | null;
         locked: boolean;
+        lockReason: string | null;
         organization: {
           id: string;
           name: string;
           slug: string | null;
+          locationKind: string;
+          trialStartedAt: Date | null;
+          trialEndsAt: Date | null;
           platformBillingPlan: string | null;
           platformBillingStatus: string;
           platformBillingRenewsAt: Date | null;
@@ -120,37 +183,61 @@ export class OwnerController {
     });
     if (!row) throw new UnauthorizedException('Player not found');
 
-    if (row.platformRole === PlatformRole.SUPER_ADMIN) {
-      const all = await this.prisma.venue.findMany({
+    const venueSelect = {
+      id: true,
+      name: true,
+      city: true,
+      country: true,
+      address: true,
+      organizationId: true,
+      locked: true,
+      lockReason: true,
+      organization: {
         select: {
           id: true,
           name: true,
-          city: true,
-          country: true,
-          address: true,
-          organizationId: true,
-          locked: true,
-          organization: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-              platformBillingPlan: true,
-              platformBillingStatus: true,
-              platformBillingRenewsAt: true,
-              platformBillingSyncedAt: true,
-              billingPortalUrl: true,
-            },
-          },
+          slug: true,
+          locationKind: true,
+          trialStartedAt: true,
+          trialEndsAt: true,
+          platformBillingPlan: true,
+          platformBillingStatus: true,
+          platformBillingRenewsAt: true,
+          platformBillingSyncedAt: true,
+          billingPortalUrl: true,
         },
-        orderBy: { name: 'asc' },
+      },
+    } as const;
+
+    if (row.platformRole === PlatformRole.SUPER_ADMIN) {
+      if (!actingPartnerVenueId) {
+        return {
+          platformRole: row.platformRole,
+          playerId: row.id,
+          email: row.email,
+          username: row.username,
+          venues: [],
+        };
+      }
+      const venue = await this.prisma.venue.findUnique({
+        where: { id: actingPartnerVenueId },
+        select: venueSelect,
       });
+      if (!venue) {
+        return {
+          platformRole: row.platformRole,
+          playerId: row.id,
+          email: row.email,
+          username: row.username,
+          venues: [],
+        };
+      }
       return {
         platformRole: row.platformRole,
         playerId: row.id,
         email: row.email,
         username: row.username,
-        venues: all.map((venue) => ({ role: VenueStaffRole.OWNER, venue })),
+        venues: [{ role: VenueStaffRole.OWNER, venue }],
       };
     }
 
@@ -164,25 +251,124 @@ export class OwnerController {
     };
   }
 
+  private collectOrgIdsFromPortalVenues(
+    venues: { venue: { organizationId: string | null } }[],
+  ): string[] {
+    return [
+      ...new Set(
+        venues
+          .map((v) => v.venue.organizationId)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0),
+      ),
+    ];
+  }
+
+  @Get('super-admin/venue-picker')
+  async superAdminVenuePicker(@CurrentUser() user: unknown) {
+    const email = normalizeUserEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    const p = await this.prisma.player.findFirst({
+      where: { email: { equals: email.trim(), mode: 'insensitive' } },
+      select: { platformRole: true },
+    });
+    if (p?.platformRole !== PlatformRole.SUPER_ADMIN) {
+      throw new ForbiddenException('Super admin only');
+    }
+    return this.prisma.venue.findMany({
+      select: {
+        id: true,
+        name: true,
+        city: true,
+        country: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   @Get('me')
-  async portalMe(@CurrentUser() user: unknown) {
-    const ctx = await this.portalVenuesForUser(user);
+  async portalMe(@CurrentUser() user: unknown, @Req() req: Request) {
+    const actingPartnerVenueId = await this.resolvePortalVenueContext(req, user);
+    let ctx = await this.buildPortalVenuesForUser(user, actingPartnerVenueId);
+    await this.partnerOrgAccess.syncVenueLocksForOrganizations(
+      this.collectOrgIdsFromPortalVenues(ctx.venues),
+    );
+    ctx = await this.buildPortalVenuesForUser(user, actingPartnerVenueId);
+    let needsPartnerOnboarding =
+      ctx.platformRole !== PlatformRole.SUPER_ADMIN && ctx.venues.length === 0;
+    if (needsPartnerOnboarding) {
+      const pendingInvites = await this.prisma.venueStaffInvite.count({
+        where: {
+          email: { equals: ctx.email.trim(), mode: 'insensitive' },
+          status: VenueStaffInviteStatus.PENDING,
+        },
+      });
+      if (pendingInvites > 0) {
+        needsPartnerOnboarding = false;
+      }
+    }
     return {
       platformRole: ctx.platformRole,
       playerId: ctx.playerId,
       email: ctx.email,
       username: ctx.username,
       venues: ctx.venues,
+      needsPartnerOnboarding,
+      actingPartnerVenueId,
     };
   }
 
   @Get('venues')
-  async myVenues(@CurrentUser() user: unknown) {
-    const ctx = await this.portalVenuesForUser(user);
+  async myVenues(@CurrentUser() user: unknown, @Req() req: Request) {
+    const actingPartnerVenueId = await this.resolvePortalVenueContext(req, user);
+    let ctx = await this.buildPortalVenuesForUser(user, actingPartnerVenueId);
+    await this.partnerOrgAccess.syncVenueLocksForOrganizations(
+      this.collectOrgIdsFromPortalVenues(ctx.venues),
+    );
+    ctx = await this.buildPortalVenuesForUser(user, actingPartnerVenueId);
     return {
       platformRole: ctx.platformRole,
       venues: ctx.venues,
+      actingPartnerVenueId,
     };
+  }
+
+  @Post('onboarding/bootstrap')
+  @UseFilters(PartnerOnboardingThrottlerFilter)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ onboarding: { limit: 8, ttl: 60000 } })
+  async partnerOnboardingBootstrap(
+    @CurrentUser() user: unknown,
+    @Body() body: PartnerOnboardingDto,
+  ) {
+    const email = normalizeUserEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    const player = await this.players.findOrCreateByEmail(email.trim());
+    return this.partnerOnboarding.bootstrapSelfServeOrgAndVenue(player.id, body);
+  }
+
+  @Post('organizations/:organizationId/venues')
+  async createVenueForOrganization(
+    @CurrentUser() user: unknown,
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+    @Body() body: CreateVenueDto,
+  ) {
+    const email = normalizeUserEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    const player = await this.players.findOrCreateByEmail(email.trim());
+    if (player.platformRole === PlatformRole.SUPER_ADMIN) {
+      throw new BadRequestException(
+        'Super admins add venues via /api/admin/venues (CMS).',
+      );
+    }
+    await this.partnerOrgAccess.assertPartnerMayMutateOrganization(
+      organizationId,
+      user,
+    );
+    return this.ownerOrgVenues.createVenueUnderOrganization(
+      organizationId,
+      player.id,
+      body,
+    );
   }
 
   @Post('accept-staff-invite')
@@ -278,7 +464,7 @@ export class OwnerController {
   }
 
   @Post('venues/:venueId/staff-invites')
-  @UseGuards(VenueStaffGuard)
+  @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard)
   @MinVenueRole(VenueStaffRole.MANAGER)
   async createStaffInvite(
     @CurrentUser() user: unknown,
@@ -301,7 +487,7 @@ export class OwnerController {
   }
 
   @Post('venues/:venueId/staff-invites/:inviteId/cancel')
-  @UseGuards(VenueStaffGuard)
+  @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard)
   @MinVenueRole(VenueStaffRole.MANAGER)
   async cancelStaffInvite(
     @Param('venueId', new ParseUUIDPipe()) venueId: string,
@@ -333,7 +519,7 @@ export class OwnerController {
   }
 
   @Post('venues/:venueId/redemptions/:redemptionId/acknowledge')
-  @UseGuards(VenueStaffGuard)
+  @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard)
   @MinVenueRole(VenueStaffRole.EMPLOYEE)
   async acknowledgeRedemption(
     @CurrentUser() user: unknown,
@@ -350,7 +536,7 @@ export class OwnerController {
   }
 
   @Post('venues/:venueId/redemptions/:redemptionId/void')
-  @UseGuards(VenueStaffGuard)
+  @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard)
   @MinVenueRole(VenueStaffRole.MANAGER)
   async voidRedemption(
     @CurrentUser() user: unknown,
@@ -376,7 +562,7 @@ export class OwnerController {
   }
 
   @Post('venues/:venueId/campaigns')
-  @UseGuards(VenueStaffGuard)
+  @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard)
   @MinVenueRole(VenueStaffRole.MANAGER)
   createCampaign(
     @Param('venueId', new ParseUUIDPipe()) venueId: string,
@@ -392,7 +578,7 @@ export class OwnerController {
   }
 
   @Post('venues/:venueId/campaigns/:campaignId/send')
-  @UseGuards(VenueStaffGuard)
+  @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard)
   @MinVenueRole(VenueStaffRole.MANAGER)
   sendCampaign(
     @Param('venueId', new ParseUUIDPipe()) venueId: string,
@@ -419,7 +605,7 @@ export class OwnerController {
   }
 
   @Post('venues/:venueId/receipts/:submissionId/review')
-  @UseGuards(VenueStaffGuard)
+  @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard)
   @MinVenueRole(VenueStaffRole.MANAGER)
   async reviewReceipt(
     @CurrentUser() user: unknown,

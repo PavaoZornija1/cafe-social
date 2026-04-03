@@ -3,7 +3,7 @@
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { portalFetch } from "../../../../lib/portalApi";
 
 type VenueStaffRow = {
@@ -43,6 +43,7 @@ export default function EditVenuePage() {
   const [staffRole, setStaffRole] = useState<VenueStaffRow["role"]>("EMPLOYEE");
   const [staffBusy, setStaffBusy] = useState(false);
   const [orgs, setOrgs] = useState<OrgOption[]>([]);
+  const lockedWhenLoaded = useRef(false);
 
   useEffect(() => {
     if (!isLoaded || !id) return;
@@ -52,13 +53,16 @@ export default function EditVenuePage() {
         const data = await portalFetch<Venue>(getToken, `/admin/venues/${id}`, {
           method: "GET",
         });
-        if (!c)
-          setV({
+        if (!c) {
+          const merged = {
             ...data,
             organizationId: data.organizationId ?? null,
             locked: data.locked ?? false,
             lockReason: data.lockReason ?? null,
-          });
+          };
+          lockedWhenLoaded.current = merged.locked;
+          setV(merged);
+        }
       } catch (e) {
         if (!c) setErr((e as Error).message);
       }
@@ -130,6 +134,7 @@ export default function EditVenuePage() {
         method: "PATCH",
         body: JSON.stringify(body),
       });
+      lockedWhenLoaded.current = v.locked;
       router.push("/venues");
     } catch (e) {
       setErr((e as Error).message);
@@ -187,9 +192,9 @@ export default function EditVenuePage() {
 
   if (err && !v) {
     return (
-      <div className="bg-zinc-950 text-red-300 p-8">
+      <div className="bg-slate-50 text-red-700 p-8">
         {err}{" "}
-        <Link href="/venues" className="text-violet-400">
+        <Link href="/venues" className="text-brand">
           Back
         </Link>
       </div>
@@ -197,7 +202,7 @@ export default function EditVenuePage() {
   }
   if (!v) {
     return (
-      <div className="bg-zinc-950 text-zinc-100 p-8">Loading…</div>
+      <div className="bg-slate-50 text-slate-900 p-8">Loading…</div>
     );
   }
 
@@ -207,16 +212,16 @@ export default function EditVenuePage() {
     multiline?: boolean,
   ) => (
     <label className="block mb-3">
-      <span className="text-sm text-zinc-400">{label}</span>
+      <span className="text-sm text-slate-600">{label}</span>
       {multiline ? (
         <textarea
-          className="mt-1 w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm min-h-[72px]"
+          className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm min-h-[72px]"
           value={(v[key] as string) ?? ""}
           onChange={(e) => setV({ ...v, [key]: e.target.value })}
         />
       ) : (
         <input
-          className="mt-1 w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm"
+          className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
           value={(v[key] as string) ?? ""}
           onChange={(e) => setV({ ...v, [key]: e.target.value })}
         />
@@ -225,16 +230,16 @@ export default function EditVenuePage() {
   );
 
   return (
-    <div className="bg-zinc-950 text-zinc-100 p-8 max-w-2xl">
-      <Link href="/venues" className="text-violet-400 text-sm">
+    <div className="bg-slate-50 text-slate-900 p-8 max-w-2xl">
+      <Link href="/venues" className="text-brand text-sm">
         ← Venues
       </Link>
       <h1 className="text-xl font-bold mt-4 mb-1">{v.name}</h1>
-      <p className="text-xs text-zinc-500 font-mono mb-6">{v.id}</p>
+      <p className="text-xs text-slate-500 font-mono mb-6">{v.id}</p>
       <label className="block mb-3">
-        <span className="text-sm text-zinc-400">Franchise / organization</span>
+        <span className="text-sm text-slate-600">Franchise / organization</span>
         <select
-          className="mt-1 w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm"
+          className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
           value={v.organizationId ?? ""}
           onChange={(e) =>
             setV({
@@ -250,9 +255,9 @@ export default function EditVenuePage() {
             </option>
           ))}
         </select>
-        <p className="text-xs text-zinc-500 mt-1">
+        <p className="text-xs text-slate-500 mt-1">
           Manage orgs under{" "}
-          <Link href="/organizations" className="text-violet-400 hover:underline">
+          <Link href="/organizations" className="text-brand hover:underline">
             Organizations
           </Link>
           .
@@ -262,9 +267,21 @@ export default function EditVenuePage() {
         <input
           type="checkbox"
           checked={v.locked}
-          onChange={(e) => setV({ ...v, locked: e.target.checked })}
+          onChange={(e) => {
+            const next = e.target.checked;
+            if (next && !v.locked) {
+              if (
+                !window.confirm(
+                  "Lock this venue? Save to apply — players lose access until unlocked.",
+                )
+              ) {
+                return;
+              }
+            }
+            setV({ ...v, locked: next });
+          }}
         />
-        <span className="text-sm text-zinc-300">Locked (suspend play & map)</span>
+        <span className="text-sm text-slate-800">Locked (suspend play & map)</span>
       </label>
       {field("Lock reason (optional)", "lockReason")}
       {field("Menu URL", "menuUrl")}
@@ -275,11 +292,11 @@ export default function EditVenuePage() {
       {field("Featured offer body", "featuredOfferBody", true)}
       {field("Featured offer ends at (ISO, optional)", "featuredOfferEndsAt")}
       <label className="block mb-3">
-        <span className="text-sm text-zinc-400">
+        <span className="text-sm text-slate-600">
           Analytics timezone (IANA, optional — hour-of-day charts for owners)
         </span>
         <input
-          className="mt-1 w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm"
+          className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
           value={v.analyticsTimeZone ?? ""}
           onChange={(e) =>
             setV({ ...v, analyticsTimeZone: e.target.value || null })
@@ -287,30 +304,30 @@ export default function EditVenuePage() {
           placeholder="e.g. Europe/Zagreb"
         />
       </label>
-      <div className="border border-zinc-700 rounded-lg p-4 mb-4 space-y-3">
-        <p className="text-sm text-zinc-300 font-semibold">
+      <div className="border border-slate-300 rounded-lg p-4 mb-4 space-y-3">
+        <p className="text-sm text-slate-800 font-semibold">
           Owner / manager / employee (Clerk)
         </p>
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-slate-500">
           Invite people with their real sign-in email. They use this partner
           portal with the same Clerk project: employees see verification lists;
           managers and owners see analytics and campaigns.
         </p>
         <div className="flex flex-wrap gap-2 items-end">
-          <label className="block text-sm text-zinc-400 flex-1 min-w-[200px]">
+          <label className="block text-sm text-slate-600 flex-1 min-w-[200px]">
             Email
             <input
               type="email"
-              className="mt-1 w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm"
+              className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
               value={staffEmail}
               onChange={(e) => setStaffEmail(e.target.value)}
               placeholder="owner@venue.com"
             />
           </label>
-          <label className="block text-sm text-zinc-400">
+          <label className="block text-sm text-slate-600">
             Role
             <select
-              className="mt-1 block w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm"
+              className="mt-1 block w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
               value={staffRole}
               onChange={(e) =>
                 setStaffRole(e.target.value as VenueStaffRow["role"])
@@ -325,29 +342,29 @@ export default function EditVenuePage() {
             type="button"
             disabled={staffBusy}
             onClick={() => void addStaff()}
-            className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 rounded-lg px-4 py-2 text-sm h-[38px]"
+            className="bg-slate-200 hover:bg-slate-300 disabled:opacity-50 rounded-lg px-4 py-2 text-sm h-[38px]"
           >
             Add / update
           </button>
         </div>
-        <ul className="divide-y divide-zinc-800 rounded border border-zinc-800 overflow-hidden">
+        <ul className="divide-y divide-slate-200 rounded border border-slate-200 overflow-hidden">
           {staffList.length === 0 ? (
-            <li className="text-sm text-zinc-500 p-3">No staff yet.</li>
+            <li className="text-sm text-slate-500 p-3">No staff yet.</li>
           ) : (
             staffList.map((s) => (
               <li
                 key={s.id}
-                className="flex flex-wrap items-center gap-2 justify-between p-3 text-sm bg-zinc-900/40"
+                className="flex flex-wrap items-center gap-2 justify-between p-3 text-sm bg-slate-50"
               >
-                <span className="text-zinc-300">{s.player.email}</span>
-                <span className="text-xs font-mono text-violet-300">
+                <span className="text-slate-800">{s.player.email}</span>
+                <span className="text-xs font-mono text-brand">
                   {s.role}
                 </span>
                 <button
                   type="button"
                   disabled={staffBusy}
                   onClick={() => void removeStaffMember(s.playerId)}
-                  className="text-red-400 hover:text-red-300 text-xs"
+                  className="text-red-600 hover:text-red-800 text-xs"
                 >
                   Remove
                 </button>
@@ -356,12 +373,12 @@ export default function EditVenuePage() {
           )}
         </ul>
       </div>
-      {err ? <p className="text-red-400 text-sm mb-2">{err}</p> : null}
+      {err ? <p className="text-red-600 text-sm mb-2">{err}</p> : null}
       <button
         type="button"
         disabled={saving}
         onClick={() => void save()}
-        className="mt-4 w-full bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-lg py-2 font-semibold"
+        className="mt-4 w-full bg-brand hover:bg-brand-hover disabled:opacity-50 rounded-lg py-2 font-semibold"
       >
         {saving ? "Saving…" : "Save"}
       </button>

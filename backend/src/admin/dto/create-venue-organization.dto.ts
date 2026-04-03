@@ -1,5 +1,7 @@
+import { VenueOrganizationKind } from '@prisma/client';
 import {
   IsDateString,
+  IsEnum,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -11,6 +13,10 @@ export class CreateVenueOrganizationDto {
   @IsNotEmpty()
   @MaxLength(200)
   name!: string;
+
+  @IsEnum(VenueOrganizationKind)
+  @IsOptional()
+  locationKind?: VenueOrganizationKind;
 
   @IsString()
   @IsOptional()

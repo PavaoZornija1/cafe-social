@@ -1,8 +1,14 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { Venue } from '@prisma/client';
 import { PlayerService } from '../player/player.service';
 import { PlayerVenueRepository } from './player-venue.repository';
 import { SubscriptionRepository } from './subscription.repository';
+import type { PublicVenueDetectResult } from './public-detect.types';
 import { VenueService } from './venue.service';
 
 export type VenueAccessResult = {
@@ -22,6 +28,8 @@ export type VenueAccessResult = {
 
 @Injectable()
 export class VenueAccessService {
+  private readonly log = new Logger(VenueAccessService.name);
+
   constructor(
     private readonly venues: VenueService,
     private readonly players: PlayerService,
@@ -31,9 +39,14 @@ export class VenueAccessService {
 
   /**
    * If latitude/longitude are provided, returns the venue geofence that contains the point
-   * (closest match if multiple). If outside all fences, or coordinates are missing, returns null.
+   * (closest match if multiple), **including locked venues** so clients can show
+   * “temporarily unavailable” instead of hiding the pin. If outside all fences, or
+   * coordinates are missing, returns null.
    */
-  async detectVenue(latitude?: number, longitude?: number): Promise<Venue | null> {
+  async detectVenue(
+    latitude?: number,
+    longitude?: number,
+  ): Promise<PublicVenueDetectResult> {
     const hasCoords =
       typeof latitude === 'number' &&
       typeof longitude === 'number' &&
@@ -41,7 +54,19 @@ export class VenueAccessService {
       Number.isFinite(longitude);
 
     if (!hasCoords) return null;
-    return this.venues.findVenueAtCoordinates(latitude!, longitude!);
+    const v = await this.venues.findVenueAtCoordinatesIncludingLocked(
+      latitude!,
+      longitude!,
+    );
+    if (!v) return null;
+    return {
+      id: v.id,
+      name: v.name,
+      isPremium: v.isPremium,
+      locked: v.locked,
+      city: v.city,
+      country: v.country,
+    };
   }
 
   private computeSubscriptionActive(subscription: { active: boolean; expiresAt: Date | null } | null): boolean {
@@ -89,11 +114,24 @@ export class VenueAccessService {
       Number.isFinite(latitude) &&
       Number.isFinite(longitude)
     ) {
-      const at = await this.venues.findVenueAtCoordinates(latitude, longitude);
+      const at = await this.venues.findVenueAtCoordinatesIncludingLocked(
+        latitude,
+        longitude,
+      );
       isPhysicallyAtVenue = at?.id === venueId;
     }
 
     const canEnterVenueContext = !venue.locked && isPhysicallyAtVenue;
+
+    if (venue.locked && isPhysicallyAtVenue) {
+      this.log.log(
+        JSON.stringify({
+          metric: 'player_geofence_locked_venue',
+          venueId: venue.id,
+          at: new Date().toISOString(),
+        }),
+      );
+    }
 
     return {
       venueId: venue.id,

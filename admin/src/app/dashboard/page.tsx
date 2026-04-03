@@ -21,8 +21,12 @@ export default function DashboardRedirectPage() {
         }
         const me = await fetchPortalMe(getToken);
         if (cancelled) return;
+        if (me.needsPartnerOnboarding) {
+          router.replace("/onboarding");
+          return;
+        }
         if (me.platformRole === "SUPER_ADMIN") {
-          router.replace("/venues");
+          router.replace("/platform");
           return;
         }
         router.replace("/owner/venues");
@@ -36,8 +40,9 @@ export default function DashboardRedirectPage() {
   }, [isLoaded, getToken, router]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-400 flex items-center justify-center">
-      Redirecting…
+    <div className="min-h-screen bg-gradient-to-br from-brand-lighter via-background to-white text-brand-muted flex flex-col items-center justify-center gap-3">
+      <div className="h-10 w-10 rounded-xl bg-brand opacity-90 animate-pulse shadow-portal-card" aria-hidden />
+      <p className="text-sm font-medium text-slate-700">Redirecting…</p>
     </div>
   );
 }

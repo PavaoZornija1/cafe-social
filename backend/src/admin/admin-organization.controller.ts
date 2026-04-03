@@ -19,6 +19,10 @@ import { OrgVenueMembershipDto } from './dto/org-venue-membership.dto';
 import { StripePartnerCheckoutDto } from './dto/stripe-partner-checkout.dto';
 import { StripePartnerBillingService } from '../stripe/stripe-partner-billing.service';
 
+/**
+ * Platform CMS for franchise billing and org structure — super-admin JWT only.
+ * Not subject to partner self-serve trial/venue-lock guards on `/owner/*`.
+ */
 @Controller('admin/organizations')
 @UseGuards(JwtAuthGuard, PlatformSuperAdminGuard)
 export class AdminOrganizationController {
@@ -64,6 +68,9 @@ export class AdminOrganizationController {
     return this.prisma.venueOrganization.create({
       data: {
         name: body.name.trim(),
+        ...(body.locationKind !== undefined && {
+          locationKind: body.locationKind,
+        }),
         slug: body.slug?.trim() || null,
         platformBillingPlan: body.platformBillingPlan?.trim() || null,
         platformBillingStatus: body.platformBillingStatus?.trim() || 'NONE',

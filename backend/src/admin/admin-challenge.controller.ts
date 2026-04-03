@@ -1,7 +1,22 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { PlatformSuperAdminGuard } from '../auth/platform-super-admin.guard';
+import type { Request } from 'express';
+import type { AdminCmsScope } from './admin-cms-access.service';
+import { AdminCmsAccessService } from './admin-cms-access.service';
+import { AdminCmsGuard, getAdminCmsScope } from './admin-cms.guard';
+
+type ReqWithScope = Request & { adminCmsScope?: AdminCmsScope };
 
 class AdminPatchChallengeDto {
   title?: string;
@@ -15,12 +30,20 @@ class AdminPatchChallengeDto {
 }
 
 @Controller('admin')
-@UseGuards(JwtAuthGuard, PlatformSuperAdminGuard)
+@UseGuards(JwtAuthGuard, AdminCmsGuard)
 export class AdminChallengeController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cmsAccess: AdminCmsAccessService,
+  ) {}
 
   @Get('venues/:venueId/challenges')
-  listForVenue(@Param('venueId', new ParseUUIDPipe()) venueId: string) {
+  listForVenue(
+    @Req() req: ReqWithScope,
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+  ) {
+    const scope = getAdminCmsScope(req);
+    this.cmsAccess.assertVenueInScope(scope, venueId);
     return this.prisma.challenge.findMany({
       where: { venueId },
       orderBy: { createdAt: 'asc' },
@@ -28,7 +51,18 @@ export class AdminChallengeController {
   }
 
   @Patch('challenges/:id')
-  patch(@Param('id', new ParseUUIDPipe()) id: string, @Body() dto: AdminPatchChallengeDto) {
+  async patch(
+    @Req() req: ReqWithScope,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: AdminPatchChallengeDto,
+  ) {
+    const scope = getAdminCmsScope(req);
+    const row = await this.prisma.challenge.findUnique({
+      where: { id },
+      select: { venueId: true },
+    });
+    if (!row) throw new NotFoundException('Challenge not found');
+    this.cmsAccess.assertVenueInScope(scope, row.venueId);
     return this.prisma.challenge.update({
       where: { id },
       data: {

@@ -5,6 +5,8 @@ export type DetectedVenue = {
   id: string;
   name: string;
   isPremium: boolean;
+  /** Partner / billing pause — venue still shown in geofence. */
+  locked?: boolean;
   city?: string | null;
   country?: string | null;
 };

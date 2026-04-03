@@ -8,6 +8,8 @@ import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service';
+import { PartnerOrgAccessService } from '../owner/partner-org-access.service';
+import { isPayingPartnerOrg } from '../owner/partner-access.constants';
 
 /**
  * Stripe Billing for franchise / partner organizations (B2B SaaS).
@@ -24,6 +26,7 @@ export class StripePartnerBillingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly partnerOrgAccess: PartnerOrgAccessService,
   ) {}
 
   private stripe(): Stripe {
@@ -153,6 +156,12 @@ export class StripePartnerBillingService {
           : {}),
       },
     });
+
+    if (isPayingPartnerOrg(data.platformBillingStatus)) {
+      await this.partnerOrgAccess.unlockTrialLockedVenuesForPaidOrganization(
+        org.id,
+      );
+    }
   }
 
   async applySubscriptionDeleted(sub: Stripe.Subscription): Promise<void> {

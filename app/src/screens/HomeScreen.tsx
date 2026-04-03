@@ -24,7 +24,7 @@ import { buildVenueAccessQuery, fetchDetectedVenue } from '../lib/venueDetectCli
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-type Venue = { id: string; name: string; isPremium: boolean };
+type Venue = { id: string; name: string; isPremium: boolean; locked?: boolean };
 type VenueAccess = {
     venueId: string;
     isPremium: boolean;
@@ -131,16 +131,22 @@ export default function HomeScreen({ navigation }: Props) {
         return !access.canEnterVenueContext;
     }, [access]);
 
+    const venueAdminLocked = useMemo(
+        () => Boolean(access?.locked || detectedVenue?.locked),
+        [access?.locked, detectedVenue?.locked],
+    );
+
     const canPlayVenueContext = Boolean(detectedVenue && access?.canEnterVenueContext);
     const canPlayGlobal = Boolean(meSummary?.subscriptionActive);
     const gamesPlayable = canPlayVenueContext || canPlayGlobal;
 
     const venueGamesLockedExplanation = useMemo(() => {
         if (!locked || !detectedVenue) return '';
+        if (venueAdminLocked) return t('home.venueTemporarilyUnavailable');
         return detectedVenue.isPremium
             ? t('home.lockedHintPremium')
             : t('home.lockedHintStandard');
-    }, [locked, detectedVenue, t]);
+    }, [locked, detectedVenue, venueAdminLocked, t]);
 
     const loadMeSummary = useCallback(async () => {
         if (!isLoaded) return;
@@ -459,7 +465,15 @@ export default function HomeScreen({ navigation }: Props) {
                                 {detectedVenue.isPremium ? t('home.premiumSuffix') : ''}
                             </Text>
                             {locked ? (
-                                <Text style={styles.lockedHint}>{venueGamesLockedExplanation}</Text>
+                                <Text
+                                    style={
+                                        venueAdminLocked
+                                            ? styles.venuePausedHint
+                                            : styles.lockedHint
+                                    }
+                                >
+                                    {venueGamesLockedExplanation}
+                                </Text>
                             ) : (
                                 <Text style={styles.unlockedHint}>{t('home.unlockedHint')}</Text>
                             )}
@@ -648,7 +662,9 @@ export default function HomeScreen({ navigation }: Props) {
                     <Text style={styles.challengeTitle}>{t('home.challengeTitle')}</Text>
                     <Text style={styles.challengeText}>
                         {locked
-                            ? t('home.unlockToStart')
+                            ? venueAdminLocked
+                                ? t('home.venueTemporarilyUnavailableShort')
+                                : t('home.unlockToStart')
                             : loadingChallenges
                                 ? t('home.loadingChallenge')
                                 : venueChallenges[0]
@@ -798,6 +814,12 @@ const styles = StyleSheet.create({
     cardSubError: { marginTop: 8, color: '#f87171', fontSize: 13 },
     contextName: { color: '#fff', fontSize: 18, fontWeight: '900', marginTop: 10 },
     lockedHint: { marginTop: 8, color: '#fca5a5', fontSize: 13, fontWeight: '700' },
+    venuePausedHint: {
+        marginTop: 8,
+        color: '#fcd34d',
+        fontSize: 13,
+        fontWeight: '600',
+    },
     unlockedHint: { marginTop: 8, color: '#a78bfa', fontSize: 13, fontWeight: '700' },
     partnerCard: {
         backgroundColor: '#0b1220',

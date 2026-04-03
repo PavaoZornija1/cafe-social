@@ -174,6 +174,8 @@
     "lockedHintStandard": "Los juegos del local necesitan ubicación para confirmar que estás ahí. El resto de la app sigue abierto.",
     "lockedHintPremium": "Los juegos del local necesitan ubicación aquí, o suscripción para jugar en global.",
     "unlockedHint": "Estás en el local — juegos y retos disponibles.",
+    "venueTemporarilyUnavailable": "Este local no tiene los juegos de Cafe Social activos ahora. Las ofertas y el resto de la app siguen disponibles.",
+    "venueTemporarilyUnavailableShort": "Los juegos no están disponibles en este local por ahora.",
     "challengeTitle": "Tu reto",
     "unlockToStart": "Estate en el local con la ubicación activada, o suscríbete para jugar en global.",
     "loadingChallenge": "Cargando reto…",

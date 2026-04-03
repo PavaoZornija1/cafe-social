@@ -6,11 +6,29 @@ datasource db {
   provider = "postgresql"
 }
 
+/// Partner org layout: single vs multi location (drives UX and venue caps during trial).
+enum VenueOrganizationKind {
+  SINGLE_LOCATION
+  MULTI_LOCATION
+}
+
 /// Franchise / multi-location group. Rollup analytics for all linked venues.
 model VenueOrganization {
   id     String  @id @default(uuid())
   name   String
   slug   String? @unique
+
+  /// Declared at signup; trial still caps venues until paid.
+  locationKind VenueOrganizationKind @default(SINGLE_LOCATION)
+
+  /// Self-serve trial window (partner portal). Null = no time-boxed trial (e.g. super-admin–provisioned org).
+  trialStartedAt DateTime?
+  trialEndsAt    DateTime?
+
+  /// Rate-limit / audit: player who created this org via partner onboarding.
+  selfServeCreatedByPlayerId String?
+  selfServeCreatedBy         Player? @relation("SelfServeOrganizationsCreated", fields: [selfServeCreatedByPlayerId], references: [id], onDelete: SetNull)
+
   /// Cafe Social platform billing (owner-facing); super admin maintains.
   platformBillingPlan      String?
   platformBillingStatus    String  @default("NONE")
@@ -27,6 +45,8 @@ model VenueOrganization {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([selfServeCreatedByPlayerId])
 }
 
 /// Processed Stripe webhook events (idempotency; `id` is Stripe evt_…).
@@ -285,6 +305,8 @@ model Player {
 
   venueStaff VenueStaff[]
   staffInvitesSent VenueStaffInvite[] @relation("StaffInviteSentBy")
+  /// Orgs this player created via partner self-serve onboarding (rate limits).
+  selfServeOrganizationsCreated VenueOrganization[] @relation("SelfServeOrganizationsCreated")
   campaignSends VenueCampaignSend[]
   receiptSubmissions VenueReceiptSubmission[] @relation("ReceiptSubmitter")
   receiptsReviewed VenueReceiptSubmission[] @relation("ReceiptReviewer")

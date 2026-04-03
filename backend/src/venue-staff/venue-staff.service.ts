@@ -58,11 +58,15 @@ export class VenueStaffService {
             address: true,
             organizationId: true,
             locked: true,
+            lockReason: true,
             organization: {
               select: {
                 id: true,
                 name: true,
                 slug: true,
+                locationKind: true,
+                trialStartedAt: true,
+                trialEndsAt: true,
                 platformBillingPlan: true,
                 platformBillingStatus: true,
                 platformBillingRenewsAt: true,

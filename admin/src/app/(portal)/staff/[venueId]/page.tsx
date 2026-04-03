@@ -65,23 +65,23 @@ export default function StaffRedemptionsPage() {
   }, [isLoaded, venueId, load]);
 
   return (
-    <div className="bg-zinc-950 text-zinc-100 p-6 max-w-lg">
-      <Link href="/owner/venues" className="text-violet-400 text-sm">
+    <div className="bg-slate-50 text-slate-900 p-6 max-w-lg">
+      <Link href="/owner/venues" className="text-brand text-sm">
         ← My venues
       </Link>
       <h1 className="text-xl font-bold mt-4 mb-1">Today&apos;s redemptions</h1>
-      <p className="text-xs text-zinc-500 mb-4 font-mono">{venueId}</p>
-      <p className="text-sm text-zinc-400 mb-4">
+      <p className="text-xs text-slate-500 mb-4 font-mono">{venueId}</p>
+      <p className="text-sm text-slate-600 mb-4">
         Signed in with your staff account. Match the guest&apos;s{" "}
-        <strong className="text-zinc-200">8-character code</strong> after they
+        <strong className="text-slate-800">8-character code</strong> after they
         redeem — it must appear on this list for the selected UTC date.
       </p>
-      <div className="space-y-3 border border-zinc-800 rounded-lg p-3 mb-4">
+      <div className="space-y-3 border border-slate-200 rounded-lg p-3 mb-4">
         <label className="block text-sm">
           Date (UTC, YYYY-MM-DD)
           <input
             type="text"
-            className="mt-1 w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 font-mono"
+            className="mt-1 w-full bg-white border border-slate-300 rounded px-2 py-1 font-mono"
             value={date}
             onChange={(e) => setDate(e.target.value.trim())}
           />
@@ -95,31 +95,31 @@ export default function StaffRedemptionsPage() {
           {loading ? "Loading…" : "Refresh"}
         </button>
       </div>
-      {err ? <p className="text-red-400 text-sm mb-3">{err}</p> : null}
+      {err ? <p className="text-red-600 text-sm mb-3">{err}</p> : null}
       {data ? (
         <div>
-          <h2 className="font-semibold text-zinc-200">{data.venueName}</h2>
-          <p className="text-xs text-zinc-500 mb-2">
+          <h2 className="font-semibold text-slate-800">{data.venueName}</h2>
+          <p className="text-xs text-slate-500 mb-2">
             {data.date} UTC · newest first
           </p>
           {data.redemptions.length === 0 ? (
-            <p className="text-zinc-500 text-sm">No redemptions for this day.</p>
+            <p className="text-slate-500 text-sm">No redemptions for this day.</p>
           ) : (
             <ul className="space-y-2">
               {data.redemptions.map((r) => (
                 <li
                   key={r.redemptionId}
-                  className="border border-zinc-800 rounded p-2 text-sm"
+                  className="border border-slate-200 rounded p-2 text-sm"
                 >
-                  <div className="font-mono text-amber-200 text-lg font-bold">
+                  <div className="font-mono text-amber-900 text-lg font-bold">
                     {r.staffVerificationCode}
                   </div>
-                  <div className="text-zinc-400 text-xs">{r.redeemedAt}</div>
+                  <div className="text-slate-600 text-xs">{r.redeemedAt}</div>
                   <div>
                     {r.perkCode} — {r.perkTitle}
                   </div>
                   {r.voidedAt ? (
-                    <div className="text-red-400 text-xs mt-1">
+                    <div className="text-red-600 text-xs mt-1">
                       Voided {r.voidedAt}
                     </div>
                   ) : null}

@@ -66,9 +66,9 @@ export default function WordsPage() {
 
   if (err && !rows) {
     return (
-      <div className="bg-zinc-950 text-red-300 p-8">
+      <div className="bg-slate-50 text-red-700 p-8">
         {err}{" "}
-        <Link href="/dashboard" className="text-violet-400">
+        <Link href="/dashboard" className="text-brand">
           Dashboard
         </Link>
       </div>
@@ -76,54 +76,54 @@ export default function WordsPage() {
   }
 
   return (
-    <div className="bg-zinc-950 text-zinc-100 p-8">
-      <Link href="/dashboard" className="text-violet-400 text-sm">
+    <div className="bg-slate-50 text-slate-900 p-8">
+      <Link href="/dashboard" className="text-brand text-sm">
         ← Dashboard
       </Link>
       <h1 className="text-xl font-bold mt-4 mb-4">Words</h1>
-      <div className="border border-zinc-800 rounded-lg p-4 mb-6 space-y-2 max-w-lg">
-        <p className="text-sm text-zinc-400">Add word</p>
+      <div className="border border-slate-200 rounded-lg p-4 mb-6 space-y-2 max-w-lg">
+        <p className="text-sm text-slate-600">Add word</p>
         <input
-          className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
+          className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
           placeholder="text"
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
         <input
-          className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
+          className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
           placeholder="language"
           value={language}
           onChange={(e) => setLanguage(e.target.value)}
         />
         <input
-          className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
+          className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
           placeholder="category (enum, e.g. DRINK_FOOD)"
           value={category}
           onChange={(e) => setCategory(e.target.value)}
         />
         <input
-          className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
+          className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
           placeholder="sentence hint"
           value={sentenceHint}
           onChange={(e) => setSentenceHint(e.target.value)}
         />
         <input
-          className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
+          className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
           placeholder="word hints comma-separated"
           value={wordHints}
           onChange={(e) => setWordHints(e.target.value)}
         />
         <input
-          className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
+          className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
           placeholder="emoji hints comma-separated"
           value={emojiHints}
           onChange={(e) => setEmojiHints(e.target.value)}
         />
-        {err ? <p className="text-red-400 text-sm">{err}</p> : null}
+        {err ? <p className="text-red-600 text-sm">{err}</p> : null}
         <button
           type="button"
           onClick={() => void add()}
-          className="bg-violet-600 rounded px-3 py-1 text-sm font-medium"
+          className="bg-brand rounded px-3 py-1 text-sm font-medium"
         >
           Add
         </button>
@@ -131,7 +131,7 @@ export default function WordsPage() {
       {!rows ? (
         <p>Loading…</p>
       ) : (
-        <ul className="text-sm font-mono text-zinc-300 space-y-1">
+        <ul className="text-sm font-mono text-slate-800 space-y-1">
           {rows.slice(0, 40).map((w) => (
             <li key={w.id}>
               {w.language} · {w.text}

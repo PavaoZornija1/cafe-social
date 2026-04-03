@@ -18,6 +18,10 @@ export default {
     newArchEnabled: true,
     ios: {
       supportsTablet: false,
+      // Optional: set EXPO_APPLE_TEAM_ID=XXXXXXXXXX for `expo prebuild` / EAS; matches your Apple Developer team.
+      ...(process.env.EXPO_APPLE_TEAM_ID && {
+        appleTeamId: process.env.EXPO_APPLE_TEAM_ID,
+      }),
       // Must be a unique identifier registered to your development team.
       bundleIdentifier: 'com.pavaozornija.cafesocial.app',
       usesAppleSignIn: false,

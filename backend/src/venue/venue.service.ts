@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Venue } from '@prisma/client';
+import type { AdminCmsScope } from '../admin/admin-cms-access.service';
 import { CreateVenueDto } from './dto/create-venue.dto';
 import { UpdateVenueDto } from './dto/update-venue.dto';
 import { AdminPatchVenueDto } from './dto/admin-patch-venue.dto';
@@ -54,6 +55,20 @@ export class VenueService {
     return this.venues.findAll();
   }
 
+  /** Partner CMS list: all venues for super admin, scoped venues for owners/managers. */
+  async listForAdminCms(scope: AdminCmsScope): Promise<Venue[]> {
+    if (scope.kind === 'super_admin') {
+      return this.findAll();
+    }
+    if (scope.managedVenueIds.length === 0) {
+      return [];
+    }
+    return this.prisma.venue.findMany({
+      where: { id: { in: scope.managedVenueIds } },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   /** Safe, unauthenticated list for the in-app partner discovery map. */
   async listForPublicDiscoveryMap() {
     const rows = await this.venues.findAllForDiscoveryMap();
@@ -81,6 +96,27 @@ export class VenueService {
     let best: { venue: Venue; distance: number } | null = null;
     for (const v of venues) {
       if (v.locked) continue;
+      const d = haversineMeters(latitude, longitude, v.latitude, v.longitude);
+      if (d <= v.radiusMeters) {
+        if (!best || d < best.distance) {
+          best = { venue: v, distance: d };
+        }
+      }
+    }
+    return best?.venue ?? null;
+  }
+
+  /**
+   * Closest venue whose geofence contains the point, including locked venues
+   * (for public detection / “temporarily unavailable” UX).
+   */
+  async findVenueAtCoordinatesIncludingLocked(
+    latitude: number,
+    longitude: number,
+  ): Promise<Venue | null> {
+    const venues = await this.venues.findAll();
+    let best: { venue: Venue; distance: number } | null = null;
+    for (const v of venues) {
       const d = haversineMeters(latitude, longitude, v.latitude, v.longitude);
       if (d <= v.radiusMeters) {
         if (!best || d < best.distance) {

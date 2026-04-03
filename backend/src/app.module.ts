@@ -19,9 +19,17 @@ import { OwnerModule } from './owner/owner.module';
 import { StaffModule } from './staff/staff.module';
 import { RevenueCatModule } from './revenuecat/revenuecat.module';
 import { StripeModule } from './stripe/stripe.module';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot([
+      {
+        name: 'onboarding',
+        ttl: 60000,
+        limit: 8,
+      },
+    ]),
     EventEmitterModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,

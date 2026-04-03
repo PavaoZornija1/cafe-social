@@ -10,6 +10,12 @@ import { OwnerAnalyticsService } from './owner-analytics.service';
 import { OwnerCampaignService } from './owner-campaign.service';
 import { OwnerRedemptionActionsService } from './owner-redemption-actions.service';
 import { OwnerController } from './owner.controller';
+import { PartnerOrgAccessService } from './partner-org-access.service';
+import { PartnerOnboardingService } from './partner-onboarding.service';
+import { OwnerOrganizationVenueService } from './owner-organization-venue.service';
+import { PartnerVenueWriteGuard } from './partner-venue-write.guard';
+import { PartnerOpsListener } from './partner-ops.listener';
+import { PartnerOnboardingThrottlerFilter } from './partner-onboarding-throttle.filter';
 
 @Module({
   imports: [
@@ -26,6 +32,13 @@ import { OwnerController } from './owner.controller';
     OwnerAnalyticsService,
     OwnerCampaignService,
     OwnerRedemptionActionsService,
+    PartnerOrgAccessService,
+    PartnerOnboardingService,
+    OwnerOrganizationVenueService,
+    PartnerVenueWriteGuard,
+    PartnerOpsListener,
+    PartnerOnboardingThrottlerFilter,
   ],
+  exports: [PartnerOrgAccessService],
 })
 export class OwnerModule {}

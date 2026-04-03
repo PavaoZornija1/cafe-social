@@ -89,21 +89,21 @@ export default function PerksAdminPage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-8 max-w-lg">
-      <Link href="/venues" className="text-violet-400 text-sm">
+    <div className="min-h-screen bg-slate-50 text-slate-900 p-8 max-w-lg">
+      <Link href="/venues" className="text-brand text-sm">
         ← Venues
       </Link>
       <h1 className="text-xl font-bold mt-4 mb-4">Perk codes</h1>
-      {err ? <p className="text-red-400 text-sm mb-2">{err}</p> : null}
-      <div className="border border-zinc-800 rounded p-3 mb-4 space-y-2">
+      {err ? <p className="text-red-600 text-sm mb-2">{err}</p> : null}
+      <div className="border border-slate-200 rounded p-3 mb-4 space-y-2">
         <input
-          className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
+          className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
           placeholder="CODE (e.g. COFFEE10)"
           value={code}
           onChange={(e) => setCode(e.target.value)}
         />
         <input
-          className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
+          className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
           placeholder="Title shown after redeem"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -128,16 +128,16 @@ export default function PerksAdminPage() {
         {rows.map((p) => (
           <li
             key={p.id}
-            className="flex justify-between items-center border border-zinc-800 rounded px-2 py-1"
+            className="flex justify-between items-center border border-slate-200 rounded px-2 py-1"
           >
             <span>
-              <span className="font-mono text-amber-200">{p.code}</span> — {p.title}{" "}
-              <span className="text-zinc-500">({p.redemptionCount})</span>
+              <span className="font-mono text-amber-900">{p.code}</span> — {p.title}{" "}
+              <span className="text-slate-500">({p.redemptionCount})</span>
             </span>
             <button
               type="button"
               onClick={() => void remove(p.id)}
-              className="text-red-400 text-xs"
+              className="text-red-600 text-xs"
             >
               Delete
             </button>

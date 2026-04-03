@@ -68,23 +68,23 @@ export default function ChallengesAdminPage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-8">
-      <Link href="/venues" className="text-violet-400 text-sm">
+    <div className="min-h-screen bg-slate-50 text-slate-900 p-8">
+      <Link href="/venues" className="text-brand text-sm">
         ← Venues
       </Link>
       <h1 className="text-xl font-bold mt-4 mb-4">Challenges (UTC window)</h1>
-      {err ? <p className="text-red-400 mb-2">{err}</p> : null}
+      {err ? <p className="text-red-600 mb-2">{err}</p> : null}
       <ul className="space-y-4 max-w-xl">
         {rows.map((r) => (
-          <li key={r.id} className="border border-zinc-800 rounded p-3">
+          <li key={r.id} className="border border-slate-200 rounded p-3">
             <div className="font-medium">{r.title}</div>
-            <div className="text-xs font-mono text-zinc-500">{r.id}</div>
+            <div className="text-xs font-mono text-slate-500">{r.id}</div>
             <div className="flex gap-2 mt-2 text-sm">
               <label className="flex-1">
                 activeFrom
                 <input
                   type="datetime-local"
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded px-1"
+                  className="w-full bg-white border border-slate-300 rounded px-1"
                   value={edits[r.id]?.from ?? ""}
                   onChange={(e) =>
                     setEdits({
@@ -98,7 +98,7 @@ export default function ChallengesAdminPage() {
                 activeTo
                 <input
                   type="datetime-local"
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded px-1"
+                  className="w-full bg-white border border-slate-300 rounded px-1"
                   value={edits[r.id]?.to ?? ""}
                   onChange={(e) =>
                     setEdits({
