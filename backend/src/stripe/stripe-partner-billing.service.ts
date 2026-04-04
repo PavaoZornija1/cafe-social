@@ -12,7 +12,7 @@ import { PartnerOrgAccessService } from '../owner/partner-org-access.service';
 import { isPayingPartnerOrg } from '../owner/partner-access.constants';
 
 /**
- * Stripe Billing for franchise / partner organizations (B2B SaaS).
+ * Stripe Billing for partner / multi-location organizations (B2B SaaS).
  * Player subscriptions remain on RevenueCat — see RevenueCatModule.
  *
  * `platformBillingStatus` (Stripe-driven):

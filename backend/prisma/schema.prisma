@@ -12,7 +12,7 @@ enum VenueOrganizationKind {
   MULTI_LOCATION
 }
 
-/// Franchise / multi-location group. Rollup analytics for all linked venues.
+/// Partner organization (single- or multi-location). Multi-location orgs roll up analytics across linked venues; each venue is still a distinct location.
 model VenueOrganization {
   id     String  @id @default(uuid())
   name   String
@@ -38,7 +38,7 @@ model VenueOrganization {
   stripeSubscriptionId     String?
   /// Optional link shown to venue owners (e.g. Stripe Customer Portal).
   billingPortalUrl         String?
-  /// Last time franchise billing fields were updated from a Stripe webhook (Checkout/subscription events).
+  /// Last time org billing fields were updated from a Stripe webhook (Checkout/subscription events).
   platformBillingSyncedAt  DateTime?
 
   venues Venue[]
@@ -65,7 +65,12 @@ model Venue {
   address      String?
   latitude     Float
   longitude    Float
+  /// Display / onboarding (e.g. map ring). Play-at-venue containment uses `geofencePolygon` only.
   radiusMeters Int     @default(50)
+
+  /// GeoJSON Polygon (WGS84, lng/lat order). Required for containment; circle flows store an approximated circle polygon.
+  geofencePolygon Json?
+
   isPremium    Boolean @default(false)
 
   organizationId String?

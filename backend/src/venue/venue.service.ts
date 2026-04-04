@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Venue } from '@prisma/client';
 import type { AdminCmsScope } from '../admin/admin-cms-access.service';
@@ -7,17 +7,14 @@ import { UpdateVenueDto } from './dto/update-venue.dto';
 import { AdminPatchVenueDto } from './dto/admin-patch-venue.dto';
 import { VenueRepository } from './venue.repository';
 import { PrismaService } from '../prisma/prisma.service';
-
-function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const earthRadiusM = 6371000;
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return 2 * earthRadiusM * Math.asin(Math.min(1, Math.sqrt(a)));
-}
+import {
+  assertPinInsidePolygon,
+  distanceToVenuePinMeters,
+  parseVenueGeofencePolygonInput,
+  pointInVenueGeofence,
+  polygonFromCenterRadiusMeters,
+} from './geofence';
+import type { Polygon as GeoJsonPolygon } from 'geojson';
 
 @Injectable()
 export class VenueService {
@@ -33,6 +30,11 @@ export class VenueService {
       latitude: dto.latitude,
       longitude: dto.longitude,
       radiusMeters: dto.radiusMeters,
+      geofencePolygon: polygonFromCenterRadiusMeters(
+        dto.latitude,
+        dto.longitude,
+        dto.radiusMeters,
+      ) as unknown as Prisma.InputJsonValue,
       ...(dto.city !== undefined && { city: dto.city }),
       ...(dto.country !== undefined && { country: dto.country }),
       ...(dto.region !== undefined && { region: dto.region }),
@@ -89,18 +91,17 @@ export class VenueService {
   }
 
   /**
-   * Smallest geodesic distance among venues whose circle (radiusMeters) contains the point.
+   * Closest venue (by pin distance) among those whose stored geofence polygon contains the point.
    */
   async findVenueAtCoordinates(latitude: number, longitude: number): Promise<Venue | null> {
     const venues = await this.venues.findAll();
     let best: { venue: Venue; distance: number } | null = null;
     for (const v of venues) {
       if (v.locked) continue;
-      const d = haversineMeters(latitude, longitude, v.latitude, v.longitude);
-      if (d <= v.radiusMeters) {
-        if (!best || d < best.distance) {
-          best = { venue: v, distance: d };
-        }
+      if (!pointInVenueGeofence(latitude, longitude, v)) continue;
+      const d = distanceToVenuePinMeters(latitude, longitude, v);
+      if (!best || d < best.distance) {
+        best = { venue: v, distance: d };
       }
     }
     return best?.venue ?? null;
@@ -117,11 +118,10 @@ export class VenueService {
     const venues = await this.venues.findAll();
     let best: { venue: Venue; distance: number } | null = null;
     for (const v of venues) {
-      const d = haversineMeters(latitude, longitude, v.latitude, v.longitude);
-      if (d <= v.radiusMeters) {
-        if (!best || d < best.distance) {
-          best = { venue: v, distance: d };
-        }
+      if (!pointInVenueGeofence(latitude, longitude, v)) continue;
+      const d = distanceToVenuePinMeters(latitude, longitude, v);
+      if (!best || d < best.distance) {
+        best = { venue: v, distance: d };
       }
     }
     return best?.venue ?? null;
@@ -141,13 +141,36 @@ export class VenueService {
   }
 
   async updateForAdmin(id: string, dto: AdminPatchVenueDto) {
-    await this.findOne(id);
+    const venue = await this.findOne(id);
     const {
       organizationId,
       locked,
       lockReason,
+      geofencePolygon: geoRaw,
       ...venueFields
-    } = dto as AdminPatchVenueDto & Record<string, unknown>;
+    } = dto;
+
+    const nextLat =
+      venueFields.latitude !== undefined ? venueFields.latitude : venue.latitude;
+    const nextLng =
+      venueFields.longitude !== undefined ? venueFields.longitude : venue.longitude;
+
+    if (
+      (venueFields.latitude !== undefined || venueFields.longitude !== undefined) &&
+      geoRaw === undefined &&
+      venue.geofencePolygon != null
+    ) {
+      const g = venue.geofencePolygon as unknown as GeoJsonPolygon;
+      assertPinInsidePolygon(nextLat, nextLng, g);
+    }
+
+    let geofenceUpdate: Prisma.InputJsonValue | undefined;
+    if (geoRaw !== undefined) {
+      const polygon = parseVenueGeofencePolygonInput(geoRaw);
+      assertPinInsidePolygon(nextLat, nextLng, polygon);
+      geofenceUpdate = polygon as unknown as Prisma.InputJsonValue;
+    }
+
     const hasVenueFields = Object.keys(venueFields).some(
       (k) => (venueFields as Record<string, unknown>)[k] !== undefined,
     );
@@ -164,6 +187,7 @@ export class VenueService {
     }
     if (locked !== undefined) adminPatch.locked = locked;
     if (lockReason !== undefined) adminPatch.lockReason = lockReason;
+    if (geofenceUpdate !== undefined) adminPatch.geofencePolygon = geofenceUpdate;
 
     if (Object.keys(adminPatch).length > 0) {
       await this.venues.update(id, adminPatch);

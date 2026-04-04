@@ -2,6 +2,7 @@ import { PartialType } from '@nestjs/mapped-types';
 import {
   Allow,
   IsBoolean,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -11,7 +12,7 @@ import {
 import { CreateVenueDto } from './create-venue.dto';
 
 export class AdminPatchVenueDto extends PartialType(CreateVenueDto) {
-  /** Link venue to a franchise org; `null` clears. */
+  /** Link venue to an organization; `null` clears. */
   @Allow()
   @IsOptional()
   @ValidateIf((_, v) => v !== null && v !== undefined && v !== '')
@@ -27,4 +28,10 @@ export class AdminPatchVenueDto extends PartialType(CreateVenueDto) {
   @MaxLength(512)
   @ValidateIf((_, v) => v !== null)
   lockReason?: string | null;
+
+  /** GeoJSON Polygon (WGS84, lng/lat). Pin must lie inside; optional on PATCH. */
+  @Allow()
+  @IsOptional()
+  @IsObject()
+  geofencePolygon?: Record<string, unknown>;
 }

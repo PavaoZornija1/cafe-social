@@ -26,6 +26,7 @@ export class VenueRepository {
       country: string | null;
       isPremium: boolean;
       radiusMeters: number;
+      geofencePolygon: unknown | null;
     }>
   > {
     return this.prisma.venue.findMany({
@@ -41,6 +42,7 @@ export class VenueRepository {
         country: true,
         isPremium: true,
         radiusMeters: true,
+        geofencePolygon: true,
       },
     });
   }

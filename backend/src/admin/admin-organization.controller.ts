@@ -10,17 +10,24 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { VenueStaffRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PlatformSuperAdminGuard } from '../auth/platform-super-admin.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateVenueOrganizationDto } from './dto/create-venue-organization.dto';
+import { Prisma } from '@prisma/client';
+import {
+  assertPinInsidePolygon,
+  parseVenueGeofencePolygonInput,
+} from '../venue/geofence';
+import { CreateVenueUnderOrgDto } from './dto/create-venue-under-org.dto';
 import { PatchVenueOrganizationDto } from './dto/patch-venue-organization.dto';
 import { OrgVenueMembershipDto } from './dto/org-venue-membership.dto';
 import { StripePartnerCheckoutDto } from './dto/stripe-partner-checkout.dto';
 import { StripePartnerBillingService } from '../stripe/stripe-partner-billing.service';
 
 /**
- * Platform CMS for franchise billing and org structure — super-admin JWT only.
+ * Platform CMS for organization billing and structure — super-admin JWT only.
  * Not subject to partner self-serve trial/venue-lock guards on `/owner/*`.
  */
 @Controller('admin/organizations')
@@ -57,10 +64,90 @@ export class AdminOrganizationController {
           },
           orderBy: { name: 'asc' },
         },
+        selfServeCreatedBy: {
+          select: { id: true, email: true, username: true },
+        },
       },
     });
     if (!row) throw new NotFoundException('Organization not found');
-    return row;
+
+    const venueIds = row.venues.map((v) => v.id);
+    const lockedVenueCount = row.venues.filter((v) => v.locked).length;
+
+    let perksCount = 0;
+    let totalRedemptions = 0;
+    if (venueIds.length > 0) {
+      [perksCount, totalRedemptions] = await Promise.all([
+        this.prisma.venuePerk.count({ where: { venueId: { in: venueIds } } }),
+        this.prisma.venuePerkRedemption.count({
+          where: { perk: { venueId: { in: venueIds } } },
+        }),
+      ]);
+    }
+
+    const ownerRows =
+      venueIds.length > 0
+        ? await this.prisma.venueStaff.findMany({
+            where: {
+              venueId: { in: venueIds },
+              role: VenueStaffRole.OWNER,
+            },
+            select: {
+              playerId: true,
+              player: { select: { email: true, username: true } },
+            },
+          })
+        : [];
+
+    const seenOwner = new Set<string>();
+    const ownerContacts = [];
+    for (const s of ownerRows) {
+      if (seenOwner.has(s.playerId)) continue;
+      seenOwner.add(s.playerId);
+      ownerContacts.push({
+        playerId: s.playerId,
+        email: s.player.email,
+        username: s.player.username,
+      });
+    }
+
+    const { selfServeCreatedBy, ...rest } = row;
+
+    return {
+      ...rest,
+      stats: {
+        venueCount: row.venues.length,
+        lockedVenueCount,
+        perksCount,
+        totalRedemptions,
+      },
+      ownerContacts,
+      selfServeCreatedBy,
+    };
+  }
+
+  @Post(':id/venues')
+  async createVenueForOrg(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: CreateVenueUnderOrgDto,
+  ) {
+    await this.prisma.venueOrganization.findUniqueOrThrow({ where: { id } });
+    const polygon = parseVenueGeofencePolygonInput(body.geofencePolygon);
+    assertPinInsidePolygon(body.latitude, body.longitude, polygon);
+
+    return this.prisma.venue.create({
+      data: {
+        name: body.name.trim(),
+        latitude: body.latitude,
+        longitude: body.longitude,
+        radiusMeters: 0,
+        geofencePolygon: polygon as unknown as Prisma.InputJsonValue,
+        organizationId: id,
+        ...(body.address?.trim() && { address: body.address.trim() }),
+        ...(body.city?.trim() && { city: body.city.trim() }),
+        ...(body.country?.trim() && { country: body.country.trim() }),
+      },
+    });
   }
 
   @Post()

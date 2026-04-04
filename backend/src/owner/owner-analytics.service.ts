@@ -178,7 +178,7 @@ export class OwnerAnalyticsService {
     };
   }
 
-  /** Roll up analytics across every venue in a franchise / organization. */
+  /** Roll up analytics across every venue in an organization (multi-location). */
   async getOrganizationSummary(organizationId: string, days: number) {
     const safeDays = Math.min(Math.max(days, 1), 90);
     const end = new Date();

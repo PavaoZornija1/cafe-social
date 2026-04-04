@@ -1,5 +1,6 @@
 import { PrismaClient, WordCategory } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { polygonFromCenterRadiusMeters } from '../src/venue/geofence';
 import { seedWordLocales } from './seed-word-locales';
 
 const connectionString = process.env.DATABASE_URL;
@@ -459,6 +460,11 @@ async function main() {
   ];
 
   for (const v of venues) {
+    const geofencePolygon = polygonFromCenterRadiusMeters(
+      v.latitude,
+      v.longitude,
+      v.radiusMeters,
+    );
     await prisma.venue.upsert({
       where: { id: v.id },
       update: {
@@ -467,12 +473,13 @@ async function main() {
         latitude: v.latitude,
         longitude: v.longitude,
         radiusMeters: v.radiusMeters,
+        geofencePolygon,
         isPremium: v.isPremium,
         city: v.city,
         country: v.country,
         region: v.region,
       },
-      create: v,
+      create: { ...v, geofencePolygon },
     });
   }
 

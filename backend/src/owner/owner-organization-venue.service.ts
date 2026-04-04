@@ -5,11 +5,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  Prisma,
   VenueOrganizationKind,
   VenueStaffRole,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateVenueDto } from '../venue/dto/create-venue.dto';
+import { polygonFromCenterRadiusMeters } from '../venue/geofence';
 import { isPayingPartnerOrg } from './partner-access.constants';
 
 @Injectable()
@@ -80,6 +82,11 @@ export class OwnerOrganizationVenueService {
           latitude: dto.latitude,
           longitude: dto.longitude,
           radiusMeters: dto.radiusMeters,
+          geofencePolygon: polygonFromCenterRadiusMeters(
+            dto.latitude,
+            dto.longitude,
+            dto.radiusMeters,
+          ) as unknown as Prisma.InputJsonValue,
           organizationId,
           ...(dto.city !== undefined && { city: dto.city }),
           ...(dto.country !== undefined && { country: dto.country }),

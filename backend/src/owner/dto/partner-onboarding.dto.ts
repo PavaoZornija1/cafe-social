@@ -1,15 +1,14 @@
 import { VenueOrganizationKind } from '@prisma/client';
 import {
+  Allow,
   IsEnum,
   IsLatitude,
   IsLongitude,
   IsNotEmpty,
-  IsNumber,
+  IsObject,
   IsOptional,
   IsString,
-  Max,
   MaxLength,
-  Min,
 } from 'class-validator';
 
 export class PartnerOnboardingDto {
@@ -32,10 +31,10 @@ export class PartnerOnboardingDto {
   @IsLongitude()
   longitude!: number;
 
-  @IsNumber()
-  @Min(10)
-  @Max(5000)
-  radiusMeters!: number;
+  /** GeoJSON Polygon (WGS84, lng/lat); pin must lie inside. */
+  @Allow()
+  @IsObject()
+  geofencePolygon!: Record<string, unknown>;
 
   @IsString()
   @IsOptional()

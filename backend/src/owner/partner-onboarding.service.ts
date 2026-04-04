@@ -3,9 +3,18 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
-import { PlatformRole, VenueOrganizationKind, VenueStaffRole } from '@prisma/client';
+import {
+  PlatformRole,
+  Prisma,
+  VenueOrganizationKind,
+  VenueStaffRole,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PartnerOnboardingDto } from './dto/partner-onboarding.dto';
+import {
+  assertPinInsidePolygon,
+  parseVenueGeofencePolygonInput,
+} from '../venue/geofence';
 import {
   MAX_SELF_SERVE_ORGS_PER_24H,
   PARTNER_TRIAL_DAYS,
@@ -59,6 +68,9 @@ export class PartnerOnboardingService {
       now.getTime() + PARTNER_TRIAL_DAYS * 24 * 60 * 60 * 1000,
     );
 
+    const polygon = parseVenueGeofencePolygonInput(dto.geofencePolygon);
+    assertPinInsidePolygon(dto.latitude, dto.longitude, polygon);
+
     return this.prisma.$transaction(async (tx) => {
       const org = await tx.venueOrganization.create({
         data: {
@@ -76,7 +88,8 @@ export class PartnerOnboardingService {
           name: dto.venueName.trim(),
           latitude: dto.latitude,
           longitude: dto.longitude,
-          radiusMeters: dto.radiusMeters,
+          radiusMeters: 0,
+          geofencePolygon: polygon as unknown as Prisma.InputJsonValue,
           organizationId: org.id,
           ...(dto.address !== undefined && { address: dto.address.trim() || null }),
           ...(dto.city !== undefined && { city: dto.city.trim() || null }),
