@@ -9,18 +9,29 @@ import { PlayerVenueRepository } from './player-venue.repository';
 import { SubscriptionRepository } from './subscription.repository';
 import { PlayerModule } from '../player/player.module';
 import { AuthModule } from '../auth/auth.module';
+import { VenueOfferService } from './venue-offer.service';
+import { VenueOfferController } from './venue-offer.controller';
+import { VenueOrderNudgeCopyService } from './venue-order-nudge-copy.service';
 
 @Module({
   imports: [PrismaModule, PlayerModule, AuthModule],
-  controllers: [VenueController, VenueAccessController],
+  controllers: [VenueController, VenueAccessController, VenueOfferController],
   providers: [
     VenueService,
+    VenueOfferService,
+    VenueOrderNudgeCopyService,
     VenueRepository,
     VenueAccessService,
     PlayerVenueRepository,
     SubscriptionRepository,
   ],
-  exports: [VenueService, SubscriptionRepository, PlayerVenueRepository],
+  exports: [
+    VenueService,
+    VenueOfferService,
+    VenueOrderNudgeCopyService,
+    SubscriptionRepository,
+    PlayerVenueRepository,
+  ],
 })
 export class VenueModule {}
 

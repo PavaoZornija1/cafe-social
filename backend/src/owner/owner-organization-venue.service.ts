@@ -11,7 +11,10 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateVenueDto } from '../venue/dto/create-venue.dto';
-import { polygonFromCenterRadiusMeters } from '../venue/geofence';
+import {
+  assertPinInsidePolygon,
+  parseVenueGeofencePolygonInput,
+} from '../venue/geofence';
 import { isPayingPartnerOrg } from './partner-access.constants';
 
 @Injectable()
@@ -74,6 +77,9 @@ export class OwnerOrganizationVenueService {
       );
     }
 
+    const polygon = parseVenueGeofencePolygonInput(dto.geofencePolygon);
+    assertPinInsidePolygon(dto.latitude, dto.longitude, polygon);
+
     return this.prisma.$transaction(async (tx) => {
       const venue = await tx.venue.create({
         data: {
@@ -81,12 +87,7 @@ export class OwnerOrganizationVenueService {
           address: dto.address,
           latitude: dto.latitude,
           longitude: dto.longitude,
-          radiusMeters: dto.radiusMeters,
-          geofencePolygon: polygonFromCenterRadiusMeters(
-            dto.latitude,
-            dto.longitude,
-            dto.radiusMeters,
-          ) as unknown as Prisma.InputJsonValue,
+          geofencePolygon: polygon as unknown as Prisma.InputJsonValue,
           organizationId,
           ...(dto.city !== undefined && { city: dto.city }),
           ...(dto.country !== undefined && { country: dto.country }),
@@ -99,17 +100,6 @@ export class OwnerOrganizationVenueService {
           }),
           ...(dto.orderNudgeBody !== undefined && {
             orderNudgeBody: dto.orderNudgeBody,
-          }),
-          ...(dto.featuredOfferTitle !== undefined && {
-            featuredOfferTitle: dto.featuredOfferTitle,
-          }),
-          ...(dto.featuredOfferBody !== undefined && {
-            featuredOfferBody: dto.featuredOfferBody,
-          }),
-          ...(dto.featuredOfferEndsAt !== undefined && {
-            featuredOfferEndsAt: dto.featuredOfferEndsAt
-              ? new Date(dto.featuredOfferEndsAt)
-              : null,
           }),
         },
       });

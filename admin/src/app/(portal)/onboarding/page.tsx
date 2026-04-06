@@ -1,13 +1,25 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
-import { useForm } from "@tanstack/react-form";
+import { useForm, useStore } from "@tanstack/react-form";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { GeofencePolygonGeoJson } from "@/components/VenueGeofenceMap";
+import { CitySelect } from "@/components/ui/CitySelect";
+import { CountrySelect } from "@/components/ui/CountrySelect";
 import type { PartnerOnboardingPayload } from "@/lib/portalApi";
 import { usePartnerOnboardingMutation, usePortalMeQuery } from "@/lib/queries";
 
+const VenueGeofenceMap = dynamic(() => import("@/components/VenueGeofenceMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[min(420px,55vh)] w-full rounded-xl border border-slate-200 bg-slate-100 animate-pulse" />
+  ),
+});
+
+const DEFAULT_ONBOARD_PIN = { lat: 46.0569, lng: 14.5058 };
 const STEPS = 4;
 
 export default function PartnerOnboardingPage() {
@@ -15,6 +27,9 @@ export default function PartnerOnboardingPage() {
   const { isLoaded, getToken } = useAuth();
   const [step, setStep] = useState(0);
   const [submitErr, setSubmitErr] = useState<string | null>(null);
+  const [geoPin, setGeoPin] = useState(DEFAULT_ONBOARD_PIN);
+  const [geoPolygon, setGeoPolygon] = useState<GeofencePolygonGeoJson | null>(null);
+  const [mapLayoutKey, setMapLayoutKey] = useState(0);
   const meQ = usePortalMeQuery(getToken, isLoaded);
   const onboardMut = usePartnerOnboardingMutation(getToken);
 
@@ -26,26 +41,12 @@ export default function PartnerOnboardingPage() {
       address: "",
       city: "",
       country: "",
-      latitude: "",
-      longitude: "",
-      radiusMeters: "80",
       analyticsTimeZone: "",
     },
     onSubmit: async ({ value }) => {
       setSubmitErr(null);
-      const lat = Number.parseFloat(value.latitude);
-      const lng = Number.parseFloat(value.longitude);
-      const r = Number.parseInt(value.radiusMeters, 10);
-      if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
-        setSubmitErr("Enter a valid latitude (-90 to 90).");
-        return;
-      }
-      if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
-        setSubmitErr("Enter a valid longitude (-180 to 180).");
-        return;
-      }
-      if (!Number.isFinite(r) || r < 10 || r > 5000) {
-        setSubmitErr("Radius must be between 10 and 5000 meters.");
+      if (!geoPolygon) {
+        setSubmitErr("Draw a play-area polygon on the map before finishing.");
         return;
       }
 
@@ -53,9 +54,9 @@ export default function PartnerOnboardingPage() {
         locationKind: value.locationKind,
         organizationName: value.organizationName.trim(),
         venueName: value.venueName.trim(),
-        latitude: lat,
-        longitude: lng,
-        radiusMeters: r,
+        latitude: geoPin.lat,
+        longitude: geoPin.lng,
+        geofencePolygon: geoPolygon as unknown as Record<string, unknown>,
         ...(value.address.trim() && { address: value.address.trim() }),
         ...(value.city.trim() && { city: value.city.trim() }),
         ...(value.country.trim() && { country: value.country.trim() }),
@@ -68,6 +69,17 @@ export default function PartnerOnboardingPage() {
       router.replace("/owner/venues");
     },
   });
+
+  const onPinChange = useCallback((p: { lat: number; lng: number }) => {
+    setGeoPin(p);
+  }, []);
+
+  const onPolygonChange = useCallback((g: GeofencePolygonGeoJson | null) => {
+    setGeoPolygon(g);
+  }, []);
+
+  const organizationName = useStore(form.store, (s) => s.values.organizationName);
+  const venueName = useStore(form.store, (s) => s.values.venueName);
 
   useEffect(() => {
     if (!meQ.data || meQ.isPending) return;
@@ -142,8 +154,8 @@ export default function PartnerOnboardingPage() {
                     <span>
                       <span className="font-medium text-slate-900">Multiple locations</span>
                       <span className="block text-xs text-slate-600 mt-1">
-                        Franchise or group — trial still covers one site; add more after you
-                        subscribe.
+                        Multiple sites under one organization — roll-up analytics across locations;
+                        trial still covers one site until you subscribe.
                       </span>
                     </span>
                   </label>
@@ -202,33 +214,54 @@ export default function PartnerOnboardingPage() {
                   </div>
                 )}
               </form.Field>
-              <div className="grid grid-cols-2 gap-3">
-                <form.Field name="city">
-                  {(field) => (
-                    <div>
-                      <label className="block text-sm font-medium text-slate-800">City</label>
-                      <input
-                        className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                        value={field.state.value}
-                        onChange={(e) => field.handleChange(e.target.value)}
-                        onBlur={field.handleBlur}
-                      />
-                    </div>
-                  )}
-                </form.Field>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <form.Field name="country">
                   {(field) => (
                     <div>
-                      <label className="block text-sm font-medium text-slate-800">Country</label>
-                      <input
-                        className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                      <label
+                        className="block text-sm font-medium text-slate-800"
+                        htmlFor="onboard-country"
+                      >
+                        Country
+                      </label>
+                      <CountrySelect
+                        id="onboard-country"
+                        className="mt-1"
                         value={field.state.value}
-                        onChange={(e) => field.handleChange(e.target.value)}
-                        onBlur={field.handleBlur}
+                        onChange={(iso) => {
+                          const prev = field.state.value;
+                          field.handleChange(iso);
+                          if (iso !== prev) form.setFieldValue("city", "");
+                        }}
+                        placeholder="Search country…"
                       />
+                      <p className="mt-1 text-xs text-slate-500">Saved as a 2-letter ISO code.</p>
                     </div>
                   )}
                 </form.Field>
+                <form.Subscribe selector={(s) => s.values.country}>
+                  {(country) => (
+                    <form.Field name="city">
+                      {(field) => (
+                        <div>
+                          <label
+                            className="block text-sm font-medium text-slate-800"
+                            htmlFor="onboard-city"
+                          >
+                            City
+                          </label>
+                          <CitySelect
+                            id="onboard-city"
+                            className="mt-1"
+                            countryCode={country}
+                            cityName={field.state.value}
+                            onChange={(name) => field.handleChange(name)}
+                          />
+                        </div>
+                      )}
+                    </form.Field>
+                  )}
+                </form.Subscribe>
               </div>
             </div>
           ) : null}
@@ -236,56 +269,16 @@ export default function PartnerOnboardingPage() {
           {step === 3 ? (
             <div className="space-y-4">
               <p className="text-sm text-slate-600">
-                Set the geofence for gameplay. Use decimal degrees (e.g. from Google Maps).
+                Drag the pin to your venue reference point and draw the play area (geofence) — same
+                tool as in the admin CMS.
               </p>
-              <div className="grid grid-cols-2 gap-3">
-                <form.Field name="latitude">
-                  {(field) => (
-                    <div>
-                      <label className="block text-sm font-medium text-slate-800">Latitude</label>
-                      <input
-                        className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono"
-                        value={field.state.value}
-                        onChange={(e) => field.handleChange(e.target.value)}
-                        onBlur={field.handleBlur}
-                        placeholder="45.8150"
-                      />
-                    </div>
-                  )}
-                </form.Field>
-                <form.Field name="longitude">
-                  {(field) => (
-                    <div>
-                      <label className="block text-sm font-medium text-slate-800">Longitude</label>
-                      <input
-                        className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono"
-                        value={field.state.value}
-                        onChange={(e) => field.handleChange(e.target.value)}
-                        onBlur={field.handleBlur}
-                        placeholder="15.9819"
-                      />
-                    </div>
-                  )}
-                </form.Field>
+              <div key={mapLayoutKey}>
+                <VenueGeofenceMap
+                  pin={geoPin}
+                  onPinChange={onPinChange}
+                  onPolygonChange={onPolygonChange}
+                />
               </div>
-              <form.Field name="radiusMeters">
-                {(field) => (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-800">
-                      Radius (meters)
-                    </label>
-                    <input
-                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                      type="number"
-                      min={10}
-                      max={5000}
-                      value={field.state.value}
-                      onChange={(e) => field.handleChange(e.target.value)}
-                      onBlur={field.handleBlur}
-                    />
-                  </div>
-                )}
-              </form.Field>
               <form.Field name="analyticsTimeZone">
                 {(field) => (
                   <div>
@@ -305,65 +298,57 @@ export default function PartnerOnboardingPage() {
             </div>
           ) : null}
 
-          <form.Subscribe
-            selector={(s) => ({
-              locationKind: s.values.locationKind,
-              organizationName: s.values.organizationName,
-              venueName: s.values.venueName,
-              latitude: s.values.latitude,
-              longitude: s.values.longitude,
-            })}
-          >
-            {(v) => {
-              const latN = Number.parseFloat(v.latitude);
-              const lngN = Number.parseFloat(v.longitude);
-              const geoOk =
-                Number.isFinite(latN) &&
-                latN >= -90 &&
-                latN <= 90 &&
-                Number.isFinite(lngN) &&
-                lngN >= -180 &&
-                lngN <= 180;
-              const canNext =
-                step === 0 ||
-                (step === 1 && v.organizationName.trim().length > 0) ||
-                (step === 2 && v.venueName.trim().length > 0) ||
-                (step === 3 && geoOk);
-              return (
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                  {step > 0 ? (
-                    <button
-                      type="button"
-                      className="text-sm font-medium text-slate-600 hover:text-slate-900"
-                      onClick={() => setStep((s) => Math.max(0, s - 1))}
-                    >
-                      Back
-                    </button>
-                  ) : (
-                    <span />
-                  )}
-                  {step < STEPS - 1 ? (
-                    <button
-                      type="button"
-                      disabled={!canNext}
-                      className="rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground shadow-md shadow-brand/20 hover:bg-brand-hover disabled:opacity-40"
-                      onClick={() => setStep((s) => Math.min(STEPS - 1, s + 1))}
-                    >
-                      Continue
-                    </button>
-                  ) : (
-                    <button
-                      type="submit"
-                      disabled={onboardMut.isPending || !canNext}
-                      className="rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground shadow-md shadow-brand/20 hover:bg-brand-hover disabled:opacity-40"
-                    >
-                      {onboardMut.isPending ? "Creating…" : "Finish setup"}
-                    </button>
-                  )}
-                </div>
-              );
-            }}
-          </form.Subscribe>
+          {(() => {
+            const canNext =
+              step === 0 ||
+              (step === 1 && organizationName.trim().length > 0) ||
+              (step === 2 && venueName.trim().length > 0) ||
+              (step === 3 && geoPolygon !== null);
+
+            return (
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                {step > 0 ? (
+                  <button
+                    type="button"
+                    className="text-sm font-medium text-slate-600 hover:text-slate-900"
+                    onClick={() => setStep((s) => Math.max(0, s - 1))}
+                  >
+                    Back
+                  </button>
+                ) : (
+                  <span />
+                )}
+                {step < STEPS - 1 ? (
+                  <button
+                    type="button"
+                    disabled={!canNext}
+                    className="rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground shadow-md shadow-brand/20 hover:bg-brand-hover disabled:opacity-40"
+                    onClick={() => {
+                      setStep((s) => {
+                        const next = Math.min(STEPS - 1, s + 1);
+                        if (s === 2) {
+                          setGeoPolygon(null);
+                          setGeoPin(DEFAULT_ONBOARD_PIN);
+                          setMapLayoutKey((k) => k + 1);
+                        }
+                        return next;
+                      });
+                    }}
+                  >
+                    Continue
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={onboardMut.isPending || !canNext}
+                    className="rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground shadow-md shadow-brand/20 hover:bg-brand-hover disabled:opacity-40"
+                  >
+                    {onboardMut.isPending ? "Creating…" : "Finish setup"}
+                  </button>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         <p className="mt-8 text-center text-xs text-slate-500">

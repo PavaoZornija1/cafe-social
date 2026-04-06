@@ -9,7 +9,6 @@ export type DiscoveryVenuePin = {
   city: string | null;
   country: string | null;
   isPremium: boolean;
-  radiusMeters: number;
 };
 
 export function fetchDiscoveryVenuePins(): Promise<DiscoveryVenuePin[]> {

@@ -7,6 +7,7 @@ import { FriendshipStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubscriptionRepository } from '../venue/subscription.repository';
 import { PushService } from '../push/push.service';
+import { VenueOrderNudgeCopyService } from '../venue/venue-order-nudge-copy.service';
 import { utcDayKey } from '../lib/day-key';
 
 const PRESENCE_TTL_MS = 10 * 60 * 1000;
@@ -22,6 +23,7 @@ export class DiscoveryService {
     private readonly subs: SubscriptionRepository,
     private readonly config: ConfigService,
     private readonly push: PushService,
+    private readonly venueOrderNudgeCopy: VenueOrderNudgeCopyService,
   ) {}
 
   /**
@@ -117,34 +119,23 @@ export class DiscoveryService {
     if (now.getTime() - sessionStartedAt.getTime() < delayMs) return;
     if (lastSentAt && lastSentAt.getTime() >= sessionStartedAt.getTime()) return;
 
-    const venue = await this.prisma.venue.findUnique({
-      where: { id: venueId },
-      select: {
-        name: true,
-        orderNudgeTitle: true,
-        orderNudgeBody: true,
-        menuUrl: true,
-        orderingUrl: true,
-      },
-    });
-    const venueName = venue?.name ?? 'this venue';
-
     const defaultTitle =
       this.config.get<string>('VENUE_ORDER_NUDGE_TITLE')?.trim() || 'Still here?';
     const defaultBody =
       this.config.get<string>('VENUE_ORDER_NUDGE_BODY')?.trim() ||
       'Thirsty? Treat yourself to something from the menu at {{venueName}}.';
 
-    const titleRaw =
-      venue?.orderNudgeTitle?.trim() ? venue.orderNudgeTitle.trim() : defaultTitle;
-    const bodyRaw =
-      venue?.orderNudgeBody?.trim() ? venue.orderNudgeBody.trim() : defaultBody;
+    const resolved = await this.venueOrderNudgeCopy.resolveForPush(venueId, {
+      title: defaultTitle,
+      body: defaultBody,
+    });
+    if (!resolved) return;
 
-    const title = applyVenueNudgeTemplate(titleRaw, venueName);
-    const body = applyVenueNudgeTemplate(bodyRaw, venueName);
+    const title = applyVenueNudgeTemplate(resolved.titleRaw, resolved.venueName);
+    const body = applyVenueNudgeTemplate(resolved.bodyRaw, resolved.venueName);
 
-    const orderingUrl = venue?.orderingUrl?.trim() ?? '';
-    const menuUrl = venue?.menuUrl?.trim() ?? '';
+    const orderingUrl = resolved.orderingUrl;
+    const menuUrl = resolved.menuUrl;
 
     await this.push.sendToPlayers(
       [playerId],

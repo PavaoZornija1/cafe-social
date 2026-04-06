@@ -1,13 +1,12 @@
 import {
+  Allow,
   IsBoolean,
-  IsDateString,
   IsLatitude,
   IsLongitude,
   IsNotEmpty,
-  IsNumber,
+  IsObject,
   IsOptional,
   IsString,
-  Min,
 } from 'class-validator';
 
 export class CreateVenueDto {
@@ -25,9 +24,13 @@ export class CreateVenueDto {
   @IsLongitude()
   longitude!: number;
 
-  @IsNumber()
-  @Min(10)
-  radiusMeters = 50;
+  /**
+   * GeoJSON Polygon (WGS84, [lng, lat]). Pin must lie inside; always required on create.
+   */
+  @Allow()
+  @IsObject()
+  @IsNotEmpty()
+  geofencePolygon!: Record<string, unknown>;
 
   @IsString()
   @IsOptional()
@@ -60,17 +63,5 @@ export class CreateVenueDto {
   @IsString()
   @IsOptional()
   orderNudgeBody?: string;
-
-  @IsString()
-  @IsOptional()
-  featuredOfferTitle?: string;
-
-  @IsString()
-  @IsOptional()
-  featuredOfferBody?: string;
-
-  @IsDateString()
-  @IsOptional()
-  featuredOfferEndsAt?: string;
 }
 

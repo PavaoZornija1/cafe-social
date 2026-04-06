@@ -65,10 +65,8 @@ model Venue {
   address      String?
   latitude     Float
   longitude    Float
-  /// Display / onboarding (e.g. map ring). Play-at-venue containment uses `geofencePolygon` only.
-  radiusMeters Int     @default(50)
 
-  /// GeoJSON Polygon (WGS84, lng/lat order). Required for containment; circle flows store an approximated circle polygon.
+  /// GeoJSON Polygon (WGS84, lng/lat order). Required for containment; legacy circle venues store an approximated circle polygon.
   geofencePolygon Json?
 
   isPremium    Boolean @default(false)
@@ -93,13 +91,12 @@ model Venue {
   menuUrl     String?
   orderingUrl String?
 
-  /// “Featured offer of the week” (optional; `featuredOfferEndsAt` hides after date).
-  featuredOfferTitle  String?
-  featuredOfferBody   String?
-  featuredOfferEndsAt DateTime?
-
   /// Optional IANA timezone (e.g. `Europe/Zagreb`) for owner analytics hour-of-day buckets. UTC used when null.
   analyticsTimeZone String?
+
+  offers VenueOffer[]
+
+  venueVenueTypes VenueVenueType[]
 
   playerVenues     PlayerVenue[]
   playerVenueStats PlayerVenueStats[]
@@ -118,6 +115,113 @@ model Venue {
   updatedAt DateTime @updatedAt
 
   @@index([organizationId])
+}
+
+/// Partner-facing venue categories (e.g. coffee, restaurant). Venues have M:N types.
+model VenueType {
+  id    String  @id @default(uuid())
+  /// Stable code matching `VENUE_TYPE_CODES` in `src/lib/venue-taxonomy.ts`.
+  code  String  @unique
+  label String?
+
+  venues            VenueVenueType[]
+  nudgeTemplateLinks VenueOrderNudgeTemplateVenueType[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VenueVenueType {
+  venueId     String
+  venueTypeId String
+  venue       Venue     @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  venueType   VenueType @relation(fields: [venueTypeId], references: [id], onDelete: Cascade)
+
+  @@id([venueId, venueTypeId])
+  @@index([venueTypeId])
+}
+
+/// Predefined dwell nudge copy; tied to venue types via `VenueOrderNudgeTemplateVenueType`.
+model VenueOrderNudgeTemplate {
+  id    String @id @default(uuid())
+  /// Stable key for seeds (e.g. `coffee_order_drink_v1`).
+  code  String @unique
+  /// Analytics bucket — see `VENUE_NUDGE_TYPES` in `src/lib/venue-taxonomy.ts`.
+  nudgeType     String
+  titleTemplate String
+  bodyTemplate  String
+  /// Lower sorts first when several templates match a venue’s types.
+  sortPriority  Int     @default(100)
+  active        Boolean @default(true)
+
+  venueTypeLinks VenueOrderNudgeTemplateVenueType[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, sortPriority])
+}
+
+model VenueOrderNudgeTemplateVenueType {
+  templateId  String
+  venueTypeId String
+  template   VenueOrderNudgeTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  venueType  VenueType               @relation(fields: [venueTypeId], references: [id], onDelete: Cascade)
+
+  @@id([templateId, venueTypeId])
+  @@index([venueTypeId])
+}
+
+enum VenueOfferStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+}
+
+/// Partner-configurable offers (replaces legacy `featuredOffer*` columns on `Venue`).
+model VenueOffer {
+  id     String @id @default(uuid())
+  venueId String
+  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  title    String
+  body     String?
+  imageUrl String?
+  ctaUrl   String?
+
+  status     VenueOfferStatus @default(DRAFT)
+  isFeatured Boolean          @default(false)
+
+  validFrom DateTime?
+  validTo   DateTime?
+
+  /// Global cap; null = unlimited.
+  maxRedemptions Int?
+  /// Per-player cap per offer; null = unlimited redemptions per guest.
+  maxRedemptionsPerPlayer Int?
+
+  redemptionCount Int @default(0)
+
+  redemptions VenueOfferRedemption[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([venueId])
+  @@index([venueId, status])
+}
+
+model VenueOfferRedemption {
+  id       String     @id @default(uuid())
+  offerId  String
+  offer    VenueOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  playerId String
+  player   Player     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([offerId])
+  @@index([playerId])
 }
 
 enum VenueStaffInviteStatus {
@@ -307,6 +411,7 @@ model Player {
   dailyStreaks PlayerDailyStreak[]
   venueVisitDays   PlayerVenueVisitDay[]
   perkRedemptions  VenuePerkRedemption[] @relation("RedemptionGuest")
+  offerRedemptions VenueOfferRedemption[]
 
   venueStaff VenueStaff[]
   staffInvitesSent VenueStaffInvite[] @relation("StaffInviteSentBy")

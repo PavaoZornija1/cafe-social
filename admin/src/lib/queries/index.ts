@@ -41,7 +41,6 @@ export type AdminVenueListRow = {
   organizationId: string | null;
   menuUrl?: string | null;
   orderingUrl?: string | null;
-  featuredOfferTitle?: string | null;
   locked?: boolean;
 };
 
@@ -58,21 +57,72 @@ export type AdminOrgListRow = {
   _count?: { venues: number };
 };
 
+export type AdminVenueTypeRow = {
+  id: string;
+  code: string;
+  label: string | null;
+};
+
 export type AdminVenueDetail = {
   id: string;
   name: string;
+  latitude: number;
+  longitude: number;
+  geofencePolygon: unknown | null;
   menuUrl: string | null;
   orderingUrl: string | null;
   orderNudgeTitle: string | null;
   orderNudgeBody: string | null;
-  featuredOfferTitle: string | null;
-  featuredOfferBody: string | null;
-  featuredOfferEndsAt: string | null;
   analyticsTimeZone?: string | null;
   organizationId: string | null;
+  /** Present when the venue is linked to an org (for labels in pickers). */
+  organization?: { id: string; name: string } | null;
   locked: boolean;
   lockReason: string | null;
+  venueTypes?: AdminVenueTypeRow[];
 };
+
+export type AdminVenueOfferRow = {
+  id: string;
+  venueId: string;
+  title: string;
+  body: string | null;
+  imageUrl: string | null;
+  ctaUrl: string | null;
+  status: "DRAFT" | "ACTIVE" | "INACTIVE";
+  isFeatured: boolean;
+  validFrom: string | null;
+  validTo: string | null;
+  maxRedemptions: number | null;
+  maxRedemptionsPerPlayer: number | null;
+  redemptionCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminOrganizationPickerResponse = {
+  items: { id: string; name: string }[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+};
+
+export function fetchAdminOrganizationsPicker(
+  getToken: () => Promise<string | null>,
+  params: { search: string; page: number; limit?: number },
+): Promise<AdminOrganizationPickerResponse> {
+  const sp = new URLSearchParams();
+  const s = params.search.trim();
+  if (s) sp.set("search", s);
+  sp.set("page", String(params.page));
+  sp.set("limit", String(params.limit ?? 20));
+  return portalFetch<AdminOrganizationPickerResponse>(
+    getToken,
+    `/admin/organizations/picker?${sp.toString()}`,
+    { method: "GET" },
+  );
+}
 
 export type AdminVenueStaffRow = {
   id: string;
@@ -89,6 +139,18 @@ export function useAdminVenuesQuery(
     queryKey: queryKeys.admin.venues,
     queryFn: () =>
       portalFetch<AdminVenueListRow[]>(getToken, "/admin/venues", { method: "GET" }),
+    enabled,
+  });
+}
+
+export function useAdminVenueTypeCatalogQuery(
+  getToken: () => Promise<string | null>,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: queryKeys.admin.venueTypeCatalog,
+    queryFn: () =>
+      portalFetch<AdminVenueTypeRow[]>(getToken, "/admin/venue-types", { method: "GET" }),
     enabled,
   });
 }
@@ -189,6 +251,78 @@ export function useVenuePerksQuery(
         { id: string; code: string; title: string; redemptionCount: number }[]
       >(getToken, `/admin/venues/${venueId}/perks`, { method: "GET" }),
     enabled: Boolean(enabled && venueId),
+  });
+}
+
+export function useVenueOffersQuery(
+  venueId: string | undefined,
+  getToken: () => Promise<string | null>,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: queryKeys.admin.offers(venueId ?? ""),
+    queryFn: () =>
+      portalFetch<AdminVenueOfferRow[]>(getToken, `/admin/venues/${venueId}/offers`, {
+        method: "GET",
+      }),
+    enabled: Boolean(enabled && venueId),
+  });
+}
+
+export function useCreateVenueOfferMutation(
+  venueId: string | undefined,
+  getToken: () => Promise<string | null>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      portalFetch<AdminVenueOfferRow>(getToken, `/admin/venues/${venueId}/offers`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      if (venueId) void qc.invalidateQueries({ queryKey: queryKeys.admin.offers(venueId) });
+    },
+  });
+}
+
+export function usePatchVenueOfferMutation(
+  venueId: string | undefined,
+  getToken: () => Promise<string | null>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      offerId,
+      body,
+    }: {
+      offerId: string;
+      body: Record<string, unknown>;
+    }) =>
+      portalFetch<AdminVenueOfferRow>(
+        getToken,
+        `/admin/venues/${venueId}/offers/${offerId}`,
+        { method: "PATCH", body: JSON.stringify(body) },
+      ),
+    onSuccess: () => {
+      if (venueId) void qc.invalidateQueries({ queryKey: queryKeys.admin.offers(venueId) });
+    },
+  });
+}
+
+export function useDeleteVenueOfferMutation(
+  venueId: string | undefined,
+  getToken: () => Promise<string | null>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (offerId: string) =>
+      portalFetch<unknown>(getToken, `/admin/venues/${venueId}/offers/${offerId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      if (venueId) void qc.invalidateQueries({ queryKey: queryKeys.admin.offers(venueId) });
+    },
   });
 }
 
@@ -645,7 +779,7 @@ export type OwnerOrganizationAnalytics = {
   feedEvents: { total: number; byKind: Record<string, number> };
 };
 
-/** Owner franchise rollup — `/owner/organizations/:id/analytics` */
+/** Owner organization roll-up analytics — `/owner/organizations/:id/analytics` */
 export function useOwnerOrganizationAnalyticsQuery(
   organizationId: string | undefined,
   days: number,
@@ -857,6 +991,36 @@ export function useAdminOrganizationVenuesLinkMutation(
     mutationFn: (body: { attachVenueIds: string[]; detachVenueIds: string[] }) =>
       portalFetch(getToken, `/admin/organizations/${orgId}/venues`, {
         method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      if (orgId) {
+        void qc.invalidateQueries({ queryKey: queryKeys.admin.organization(orgId) });
+        void qc.invalidateQueries({ queryKey: queryKeys.admin.venues });
+      }
+    },
+  });
+}
+
+export type AdminCreateVenueUnderOrgInput = {
+  name: string;
+  latitude: number;
+  longitude: number;
+  geofencePolygon: { type: "Polygon"; coordinates: number[][][] };
+  address?: string;
+  city?: string;
+  country?: string;
+};
+
+export function useAdminCreateVenueUnderOrgMutation(
+  orgId: string | undefined,
+  getToken: () => Promise<string | null>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: AdminCreateVenueUnderOrgInput) =>
+      portalFetch(getToken, `/admin/organizations/${orgId}/venues`, {
+        method: "POST",
         body: JSON.stringify(body),
       }),
     onSuccess: () => {

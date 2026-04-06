@@ -11,6 +11,8 @@ import { AdminVenueStaffController } from './admin-venue-staff.controller';
 import { AdminWordController } from './admin-word.controller';
 import { AdminChallengeController } from './admin-challenge.controller';
 import { AdminPerkController } from './admin-perk.controller';
+import { AdminVenueOfferController } from './admin-venue-offer.controller';
+import { AdminVenueTypeController } from './admin-venue-type.controller';
 import { AdminDashboardController } from './admin-dashboard.controller';
 import { PlatformSuperAdminGuard } from '../auth/platform-super-admin.guard';
 import { AdminCmsAccessService } from './admin-cms-access.service';
@@ -33,6 +35,8 @@ import { AdminCmsGuard } from './admin-cms.guard';
     AdminWordController,
     AdminChallengeController,
     AdminPerkController,
+    AdminVenueOfferController,
+    AdminVenueTypeController,
   ],
   providers: [
     PlatformSuperAdminGuard,

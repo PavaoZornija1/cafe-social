@@ -9,10 +9,12 @@ export const queryKeys = {
     organizations: ["admin", "organizations"] as const,
     organization: (id: string) => ["admin", "organizations", id] as const,
     venues: ["admin", "venues"] as const,
+    venueTypeCatalog: ["admin", "venue-types", "catalog"] as const,
     venue: (id: string) => ["admin", "venues", id] as const,
     venueStaff: (id: string) => ["admin", "venues", id, "staff"] as const,
     words: (take: number) => ["admin", "words", take] as const,
     perks: (venueId: string) => ["admin", "venues", venueId, "perks"] as const,
+    offers: (venueId: string) => ["admin", "venues", venueId, "offers"] as const,
     challenges: (venueId: string) => ["admin", "venues", venueId, "challenges"] as const,
   },
   owner: {

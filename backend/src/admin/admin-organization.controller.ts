@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { VenueStaffRole } from '@prisma/client';
@@ -46,6 +47,47 @@ export class AdminOrganizationController {
         _count: { select: { venues: true } },
       },
     });
+  }
+
+  /**
+   * Searchable, paginated org list for CMS dropdowns (super-admin).
+   */
+  @Get('picker')
+  async picker(
+    @Query('search') search?: string,
+    @Query('page') pageRaw?: string,
+    @Query('limit') limitRaw?: string,
+  ) {
+    const page = Math.max(1, parseInt(pageRaw ?? '1', 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(limitRaw ?? '20', 10) || 20));
+    const q = search?.trim() ?? '';
+    const where: Prisma.VenueOrganizationWhereInput = q
+      ? {
+          OR: [
+            { name: { contains: q, mode: 'insensitive' } },
+            { slug: { contains: q, mode: 'insensitive' } },
+          ],
+        }
+      : {};
+
+    const [total, items] = await Promise.all([
+      this.prisma.venueOrganization.count({ where }),
+      this.prisma.venueOrganization.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: { id: true, name: true },
+      }),
+    ]);
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      hasMore: page * limit < total,
+    };
   }
 
   @Get(':id')
@@ -140,7 +182,6 @@ export class AdminOrganizationController {
         name: body.name.trim(),
         latitude: body.latitude,
         longitude: body.longitude,
-        radiusMeters: 0,
         geofencePolygon: polygon as unknown as Prisma.InputJsonValue,
         organizationId: id,
         ...(body.address?.trim() && { address: body.address.trim() }),

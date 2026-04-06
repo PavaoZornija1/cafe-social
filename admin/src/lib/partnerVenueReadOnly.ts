@@ -11,7 +11,7 @@ export function isPayingPartnerStatus(status: string): boolean {
 
 const TRIAL_LOCK_REASON = "AUTO_TRIAL_EXPIRED";
 
-/** Org-level trial/billing only (e.g. franchise rollup without a single venue row). */
+/** Org-level trial/billing only (e.g. organization roll-up without a single venue row). */
 export function partnerOrganizationMutationsBlockedReason(
   org: {
     trialEndsAt: string | null;

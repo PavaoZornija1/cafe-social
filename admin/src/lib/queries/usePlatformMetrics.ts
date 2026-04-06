@@ -6,10 +6,22 @@ import { queryKeys } from "./keys";
 
 export type PlatformMetrics = {
   organizationCount: number;
+  singleLocationOrganizationCount: number;
+  multiLocationOrganizationCount: number;
   venueCount: number;
+  venuesInSingleLocationOrganizations: number;
+  venuesInMultiLocationOrganizations: number;
+  venuesWithoutOrganization: number;
   lockedVenueCount: number;
+  lockedVenuesInSingleLocationOrganizations: number;
+  lockedVenuesInMultiLocationOrganizations: number;
+  lockedVenuesWithoutOrganization: number;
   pastDueOrUnpaidOrgCount: number;
+  pastDueOrUnpaidSingleLocationOrgCount: number;
+  pastDueOrUnpaidMultiLocationOrgCount: number;
   canceledBillingOrgCount: number;
+  canceledBillingSingleLocationOrgCount: number;
+  canceledBillingMultiLocationOrgCount: number;
 };
 
 export function usePlatformMetrics(getToken: () => Promise<string | null>, enabled: boolean) {

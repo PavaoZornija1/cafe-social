@@ -9,7 +9,8 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { useAddWordMutation, useWordsQuery } from "@/lib/queries";
 
 type WordRow = { id: string; text: string; language: string; category: string };
@@ -21,6 +22,7 @@ export default function WordsPage() {
   const { isLoaded, getToken } = useAuth();
   const wordsQ = useWordsQuery(getToken, isLoaded, WORDS_TAKE);
   const addMut = useAddWordMutation(getToken, WORDS_TAKE);
+  const [addWordConfirmOpen, setAddWordConfirmOpen] = useState(false);
 
   const addForm = useForm({
     defaultValues: {
@@ -99,7 +101,7 @@ export default function WordsPage() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          void addForm.handleSubmit();
+          setAddWordConfirmOpen(true);
         }}
         className="border border-slate-200 rounded-lg p-4 mb-6 space-y-2 max-w-lg"
       >
@@ -170,11 +172,30 @@ export default function WordsPage() {
         <button
           type="submit"
           disabled={addMut.isPending}
-          className="bg-brand rounded px-3 py-1 text-sm font-medium disabled:opacity-50"
+          className="bg-brand border border-brand-active text-white rounded px-3 py-1 text-sm font-medium hover:bg-brand-hover disabled:opacity-50"
         >
-          Add
+          Add…
         </button>
       </form>
+
+      <ConfirmModal
+        open={addWordConfirmOpen}
+        onClose={() => setAddWordConfirmOpen(false)}
+        title="Add word?"
+        description={
+          <p>
+            Add{" "}
+            <span className="font-mono font-semibold text-slate-900">
+              {addForm.state.values.text || "—"}
+            </span>{" "}
+            <span className="text-slate-600">
+              ({addForm.state.values.language}) · {addForm.state.values.category}
+            </span>
+          </p>
+        }
+        confirmLabel="Add word"
+        onConfirm={() => addForm.handleSubmit()}
+      />
       {wordsQ.isPending && !wordsQ.data ? (
         <p>Loading…</p>
       ) : (

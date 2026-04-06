@@ -7,6 +7,7 @@ import {
     ActivityIndicator,
     Animated,
     Image,
+    Linking,
     Pressable,
     SafeAreaView,
     StyleSheet,
@@ -56,12 +57,26 @@ type VenueFeedItem = {
     createdAt: string;
 };
 
+type VenuePublicOffer = {
+    id: string;
+    title: string;
+    body: string | null;
+    imageUrl: string | null;
+    ctaUrl: string | null;
+    isFeatured: boolean;
+    validFrom: string | null;
+    validTo: string | null;
+    globallyExhausted: boolean;
+};
+
 type VenuePublicCard = {
     id: string;
     name: string;
     menuUrl: string | null;
     orderingUrl: string | null;
+    offers: VenuePublicOffer[];
     featuredOffer: {
+        id: string;
         title: string | null;
         body: string | null;
         endsAt: string | null;
@@ -247,7 +262,12 @@ export default function HomeScreen({ navigation }: Props) {
                 const card = await apiGet<VenuePublicCard>(
                     `/venues/${encodeURIComponent(detectedVenue.id)}/public-card`,
                 );
-                if (!cancelled) setPublicCard(card);
+                if (!cancelled) {
+                    setPublicCard({
+                        ...card,
+                        offers: Array.isArray(card.offers) ? card.offers : [],
+                    });
+                }
             } catch {
                 if (!cancelled) setPublicCard(null);
             } finally {
@@ -498,6 +518,57 @@ export default function HomeScreen({ navigation }: Props) {
                                 {publicCard.featuredOffer.body ? (
                                     <Text style={styles.featuredBody}>{publicCard.featuredOffer.body}</Text>
                                 ) : null}
+                                {(() => {
+                                    const hero = (publicCard.offers ?? []).find(
+                                        (o) => o.id === publicCard.featuredOffer?.id,
+                                    );
+                                    const url = hero?.ctaUrl?.trim();
+                                    if (!url || hero?.globallyExhausted) return null;
+                                    return (
+                                        <Pressable
+                                            style={({ pressed }) => [
+                                                styles.offerCta,
+                                                pressed && styles.quickLinkPressed,
+                                            ]}
+                                            onPress={() => void Linking.openURL(url)}
+                                        >
+                                            <Text style={styles.offerCtaText}>{t('home.offerCta')}</Text>
+                                        </Pressable>
+                                    );
+                                })()}
+                            </View>
+                        ) : null}
+                        {(publicCard?.offers ?? []).filter(
+                            (o) => o.id !== publicCard?.featuredOffer?.id && o.title?.trim(),
+                        ).length ? (
+                            <View style={styles.moreOffers}>
+                                {(publicCard?.offers ?? []).filter(
+                                    (o) => o.id !== publicCard?.featuredOffer?.id && o.title?.trim(),
+                                ).map((o) => (
+                                    <View key={o.id} style={styles.offerRow}>
+                                        <Text style={styles.offerRowTitle}>{o.title}</Text>
+                                        {o.body ? (
+                                            <Text style={styles.offerRowBody}>{o.body}</Text>
+                                        ) : null}
+                                        {o.globallyExhausted ? (
+                                            <Text style={styles.offerExhausted}>
+                                                {t('home.offerExhausted')}
+                                            </Text>
+                                        ) : o.ctaUrl?.trim() ? (
+                                            <Pressable
+                                                onPress={() => void Linking.openURL(o.ctaUrl!.trim())}
+                                                style={({ pressed }) => [
+                                                    styles.offerRowLink,
+                                                    pressed && styles.quickLinkPressed,
+                                                ]}
+                                            >
+                                                <Text style={styles.offerRowLinkText}>
+                                                    {t('home.offerCta')}
+                                                </Text>
+                                            </Pressable>
+                                        ) : null}
+                                    </View>
+                                ))}
                             </View>
                         ) : null}
                         {publicCard ? (
@@ -841,6 +912,28 @@ const styles = StyleSheet.create({
     featuredLabel: { color: '#c4b5fd', fontSize: 11, fontWeight: '800', marginBottom: 6 },
     featuredTitle: { color: '#fff', fontSize: 16, fontWeight: '900' },
     featuredBody: { color: '#cbd5e1', fontSize: 13, marginTop: 8, lineHeight: 18 },
+    offerCta: {
+        alignSelf: 'flex-start',
+        marginTop: 12,
+        backgroundColor: '#312e81',
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 10,
+    },
+    offerCtaText: { color: '#e9d5ff', fontWeight: '800', fontSize: 12 },
+    moreOffers: { marginTop: 12, gap: 10 },
+    offerRow: {
+        backgroundColor: '#111827',
+        borderRadius: 12,
+        padding: 12,
+        borderWidth: 1,
+        borderColor: '#1f2937',
+    },
+    offerRowTitle: { color: '#fff', fontSize: 14, fontWeight: '800' },
+    offerRowBody: { color: '#94a3b8', fontSize: 12, marginTop: 6, lineHeight: 17 },
+    offerExhausted: { color: '#fca5a5', fontSize: 12, marginTop: 8, fontWeight: '700' },
+    offerRowLink: { alignSelf: 'flex-start', marginTop: 8 },
+    offerRowLinkText: { color: '#a78bfa', fontWeight: '800', fontSize: 12 },
     partnerLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
     partnerLinkBtn: {
         backgroundColor: '#312e81',

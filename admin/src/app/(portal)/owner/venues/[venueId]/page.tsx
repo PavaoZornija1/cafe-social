@@ -116,7 +116,7 @@ export default function OwnerVenueDetailPage() {
 
   const role = metaRow?.role ?? null;
   const venueName = metaRow?.venue.name ?? "";
-  const franchiseId = metaRow?.venue.organizationId ?? null;
+  const organizationRollupId = metaRow?.venue.organizationId ?? null;
   const orgBilling = metaRow?.venue.organization ?? null;
   const venueLocked = metaRow?.venue.locked ?? false;
   const venueLockReason = metaRow?.venue.lockReason ?? null;
@@ -661,13 +661,13 @@ export default function OwnerVenueDetailPage() {
               portal URL.
             </p>
           ) : null}
-          {franchiseId ? (
+          {organizationRollupId ? (
             <p className="text-sm mt-2">
               <Link
-                href={`/owner/organizations/${franchiseId}`}
+                href={`/owner/organizations/${organizationRollupId}`}
                 className="text-amber-700 hover:underline"
               >
-                Franchise rollup (all locations) →
+                Organization roll-up (all locations) →
               </Link>
             </p>
           ) : null}
@@ -690,7 +690,7 @@ export default function OwnerVenueDetailPage() {
                   ? " · ends at period end"
                   : ""}
                 {orgBilling.platformBillingStatus === "CANCELED"
-                  ? " · contact support to restore franchise billing"
+                  ? " · contact support to restore organization billing"
                   : ""}
               </span>
             </p>

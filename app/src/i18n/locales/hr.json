@@ -201,6 +201,8 @@
     "challengeProgressWeekly": "Tjedno · {{title}} ({{current}}/{{target}})",
     "partnerOffers": "Partner — {{name}}",
     "featuredOffer": "Istaknuto",
+    "offerCta": "Pogledaj ponudu",
+    "offerExhausted": "Potpuno iskorišteno",
     "openOrdering": "Naruči",
     "openMenu": "Jelovnik",
     "friendsVisitedVenue": "{{count}} prijatelja posjetilo je ovaj lokal u zadnjih 30 dana.",

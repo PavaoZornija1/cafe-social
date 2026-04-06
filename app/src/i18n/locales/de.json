@@ -201,6 +201,8 @@
     "challengeProgressWeekly": "Wöchentlich · {{title}} ({{current}}/{{target}})",
     "partnerOffers": "Partner — {{name}}",
     "featuredOffer": "Highlight",
+    "offerCta": "Angebot ansehen",
+    "offerExhausted": "Ausgebucht",
     "openOrdering": "Bestellen",
     "openMenu": "Speisekarte",
     "friendsVisitedVenue": "{{count}} Freund:innen waren in den letzten 30 Tagen hier.",

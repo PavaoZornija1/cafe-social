@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Venue } from '@prisma/client';
 import type { AdminCmsScope } from '../admin/admin-cms-access.service';
@@ -12,9 +12,9 @@ import {
   distanceToVenuePinMeters,
   parseVenueGeofencePolygonInput,
   pointInVenueGeofence,
-  polygonFromCenterRadiusMeters,
 } from './geofence';
 import type { Polygon as GeoJsonPolygon } from 'geojson';
+import { loadPublicVenueOffersForVenue } from './venue-offer-public.util';
 
 @Injectable()
 export class VenueService {
@@ -24,17 +24,14 @@ export class VenueService {
   ) {}
 
   create(dto: CreateVenueDto): Promise<Venue> {
+    const polygon = parseVenueGeofencePolygonInput(dto.geofencePolygon);
+    assertPinInsidePolygon(dto.latitude, dto.longitude, polygon);
     return this.venues.create({
       name: dto.name,
       address: dto.address,
       latitude: dto.latitude,
       longitude: dto.longitude,
-      radiusMeters: dto.radiusMeters,
-      geofencePolygon: polygonFromCenterRadiusMeters(
-        dto.latitude,
-        dto.longitude,
-        dto.radiusMeters,
-      ) as unknown as Prisma.InputJsonValue,
+      geofencePolygon: polygon as unknown as Prisma.InputJsonValue,
       ...(dto.city !== undefined && { city: dto.city }),
       ...(dto.country !== undefined && { country: dto.country }),
       ...(dto.region !== undefined && { region: dto.region }),
@@ -43,13 +40,6 @@ export class VenueService {
       ...(dto.orderingUrl !== undefined && { orderingUrl: dto.orderingUrl }),
       ...(dto.orderNudgeTitle !== undefined && { orderNudgeTitle: dto.orderNudgeTitle }),
       ...(dto.orderNudgeBody !== undefined && { orderNudgeBody: dto.orderNudgeBody }),
-      ...(dto.featuredOfferTitle !== undefined && { featuredOfferTitle: dto.featuredOfferTitle }),
-      ...(dto.featuredOfferBody !== undefined && { featuredOfferBody: dto.featuredOfferBody }),
-      ...(dto.featuredOfferEndsAt !== undefined && {
-        featuredOfferEndsAt: dto.featuredOfferEndsAt
-          ? new Date(dto.featuredOfferEndsAt)
-          : null,
-      }),
     });
   }
 
@@ -135,6 +125,21 @@ export class VenueService {
     return venue;
   }
 
+  /** Venue row plus organization label for admin CMS pickers. */
+  async findOneWithOrgForAdmin(id: string): Promise<{
+    venue: Venue;
+    organization: { id: string; name: string } | null;
+  }> {
+    const venue = await this.findOne(id);
+    const organization = venue.organizationId
+      ? await this.prisma.venueOrganization.findUnique({
+          where: { id: venue.organizationId },
+          select: { id: true, name: true },
+        })
+      : null;
+    return { venue, organization };
+  }
+
   /** Full venue row for partner CMS (Clerk super admin JWT). */
   sanitizeVenueForAdmin(venue: Venue): Venue {
     return venue;
@@ -147,6 +152,7 @@ export class VenueService {
       locked,
       lockReason,
       geofencePolygon: geoRaw,
+      venueTypeCodes,
       ...venueFields
     } = dto;
 
@@ -193,18 +199,56 @@ export class VenueService {
       await this.venues.update(id, adminPatch);
     }
 
+    if (venueTypeCodes !== undefined) {
+      await this.replaceVenueTypesForVenue(id, venueTypeCodes);
+    }
+
     const v = await this.findOne(id);
     return this.sanitizeVenueForAdmin(v);
   }
 
+  async replaceVenueTypesForVenue(venueId: string, codes: string[]) {
+    const normalized = [
+      ...new Set(
+        codes
+          .map((c) => String(c).trim().toUpperCase())
+          .filter((c) => c.length > 0),
+      ),
+    ];
+    const types = await this.prisma.venueType.findMany({
+      where: { code: { in: normalized } },
+    });
+    if (types.length !== normalized.length) {
+      const found = new Set(types.map((t) => t.code));
+      const missing = normalized.filter((c) => !found.has(c));
+      throw new BadRequestException(`Unknown venue type code(s): ${missing.join(', ')}`);
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.venueVenueType.deleteMany({ where: { venueId } });
+      if (types.length > 0) {
+        await tx.venueVenueType.createMany({
+          data: types.map((t) => ({ venueId, venueTypeId: t.id })),
+        });
+      }
+    });
+  }
+
   async update(id: string, dto: UpdateVenueDto): Promise<Venue> {
-    await this.findOne(id);
+    const existing = await this.findOne(id);
+    let geofenceUpdate: Prisma.InputJsonValue | undefined;
+    if (dto.geofencePolygon !== undefined) {
+      const polygon = parseVenueGeofencePolygonInput(dto.geofencePolygon);
+      const lat = dto.latitude !== undefined ? dto.latitude : existing.latitude;
+      const lng = dto.longitude !== undefined ? dto.longitude : existing.longitude;
+      assertPinInsidePolygon(lat, lng, polygon);
+      geofenceUpdate = polygon as unknown as Prisma.InputJsonValue;
+    }
     return this.venues.update(id, {
       ...(dto.name !== undefined && { name: dto.name }),
       ...(dto.address !== undefined && { address: dto.address }),
       ...(dto.latitude !== undefined && { latitude: dto.latitude }),
       ...(dto.longitude !== undefined && { longitude: dto.longitude }),
-      ...(dto.radiusMeters !== undefined && { radiusMeters: dto.radiusMeters }),
+      ...(geofenceUpdate !== undefined && { geofencePolygon: geofenceUpdate }),
       ...(dto.city !== undefined && { city: dto.city }),
       ...(dto.country !== undefined && { country: dto.country }),
       ...(dto.region !== undefined && { region: dto.region }),
@@ -213,20 +257,13 @@ export class VenueService {
       ...(dto.orderingUrl !== undefined && { orderingUrl: dto.orderingUrl }),
       ...(dto.orderNudgeTitle !== undefined && { orderNudgeTitle: dto.orderNudgeTitle }),
       ...(dto.orderNudgeBody !== undefined && { orderNudgeBody: dto.orderNudgeBody }),
-      ...(dto.featuredOfferTitle !== undefined && { featuredOfferTitle: dto.featuredOfferTitle }),
-      ...(dto.featuredOfferBody !== undefined && { featuredOfferBody: dto.featuredOfferBody }),
-      ...(dto.featuredOfferEndsAt !== undefined && {
-        featuredOfferEndsAt: dto.featuredOfferEndsAt
-          ? new Date(dto.featuredOfferEndsAt)
-          : null,
-      }),
       ...(dto.analyticsTimeZone !== undefined && {
         analyticsTimeZone: dto.analyticsTimeZone?.trim() || null,
       }),
     });
   }
 
-  /** Public fields for the mobile app (menu, ordering, featured offer). */
+  /** Public fields for the mobile app (menu, ordering, offers). */
   async getPublicCard(id: string) {
     await this.findOne(id);
     const v = await this.prisma.venue.findUnique({
@@ -236,28 +273,17 @@ export class VenueService {
         name: true,
         menuUrl: true,
         orderingUrl: true,
-        featuredOfferTitle: true,
-        featuredOfferBody: true,
-        featuredOfferEndsAt: true,
       },
     });
     if (!v) throw new NotFoundException(`Venue ${id} not found`);
-    const now = new Date();
-    const featuredLive =
-      !!v.featuredOfferTitle?.trim() &&
-      (!v.featuredOfferEndsAt || v.featuredOfferEndsAt > now);
+    const { offers, featuredOffer } = await loadPublicVenueOffersForVenue(this.prisma, id);
     return {
       id: v.id,
       name: v.name,
       menuUrl: v.menuUrl,
       orderingUrl: v.orderingUrl,
-      featuredOffer: featuredLive
-        ? {
-            title: v.featuredOfferTitle,
-            body: v.featuredOfferBody,
-            endsAt: v.featuredOfferEndsAt?.toISOString() ?? null,
-          }
-        : null,
+      offers,
+      featuredOffer,
     };
   }
 

@@ -12,6 +12,7 @@ import {
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import {
   useAdminOrganizationsQuery,
   useCreateOrganizationMutation,
@@ -48,6 +49,7 @@ export default function OrganizationsPage() {
   const { t } = useTranslation();
   const { isLoaded, getToken } = useAuth();
   const [formErr, setFormErr] = useState<string | null>(null);
+  const [createConfirmOpen, setCreateConfirmOpen] = useState(false);
 
   const meQ = usePortalMeQuery(getToken, isLoaded);
   const portalGate =
@@ -71,6 +73,7 @@ export default function OrganizationsPage() {
         createOrgForm.reset();
       } catch (e) {
         setFormErr((e as Error).message);
+        throw e;
       }
     },
   });
@@ -92,9 +95,14 @@ export default function OrganizationsPage() {
       }),
       colHelper.accessor("locationKind", {
         header: t("admin.organizations.colScope"),
-        cell: (info) => (
-          <span className="text-xs text-slate-700">{info.getValue().replace(/_/g, " ")}</span>
-        ),
+        cell: (info) => {
+          const raw = info.getValue();
+          const label =
+            raw === "MULTI_LOCATION"
+              ? t("admin.organizations.locationKindMulti")
+              : t("admin.organizations.locationKindSingle");
+          return <span className="text-xs text-slate-700">{label}</span>;
+        },
       }),
       colHelper.display({
         id: "venues",
@@ -200,7 +208,8 @@ export default function OrganizationsPage() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            void createOrgForm.handleSubmit();
+            if (!createOrgForm.state.values.name.trim()) return;
+            setCreateConfirmOpen(true);
           }}
           className="border border-slate-200 rounded-xl p-4 mb-8 flex flex-wrap gap-2 items-end bg-white shadow-sm"
         >
@@ -226,6 +235,25 @@ export default function OrganizationsPage() {
             {t("admin.organizations.createButton")}
           </button>
         </form>
+
+        <ConfirmModal
+          open={createConfirmOpen}
+          onClose={() => setCreateConfirmOpen(false)}
+          title={t("admin.organizations.createConfirmTitle", { defaultValue: "Create organization?" })}
+          description={
+            <p>
+              {t("admin.organizations.createConfirmBody", {
+                defaultValue: "Create organization named",
+              })}{" "}
+              <span className="font-semibold text-slate-900">
+                {createOrgForm.state.values.name.trim() || "—"}
+              </span>
+              ?
+            </p>
+          }
+          confirmLabel={t("admin.organizations.createButton")}
+          onConfirm={() => createOrgForm.handleSubmit()}
+        />
 
         {orgsQ.isPending && !rows ? (
           <p className="text-slate-500">{t("admin.organizations.loading")}</p>

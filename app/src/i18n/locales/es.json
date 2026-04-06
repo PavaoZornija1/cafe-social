@@ -201,6 +201,8 @@
     "challengeProgressWeekly": "Semanal · {{title}} ({{current}}/{{target}})",
     "partnerOffers": "Socio — {{name}}",
     "featuredOffer": "Destacado",
+    "offerCta": "Ver oferta",
+    "offerExhausted": "Canjeado por completo",
     "openOrdering": "Pedir",
     "openMenu": "Carta",
     "friendsVisitedVenue": "{{count}} amigos han pasado por este local en los últimos 30 días.",

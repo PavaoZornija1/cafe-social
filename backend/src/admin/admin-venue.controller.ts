@@ -18,6 +18,7 @@ import {
 } from './admin-cms-access.service';
 import { AdminCmsGuard, getAdminCmsScope } from './admin-cms.guard';
 import type { Request } from 'express';
+import { PrismaService } from '../prisma/prisma.service';
 
 type ReqWithScope = Request & { adminCmsScope?: AdminCmsScope };
 
@@ -31,6 +32,7 @@ export class AdminVenueController {
   constructor(
     private readonly venues: VenueService,
     private readonly cmsAccess: AdminCmsAccessService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Get()
@@ -44,8 +46,16 @@ export class AdminVenueController {
   async get(@Req() req: ReqWithScope, @Param('id') id: string) {
     const scope = getAdminCmsScope(req);
     this.cmsAccess.assertVenueInScope(scope, id);
-    const v = await this.venues.findOne(id);
-    return this.venues.sanitizeVenueForAdmin(v);
+    const { venue, organization } = await this.venues.findOneWithOrgForAdmin(id);
+    const vtypes = await this.prisma.venueVenueType.findMany({
+      where: { venueId: id },
+      include: { venueType: { select: { id: true, code: true, label: true } } },
+    });
+    return {
+      ...this.venues.sanitizeVenueForAdmin(venue),
+      organization,
+      venueTypes: vtypes.map((x) => x.venueType),
+    };
   }
 
   @Post()

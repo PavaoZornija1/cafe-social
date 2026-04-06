@@ -116,7 +116,7 @@ export default function OwnerVenuesPage() {
                 const key = orgId ?? `__single:${row.venue.id}`;
                 const label =
                   row.venue.organization?.name ??
-                  (orgId ? "Franchise" : "Independent venues");
+                  (orgId ? "Organization" : "Independent venues");
                 if (!byOrg.has(key)) {
                   byOrg.set(key, { label, orgId, rows: [] });
                 }
@@ -146,7 +146,7 @@ export default function OwnerVenuesPage() {
                         </Link>
                       ) : (
                         <span className="text-xs text-slate-500">
-                          Ask an owner for franchise analytics
+                          Ask an owner for organization roll-up analytics
                         </span>
                       )}
                     </div>

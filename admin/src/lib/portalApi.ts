@@ -52,7 +52,7 @@ export type PartnerOnboardingPayload = {
   venueName: string;
   latitude: number;
   longitude: number;
-  radiusMeters: number;
+  geofencePolygon: Record<string, unknown>;
   address?: string;
   city?: string;
   country?: string;

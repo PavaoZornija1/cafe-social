@@ -201,6 +201,8 @@
     "challengeProgressWeekly": "Weekly · {{title}} ({{current}}/{{target}})",
     "partnerOffers": "Partner — {{name}}",
     "featuredOffer": "Featured",
+    "offerCta": "View offer",
+    "offerExhausted": "Fully redeemed",
     "openOrdering": "Order",
     "openMenu": "Menu",
     "friendsVisitedVenue": "{{count}} friends have visited this venue in the last 30 days.",

@@ -177,7 +177,7 @@ export default function OwnerOrganizationPage() {
           <Link href="/owner/venues" className="text-sm text-brand hover:underline">
             ← Venues
           </Link>
-          <h1 className="text-xl font-semibold mt-2">Franchise rollup</h1>
+          <h1 className="text-xl font-semibold mt-2">Organization roll-up</h1>
           <p className="text-sm text-slate-600 mt-1 font-mono">{organizationId}</p>
         </div>
         <UserButton />
@@ -251,7 +251,7 @@ export default function OwnerOrganizationPage() {
               </div>
             </div>
             <OwnerAnalyticsCharts
-              title="Franchise trends"
+              title="Organization trends (all locations)"
               visitsByDay={analytics.visits.byDay}
               redemptionsByDay={analytics.redemptions.byDay}
               byHour={hourSeries}

@@ -25,7 +25,6 @@ export class VenueRepository {
       city: string | null;
       country: string | null;
       isPremium: boolean;
-      radiusMeters: number;
       geofencePolygon: unknown | null;
     }>
   > {
@@ -41,7 +40,6 @@ export class VenueRepository {
         city: true,
         country: true,
         isPremium: true,
-        radiusMeters: true,
         geofencePolygon: true,
       },
     });

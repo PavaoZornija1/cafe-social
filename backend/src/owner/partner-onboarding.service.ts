@@ -88,7 +88,6 @@ export class PartnerOnboardingService {
           name: dto.venueName.trim(),
           latitude: dto.latitude,
           longitude: dto.longitude,
-          radiusMeters: 0,
           geofencePolygon: polygon as unknown as Prisma.InputJsonValue,
           organizationId: org.id,
           ...(dto.address !== undefined && { address: dto.address.trim() || null }),

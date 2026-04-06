@@ -37,6 +37,11 @@ body {
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* react-datepicker portal above portal shell / modals */
+.react-datepicker-popper {
+  z-index: 120 !important;
+}
+
 /* Subtle grain overlay for auth / marketing-style surfaces */
 .portal-auth-bg {
   background-color: var(--brand-lighter);

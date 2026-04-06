@@ -1,6 +1,10 @@
-import { PrismaClient, WordCategory } from '@prisma/client';
+import { Prisma, PrismaClient, WordCategory } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { polygonFromCenterRadiusMeters } from '../src/venue/geofence';
+import {
+  VENUE_NUDGE_TYPES,
+  VENUE_TYPE_CODES,
+} from '../src/lib/venue-taxonomy';
 import { seedWordLocales } from './seed-word-locales';
 
 const connectionString = process.env.DATABASE_URL;
@@ -11,6 +15,141 @@ if (!connectionString) {
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString }),
 });
+
+async function seedVenueTaxonomy(client: PrismaClient) {
+  const typeDefsFixed: { code: string; label: string }[] = [
+    { code: VENUE_TYPE_CODES.RESTAURANT, label: 'Restaurant' },
+    { code: VENUE_TYPE_CODES.COFFEE_SHOP, label: 'Coffee shop' },
+    { code: VENUE_TYPE_CODES.BAR, label: 'Bar' },
+    { code: VENUE_TYPE_CODES.BAKERY, label: 'Bakery' },
+    { code: VENUE_TYPE_CODES.GAME_SHOP, label: 'Game shop' },
+    { code: VENUE_TYPE_CODES.RETAIL, label: 'Retail' },
+    { code: VENUE_TYPE_CODES.OTHER, label: 'Other' },
+  ];
+
+  for (const t of typeDefsFixed) {
+    await client.venueType.upsert({
+      where: { code: t.code },
+      update: { label: t.label },
+      create: { code: t.code, label: t.label },
+    });
+  }
+
+  const templates: {
+    code: string;
+    nudgeType: string;
+    titleTemplate: string;
+    bodyTemplate: string;
+    sortPriority: number;
+    venueTypeCodes: string[];
+  }[] = [
+    {
+      code: 'nudge_coffee_order_drink_v1',
+      nudgeType: VENUE_NUDGE_TYPES.ORDER_DRINK,
+      titleTemplate: 'Still here?',
+      bodyTemplate: 'Treat yourself to another drink at {{venueName}}.',
+      sortPriority: 10,
+      venueTypeCodes: [VENUE_TYPE_CODES.COFFEE_SHOP],
+    },
+    {
+      code: 'nudge_bar_order_drink_v1',
+      nudgeType: VENUE_NUDGE_TYPES.ORDER_DRINK,
+      titleTemplate: 'While you’re here',
+      bodyTemplate: 'Grab something from the bar at {{venueName}}.',
+      sortPriority: 10,
+      venueTypeCodes: [VENUE_TYPE_CODES.BAR],
+    },
+    {
+      code: 'nudge_restaurant_order_food_v1',
+      nudgeType: VENUE_NUDGE_TYPES.ORDER_FOOD,
+      titleTemplate: 'Hungry?',
+      bodyTemplate: 'See what’s cooking at {{venueName}}.',
+      sortPriority: 10,
+      venueTypeCodes: [VENUE_TYPE_CODES.RESTAURANT],
+    },
+    {
+      code: 'nudge_bakery_snack_v1',
+      nudgeType: VENUE_NUDGE_TYPES.ORDER_SNACK,
+      titleTemplate: 'Sweet break?',
+      bodyTemplate: 'Something fresh might be waiting at {{venueName}}.',
+      sortPriority: 10,
+      venueTypeCodes: [VENUE_TYPE_CODES.BAKERY],
+    },
+    {
+      code: 'nudge_game_shop_browse_v1',
+      nudgeType: VENUE_NUDGE_TYPES.BROWSE_MENU,
+      titleTemplate: 'While you play',
+      bodyTemplate: 'Browse what’s in stock at {{venueName}}.',
+      sortPriority: 10,
+      venueTypeCodes: [VENUE_TYPE_CODES.GAME_SHOP],
+    },
+    {
+      code: 'nudge_retail_browse_v1',
+      nudgeType: VENUE_NUDGE_TYPES.BROWSE_MENU,
+      titleTemplate: 'Still browsing?',
+      bodyTemplate: 'Take a look at what {{venueName}} has for you.',
+      sortPriority: 15,
+      venueTypeCodes: [VENUE_TYPE_CODES.RETAIL],
+    },
+    {
+      code: 'nudge_other_generic_v1',
+      nudgeType: VENUE_NUDGE_TYPES.BROWSE_MENU,
+      titleTemplate: 'Still here?',
+      bodyTemplate: 'See what’s on offer at {{venueName}}.',
+      sortPriority: 90,
+      venueTypeCodes: [VENUE_TYPE_CODES.OTHER],
+    },
+  ];
+
+  for (const tpl of templates) {
+    const row = await client.venueOrderNudgeTemplate.upsert({
+      where: { code: tpl.code },
+      update: {
+        nudgeType: tpl.nudgeType,
+        titleTemplate: tpl.titleTemplate,
+        bodyTemplate: tpl.bodyTemplate,
+        sortPriority: tpl.sortPriority,
+        active: true,
+      },
+      create: {
+        code: tpl.code,
+        nudgeType: tpl.nudgeType,
+        titleTemplate: tpl.titleTemplate,
+        bodyTemplate: tpl.bodyTemplate,
+        sortPriority: tpl.sortPriority,
+        active: true,
+      },
+    });
+    for (const vtc of tpl.venueTypeCodes) {
+      const vt = await client.venueType.findUnique({ where: { code: vtc } });
+      if (!vt) continue;
+      await client.venueOrderNudgeTemplateVenueType.upsert({
+        where: {
+          templateId_venueTypeId: { templateId: row.id, venueTypeId: vt.id },
+        },
+        create: { templateId: row.id, venueTypeId: vt.id },
+        update: {},
+      });
+    }
+  }
+}
+
+async function linkVenueVenueTypes(
+  client: PrismaClient,
+  venueId: string,
+  codes: string[],
+) {
+  const normalized = [...new Set(codes.map((c) => c.trim().toUpperCase()).filter(Boolean))];
+  const types = await client.venueType.findMany({
+    where: { code: { in: normalized } },
+  });
+  await client.venueVenueType.deleteMany({ where: { venueId } });
+  if (types.length > 0) {
+    await client.venueVenueType.createMany({
+      data: types.map((t) => ({ venueId, venueTypeId: t.id })),
+    });
+  }
+}
 
 async function main() {
   const words = [
@@ -430,8 +569,11 @@ async function main() {
 
   await seedWordLocales(prisma);
 
+  await seedVenueTaxonomy(prisma);
+
   // Seed a couple of venues so the app can detect a default context.
   // In v1 detection is placeholder (default venue from DB), so we need at least one row.
+  const SEED_VENUE_GEOFENCE_RADIUS_M = 80;
   const venues = [
     {
       id: '8ac7d2f6-9a5a-4d2b-8f5c-3c7bd3e7d5c1',
@@ -439,7 +581,6 @@ async function main() {
       address: 'Main Street',
       latitude: 43.8563,
       longitude: 18.4131,
-      radiusMeters: 80,
       isPremium: false,
       city: 'Sarajevo',
       country: 'BA',
@@ -451,7 +592,6 @@ async function main() {
       address: 'Neon District',
       latitude: 43.8613,
       longitude: 18.4162,
-      radiusMeters: 80,
       isPremium: true,
       city: 'Sarajevo',
       country: 'BA',
@@ -463,8 +603,8 @@ async function main() {
     const geofencePolygon = polygonFromCenterRadiusMeters(
       v.latitude,
       v.longitude,
-      v.radiusMeters,
-    );
+      SEED_VENUE_GEOFENCE_RADIUS_M,
+    ) as unknown as Prisma.InputJsonValue;
     await prisma.venue.upsert({
       where: { id: v.id },
       update: {
@@ -472,7 +612,6 @@ async function main() {
         address: v.address,
         latitude: v.latitude,
         longitude: v.longitude,
-        radiusMeters: v.radiusMeters,
         geofencePolygon,
         isPremium: v.isPremium,
         city: v.city,
@@ -482,6 +621,12 @@ async function main() {
       create: { ...v, geofencePolygon },
     });
   }
+
+  await linkVenueVenueTypes(prisma, venues[0].id, [VENUE_TYPE_CODES.COFFEE_SHOP]);
+  await linkVenueVenueTypes(prisma, venues[1].id, [
+    VENUE_TYPE_CODES.COFFEE_SHOP,
+    VENUE_TYPE_CODES.GAME_SHOP,
+  ]);
 
   // MVP challenges for the Word Game.
   // Stable IDs so the seed is idempotent.

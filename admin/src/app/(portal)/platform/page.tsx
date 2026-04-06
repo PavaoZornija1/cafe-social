@@ -31,6 +31,63 @@ function StatCard({
   );
 }
 
+function LayoutPanel({
+  title,
+  orgCount,
+  venueCount,
+  lockedCount,
+  pastDueOrgs,
+  canceledBillingOrgs,
+}: {
+  title: string;
+  orgCount: number;
+  venueCount: number;
+  lockedCount: number;
+  pastDueOrgs: number;
+  canceledBillingOrgs: number;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="rounded-2xl border border-slate-200/90 bg-white px-4 py-4 shadow-sm">
+      <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+      <dl className="mt-3 space-y-2 text-sm">
+        <div className="flex justify-between gap-4">
+          <dt className="text-slate-600">{t("admin.platform.layoutOrganizations")}</dt>
+          <dd className="tabular-nums font-medium text-slate-900">{orgCount}</dd>
+        </div>
+        <div className="flex justify-between gap-4">
+          <dt className="text-slate-600">{t("admin.platform.layoutVenues")}</dt>
+          <dd className="tabular-nums font-medium text-slate-900">{venueCount}</dd>
+        </div>
+        <div className="flex justify-between gap-4">
+          <dt className="text-slate-600">{t("admin.platform.layoutLockedVenues")}</dt>
+          <dd className="tabular-nums font-medium text-slate-900">{lockedCount}</dd>
+        </div>
+        <div className="flex justify-between gap-4">
+          <dt className="text-slate-600">{t("admin.platform.layoutPastDueOrgs")}</dt>
+          <dd
+            className={`tabular-nums font-medium ${
+              pastDueOrgs > 0 ? "text-amber-800" : "text-slate-900"
+            }`}
+          >
+            {pastDueOrgs}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-4">
+          <dt className="text-slate-600">{t("admin.platform.layoutCanceledOrgs")}</dt>
+          <dd
+            className={`tabular-nums font-medium ${
+              canceledBillingOrgs > 0 ? "text-rose-800" : "text-slate-900"
+            }`}
+          >
+            {canceledBillingOrgs}
+          </dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
 export default function PlatformDashboardPage() {
   const { isLoaded, getToken } = useAuth();
   const { t } = useTranslation();
@@ -53,6 +110,9 @@ export default function PlatformDashboardPage() {
           <strong className="text-slate-800">{t("admin.platform.leadStrong")}</strong>{" "}
           {t("admin.platform.leadEnd")}
         </p>
+        <p className="text-sm text-slate-500 mt-3 max-w-2xl leading-relaxed">
+          {t("admin.platform.layoutExplainer")}
+        </p>
       </div>
 
       {q.isError ? (
@@ -64,35 +124,68 @@ export default function PlatformDashboardPage() {
       {q.isLoading ? (
         <p className="text-slate-600">{t("admin.platform.loading")}</p>
       ) : q.data ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <StatCard
-            label={t("admin.platform.metricOrgs")}
-            value={q.data.organizationCount}
-            hint={t("admin.platform.metricOrgsHint")}
-          />
-          <StatCard
-            label={t("admin.platform.metricVenues")}
-            value={q.data.venueCount}
-            hint={t("admin.platform.metricVenuesHint")}
-          />
-          <StatCard
-            label={t("admin.platform.metricLocked")}
-            value={q.data.lockedVenueCount}
-            hint={t("admin.platform.metricLockedHint")}
-          />
-          <StatCard
-            label={t("admin.platform.metricPastDue")}
-            value={q.data.pastDueOrUnpaidOrgCount}
-            hint={t("admin.platform.metricPastDueHint")}
-            tone={q.data.pastDueOrUnpaidOrgCount > 0 ? "amber" : "default"}
-          />
-          <StatCard
-            label={t("admin.platform.metricCanceled")}
-            value={q.data.canceledBillingOrgCount}
-            hint={t("admin.platform.metricCanceledHint")}
-            tone={q.data.canceledBillingOrgCount > 0 ? "rose" : "default"}
-          />
-        </div>
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <StatCard
+              label={t("admin.platform.metricOrgs")}
+              value={q.data.organizationCount}
+              hint={t("admin.platform.metricOrgsHint")}
+            />
+            <StatCard
+              label={t("admin.platform.metricVenues")}
+              value={q.data.venueCount}
+              hint={t("admin.platform.metricVenuesHint")}
+            />
+            <StatCard
+              label={t("admin.platform.metricLocked")}
+              value={q.data.lockedVenueCount}
+              hint={t("admin.platform.metricLockedHint")}
+            />
+            <StatCard
+              label={t("admin.platform.metricPastDue")}
+              value={q.data.pastDueOrUnpaidOrgCount}
+              hint={t("admin.platform.metricPastDueHint")}
+              tone={q.data.pastDueOrUnpaidOrgCount > 0 ? "amber" : "default"}
+            />
+            <StatCard
+              label={t("admin.platform.metricCanceled")}
+              value={q.data.canceledBillingOrgCount}
+              hint={t("admin.platform.metricCanceledHint")}
+              tone={q.data.canceledBillingOrgCount > 0 ? "rose" : "default"}
+            />
+            <StatCard
+              label={t("admin.platform.metricVenuesNoOrg")}
+              value={q.data.venuesWithoutOrganization}
+              hint={t("admin.platform.metricVenuesNoOrgHint")}
+              tone={q.data.venuesWithoutOrganization > 0 ? "amber" : "default"}
+            />
+          </div>
+
+          <h2 className="text-sm font-semibold text-slate-800 uppercase tracking-wide mt-10 mb-3">
+            {t("admin.platform.sectionByLayout")}
+          </h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            <LayoutPanel
+              title={t("admin.platform.panelSingleTitle")}
+              orgCount={q.data.singleLocationOrganizationCount}
+              venueCount={q.data.venuesInSingleLocationOrganizations}
+              lockedCount={q.data.lockedVenuesInSingleLocationOrganizations}
+              pastDueOrgs={q.data.pastDueOrUnpaidSingleLocationOrgCount}
+              canceledBillingOrgs={q.data.canceledBillingSingleLocationOrgCount}
+            />
+            <LayoutPanel
+              title={t("admin.platform.panelMultiTitle")}
+              orgCount={q.data.multiLocationOrganizationCount}
+              venueCount={q.data.venuesInMultiLocationOrganizations}
+              lockedCount={q.data.lockedVenuesInMultiLocationOrganizations}
+              pastDueOrgs={q.data.pastDueOrUnpaidMultiLocationOrgCount}
+              canceledBillingOrgs={q.data.canceledBillingMultiLocationOrgCount}
+            />
+          </div>
+          <p className="mt-4 text-xs text-slate-500 leading-relaxed max-w-3xl">
+            {t("admin.platform.layoutFootnote")}
+          </p>
+        </>
       ) : null}
     </div>
   );

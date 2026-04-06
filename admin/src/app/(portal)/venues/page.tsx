@@ -15,6 +15,11 @@ import {
   useAdminVenuesQuery,
   usePortalMeQuery,
 } from "@/lib/queries";
+import { getCountrySelectOptions } from "@/lib/geo/countryOptions";
+import {
+  FilterableSelect,
+  type FilterableOption,
+} from "@/components/ui/FilterableSelect";
 
 const colHelper = createColumnHelper<AdminVenueListRow>();
 
@@ -24,6 +29,7 @@ export default function VenuesPage() {
   const [cityQ, setCityQ] = useState("");
   const [lockedOnly, setLockedOnly] = useState(false);
   const [orgFilter, setOrgFilter] = useState<string>("");
+  const [countryIsoFilters, setCountryIsoFilters] = useState<string[]>([]);
 
   const meQ = usePortalMeQuery(getToken, isLoaded);
   const isSuperAdmin = meQ.data?.platformRole === "SUPER_ADMIN";
@@ -38,6 +44,27 @@ export default function VenuesPage() {
   );
 
   const orgNameById = useMemo(() => new Map(orgs.map((o) => [o.id, o.name])), [orgs]);
+
+  const countryOptions = useMemo(() => getCountrySelectOptions(), []);
+  const orgSelectOptions = useMemo<FilterableOption[]>(
+    () => [
+      { value: "", label: "Any organization" },
+      { value: "__none__", label: "Not in any org" },
+      ...orgs.map((o) => ({ value: o.id, label: o.name })),
+    ],
+    [orgs],
+  );
+  const selectedOrgOption = useMemo(
+    () => orgSelectOptions.find((o) => o.value === orgFilter) ?? orgSelectOptions[0]!,
+    [orgSelectOptions, orgFilter],
+  );
+  const selectedCountryOptions = useMemo(
+    () =>
+      countryIsoFilters
+        .map((iso) => countryOptions.find((o) => o.value === iso))
+        .filter((o): o is FilterableOption => Boolean(o)),
+    [countryIsoFilters, countryOptions],
+  );
 
   const filtered = useMemo(() => {
     if (!rows) return [];
@@ -54,9 +81,13 @@ export default function VenuesPage() {
         const co = (v.country ?? "").toLowerCase();
         if (!c.includes(cq) && !co.includes(cq)) return false;
       }
+      if (countryIsoFilters.length) {
+        const iso = (v.country ?? "").trim().toUpperCase();
+        if (!iso || !countryIsoFilters.includes(iso)) return false;
+      }
       return true;
     });
-  }, [rows, q, cityQ, lockedOnly, orgFilter]);
+  }, [rows, q, cityQ, lockedOnly, orgFilter, countryIsoFilters]);
 
   const columns = useMemo(
     () => [
@@ -190,22 +221,36 @@ export default function VenuesPage() {
               />
               Locked only
             </label>
-            <label className="text-sm text-slate-600">
+            <label className="text-sm text-slate-600 block min-w-[13rem]">
               Organization
-              <select
-                className="mt-1 block w-52 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
-                value={orgFilter}
-                onChange={(e) => setOrgFilter(e.target.value)}
-              >
-                <option value="">Any</option>
-                <option value="__none__">Not in any org</option>
-                {orgs.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.name}
-                  </option>
-                ))}
-              </select>
+              <FilterableSelect<FilterableOption, false>
+                containerClassName="mt-1"
+                options={orgSelectOptions}
+                value={selectedOrgOption}
+                onChange={(opt) => setOrgFilter(opt?.value ?? "")}
+                placeholder="Search…"
+                isClearable={false}
+              />
             </label>
+            {isSuperAdmin ? (
+              <label className="text-sm text-slate-600 block min-w-[14rem] max-w-[min(100%,22rem)]">
+                Countries
+                <FilterableSelect<FilterableOption, true>
+                  isMulti
+                  containerClassName="mt-1"
+                  options={countryOptions}
+                  value={selectedCountryOptions}
+                  onChange={(opts) =>
+                    setCountryIsoFilters((opts ?? []).map((o) => o.value))
+                  }
+                  placeholder="Any country"
+                  closeMenuOnSelect={false}
+                />
+                <span className="mt-1 block text-xs font-normal text-slate-500">
+                  Venue must match one of the selected ISO countries (empty = all).
+                </span>
+              </label>
+            ) : null}
           </div>
           <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
             <table className="min-w-full text-sm">
