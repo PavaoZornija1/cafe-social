@@ -9,6 +9,12 @@ export type VenueOrderNudgePushCopy = {
   bodyRaw: string;
   menuUrl: string;
   orderingUrl: string;
+  /** Set when the primary source is a `VenueNudgeAssignment` (dwell or admin). */
+  assignmentId: string | null;
+  /** Library template `code`, when tied to a template row. */
+  templateCode: string | null;
+  /** Analytics / routing bucket from `VenueOrderNudgeTemplate.nudgeType`. */
+  nudgeType: string | null;
 };
 
 /** Replace `{{venueName}}` in template strings (push title/body). */
@@ -27,6 +33,8 @@ const venueNudgeAssignmentsSelect = {
     afterMinutesOverride: true,
     template: {
       select: {
+        code: true,
+        nudgeType: true,
         titleTemplate: true,
         bodyTemplate: true,
         defaultAfterMinutes: true,
@@ -97,27 +105,47 @@ export class VenueOrderNudgeCopyService {
         venue.orderNudgeBody?.trim() ||
         t.bodyTemplate ||
         envDefaults.body;
-    } else {
-      let picked: { titleTemplate: string; bodyTemplate: string } | null = null;
-      if (typeIds.length > 0) {
-        picked = await this.prisma.venueOrderNudgeTemplate.findFirst({
-          where: {
-            active: true,
-            venueTypeLinks: { some: { venueTypeId: { in: typeIds } } },
-          },
-          orderBy: [{ sortPriority: 'asc' }, { code: 'asc' }],
-          select: { titleTemplate: true, bodyTemplate: true },
-        });
-      }
-      titleRaw =
-        venue.orderNudgeTitle?.trim() ||
-        picked?.titleTemplate ||
-        envDefaults.title;
-      bodyRaw =
-        venue.orderNudgeBody?.trim() ||
-        picked?.bodyTemplate ||
-        envDefaults.body;
+      return {
+        venueName,
+        titleRaw,
+        bodyRaw,
+        menuUrl: venue.menuUrl?.trim() ?? '',
+        orderingUrl: venue.orderingUrl?.trim() ?? '',
+        assignmentId: a.id,
+        templateCode: t.code,
+        nudgeType: t.nudgeType,
+      };
     }
+
+    let picked: {
+      titleTemplate: string;
+      bodyTemplate: string;
+      code: string;
+      nudgeType: string;
+    } | null = null;
+    if (typeIds.length > 0) {
+      picked = await this.prisma.venueOrderNudgeTemplate.findFirst({
+        where: {
+          active: true,
+          venueTypeLinks: { some: { venueTypeId: { in: typeIds } } },
+        },
+        orderBy: [{ sortPriority: 'asc' }, { code: 'asc' }],
+        select: {
+          titleTemplate: true,
+          bodyTemplate: true,
+          code: true,
+          nudgeType: true,
+        },
+      });
+    }
+    titleRaw =
+      venue.orderNudgeTitle?.trim() ||
+      picked?.titleTemplate ||
+      envDefaults.title;
+    bodyRaw =
+      venue.orderNudgeBody?.trim() ||
+      picked?.bodyTemplate ||
+      envDefaults.body;
 
     return {
       venueName,
@@ -125,6 +153,9 @@ export class VenueOrderNudgeCopyService {
       bodyRaw,
       menuUrl: venue.menuUrl?.trim() ?? '',
       orderingUrl: venue.orderingUrl?.trim() ?? '',
+      assignmentId: null,
+      templateCode: picked?.code ?? null,
+      nudgeType: picked?.nudgeType ?? null,
     };
   }
 
@@ -145,7 +176,13 @@ export class VenueOrderNudgeCopyService {
       },
       include: {
         template: {
-          select: { titleTemplate: true, bodyTemplate: true, defaultAfterMinutes: true },
+          select: {
+            code: true,
+            nudgeType: true,
+            titleTemplate: true,
+            bodyTemplate: true,
+            defaultAfterMinutes: true,
+          },
         },
       },
     });
@@ -179,6 +216,9 @@ export class VenueOrderNudgeCopyService {
         envDefaults.body,
       menuUrl: venue.menuUrl?.trim() ?? '',
       orderingUrl: venue.orderingUrl?.trim() ?? '',
+      assignmentId: row.id,
+      templateCode: t.code,
+      nudgeType: t.nudgeType,
     };
   }
 }

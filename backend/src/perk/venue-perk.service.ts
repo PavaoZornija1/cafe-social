@@ -8,12 +8,70 @@ import { PrismaService } from '../prisma/prisma.service';
 import { VenueService } from '../venue/venue.service';
 import { staffVerificationCodeFromRedemptionId } from '../lib/redemption-staff-code';
 
+export type VenuePerkPublicTeaserDto = {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  body: string | null;
+  requiresQrUnlock: boolean;
+  fullyRedeemed: boolean;
+  redeemedByYou: boolean;
+};
+
 @Injectable()
 export class VenuePerkService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly venues: VenueService,
   ) {}
+
+  /** Active perks for a venue (no secret codes). Used by the guest app. */
+  async listPublicTeasersForVenue(
+    venueId: string,
+    playerId: string,
+  ): Promise<VenuePerkPublicTeaserDto[]> {
+    const venueMeta = await this.venues.findOne(venueId);
+    if (venueMeta.locked) return [];
+
+    const now = new Date();
+    const rows = await this.prisma.venuePerk.findMany({
+      where: { venueId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        title: true,
+        subtitle: true,
+        body: true,
+        requiresQrUnlock: true,
+        activeFrom: true,
+        activeTo: true,
+        maxRedemptions: true,
+        redemptionCount: true,
+        redemptions: {
+          where: { playerId },
+          select: { id: true },
+          take: 1,
+        },
+      },
+    });
+
+    return rows
+      .filter((p) => {
+        if (p.activeFrom && now < p.activeFrom) return false;
+        if (p.activeTo && now > p.activeTo) return false;
+        return true;
+      })
+      .map((p) => ({
+        id: p.id,
+        title: p.title,
+        subtitle: p.subtitle,
+        body: p.body,
+        requiresQrUnlock: p.requiresQrUnlock,
+        fullyRedeemed:
+          p.maxRedemptions != null && p.redemptionCount >= p.maxRedemptions,
+        redeemedByYou: p.redemptions.length > 0,
+      }));
+  }
 
   normalizeCode(raw: string): string {
     return raw.trim().toUpperCase().replace(/\s+/g, '');
@@ -37,10 +95,11 @@ export class VenuePerkService {
     if (!hasCoords) {
       throw new BadRequestException('Location (lat/lng) is required to redeem at this venue');
     }
-    const at = await this.venues.findVenueAtCoordinates(params.latitude!, params.longitude!);
-    if (!at || at.id !== params.venueId) {
-      throw new BadRequestException('You must be at this venue to redeem this perk');
-    }
+    await this.venues.assertCoordinatesAllowedForGuestVenue(
+      params.venueId,
+      params.latitude!,
+      params.longitude!,
+    );
 
     const perk = await this.prisma.venuePerk.findFirst({
       where: { code, venueId: params.venueId },

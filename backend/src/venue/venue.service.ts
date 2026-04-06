@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Venue } from '@prisma/client';
 import type { AdminCmsScope } from '../admin/admin-cms-access.service';
@@ -226,6 +226,24 @@ export class VenueService {
     return best?.venue ?? null;
   }
 
+  /**
+   * Guest flows (play, redeem, receipts): point must lie in this venue’s geofence.
+   * Locked venues are rejected with a clear message (not a generic “not at venue”).
+   */
+  async assertCoordinatesAllowedForGuestVenue(
+    venueId: string,
+    latitude: number,
+    longitude: number,
+  ): Promise<void> {
+    const inside = await this.findVenueAtCoordinatesIncludingLocked(latitude, longitude);
+    if (!inside || inside.id !== venueId) {
+      throw new ForbiddenException('You must be at the venue');
+    }
+    if (inside.locked) {
+      throw new ForbiddenException('This venue is temporarily unavailable');
+    }
+  }
+
   async findOne(id: string): Promise<Venue> {
     const venue = await this.venues.findById(id);
     if (!venue) {
@@ -382,9 +400,20 @@ export class VenueService {
         name: true,
         menuUrl: true,
         orderingUrl: true,
+        locked: true,
       },
     });
     if (!v) throw new NotFoundException(`Venue ${id} not found`);
+    if (v.locked) {
+      return {
+        id: v.id,
+        name: v.name,
+        menuUrl: v.menuUrl,
+        orderingUrl: v.orderingUrl,
+        offers: [],
+        featuredOffer: null,
+      };
+    }
     const { offers, featuredOffer } = await loadPublicVenueOffersForVenue(this.prisma, id);
     return {
       id: v.id,

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Post,
   Param,
   ParseUUIDPipe,
@@ -25,6 +26,15 @@ export class VenuePerkController {
     const e = normalizeUserEmail(user);
     if (!e) throw new UnauthorizedException('Missing user email');
     return e;
+  }
+
+  @Get(':venueId/perks')
+  async listTeasers(
+    @CurrentUser() user: unknown,
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+  ) {
+    const player = await this.players.findOrCreateByEmail(this.email(user));
+    return this.perks.listPublicTeasersForVenue(venueId, player.id);
   }
 
   @Post(':venueId/perks/redeem')

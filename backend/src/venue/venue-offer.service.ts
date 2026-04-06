@@ -31,7 +31,10 @@ export class VenueOfferService {
       id: string;
     } | null;
   }> {
-    await this.venues.findOne(venueId);
+    const venue = await this.venues.findOne(venueId);
+    if (venue.locked) {
+      return { offers: [], featuredOffer: null };
+    }
     return loadPublicVenueOffersForVenue(this.prisma, venueId);
   }
 
@@ -50,10 +53,11 @@ export class VenueOfferService {
     if (!hasCoords) {
       throw new BadRequestException('Location (lat/lng) is required to redeem at this venue');
     }
-    const at = await this.venues.findVenueAtCoordinates(params.latitude!, params.longitude!);
-    if (!at || at.id !== params.venueId) {
-      throw new BadRequestException('You must be at this venue to redeem this offer');
-    }
+    await this.venues.assertCoordinatesAllowedForGuestVenue(
+      params.venueId,
+      params.latitude!,
+      params.longitude!,
+    );
 
     const offer = await this.prisma.venueOffer.findFirst({
       where: { id: params.offerId, venueId: params.venueId },

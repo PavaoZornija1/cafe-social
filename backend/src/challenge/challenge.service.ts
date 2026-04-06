@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { Challenge, ChallengeProgress } from '@prisma/client';
 import { PlayerService } from '../player/player.service';
 import { VenueService } from '../venue/venue.service';
@@ -30,6 +35,9 @@ export class ChallengeService {
 
   async getVenueChallengesForPlayer(venueId: string, email: string): Promise<VenueChallengeDto[]> {
     const player = await this.players.findOrCreateByEmail(email);
+
+    const venueRow = await this.venues.findOne(venueId);
+    if (venueRow.locked) return [];
 
     const now = new Date();
     const challengeRows = (await this.challenges.findByVenueId(venueId)).filter((c) =>
@@ -89,6 +97,11 @@ export class ChallengeService {
 
     const player = await this.players.findOrCreateByEmail(email);
 
+    const venueRow = await this.venues.findOne(venueId);
+    if (venueRow.locked) {
+      throw new ForbiddenException('This venue is temporarily unavailable');
+    }
+
     const challenge = await this.challenges.getChallengeTarget(challengeId);
     if (!challenge) throw new BadRequestException('Challenge not found');
     if (challenge.venueId !== venueId) throw new BadRequestException('Challenge does not belong to this venue');
@@ -109,10 +122,7 @@ export class ChallengeService {
           'Location (lat/lng) is required to progress this challenge at the venue',
         );
       }
-      const at = await this.venues.findVenueAtCoordinates(latitude!, longitude!);
-      if (!at || at.id !== venueId) {
-        throw new UnauthorizedException('You must be physically at the venue to progress this challenge');
-      }
+      await this.venues.assertCoordinatesAllowedForGuestVenue(venueId, latitude!, longitude!);
     }
 
     const weekKey = isoWeekKeyUTC();

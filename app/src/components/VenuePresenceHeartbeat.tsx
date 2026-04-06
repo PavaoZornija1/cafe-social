@@ -7,7 +7,8 @@ import { fetchDetectedVenue } from '../lib/venueDetectClient';
 /**
  * Periodically re-posts **geofence venue presence** while signed in — whatever the user is doing
  * (Home, settings, word game, etc.). Lets the server measure **real time on premise** for the
- * optional “grab a drink” nudge, not time spent in a match.
+ * venue **marketing nudges** (per-venue template assignments + dwell timing on the server),
+ * not time spent in a match.
  */
 const INTERVAL_MS = 5 * 60 * 1000;
 

@@ -1,4 +1,11 @@
-import { HttpException, HttpStatus, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
@@ -37,10 +44,13 @@ export class VenueNudgeAdminService {
 
     const venue = await this.prisma.venue.findUnique({
       where: { id: venueId },
-      select: { id: true, lastAdminNudgeBroadcastAt: true },
+      select: { id: true, lastAdminNudgeBroadcastAt: true, locked: true },
     });
     if (!venue) {
       throw new NotFoundException('Venue not found');
+    }
+    if (venue.locked) {
+      throw new ForbiddenException('This venue is temporarily unavailable');
     }
 
     const last = venue.lastAdminNudgeBroadcastAt;
@@ -97,7 +107,9 @@ export class VenueNudgeAdminService {
             venueId,
             pushCategory: 'partner_marketing',
             trigger: 'admin',
-            assignmentId,
+            assignmentId: resolved.assignmentId ?? assignmentId,
+            templateCode: resolved.templateCode ?? '',
+            nudgeType: resolved.nudgeType ?? '',
             orderingUrl: resolved.orderingUrl,
             menuUrl: resolved.menuUrl,
           },

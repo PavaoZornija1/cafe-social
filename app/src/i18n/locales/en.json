@@ -211,7 +211,10 @@
     "badgeVenueExplorer": "Venue explorer",
     "linkRedeemPerk": "Redeem perk",
     "linkReceipt": "Receipt proof",
-    "linkPartnerMap": "Partner map"
+    "linkPartnerMap": "Partner map",
+    "venuePerksTitle": "Venue perks",
+    "venuePerksEmpty": "No public perk teasers yet — staff can still give you a code to enter below in Redeem.",
+    "venuePerksRedeemed": "Redeemed"
   },
   "partnerMap": {
     "title": "Partner venues",
@@ -472,10 +475,16 @@
     "redeem": "Redeem",
     "codeRequired": "Enter a perk code.",
     "signInFirst": "Sign in first.",
-    "needVenue": "Be detected at the venue (or open this from Home while you’re there).",
+    "needVenue": "Enable location and stand inside the partner venue zone so we can confirm you’re on site.",
+    "needLocationPrecise": "We need a GPS fix to verify you’re inside the venue fence. Try again outdoors or near a window.",
+    "wrongVenue": "You opened redeem for a different venue than where you are now. Go to the right café or open Redeem from Home.",
     "redeemFailed": "Could not redeem.",
     "showToStaff": "Show this screen to staff if they need proof.",
-    "staffVerificationCode": "Staff check code"
+    "staffVerificationCode": "Staff check code",
+    "availableAtVenue": "Offers at this venue",
+    "qrUnlockHint": "Check in (QR or invite) may be required before redeeming this one.",
+    "redeemedByYou": "You already redeemed this offer.",
+    "fullyRedeemedLabel": "Fully redeemed — ask staff for new codes."
   },
   "redeem": {
     "title": "Redeem invite",

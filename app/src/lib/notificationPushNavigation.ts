@@ -1,7 +1,8 @@
 import { navigationRef } from '../navigation/navigationRef';
 import { ensureOnboardingCompleteForNavigation } from './onboardingNavigationGate';
-import { navigateWordMatchFromPush } from './wordMatchPushNavigation';
 import { openOrderingOrMenu } from './openOrderingLinks';
+import { parseVenueOrderNudgePayload } from './venueNudgePush';
+import { navigateWordMatchFromPush } from './wordMatchPushNavigation';
 
 /**
  * Central entry for notification taps (foreground tap + cold start).
@@ -11,13 +12,9 @@ export async function handleNotificationTapNavigation(
   raw: Record<string, unknown>,
   getToken: () => Promise<string | null | undefined>,
 ): Promise<void> {
-  const type = raw.type;
-
-  if (type === 'venue_order_nudge') {
-    const orderingUrl =
-      typeof raw.orderingUrl === 'string' ? raw.orderingUrl : '';
-    const menuUrl = typeof raw.menuUrl === 'string' ? raw.menuUrl : '';
-    await openOrderingOrMenu(orderingUrl, menuUrl);
+  const nudge = parseVenueOrderNudgePayload(raw);
+  if (nudge) {
+    await openOrderingOrMenu(nudge.orderingUrl, nudge.menuUrl);
     if (navigationRef.isReady()) {
       const ok = await ensureOnboardingCompleteForNavigation(getToken);
       if (ok) navigationRef.navigate('Home');

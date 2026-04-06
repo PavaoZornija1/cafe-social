@@ -1,5 +1,10 @@
 import { apiGet } from './api';
-import { buildDetectQuery, getCoordinatesForVenueDetect, type Coordinates } from './locationForDetect';
+import {
+  buildDetectQuery,
+  getCoordinatesForVenueDetect,
+  type Coordinates,
+  type VenueDetectLocationAccuracy,
+} from './locationForDetect';
 
 export type DetectedVenue = {
   id: string;
@@ -16,11 +21,19 @@ export type VenueDetectResult = {
   coords: Coordinates | null;
 };
 
+export type FetchDetectedVenueOptions = {
+  /** Stronger GPS fix for polygon geofence checks (redemptions, location-required challenges). */
+  locationAccuracy?: VenueDetectLocationAccuracy;
+};
+
 /**
  * Geofence detection only (no default venue). Without GPS permission or outside all fences, venue is null.
+ * Server uses venue polygon + pin distance (closest containing fence wins).
  */
-export async function fetchDetectedVenue(): Promise<VenueDetectResult> {
-  const coords = await getCoordinatesForVenueDetect();
+export async function fetchDetectedVenue(
+  options?: FetchDetectedVenueOptions,
+): Promise<VenueDetectResult> {
+  const coords = await getCoordinatesForVenueDetect(options?.locationAccuracy ?? 'balanced');
   const q = buildDetectQuery(coords);
   const venue = await apiGet<DetectedVenue | null>(`/venue-context/detect${q}`);
   return { venue, coords };

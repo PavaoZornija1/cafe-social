@@ -60,10 +60,11 @@ export class WordService {
       if (!hasCoords) {
         throw new ForbiddenException('Venue solo play requires your current location (lat/lng)');
       }
-      const at = await this.venues.findVenueAtCoordinates(params.latitude!, params.longitude!);
-      if (!at || at.id !== vId) {
-        throw new ForbiddenException('You must be at the venue to play');
-      }
+      await this.venues.assertCoordinatesAllowedForGuestVenue(
+        vId,
+        params.latitude!,
+        params.longitude!,
+      );
     }
 
     const rows: Word[] = await this.words.findRandomSessionDeck({

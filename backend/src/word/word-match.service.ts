@@ -59,10 +59,11 @@ export class WordMatchService {
     if (!hasCoords) {
       throw new ForbiddenException('Venue word play requires your current location (lat/lng)');
     }
-    const at = await this.venues.findVenueAtCoordinates(latitude!, longitude!);
-    if (!at || at.id !== sessionVenueId) {
-      throw new ForbiddenException('You must be at the venue to play this match');
-    }
+    await this.venues.assertCoordinatesAllowedForGuestVenue(
+      sessionVenueId,
+      latitude!,
+      longitude!,
+    );
   }
 
   private pushSessionRefresh(sessionId: string) {

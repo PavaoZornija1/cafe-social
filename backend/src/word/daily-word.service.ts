@@ -43,9 +43,12 @@ export class DailyWordService {
     const { playerId, venueId, latitude, longitude } = params;
     const venue = await this.prisma.venue.findUnique({
       where: { id: venueId },
-      select: { isPremium: true },
+      select: { isPremium: true, locked: true },
     });
     if (!venue) throw new BadRequestException('Venue not found');
+    if (venue.locked) {
+      throw new ForbiddenException('This venue is temporarily unavailable');
+    }
 
     const hasCoords =
       typeof latitude === 'number' &&
@@ -55,10 +58,7 @@ export class DailyWordService {
     if (!hasCoords) {
       throw new UnauthorizedException('Location is required for the venue daily word');
     }
-    const at = await this.venues.findVenueAtCoordinates(latitude!, longitude!);
-    if (!at || at.id !== venueId) {
-      throw new UnauthorizedException('You must be physically at the venue for the venue daily word');
-    }
+    await this.venues.assertCoordinatesAllowedForGuestVenue(venueId, latitude!, longitude!);
 
     const subscriptionActive = await this.subscriptions.isActiveSubscriber(playerId);
     if (venue.isPremium && !subscriptionActive) {

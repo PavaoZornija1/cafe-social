@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -80,6 +81,9 @@ export class VenueAccessService {
     const player = await this.players.findOrCreateByEmail(email);
     const venue = await this.venues.findOne(venueId).catch(() => null);
     if (!venue) throw new NotFoundException(`Venue ${venueId} not found`);
+    if (venue.locked) {
+      throw new ForbiddenException('This venue is temporarily unavailable');
+    }
 
     const existing = await this.playerVenues.findByPlayerAndVenue(player.id, venueId);
     if (existing) return;

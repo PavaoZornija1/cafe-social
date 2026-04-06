@@ -111,6 +111,12 @@ export class DiscoveryService {
     const enabled = this.config.get<string>('VENUE_ORDER_NUDGE_ENABLED')?.trim() !== 'false';
     if (!enabled) return;
 
+    const vRow = await this.prisma.venue.findUnique({
+      where: { id: venueId },
+      select: { locked: true },
+    });
+    if (vRow?.locked) return;
+
     const globalDelayMin = Number(this.config.get<string>('VENUE_ORDER_NUDGE_AFTER_MINUTES') ?? 30);
     const globalDelay = Math.max(1, Number.isFinite(globalDelayMin) ? globalDelayMin : 30);
     const perVenueMin = await this.venueOrderNudgeCopy.getEffectiveAfterMinutes(venueId);
@@ -149,6 +155,10 @@ export class DiscoveryService {
           type: 'venue_order_nudge',
           venueId,
           pushCategory: 'partner_marketing',
+          trigger: 'dwell',
+          assignmentId: resolved.assignmentId ?? '',
+          templateCode: resolved.templateCode ?? '',
+          nudgeType: resolved.nudgeType ?? '',
           orderingUrl,
           menuUrl,
         },

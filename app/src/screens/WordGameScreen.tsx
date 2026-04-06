@@ -177,7 +177,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
         let venueQs = '';
         if (!globalSolo) {
           if (!venueId) throw new Error(t('wordGame.needVenuePresence'));
-          const { venue, coords } = await fetchDetectedVenue();
+          const { venue, coords } = await fetchDetectedVenue({ locationAccuracy: 'high' });
           if (!coords || venue?.id !== venueId) {
             throw new Error(t('wordGame.needVenuePresence'));
           }
@@ -240,7 +240,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
         setMatchState(s);
         let deckQs = '';
         if (s.venueId) {
-          const { venue, coords } = await fetchDetectedVenue();
+          const { venue, coords } = await fetchDetectedVenue({ locationAccuracy: 'high' });
           if (!coords || venue?.id !== s.venueId) {
             presenceCoordsRef.current = null;
             setError(t('wordGame.needVenueForMatch'));
@@ -286,7 +286,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
     try {
       const token = await getTokenRef.current();
       if (!token) throw new Error('Not authenticated');
-      const { coords } = await fetchDetectedVenue();
+      const { coords } = await fetchDetectedVenue({ locationAccuracy: 'high' });
       await apiPost<void>(
         `/venue-context/${encodeURIComponent(venueId)}/challenges/${encodeURIComponent(challengeId)}/progress`,
         {

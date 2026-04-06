@@ -7,6 +7,13 @@ export class VenueFeedService {
   constructor(private readonly prisma: PrismaService) {}
 
   async listForVenue(venueId: string, limit = 30) {
+    const venue = await this.prisma.venue.findUnique({
+      where: { id: venueId },
+      select: { locked: true },
+    });
+    if (!venue) return [];
+    if (venue.locked) return [];
+
     const take = Math.min(Math.max(limit, 1), 100);
     return this.prisma.venueFeedEvent.findMany({
       where: { venueId },

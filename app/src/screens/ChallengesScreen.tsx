@@ -91,7 +91,11 @@ export default function ChallengesScreen({ navigation }: Props) {
       const token = await getTokenRef.current();
       if (!token) throw new Error('Not authenticated');
 
-      const { coords } = await fetchDetectedVenue();
+      const ch = challenges.find((x) => x.id === challengeId);
+      const needHigh = Boolean(ch?.locationRequired || ch?.rewardVenueSpecific);
+      const { coords } = await fetchDetectedVenue({
+        locationAccuracy: needHigh ? 'high' : 'balanced',
+      });
 
       await apiPost<void>(
         `/venue-context/${encodeURIComponent(venue.id)}/challenges/${encodeURIComponent(challengeId)}/progress`,
@@ -145,7 +149,9 @@ export default function ChallengesScreen({ navigation }: Props) {
                 {t('challenges.progress', { current: c.progressCount, target: c.targetCount })}
               </Text>
               <Text style={styles.cardHint}>
-                {c.locationRequired ? t('challenges.requiresAtCafe') : t('challenges.worksFromHome')}
+                {c.locationRequired || c.rewardVenueSpecific
+                  ? t('challenges.requiresAtCafe')
+                  : t('challenges.worksFromHome')}
               </Text>
               {c.resetsWeekly ? <Text style={styles.cardWeekly}>{t('challenges.weekly')}</Text> : null}
 

@@ -20,6 +20,7 @@ import { apiGet, apiPost } from '../lib/api';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { syncOnboardingFromServerSummary } from '../lib/onboardingStorage';
 import { openOrderingOrMenu } from '../lib/openOrderingLinks';
+import { fetchVenuePerkTeasers, type VenuePerkPublicTeaser } from '../lib/venuePerksApi';
 import { buildVenueAccessQuery, fetchDetectedVenue } from '../lib/venueDetectClient';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
@@ -122,6 +123,8 @@ export default function HomeScreen({ navigation }: Props) {
     const [loadingFriendsVisit, setLoadingFriendsVisit] = useState(false);
     const [engagement, setEngagement] = useState<Engagement | null>(null);
     const [loadingEngagement, setLoadingEngagement] = useState(false);
+    const [venuePerkTeasers, setVenuePerkTeasers] = useState<VenuePerkPublicTeaser[]>([]);
+    const [loadingVenuePerks, setLoadingVenuePerks] = useState(false);
 
     const scale = useRef(new Animated.Value(1)).current;
     const animateIn = () => {
@@ -384,6 +387,35 @@ export default function HomeScreen({ navigation }: Props) {
 
     useEffect(() => {
         let cancelled = false;
+        async function run() {
+            if (!detectedVenue) {
+                setVenuePerkTeasers([]);
+                return;
+            }
+            if (!isLoaded) return;
+            try {
+                setLoadingVenuePerks(true);
+                const token = await getTokenRef.current();
+                if (!token) {
+                    setVenuePerkTeasers([]);
+                    return;
+                }
+                const list = await fetchVenuePerkTeasers(detectedVenue.id, token);
+                if (!cancelled) setVenuePerkTeasers(list);
+            } catch {
+                if (!cancelled) setVenuePerkTeasers([]);
+            } finally {
+                if (!cancelled) setLoadingVenuePerks(false);
+            }
+        }
+        void run();
+        return () => {
+            cancelled = true;
+        };
+    }, [detectedVenue?.id, isLoaded]);
+
+    useEffect(() => {
+        let cancelled = false;
         async function presence() {
             if (!isLoaded) return;
             try {
@@ -624,6 +656,30 @@ export default function HomeScreen({ navigation }: Props) {
                                 </View>
                             </View>
                         ) : null}
+
+                        <View style={styles.venuePerksBlock}>
+                            <Text style={styles.venuePerksHeading}>{t('home.venuePerksTitle')}</Text>
+                            {loadingVenuePerks ? (
+                                <ActivityIndicator color="#a78bfa" style={{ marginTop: 8 }} />
+                            ) : venuePerkTeasers.length === 0 ? (
+                                <Text style={styles.venuePerksEmpty}>{t('home.venuePerksEmpty')}</Text>
+                            ) : (
+                                venuePerkTeasers.slice(0, 6).map((p) => (
+                                    <View key={p.id} style={styles.venuePerkRow}>
+                                        <Text style={styles.venuePerkRowTitle} numberOfLines={2}>
+                                            {p.title}
+                                        </Text>
+                                        {p.redeemedByYou ? (
+                                            <Text style={styles.venuePerkPill}>
+                                                {t('home.venuePerksRedeemed')}
+                                            </Text>
+                                        ) : p.fullyRedeemed ? (
+                                            <Text style={styles.venuePerkPillMuted}>—</Text>
+                                        ) : null}
+                                    </View>
+                                ))
+                            )}
+                        </View>
                     </View>
                 ) : null}
 
@@ -953,6 +1009,28 @@ const styles = StyleSheet.create({
         borderRadius: 999,
     },
     badgeChipText: { color: '#bbf7d0', fontSize: 11, fontWeight: '800' },
+    venuePerksBlock: { marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#1e293b' },
+    venuePerksHeading: { color: '#e2e8f0', fontSize: 13, fontWeight: '900' },
+    venuePerksEmpty: { color: '#64748b', fontSize: 12, marginTop: 8, lineHeight: 17 },
+    venuePerkRow: {
+        marginTop: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 8,
+    },
+    venuePerkRowTitle: { color: '#cbd5e1', fontSize: 13, fontWeight: '700', flex: 1 },
+    venuePerkPill: {
+        color: '#86efac',
+        fontSize: 11,
+        fontWeight: '800',
+        backgroundColor: '#14532d',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+        overflow: 'hidden',
+    },
+    venuePerkPillMuted: { color: '#64748b', fontSize: 12, fontWeight: '700' },
     quickLinks: {
         flexDirection: 'row',
         flexWrap: 'wrap',

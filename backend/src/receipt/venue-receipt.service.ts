@@ -37,10 +37,11 @@ export class VenueReceiptService {
     if (!hasCoords) {
       throw new BadRequestException('Location (lat/lng) is required to submit a receipt here');
     }
-    const at = await this.venues.findVenueAtCoordinates(params.latitude!, params.longitude!);
-    if (!at || at.id !== params.venueId) {
-      throw new BadRequestException('You must be at this venue to submit a receipt');
-    }
+    await this.venues.assertCoordinatesAllowedForGuestVenue(
+      params.venueId,
+      params.latitude!,
+      params.longitude!,
+    );
 
     const raw = params.imageData.trim();
     if (!raw) throw new BadRequestException('imageData is required');
