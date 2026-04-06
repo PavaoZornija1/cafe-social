@@ -8,13 +8,17 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   type AdminVenueListRow,
-  useAdminOrganizationsQuery,
-  useAdminVenuesQuery,
+  type AdminVenuesListParams,
+  type AdminOrganizationsListParams,
+  useAdminOrganizationsListQuery,
+  useAdminVenuesListQuery,
   usePortalMeQuery,
 } from "@/lib/queries";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { getCountrySelectOptions } from "@/lib/geo/countryOptions";
 import {
   FilterableSelect,
@@ -23,36 +27,84 @@ import {
 
 const colHelper = createColumnHelper<AdminVenueListRow>();
 
+const PAGE_SIZE = 25;
+
 export default function VenuesPage() {
+  const { t } = useTranslation();
   const { isLoaded, getToken } = useAuth();
+  const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
   const [cityQ, setCityQ] = useState("");
   const [lockedOnly, setLockedOnly] = useState(false);
   const [orgFilter, setOrgFilter] = useState<string>("");
   const [countryIsoFilters, setCountryIsoFilters] = useState<string[]>([]);
 
+  const debouncedSearch = useDebouncedValue(q, 350);
+  const debouncedLocation = useDebouncedValue(cityQ, 350);
+
   const meQ = usePortalMeQuery(getToken, isLoaded);
   const isSuperAdmin = meQ.data?.platformRole === "SUPER_ADMIN";
 
-  const venuesQ = useAdminVenuesQuery(getToken, isLoaded);
-  const orgsQ = useAdminOrganizationsQuery(getToken, isLoaded && isSuperAdmin);
+  const orgsFilterParams = useMemo(
+    (): AdminOrganizationsListParams => ({
+      page: 1,
+      limit: 500,
+      search: undefined,
+      locationKind: "",
+      billingStatus: "",
+    }),
+    [],
+  );
 
-  const rows = venuesQ.data ?? null;
+  const orgsForFilterQ = useAdminOrganizationsListQuery(
+    getToken,
+    isLoaded && isSuperAdmin,
+    orgsFilterParams,
+  );
+
+  const venuesListParams = useMemo((): AdminVenuesListParams => {
+    return {
+      page,
+      limit: PAGE_SIZE,
+      search: debouncedSearch.trim() || undefined,
+      location: debouncedLocation.trim() || undefined,
+      lockedOnly,
+      organizationId: orgFilter || undefined,
+      countries: isSuperAdmin && countryIsoFilters.length ? countryIsoFilters : undefined,
+    };
+  }, [
+    page,
+    debouncedSearch,
+    debouncedLocation,
+    lockedOnly,
+    orgFilter,
+    countryIsoFilters,
+    isSuperAdmin,
+  ]);
+
+  const venuesQ = useAdminVenuesListQuery(getToken, isLoaded, venuesListParams);
+
   const orgs = useMemo(
-    () => (orgsQ.data ?? []).map((o) => ({ id: o.id, name: o.name })),
-    [orgsQ.data],
+    () => (orgsForFilterQ.data?.items ?? []).map((o) => ({ id: o.id, name: o.name })),
+    [orgsForFilterQ.data],
   );
 
   const orgNameById = useMemo(() => new Map(orgs.map((o) => [o.id, o.name])), [orgs]);
 
+  const countryIsoKey = useMemo(() => countryIsoFilters.join(","), [countryIsoFilters]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, debouncedLocation, lockedOnly, orgFilter, countryIsoKey]);
+
   const countryOptions = useMemo(() => getCountrySelectOptions(), []);
   const orgSelectOptions = useMemo<FilterableOption[]>(
     () => [
-      { value: "", label: "Any organization" },
-      { value: "__none__", label: "Not in any org" },
+      { value: "", label: t("admin.venues.filterOrgAny") },
+      { value: "__none__", label: t("admin.venues.filterOrgNone") },
       ...orgs.map((o) => ({ value: o.id, label: o.name })),
     ],
-    [orgs],
+    [orgs, t],
   );
   const selectedOrgOption = useMemo(
     () => orgSelectOptions.find((o) => o.value === orgFilter) ?? orgSelectOptions[0]!,
@@ -66,228 +118,281 @@ export default function VenuesPage() {
     [countryIsoFilters, countryOptions],
   );
 
-  const filtered = useMemo(() => {
-    if (!rows) return [];
-    const qq = q.trim().toLowerCase();
-    const cq = cityQ.trim().toLowerCase();
-    return rows.filter((v) => {
-      if (lockedOnly && !v.locked) return false;
-      if (orgFilter === "__none__") {
-        if (v.organizationId) return false;
-      } else if (orgFilter && v.organizationId !== orgFilter) return false;
-      if (qq && !v.name.toLowerCase().includes(qq)) return false;
-      if (cq) {
-        const c = (v.city ?? "").toLowerCase();
-        const co = (v.country ?? "").toLowerCase();
-        if (!c.includes(cq) && !co.includes(cq)) return false;
-      }
-      if (countryIsoFilters.length) {
-        const iso = (v.country ?? "").trim().toUpperCase();
-        if (!iso || !countryIsoFilters.includes(iso)) return false;
-      }
-      return true;
-    });
-  }, [rows, q, cityQ, lockedOnly, orgFilter, countryIsoFilters]);
+  const items = venuesQ.data?.items ?? [];
+  const total = venuesQ.data?.total ?? 0;
+  const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const to = Math.min(page * PAGE_SIZE, total);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const hasActiveFilters = Boolean(
+    debouncedSearch.trim() ||
+      debouncedLocation.trim() ||
+      lockedOnly ||
+      orgFilter ||
+      (isSuperAdmin && countryIsoFilters.length > 0),
+  );
+
+  const listErr =
+    (venuesQ.isError && venuesQ.error instanceof Error ? venuesQ.error.message : null) ??
+    (orgsForFilterQ.isError && orgsForFilterQ.error instanceof Error
+      ? orgsForFilterQ.error.message
+      : null);
 
   const columns = useMemo(
     () => [
       colHelper.accessor("name", {
-        header: "Venue",
+        header: t("admin.venues.colVenue"),
         cell: (info) => {
           const v = info.row.original;
           return (
             <div>
-              <div className="font-semibold flex flex-wrap items-center gap-2">
-                {info.getValue()}
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-medium text-slate-900">{info.getValue()}</p>
                 {v.locked ? (
-                  <span className="text-[10px] uppercase text-red-700 border border-red-200 rounded px-1.5">
-                    locked
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-red-800 border border-red-200 rounded px-1.5 py-0.5">
+                    {t("admin.venues.lockedBadge")}
                   </span>
                 ) : null}
               </div>
-              <div className="text-xs text-slate-500 font-mono mt-1">{v.id}</div>
+              <p className="text-[11px] font-mono text-slate-500 mt-0.5">{v.id}</p>
             </div>
           );
         },
       }),
       colHelper.display({
         id: "location",
-        header: "Location",
+        header: t("admin.venues.colLocation"),
         cell: ({ row }) => (
-          <span className="text-xs text-slate-600">
+          <span className="text-xs text-slate-700">
             {[row.original.city, row.original.country].filter(Boolean).join(" · ") || "—"}
           </span>
         ),
       }),
       colHelper.display({
         id: "organization",
-        header: "Organization",
+        header: t("admin.venues.colOrganization"),
         cell: ({ row }) => {
           const oid = row.original.organizationId;
-          return (
-            <span className="text-xs text-brand">
-              {oid ? (orgNameById.get(oid) ?? "org") : "—"}
-            </span>
-          );
+          const label =
+            row.original.organization?.name ??
+            (oid ? (orgNameById.get(oid) ?? oid) : null);
+          return <span className="text-xs text-slate-700">{label ?? "—"}</span>;
         },
       }),
       colHelper.display({
         id: "actions",
         header: "",
-        cell: ({ row }) => {
-          const v = row.original;
-          return (
-            <div className="flex gap-3 text-sm flex-wrap">
-              <Link href={`/venues/${v.id}`} className="text-brand hover:underline">
-                Edit copy & links
-              </Link>
-              <Link href={`/perks/${v.id}`} className="text-amber-700 hover:underline">
-                Perks
-              </Link>
-              <Link href={`/challenges/${v.id}`} className="text-emerald-700 hover:underline">
-                Challenges
-              </Link>
-            </div>
-          );
-        },
+        cell: ({ row }) => (
+          <Link
+            href={`/venues/${row.original.id}`}
+            className="text-sm text-brand font-medium hover:underline whitespace-nowrap"
+          >
+            {t("admin.organizations.open")}
+          </Link>
+        ),
       }),
     ],
-    [orgNameById],
+    [t, orgNameById],
   );
 
   const table = useReactTable({
-    data: filtered,
+    data: items,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
 
-  const err =
-    venuesQ.isError && venuesQ.error instanceof Error
-      ? venuesQ.error.message
-      : orgsQ.isError && orgsQ.error instanceof Error
-        ? orgsQ.error.message
-        : null;
-
-  if (err) {
+  if (!isLoaded) {
     return (
-      <div className="bg-slate-50 text-red-700 p-8">
-        {err}{" "}
-        <Link href={isSuperAdmin ? "/platform" : "/owner/venues"} className="text-brand underline">
-          {isSuperAdmin ? "Platform" : "Partner venues"}
-        </Link>
+      <div className="bg-slate-50 text-slate-600 p-8">
+        <p>{t("admin.venues.loading")}</p>
       </div>
     );
   }
 
+  if (meQ.isPending && !meQ.data) {
+    return (
+      <div className="bg-slate-50 text-slate-600 p-8">
+        <p>{t("admin.venues.loading")}</p>
+      </div>
+    );
+  }
+
+  const showInitialLoading = venuesQ.isLoading && !venuesQ.data;
+
   return (
-    <div className="bg-slate-50 text-slate-900 p-8">
-      <h1 className="text-xl font-bold mb-2">
-        {isSuperAdmin ? "All venues (CMS)" : "Your locations (CMS)"}
-      </h1>
-      <p className="text-sm text-slate-500 mb-4">
-        {isSuperAdmin
-          ? "Platform scope — every venue in the product."
-          : "Scoped to venues where you are owner or manager."}{" "}
-        {rows ? `${filtered.length} of ${rows.length} shown` : "Loading…"}
-      </p>
-      {venuesQ.isPending && !rows ? (
-        <p className="text-slate-600">Loading…</p>
-      ) : (
-        <>
-          <div className="flex flex-wrap gap-3 mb-6 items-end border border-slate-200 rounded-xl p-4 bg-brand-light/60">
-            <label className="text-sm text-slate-600">
-              Search name
-              <input
-                className="mt-1 block w-48 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Café…"
-              />
-            </label>
-            <label className="text-sm text-slate-600">
-              City / country
-              <input
-                className="mt-1 block w-40 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
-                value={cityQ}
-                onChange={(e) => setCityQ(e.target.value)}
-                placeholder="Zagreb…"
-              />
-            </label>
-            <label className="text-sm text-slate-600 flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={lockedOnly}
-                onChange={(e) => setLockedOnly(e.target.checked)}
-              />
-              Locked only
-            </label>
-            <label className="text-sm text-slate-600 block min-w-[13rem]">
-              Organization
-              <FilterableSelect<FilterableOption, false>
-                containerClassName="mt-1"
-                options={orgSelectOptions}
-                value={selectedOrgOption}
-                onChange={(opt) => setOrgFilter(opt?.value ?? "")}
-                placeholder="Search…"
-                isClearable={false}
-              />
-            </label>
-            {isSuperAdmin ? (
-              <label className="text-sm text-slate-600 block min-w-[14rem] max-w-[min(100%,22rem)]">
-                Countries
-                <FilterableSelect<FilterableOption, true>
-                  isMulti
-                  containerClassName="mt-1"
-                  options={countryOptions}
-                  value={selectedCountryOptions}
-                  onChange={(opts) =>
-                    setCountryIsoFilters((opts ?? []).map((o) => o.value))
-                  }
-                  placeholder="Any country"
-                  closeMenuOnSelect={false}
+    <div className="bg-slate-50 text-slate-900 p-6 md:p-8 min-h-full">
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-6">
+          <Link
+            href={isSuperAdmin ? "/platform" : "/owner/venues"}
+            className="text-brand text-sm hover:underline"
+          >
+            {isSuperAdmin ? t("admin.venues.backPlatform") : t("admin.venues.backPartner")}
+          </Link>
+          <h1 className="text-xl font-bold mt-2">{t("admin.venues.title")}</h1>
+          <p className="text-sm text-slate-500 mt-1 max-w-xl">
+            {isSuperAdmin ? t("admin.venues.subtitleSuper") : t("admin.venues.subtitlePartner")}
+          </p>
+          <p className="text-sm text-slate-500 mt-2">
+            {showInitialLoading
+              ? t("admin.venues.loading")
+              : t("admin.venues.pageRange", { from, to, total })}
+          </p>
+        </div>
+
+        {listErr ? (
+          <div className="mb-4 text-sm text-red-800 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+            {listErr}{" "}
+            <Link
+              href={isSuperAdmin ? "/platform" : "/owner/venues"}
+              className="text-brand font-medium hover:underline"
+            >
+              {isSuperAdmin
+                ? t("admin.venues.loadErrorBackSuper")
+                : t("admin.venues.loadErrorBackPartner")}
+            </Link>
+          </div>
+        ) : null}
+
+        {showInitialLoading ? (
+          <p className="text-slate-500">{t("admin.venues.loading")}</p>
+        ) : (
+          <>
+            <div className="border border-slate-200 rounded-xl p-4 mb-8 flex flex-wrap gap-2 items-end bg-white shadow-sm">
+              <label className="text-sm text-slate-600">
+                {t("admin.venues.filterSearchName")}
+                <input
+                  className="mt-1 block w-48 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder={t("admin.venues.filterSearchPlaceholder")}
                 />
-                <span className="mt-1 block text-xs font-normal text-slate-500">
-                  Venue must match one of the selected ISO countries (empty = all).
-                </span>
               </label>
+              <label className="text-sm text-slate-600">
+                {t("admin.venues.filterCityCountry")}
+                <input
+                  className="mt-1 block w-40 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
+                  value={cityQ}
+                  onChange={(e) => setCityQ(e.target.value)}
+                  placeholder={t("admin.venues.filterCityPlaceholder")}
+                />
+              </label>
+              <label className="text-sm text-slate-600 flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={lockedOnly}
+                  onChange={(e) => setLockedOnly(e.target.checked)}
+                  className="rounded border-slate-300"
+                />
+                {t("admin.venues.filterLockedOnly")}
+              </label>
+              <label className="text-sm text-slate-600 block min-w-[13rem]">
+                {t("admin.venues.filterOrganization")}
+                <FilterableSelect<FilterableOption, false>
+                  containerClassName="mt-1"
+                  options={orgSelectOptions}
+                  value={selectedOrgOption}
+                  onChange={(opt) => setOrgFilter(opt?.value ?? "")}
+                  placeholder={t("admin.venues.filterOrgPlaceholder")}
+                  isClearable={false}
+                />
+              </label>
+              {isSuperAdmin ? (
+                <label className="text-sm text-slate-600 block min-w-[14rem] max-w-[min(100%,22rem)]">
+                  {t("admin.venues.filterCountries")}
+                  <FilterableSelect<FilterableOption, true>
+                    isMulti
+                    containerClassName="mt-1"
+                    options={countryOptions}
+                    value={selectedCountryOptions}
+                    onChange={(opts) =>
+                      setCountryIsoFilters((opts ?? []).map((o) => o.value))
+                    }
+                    placeholder={t("admin.venues.filterCountriesPlaceholder")}
+                    closeMenuOnSelect={false}
+                  />
+                  <span className="mt-1 block text-xs font-normal text-slate-500">
+                    {t("admin.venues.filterCountriesHint")}
+                  </span>
+                </label>
+              ) : null}
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto relative">
+              {venuesQ.isFetching && venuesQ.data ? (
+                <div className="absolute top-2 right-3 text-xs text-slate-500 z-10">
+                  {t("admin.venues.loading")}
+                </div>
+              ) : null}
+              <table className="min-w-full text-sm">
+                <thead>
+                  {table.getHeaderGroups().map((hg) => (
+                    <tr key={hg.id} className="border-b border-slate-200 bg-slate-50/90">
+                      {hg.headers.map((h) => (
+                        <th
+                          key={h.id}
+                          className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500"
+                        >
+                          {h.isPlaceholder
+                            ? null
+                            : flexRender(h.column.columnDef.header, h.getContext())}
+                        </th>
+                      ))}
+                    </tr>
+                  ))}
+                </thead>
+                <tbody>
+                  {table.getRowModel().rows.map((row) => (
+                    <tr
+                      key={row.id}
+                      className="border-b border-slate-100 hover:bg-brand-light/40 transition-colors"
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className="px-4 py-3 align-top">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {total === 0 && !venuesQ.isFetching ? (
+                <p className="px-4 py-8 text-center text-slate-500 text-sm">
+                  {hasActiveFilters ? t("admin.venues.noMatch") : t("admin.venues.empty")}
+                </p>
+              ) : null}
+            </div>
+            {total > 0 ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
+                <p className="text-sm text-slate-600">
+                  {t("admin.venues.pageStatus", {
+                    page,
+                    pages: totalPages,
+                    total,
+                  })}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 disabled:opacity-40 hover:bg-slate-50"
+                  >
+                    {t("admin.venues.pagePrev")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 disabled:opacity-40 hover:bg-slate-50"
+                  >
+                    {t("admin.venues.pageNext")}
+                  </button>
+                </div>
+              </div>
             ) : null}
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                {table.getHeaderGroups().map((hg) => (
-                  <tr key={hg.id} className="border-b border-slate-200 bg-slate-50/90">
-                    {hg.headers.map((h) => (
-                      <th
-                        key={h.id}
-                        className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500"
-                      >
-                        {h.isPlaceholder
-                          ? null
-                          : flexRender(h.column.columnDef.header, h.getContext())}
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody>
-                {table.getRowModel().rows.map((row) => (
-                  <tr key={row.id} className="border-b border-slate-100 hover:bg-brand-light/30">
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-4 py-3 align-top">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {filtered.length === 0 ? (
-            <p className="text-slate-500 mt-6 text-sm">No venues match filters.</p>
-          ) : null}
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

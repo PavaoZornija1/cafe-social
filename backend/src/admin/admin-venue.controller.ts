@@ -1,10 +1,12 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -36,10 +38,43 @@ export class AdminVenueController {
   ) {}
 
   @Get()
-  async list(@Req() req: ReqWithScope) {
+  async list(
+    @Req() req: ReqWithScope,
+    @Query('page') pageRaw?: string,
+    @Query('limit') limitRaw?: string,
+    @Query('search') search?: string,
+    @Query('location') location?: string,
+    @Query('lockedOnly') lockedOnlyRaw?: string,
+    @Query('organizationId') organizationId?: string,
+    @Query('countries') countriesRaw?: string,
+  ) {
     const scope = getAdminCmsScope(req);
-    const rows = await this.venues.listForAdminCms(scope);
-    return rows.map((v) => this.venues.sanitizeVenueForAdmin(v));
+    const page = Math.max(1, parseInt(pageRaw ?? '1', 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(limitRaw ?? '25', 10) || 25));
+    const lockedOnly = lockedOnlyRaw === 'true' || lockedOnlyRaw === '1';
+
+    const orgId = organizationId?.trim() ?? '';
+    if (orgId && orgId !== '__none__' && !/^[0-9a-f-]{36}$/i.test(orgId)) {
+      throw new BadRequestException('organizationId must be a UUID or __none__');
+    }
+
+    const countries =
+      scope.kind === 'super_admin' && countriesRaw && countriesRaw.trim().length > 0
+        ? countriesRaw
+            .split(',')
+            .map((c) => c.trim().toUpperCase())
+            .filter(Boolean)
+        : undefined;
+
+    return this.venues.listForAdminCmsPaginated(scope, {
+      page,
+      limit,
+      search: search?.trim() || undefined,
+      location: location?.trim() || undefined,
+      lockedOnly,
+      organizationId: orgId || undefined,
+      countries,
+    });
   }
 
   @Get(':id')

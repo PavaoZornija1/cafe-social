@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -40,13 +41,71 @@ export class AdminOrganizationController {
   ) {}
 
   @Get()
-  list() {
-    return this.prisma.venueOrganization.findMany({
-      orderBy: { name: 'asc' },
-      include: {
-        _count: { select: { venues: true } },
-      },
-    });
+  async list(
+    @Query('page') pageRaw?: string,
+    @Query('limit') limitRaw?: string,
+    @Query('search') search?: string,
+    @Query('locationKind') locationKindRaw?: string,
+    @Query('billingStatus') billingStatusRaw?: string,
+  ) {
+    const page = Math.max(1, parseInt(pageRaw ?? '1', 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(limitRaw ?? '25', 10) || 25));
+
+    const lk = locationKindRaw?.trim();
+    if (lk && lk !== 'SINGLE_LOCATION' && lk !== 'MULTI_LOCATION') {
+      throw new BadRequestException('locationKind must be SINGLE_LOCATION or MULTI_LOCATION');
+    }
+
+    const andParts: Prisma.VenueOrganizationWhereInput[] = [];
+
+    const q = search?.trim();
+    if (q) {
+      const orParts: Prisma.VenueOrganizationWhereInput[] = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { slug: { contains: q, mode: 'insensitive' } },
+      ];
+      if (/^[0-9a-f-]{36}$/i.test(q)) {
+        orParts.push({ id: q });
+      } else if (q.length >= 2) {
+        orParts.push({ id: { contains: q, mode: 'insensitive' } });
+      }
+      andParts.push({ OR: orParts });
+    }
+
+    if (lk === 'SINGLE_LOCATION' || lk === 'MULTI_LOCATION') {
+      andParts.push({ locationKind: lk });
+    }
+
+    const bs = billingStatusRaw?.trim();
+    if (bs) {
+      andParts.push({ platformBillingStatus: bs });
+    }
+
+    const where: Prisma.VenueOrganizationWhereInput =
+      andParts.length === 0 ? {} : andParts.length === 1 ? andParts[0]! : { AND: andParts };
+
+    const skip = (page - 1) * limit;
+
+    const [total, items] = await Promise.all([
+      this.prisma.venueOrganization.count({ where }),
+      this.prisma.venueOrganization.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        skip,
+        take: limit,
+        include: {
+          _count: { select: { venues: true } },
+        },
+      }),
+    ]);
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      hasMore: page * limit < total,
+    };
   }
 
   /**

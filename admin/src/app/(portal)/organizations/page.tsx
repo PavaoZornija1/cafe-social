@@ -7,17 +7,18 @@ import {
   createColumnHelper,
   flexRender,
   getCoreRowModel,
-  getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import {
-  useAdminOrganizationsQuery,
+  type AdminOrganizationsListParams,
+  useAdminOrganizationsListQuery,
   useCreateOrganizationMutation,
   usePortalMeQuery,
 } from "@/lib/queries";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 
 type OrgRow = {
   id: string;
@@ -33,6 +34,8 @@ type OrgRow = {
 };
 
 const colHelper = createColumnHelper<OrgRow>();
+
+const PAGE_SIZE = 25;
 
 function formatShortDate(iso: string | null | undefined) {
   if (!iso) return "—";
@@ -50,6 +53,15 @@ export default function OrganizationsPage() {
   const { isLoaded, getToken } = useAuth();
   const [formErr, setFormErr] = useState<string | null>(null);
   const [createConfirmOpen, setCreateConfirmOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState("");
+  const [locationKind, setLocationKind] = useState<
+    "" | "SINGLE_LOCATION" | "MULTI_LOCATION"
+  >("");
+  const [billingInput, setBillingInput] = useState("");
+
+  const debouncedSearch = useDebouncedValue(searchInput, 350);
+  const debouncedBilling = useDebouncedValue(billingInput, 350);
 
   const meQ = usePortalMeQuery(getToken, isLoaded);
   const portalGate =
@@ -59,7 +71,26 @@ export default function OrganizationsPage() {
         ? "super_admin"
         : "partner";
 
-  const orgsQ = useAdminOrganizationsQuery(getToken, portalGate === "super_admin");
+  const listParams = useMemo((): AdminOrganizationsListParams => {
+    return {
+      page,
+      limit: PAGE_SIZE,
+      search: debouncedSearch.trim() || undefined,
+      locationKind: locationKind || "",
+      billingStatus: debouncedBilling.trim() || undefined,
+    };
+  }, [page, debouncedSearch, locationKind, debouncedBilling]);
+
+  const orgsQ = useAdminOrganizationsListQuery(
+    getToken,
+    portalGate === "super_admin",
+    listParams,
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, locationKind, debouncedBilling]);
+
   const createMut = useCreateOrganizationMutation(getToken);
 
   const createOrgForm = useForm({
@@ -78,7 +109,12 @@ export default function OrganizationsPage() {
     },
   });
 
-  const rows = orgsQ.data ?? null;
+  const rows = orgsQ.data?.items ?? [];
+  const total = orgsQ.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const hasActiveFilters = Boolean(
+    debouncedSearch.trim() || locationKind || debouncedBilling.trim(),
+  );
   const listErr =
     orgsQ.isError && orgsQ.error instanceof Error ? orgsQ.error.message : null;
 
@@ -148,12 +184,12 @@ export default function OrganizationsPage() {
   );
 
   const table = useReactTable({
-    data: rows ?? [],
+    data: rows,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    initialState: { sorting: [{ id: "name", desc: false }] },
   });
+
+  const showInitialLoading = orgsQ.isLoading && !orgsQ.data;
 
   if (!isLoaded) {
     return (
@@ -196,6 +232,15 @@ export default function OrganizationsPage() {
             </Link>
             <h1 className="text-xl font-bold mt-2">{t("admin.organizations.title")}</h1>
             <p className="text-sm text-slate-500 mt-1 max-w-xl">{t("admin.organizations.subtitle")}</p>
+            <p className="text-sm text-slate-500 mt-2">
+              {showInitialLoading
+                ? t("admin.organizations.loading")
+                : t("admin.organizations.pageRange", {
+                    from: total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1,
+                    to: Math.min(page * PAGE_SIZE, total),
+                    total,
+                  })}
+            </p>
           </div>
         </div>
 
@@ -255,48 +300,126 @@ export default function OrganizationsPage() {
           onConfirm={() => createOrgForm.handleSubmit()}
         />
 
-        {orgsQ.isPending && !rows ? (
+        {showInitialLoading ? (
           <p className="text-slate-500">{t("admin.organizations.loading")}</p>
         ) : (
-          <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                {table.getHeaderGroups().map((hg) => (
-                  <tr key={hg.id} className="border-b border-slate-200 bg-slate-50/90">
-                    {hg.headers.map((h) => (
-                      <th
-                        key={h.id}
-                        className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500"
-                      >
-                        {h.isPlaceholder
-                          ? null
-                          : flexRender(h.column.columnDef.header, h.getContext())}
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody>
-                {table.getRowModel().rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="border-b border-slate-100 hover:bg-brand-light/40 transition-colors"
+          <>
+            <div className="border border-slate-200 rounded-xl p-4 mb-8 flex flex-wrap gap-2 items-end bg-white shadow-sm">
+              <label className="text-sm text-slate-600">
+                {t("admin.organizations.filterSearchName")}
+                <input
+                  className="mt-1 block w-52 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder={t("admin.organizations.filterSearchPlaceholder")}
+                  autoComplete="off"
+                />
+              </label>
+              <label className="text-sm text-slate-600 block min-w-[12rem]">
+                {t("admin.organizations.filterScope")}
+                <select
+                  className="mt-1 w-full bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
+                  value={locationKind}
+                  onChange={(e) =>
+                    setLocationKind(
+                      e.target.value as "" | "SINGLE_LOCATION" | "MULTI_LOCATION",
+                    )
+                  }
+                >
+                  <option value="">{t("admin.organizations.filterScopeAny")}</option>
+                  <option value="SINGLE_LOCATION">
+                    {t("admin.organizations.filterScopeSingle")}
+                  </option>
+                  <option value="MULTI_LOCATION">
+                    {t("admin.organizations.filterScopeMulti")}
+                  </option>
+                </select>
+              </label>
+              <label className="text-sm text-slate-600">
+                {t("admin.organizations.filterBilling")}
+                <input
+                  className="mt-1 block w-40 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
+                  value={billingInput}
+                  onChange={(e) => setBillingInput(e.target.value)}
+                  placeholder={t("admin.organizations.filterBillingPlaceholder")}
+                  autoComplete="off"
+                />
+              </label>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto relative">
+              {orgsQ.isFetching && orgsQ.data ? (
+                <div className="absolute top-2 right-3 text-xs text-slate-500 z-10">
+                  {t("admin.organizations.loading")}
+                </div>
+              ) : null}
+              <table className="min-w-full text-sm">
+                <thead>
+                  {table.getHeaderGroups().map((hg) => (
+                    <tr key={hg.id} className="border-b border-slate-200 bg-slate-50/90">
+                      {hg.headers.map((h) => (
+                        <th
+                          key={h.id}
+                          className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500"
+                        >
+                          {h.isPlaceholder
+                            ? null
+                            : flexRender(h.column.columnDef.header, h.getContext())}
+                        </th>
+                      ))}
+                    </tr>
+                  ))}
+                </thead>
+                <tbody>
+                  {table.getRowModel().rows.map((row) => (
+                    <tr
+                      key={row.id}
+                      className="border-b border-slate-100 hover:bg-brand-light/40 transition-colors"
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className="px-4 py-3 align-top">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {total === 0 && !orgsQ.isFetching ? (
+                <p className="px-4 py-8 text-center text-slate-500 text-sm">
+                  {hasActiveFilters ? t("admin.organizations.noMatch") : t("admin.organizations.empty")}
+                </p>
+              ) : null}
+            </div>
+            {total > 0 ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
+                <p className="text-sm text-slate-600">
+                  {t("admin.organizations.pageStatus", {
+                    page,
+                    pages: totalPages,
+                    total,
+                  })}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 disabled:opacity-40 hover:bg-slate-50"
                   >
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-4 py-3 align-top">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {(rows?.length ?? 0) === 0 && !orgsQ.isPending ? (
-              <p className="px-4 py-8 text-center text-slate-500 text-sm">
-                {t("admin.organizations.empty")}
-              </p>
+                    {t("admin.organizations.pagePrev")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 disabled:opacity-40 hover:bg-slate-50"
+                  >
+                    {t("admin.organizations.pageNext")}
+                  </button>
+                </div>
+              </div>
             ) : null}
-          </div>
+          </>
         )}
       </div>
     </div>

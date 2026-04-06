@@ -11,19 +11,146 @@ export type VenueOrderNudgePushCopy = {
   orderingUrl: string;
 };
 
+/** Replace `{{venueName}}` in template strings (push title/body). */
+export function applyVenueNudgePlaceholders(template: string, venueName: string): string {
+  return template.replace(/\{\{venueName\}\}/g, venueName);
+}
+
+const venueNudgeAssignmentsSelect = {
+  where: { enabled: true, template: { active: true } },
+  orderBy: { sortOrder: 'asc' as const },
+  select: {
+    id: true,
+    sortOrder: true,
+    titleOverride: true,
+    bodyOverride: true,
+    afterMinutesOverride: true,
+    template: {
+      select: {
+        titleTemplate: true,
+        bodyTemplate: true,
+        defaultAfterMinutes: true,
+      },
+    },
+  },
+};
+
+const venueNudgeBaseSelect = {
+  name: true,
+  orderNudgeTitle: true,
+  orderNudgeBody: true,
+  menuUrl: true,
+  orderingUrl: true,
+  venueVenueTypes: { select: { venueTypeId: true } },
+  nudgeAssignments: venueNudgeAssignmentsSelect,
+};
+
 @Injectable()
 export class VenueOrderNudgeCopyService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Resolves title/body for the dwell push: per-field optional venue override, then the first
-   * matching active library template (lowest `sortPriority`, then `code`) for the venue’s M:N
-   * types, then `envDefaults`. Also returns URLs for the notification payload.
+   * Minutes of on-prem dwell before automatic nudge, for this venue.
+   * First enabled assignment wins (by sortOrder); then template.defaultAfterMinutes; else null (= use global env).
+   */
+  async getEffectiveAfterMinutes(venueId: string): Promise<number | null> {
+    const venue = await this.prisma.venue.findUnique({
+      where: { id: venueId },
+      select: { nudgeAssignments: venueNudgeAssignmentsSelect },
+    });
+    if (!venue || venue.nudgeAssignments.length === 0) return null;
+    const a = venue.nudgeAssignments[0]!;
+    return a.afterMinutesOverride ?? a.template.defaultAfterMinutes ?? null;
+  }
+
+  /**
+   * Resolves title/body for the dwell push: primary assignment (lowest sortOrder) overrides, then
+   * per-field venue fallback, then first matching active library template by venue M:N types (legacy),
+   * then env defaults.
    */
   async resolveForPush(
     venueId: string,
     envDefaults: VenueOrderNudgeEnvDefaults,
   ): Promise<VenueOrderNudgePushCopy | null> {
+    const venue = await this.prisma.venue.findUnique({
+      where: { id: venueId },
+      select: venueNudgeBaseSelect,
+    });
+    if (!venue) return null;
+
+    const venueName = venue.name ?? 'this venue';
+    const typeIds = venue.venueVenueTypes.map((x) => x.venueTypeId);
+
+    let titleRaw: string;
+    let bodyRaw: string;
+
+    if (venue.nudgeAssignments.length > 0) {
+      const a = venue.nudgeAssignments[0]!;
+      const t = a.template;
+      titleRaw =
+        a.titleOverride?.trim() ||
+        venue.orderNudgeTitle?.trim() ||
+        t.titleTemplate ||
+        envDefaults.title;
+      bodyRaw =
+        a.bodyOverride?.trim() ||
+        venue.orderNudgeBody?.trim() ||
+        t.bodyTemplate ||
+        envDefaults.body;
+    } else {
+      let picked: { titleTemplate: string; bodyTemplate: string } | null = null;
+      if (typeIds.length > 0) {
+        picked = await this.prisma.venueOrderNudgeTemplate.findFirst({
+          where: {
+            active: true,
+            venueTypeLinks: { some: { venueTypeId: { in: typeIds } } },
+          },
+          orderBy: [{ sortPriority: 'asc' }, { code: 'asc' }],
+          select: { titleTemplate: true, bodyTemplate: true },
+        });
+      }
+      titleRaw =
+        venue.orderNudgeTitle?.trim() ||
+        picked?.titleTemplate ||
+        envDefaults.title;
+      bodyRaw =
+        venue.orderNudgeBody?.trim() ||
+        picked?.bodyTemplate ||
+        envDefaults.body;
+    }
+
+    return {
+      venueName,
+      titleRaw,
+      bodyRaw,
+      menuUrl: venue.menuUrl?.trim() ?? '',
+      orderingUrl: venue.orderingUrl?.trim() ?? '',
+    };
+  }
+
+  /**
+   * Resolve copy for a specific assignment (e.g. admin “send now”). Does not use sortOrder of other rows.
+   */
+  async resolveForAssignment(
+    venueId: string,
+    assignmentId: string,
+    envDefaults: VenueOrderNudgeEnvDefaults,
+  ): Promise<VenueOrderNudgePushCopy | null> {
+    const row = await this.prisma.venueNudgeAssignment.findFirst({
+      where: {
+        id: assignmentId,
+        venueId,
+        enabled: true,
+        template: { active: true },
+      },
+      include: {
+        template: {
+          select: { titleTemplate: true, bodyTemplate: true, defaultAfterMinutes: true },
+        },
+      },
+    });
+    if (!row) return null;
+
     const venue = await this.prisma.venue.findUnique({
       where: { id: venueId },
       select: {
@@ -32,34 +159,23 @@ export class VenueOrderNudgeCopyService {
         orderNudgeBody: true,
         menuUrl: true,
         orderingUrl: true,
-        venueVenueTypes: { select: { venueTypeId: true } },
       },
     });
     if (!venue) return null;
 
-    const typeIds = venue.venueVenueTypes.map((x) => x.venueTypeId);
-    let picked: { titleTemplate: string; bodyTemplate: string } | null = null;
-    if (typeIds.length > 0) {
-      picked = await this.prisma.venueOrderNudgeTemplate.findFirst({
-        where: {
-          active: true,
-          venueTypeLinks: { some: { venueTypeId: { in: typeIds } } },
-        },
-        orderBy: [{ sortPriority: 'asc' }, { code: 'asc' }],
-        select: { titleTemplate: true, bodyTemplate: true },
-      });
-    }
-
     const venueName = venue.name ?? 'this venue';
+    const t = row.template;
     return {
       venueName,
       titleRaw:
+        row.titleOverride?.trim() ||
         venue.orderNudgeTitle?.trim() ||
-        picked?.titleTemplate ||
+        t.titleTemplate ||
         envDefaults.title,
       bodyRaw:
+        row.bodyOverride?.trim() ||
         venue.orderNudgeBody?.trim() ||
-        picked?.bodyTemplate ||
+        t.bodyTemplate ||
         envDefaults.body,
       menuUrl: venue.menuUrl?.trim() ?? '',
       orderingUrl: venue.orderingUrl?.trim() ?? '',

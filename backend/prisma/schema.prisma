@@ -111,6 +111,11 @@ model Venue {
   campaigns        VenueCampaign[]
   receiptSubmissions VenueReceiptSubmission[]
 
+  /// Rate-limits marketing “send nudge now” from admin (see `VenueNudgeAdminService`).
+  lastAdminNudgeBroadcastAt DateTime?
+
+  nudgeAssignments VenueNudgeAssignment[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -150,16 +155,45 @@ model VenueOrderNudgeTemplate {
   nudgeType     String
   titleTemplate String
   bodyTemplate  String
+  /// CMS notes (not shown in push).
+  description String?
+  /// Default dwell minutes before auto nudge when this template wins; null = global env default.
+  defaultAfterMinutes Int?
   /// Lower sorts first when several templates match a venue’s types.
   sortPriority  Int     @default(100)
   active        Boolean @default(true)
 
   venueTypeLinks VenueOrderNudgeTemplateVenueType[]
+  venueAssignments VenueNudgeAssignment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([active, sortPriority])
+}
+
+/// Explicit venue ↔ template link with optional per-venue overrides (M:N). Auto dwell uses lowest `sortOrder` enabled row first; legacy type-based templates apply when this list is empty.
+model VenueNudgeAssignment {
+  id         String @id @default(uuid())
+  venueId    String
+  templateId String
+  venue    Venue                   @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  template VenueOrderNudgeTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  enabled Boolean @default(true)
+  /// Lower runs first for automatic dwell nudge selection.
+  sortOrder Int @default(100)
+
+  titleOverride        String?
+  bodyOverride         String?
+  afterMinutesOverride Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([venueId, templateId])
+  @@index([venueId])
+  @@index([templateId])
 }
 
 model VenueOrderNudgeTemplateVenueType {

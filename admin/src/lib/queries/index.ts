@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
@@ -17,8 +18,15 @@ import {
   type PortalMeResponse,
 } from "@/lib/portalApi";
 import { queryKeys } from "./keys";
+import {
+  buildAdminOrganizationsSearchParams,
+  buildAdminVenuesSearchParams,
+  type AdminOrganizationsListParams,
+  type AdminVenuesListParams,
+} from "./list-params";
 
 export { queryKeys };
+export type { AdminOrganizationsListParams, AdminVenuesListParams } from "./list-params";
 
 export function usePortalMeQuery(
   getToken: () => Promise<string | null>,
@@ -39,6 +47,7 @@ export type AdminVenueListRow = {
   city: string | null;
   country: string | null;
   organizationId: string | null;
+  organization?: { id: string; name: string } | null;
   menuUrl?: string | null;
   orderingUrl?: string | null;
   locked?: boolean;
@@ -108,6 +117,60 @@ export type AdminOrganizationPickerResponse = {
   hasMore: boolean;
 };
 
+export type AdminVenueListResponse = {
+  items: AdminVenueListRow[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+};
+
+export type AdminOrgListResponse = {
+  items: AdminOrgListRow[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+};
+
+export async function fetchAdminVenuesPage(
+  getToken: () => Promise<string | null>,
+  params: AdminVenuesListParams,
+): Promise<AdminVenueListResponse> {
+  return portalFetch<AdminVenueListResponse>(
+    getToken,
+    `/admin/venues?${buildAdminVenuesSearchParams(params)}`,
+    { method: "GET" },
+  );
+}
+
+export async function fetchAdminOrganizationsPage(
+  getToken: () => Promise<string | null>,
+  params: AdminOrganizationsListParams,
+): Promise<AdminOrgListResponse> {
+  return portalFetch<AdminOrgListResponse>(
+    getToken,
+    `/admin/organizations?${buildAdminOrganizationsSearchParams(params)}`,
+    { method: "GET" },
+  );
+}
+
+export async function fetchAllAdminVenuesForOrgLink(
+  getToken: () => Promise<string | null>,
+): Promise<AdminVenueListRow[]> {
+  const limit = 200;
+  let page = 1;
+  const out: AdminVenueListRow[] = [];
+  for (;;) {
+    const res = await fetchAdminVenuesPage(getToken, { page, limit, lockedOnly: false });
+    out.push(...res.items);
+    if (!res.hasMore) break;
+    page += 1;
+    if (page > 500) break;
+  }
+  return out;
+}
+
 export function fetchAdminOrganizationsPicker(
   getToken: () => Promise<string | null>,
   params: { search: string; page: number; limit?: number },
@@ -131,15 +194,16 @@ export type AdminVenueStaffRow = {
   player: { id: string; email: string; username: string };
 };
 
-export function useAdminVenuesQuery(
+export function useAdminVenuesListQuery(
   getToken: () => Promise<string | null>,
   enabled: boolean,
+  params: AdminVenuesListParams,
 ) {
   return useQuery({
-    queryKey: queryKeys.admin.venues,
-    queryFn: () =>
-      portalFetch<AdminVenueListRow[]>(getToken, "/admin/venues", { method: "GET" }),
+    queryKey: queryKeys.admin.venuesList(params),
+    queryFn: () => fetchAdminVenuesPage(getToken, params),
     enabled,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -155,15 +219,202 @@ export function useAdminVenueTypeCatalogQuery(
   });
 }
 
-export function useAdminOrganizationsQuery(
+export function useAdminVenueTypeCreateMutation(getToken: () => Promise<string | null>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { code: string; label?: string | null }) =>
+      portalFetch<AdminVenueTypeRow>(getToken, "/admin/venue-types", {
+        method: "POST",
+        body: JSON.stringify({
+          code: body.code.trim(),
+          label: body.label?.trim() ? body.label.trim() : null,
+        }),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.admin.venueTypeCatalog });
+    },
+  });
+}
+
+export type AdminNudgeTemplateRow = {
+  id: string;
+  code: string;
+  nudgeType: string;
+  titleTemplate: string;
+  bodyTemplate: string;
+  description: string | null;
+  defaultAfterMinutes: number | null;
+  sortPriority: number;
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  _count?: { venueTypeLinks: number; venueAssignments: number };
+};
+
+export type AdminVenueNudgeAssignmentRow = {
+  id: string;
+  venueId: string;
+  templateId: string;
+  enabled: boolean;
+  sortOrder: number;
+  titleOverride: string | null;
+  bodyOverride: string | null;
+  afterMinutesOverride: number | null;
+  template: AdminNudgeTemplateRow;
+};
+
+export function useAdminNudgeTemplatesQuery(
   getToken: () => Promise<string | null>,
   enabled: boolean,
 ) {
   return useQuery({
-    queryKey: queryKeys.admin.organizations,
+    queryKey: queryKeys.admin.nudgeTemplates,
     queryFn: () =>
-      portalFetch<AdminOrgListRow[]>(getToken, "/admin/organizations", { method: "GET" }),
+      portalFetch<AdminNudgeTemplateRow[]>(getToken, "/admin/nudge-templates", { method: "GET" }),
     enabled,
+  });
+}
+
+export function useVenueNudgeAssignmentsQuery(
+  venueId: string | undefined,
+  getToken: () => Promise<string | null>,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: queryKeys.admin.venueNudgeAssignments(venueId ?? ""),
+    queryFn: () =>
+      portalFetch<AdminVenueNudgeAssignmentRow[]>(
+        getToken,
+        `/admin/venues/${venueId}/nudge-assignments`,
+        { method: "GET" },
+      ),
+    enabled: Boolean(enabled && venueId),
+  });
+}
+
+export function useAdminNudgeTemplateCreateMutation(getToken: () => Promise<string | null>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      portalFetch<AdminNudgeTemplateRow>(getToken, "/admin/nudge-templates", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.admin.nudgeTemplates });
+    },
+  });
+}
+
+export function useAdminNudgeTemplatePatchMutation(getToken: () => Promise<string | null>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
+      portalFetch<AdminNudgeTemplateRow>(getToken, `/admin/nudge-templates/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.admin.nudgeTemplates });
+    },
+  });
+}
+
+export function useVenueNudgeAssignmentCreateMutation(
+  venueId: string | undefined,
+  getToken: () => Promise<string | null>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      portalFetch<AdminVenueNudgeAssignmentRow>(
+        getToken,
+        `/admin/venues/${venueId}/nudge-assignments`,
+        { method: "POST", body: JSON.stringify(body) },
+      ),
+    onSuccess: () => {
+      if (venueId) {
+        void qc.invalidateQueries({
+          queryKey: queryKeys.admin.venueNudgeAssignments(venueId),
+        });
+      }
+    },
+  });
+}
+
+export function useVenueNudgeAssignmentPatchMutation(
+  venueId: string | undefined,
+  getToken: () => Promise<string | null>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ assignmentId, body }: { assignmentId: string; body: Record<string, unknown> }) =>
+      portalFetch<AdminVenueNudgeAssignmentRow>(
+        getToken,
+        `/admin/venues/${venueId}/nudge-assignments/${assignmentId}`,
+        { method: "PATCH", body: JSON.stringify(body) },
+      ),
+    onSuccess: () => {
+      if (venueId) {
+        void qc.invalidateQueries({
+          queryKey: queryKeys.admin.venueNudgeAssignments(venueId),
+        });
+      }
+    },
+  });
+}
+
+export function useVenueNudgeAssignmentDeleteMutation(
+  venueId: string | undefined,
+  getToken: () => Promise<string | null>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (assignmentId: string) =>
+      portalFetch<{ ok: boolean }>(
+        getToken,
+        `/admin/venues/${venueId}/nudge-assignments/${assignmentId}`,
+        { method: "DELETE" },
+      ),
+    onSuccess: () => {
+      if (venueId) {
+        void qc.invalidateQueries({
+          queryKey: queryKeys.admin.venueNudgeAssignments(venueId),
+        });
+      }
+    },
+  });
+}
+
+export type VenueNudgeTriggerResult = {
+  pushAttemptedForPlayers: number;
+  playersWithTokens: number;
+};
+
+export function useVenueNudgeTriggerMutation(
+  venueId: string | undefined,
+  getToken: () => Promise<string | null>,
+) {
+  return useMutation({
+    mutationFn: (assignmentId: string) =>
+      portalFetch<VenueNudgeTriggerResult>(
+        getToken,
+        `/admin/venues/${venueId}/nudge-assignments/trigger`,
+        { method: "POST", body: JSON.stringify({ assignmentId }) },
+      ),
+  });
+}
+
+export function useAdminOrganizationsListQuery(
+  getToken: () => Promise<string | null>,
+  enabled: boolean,
+  params: AdminOrganizationsListParams,
+) {
+  return useQuery({
+    queryKey: queryKeys.admin.organizationsList(params),
+    queryFn: () => fetchAdminOrganizationsPage(getToken, params),
+    enabled,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -798,15 +1049,14 @@ export function useOwnerOrganizationAnalyticsQuery(
   });
 }
 
-/** For super-admin org detail — venues list matches `/admin/venues` shape used there. */
+/** For super-admin org detail — loads all venue rows for link checkboxes (paged on the server). */
 export function useAdminVenuesForOrgLinkQuery(
   getToken: () => Promise<string | null>,
   enabled: boolean,
 ) {
   return useQuery({
     queryKey: [...queryKeys.admin.venues, "org-link"] as const,
-    queryFn: () =>
-      portalFetch<AdminVenueListRow[]>(getToken, "/admin/venues", { method: "GET" }),
+    queryFn: () => fetchAllAdminVenuesForOrgLink(getToken),
     enabled,
   });
 }

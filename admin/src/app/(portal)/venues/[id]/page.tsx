@@ -14,10 +14,10 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GeofencePolygonGeoJson } from "@/components/VenueGeofenceMap";
 import { ConfirmModal } from "@/components/ConfirmModal";
-import { IsoDateTimePicker } from "@/components/IsoDateTimePicker";
 import { OrganizationAsyncSelect } from "@/components/ui/OrganizationAsyncSelect";
 import { VenueChallengesSection } from "@/components/venue-cms/VenueChallengesSection";
 import { VenueOffersSection } from "@/components/venue-cms/VenueOffersSection";
+import { VenueNudgeSection } from "@/components/venue-cms/VenueNudgeSection";
 import { VenuePerksSection } from "@/components/venue-cms/VenuePerksSection";
 import {
   type AdminVenueDetail,
@@ -26,6 +26,7 @@ import {
   useAdminVenueDetailQuery,
   useAdminVenuePatchMutation,
   useAdminVenueTypeCatalogQuery,
+  useAdminVenueTypeCreateMutation,
   useAdminVenueStaffQuery,
   useAdminVenueStaffRemoveMutation,
   useAdminVenueStaffUpsertMutation,
@@ -97,13 +98,19 @@ export default function EditVenuePage() {
   const meQ = usePortalMeQuery(getToken, isLoaded);
   const staffQ = useAdminVenueStaffQuery(id, getToken, Boolean(isLoaded && id));
   const patchMut = useAdminVenuePatchMutation(id, getToken);
+  const createVenueTypeMut = useAdminVenueTypeCreateMutation(getToken);
   const staffAddMut = useAdminVenueStaffUpsertMutation(id, getToken);
   const staffRemoveMut = useAdminVenueStaffRemoveMutation(id, getToken);
+
+  const [newVenueTypeCode, setNewVenueTypeCode] = useState("");
+  const [newVenueTypeLabel, setNewVenueTypeLabel] = useState("");
+  const [createVenueTypeErr, setCreateVenueTypeErr] = useState<string | null>(null);
 
   const venueForm = useForm({
     defaultValues: {
       menuUrl: "",
       orderingUrl: "",
+      venueTypeCodes: [] as string[],
       orderNudgeTitle: "",
       orderNudgeBody: "",
       analyticsTimeZone: "",
@@ -146,6 +153,27 @@ export default function EditVenuePage() {
       }
     },
   });
+
+  const addVenueCategory = useCallback(async () => {
+    setCreateVenueTypeErr(null);
+    const code = newVenueTypeCode.trim();
+    if (!code) {
+      setCreateVenueTypeErr("Enter a category code.");
+      return;
+    }
+    try {
+      const row = await createVenueTypeMut.mutateAsync({
+        code,
+        label: newVenueTypeLabel.trim() || null,
+      });
+      const cur = venueForm.state.values.venueTypeCodes ?? [];
+      venueForm.setFieldValue("venueTypeCodes", [...new Set([...cur, row.code])]);
+      setNewVenueTypeCode("");
+      setNewVenueTypeLabel("");
+    } catch (e) {
+      setCreateVenueTypeErr((e as Error).message);
+    }
+  }, [createVenueTypeMut, newVenueTypeCode, newVenueTypeLabel, venueForm]);
 
   useEffect(() => {
     if (!venueQ.data) return;
@@ -429,6 +457,51 @@ export default function EditVenuePage() {
         venueTypeCatalogQ.error instanceof Error ? (
           <p className="text-xs text-red-600 mt-2">{venueTypeCatalogQ.error.message}</p>
         ) : null}
+        {isSuperAdmin ? (
+          <div className="mt-4 pt-4 border-t border-slate-200">
+            <h3 className="text-xs font-semibold text-slate-800 uppercase tracking-wide">
+              Add category
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Creates a new global tag (e.g. <span className="font-mono">BOARD_GAME_CAFE</span>). It
+              appears in this list for every venue; link nudge templates to this code in the database
+              if you want template-based copy for it.
+            </p>
+            <div className="mt-2 flex flex-wrap items-end gap-2">
+              <label className="text-xs text-slate-600 block min-w-[10rem]">
+                Code
+                <input
+                  className="mt-0.5 block w-full bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm font-mono"
+                  value={newVenueTypeCode}
+                  onChange={(e) => setNewVenueTypeCode(e.target.value)}
+                  placeholder="BOARD_GAME_CAFE"
+                  autoComplete="off"
+                />
+              </label>
+              <label className="text-xs text-slate-600 block min-w-[12rem] flex-1 max-w-md">
+                Display label (optional)
+                <input
+                  className="mt-0.5 block w-full bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
+                  value={newVenueTypeLabel}
+                  onChange={(e) => setNewVenueTypeLabel(e.target.value)}
+                  placeholder="Board game café"
+                  autoComplete="off"
+                />
+              </label>
+              <button
+                type="button"
+                disabled={createVenueTypeMut.isPending}
+                onClick={() => void addVenueCategory()}
+                className="bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white rounded-lg px-3 py-2 text-sm font-medium"
+              >
+                {createVenueTypeMut.isPending ? "Adding…" : "Add & select"}
+              </button>
+            </div>
+            {createVenueTypeErr ? (
+              <p className="text-xs text-red-600 mt-2">{createVenueTypeErr}</p>
+            ) : null}
+          </div>
+        ) : null}
         <venueForm.Field name="venueTypeCodes">
           {(field) => (
             <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3">
@@ -437,9 +510,9 @@ export default function EditVenuePage() {
                   <input
                     type="checkbox"
                     className="rounded border-slate-300"
-                    checked={field.state.value.includes(t.code)}
+                    checked={(field.state.value ?? []).includes(t.code)}
                     onChange={(e) => {
-                      const next = new Set(field.state.value);
+                      const next = new Set(field.state.value ?? []);
                       if (e.target.checked) next.add(t.code);
                       else next.delete(t.code);
                       field.handleChange([...next]);
@@ -454,15 +527,24 @@ export default function EditVenuePage() {
         </venueForm.Field>
       </div>
 
+      <VenueNudgeSection
+        venueId={id}
+        getToken={getToken}
+        enabled={Boolean(isLoaded && id)}
+        isSuperAdmin={Boolean(isSuperAdmin)}
+      />
+
       {isSuperAdmin ? (
         <>
+          <h2 className="text-sm font-semibold text-slate-900 mt-2">Venue-wide copy fallback</h2>
+          <p className="text-xs text-slate-500 mb-2 max-w-3xl">
+            Optional. Used after per-assignment overrides but before template defaults when resolving
+            automatic nudges. Supports <span className="font-mono">{"{{venueName}}"}</span>.
+          </p>
           <venueForm.Field name="orderNudgeTitle">
             {(field) => (
               <label className="block mb-3">
-                <span className="text-sm text-slate-600">
-                  Order nudge override — title (optional; overrides template;{" "}
-                  <span className="font-mono">{"{{venueName}}"}</span> ok)
-                </span>
+                <span className="text-sm text-slate-600">Fallback title</span>
                 <input
                   className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
                   value={field.state.value}
@@ -476,9 +558,7 @@ export default function EditVenuePage() {
           <venueForm.Field name="orderNudgeBody">
             {(field) => (
               <label className="block mb-3">
-                <span className="text-sm text-slate-600">
-                  Order nudge override — body (optional)
-                </span>
+                <span className="text-sm text-slate-600">Fallback body</span>
                 <textarea
                   className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm min-h-[72px]"
                   value={field.state.value}

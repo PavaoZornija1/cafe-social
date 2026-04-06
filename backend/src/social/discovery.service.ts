@@ -7,14 +7,13 @@ import { FriendshipStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubscriptionRepository } from '../venue/subscription.repository';
 import { PushService } from '../push/push.service';
-import { VenueOrderNudgeCopyService } from '../venue/venue-order-nudge-copy.service';
+import {
+  applyVenueNudgePlaceholders,
+  VenueOrderNudgeCopyService,
+} from '../venue/venue-order-nudge-copy.service';
 import { utcDayKey } from '../lib/day-key';
 
 const PRESENCE_TTL_MS = 10 * 60 * 1000;
-
-function applyVenueNudgeTemplate(template: string, venueName: string): string {
-  return template.replace(/\{\{venueName\}\}/g, venueName);
-}
 
 @Injectable()
 export class DiscoveryService {
@@ -112,8 +111,11 @@ export class DiscoveryService {
     const enabled = this.config.get<string>('VENUE_ORDER_NUDGE_ENABLED')?.trim() !== 'false';
     if (!enabled) return;
 
-    const delayMin = Number(this.config.get<string>('VENUE_ORDER_NUDGE_AFTER_MINUTES') ?? 30);
-    const delayMs = Math.max(1, Number.isFinite(delayMin) ? delayMin : 30) * 60 * 1000;
+    const globalDelayMin = Number(this.config.get<string>('VENUE_ORDER_NUDGE_AFTER_MINUTES') ?? 30);
+    const globalDelay = Math.max(1, Number.isFinite(globalDelayMin) ? globalDelayMin : 30);
+    const perVenueMin = await this.venueOrderNudgeCopy.getEffectiveAfterMinutes(venueId);
+    const delayMin = perVenueMin != null && Number.isFinite(perVenueMin) && perVenueMin > 0 ? perVenueMin : globalDelay;
+    const delayMs = delayMin * 60 * 1000;
 
     const now = new Date();
     if (now.getTime() - sessionStartedAt.getTime() < delayMs) return;
@@ -131,8 +133,8 @@ export class DiscoveryService {
     });
     if (!resolved) return;
 
-    const title = applyVenueNudgeTemplate(resolved.titleRaw, resolved.venueName);
-    const body = applyVenueNudgeTemplate(resolved.bodyRaw, resolved.venueName);
+    const title = applyVenueNudgePlaceholders(resolved.titleRaw, resolved.venueName);
+    const body = applyVenueNudgePlaceholders(resolved.bodyRaw, resolved.venueName);
 
     const orderingUrl = resolved.orderingUrl;
     const menuUrl = resolved.menuUrl;

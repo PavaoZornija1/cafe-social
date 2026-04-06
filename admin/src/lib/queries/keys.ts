@@ -1,3 +1,5 @@
+import type { AdminOrganizationsListParams, AdminVenuesListParams } from "./list-params";
+
 /** Stable TanStack Query keys for the admin app (see https://tanstack.com/query/latest/docs/framework/react/guides/query-keys). */
 
 export const queryKeys = {
@@ -7,8 +9,11 @@ export const queryKeys = {
   admin: {
     dashboardMetrics: ["admin", "dashboard", "metrics"] as const,
     organizations: ["admin", "organizations"] as const,
+    organizationsList: (p: AdminOrganizationsListParams) =>
+      ["admin", "organizations", "list", p] as const,
     organization: (id: string) => ["admin", "organizations", id] as const,
     venues: ["admin", "venues"] as const,
+    venuesList: (p: AdminVenuesListParams) => ["admin", "venues", "list", p] as const,
     venueTypeCatalog: ["admin", "venue-types", "catalog"] as const,
     venue: (id: string) => ["admin", "venues", id] as const,
     venueStaff: (id: string) => ["admin", "venues", id, "staff"] as const,
@@ -16,6 +21,9 @@ export const queryKeys = {
     perks: (venueId: string) => ["admin", "venues", venueId, "perks"] as const,
     offers: (venueId: string) => ["admin", "venues", venueId, "offers"] as const,
     challenges: (venueId: string) => ["admin", "venues", venueId, "challenges"] as const,
+    nudgeTemplates: ["admin", "nudge-templates"] as const,
+    venueNudgeAssignments: (venueId: string) =>
+      ["admin", "venues", venueId, "nudge-assignments"] as const,
   },
   owner: {
     superAdminVenuePicker: ["owner", "super-admin", "venue-picker"] as const,

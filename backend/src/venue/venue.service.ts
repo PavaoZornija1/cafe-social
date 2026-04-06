@@ -47,18 +47,127 @@ export class VenueService {
     return this.venues.findAll();
   }
 
-  /** Partner CMS list: all venues for super admin, scoped venues for owners/managers. */
-  async listForAdminCms(scope: AdminCmsScope): Promise<Venue[]> {
-    if (scope.kind === 'super_admin') {
-      return this.findAll();
+  /** Partner CMS list: paginated; scoped for owners/managers, all for super admin. */
+  async listForAdminCmsPaginated(
+    scope: AdminCmsScope,
+    params: {
+      page: number;
+      limit: number;
+      search?: string;
+      location?: string;
+      lockedOnly?: boolean;
+      organizationId?: string;
+      countries?: string[];
+    },
+  ): Promise<{
+    items: Array<{
+      id: string;
+      name: string;
+      city: string | null;
+      country: string | null;
+      organizationId: string | null;
+      locked: boolean;
+      menuUrl: string | null;
+      orderingUrl: string | null;
+      organization: { id: string; name: string } | null;
+    }>;
+    total: number;
+    page: number;
+    limit: number;
+    hasMore: boolean;
+  }> {
+    const { page, limit, search, location, lockedOnly, organizationId, countries } = params;
+    const andParts: Prisma.VenueWhereInput[] = [];
+
+    if (scope.kind !== 'super_admin') {
+      if (scope.managedVenueIds.length === 0) {
+        return { items: [], total: 0, page, limit, hasMore: false };
+      }
+      andParts.push({ id: { in: scope.managedVenueIds } });
     }
-    if (scope.managedVenueIds.length === 0) {
-      return [];
+
+    if (lockedOnly) andParts.push({ locked: true });
+
+    if (organizationId === '__none__') {
+      andParts.push({ organizationId: null });
+    } else if (organizationId && organizationId.length > 0) {
+      andParts.push({ organizationId });
     }
-    return this.prisma.venue.findMany({
-      where: { id: { in: scope.managedVenueIds } },
-      orderBy: { createdAt: 'desc' },
-    });
+
+    if (scope.kind === 'super_admin' && countries && countries.length > 0) {
+      andParts.push({
+        country: { in: countries },
+      });
+    }
+
+    const q = search?.trim();
+    if (q) {
+      const orParts: Prisma.VenueWhereInput[] = [
+        { name: { contains: q, mode: 'insensitive' } },
+      ];
+      if (/^[0-9a-f-]{36}$/i.test(q)) {
+        orParts.push({ id: q });
+      } else if (q.length >= 2) {
+        orParts.push({ id: { contains: q, mode: 'insensitive' } });
+      }
+      andParts.push({ OR: orParts });
+    }
+
+    const loc = location?.trim();
+    if (loc) {
+      andParts.push({
+        OR: [
+          { city: { contains: loc, mode: 'insensitive' } },
+          { country: { contains: loc, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    const where: Prisma.VenueWhereInput =
+      andParts.length === 0 ? {} : andParts.length === 1 ? andParts[0]! : { AND: andParts };
+
+    const skip = (page - 1) * limit;
+
+    const [total, rows] = await Promise.all([
+      this.prisma.venue.count({ where }),
+      this.prisma.venue.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          name: true,
+          city: true,
+          country: true,
+          organizationId: true,
+          locked: true,
+          menuUrl: true,
+          orderingUrl: true,
+          organization: { select: { id: true, name: true } },
+        },
+      }),
+    ]);
+
+    const items = rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      city: r.city,
+      country: r.country,
+      organizationId: r.organizationId,
+      locked: r.locked,
+      menuUrl: r.menuUrl,
+      orderingUrl: r.orderingUrl,
+      organization: r.organization,
+    }));
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      hasMore: page * limit < total,
+    };
   }
 
   /** Safe, unauthenticated list for the in-app partner discovery map. */
