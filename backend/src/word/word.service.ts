@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/com
 import type { Word, WordCategory } from '@prisma/client';
 import { PlayerService } from '../player/player.service';
 import { SubscriptionRepository } from '../venue/subscription.repository';
+import { VenuePlayLimitService } from '../venue/venue-play-limit.service';
 import { VenueService } from '../venue/venue.service';
 import { WordRepository } from './word.repository';
 
@@ -24,6 +25,7 @@ export class WordService {
     private readonly players: PlayerService,
     private readonly subscriptions: SubscriptionRepository,
     private readonly venues: VenueService,
+    private readonly venuePlayLimit: VenuePlayLimitService,
   ) {}
 
   async getWordSessionDeck(params: {
@@ -65,6 +67,10 @@ export class WordService {
         params.latitude!,
         params.longitude!,
       );
+    }
+
+    if (!params.globalPlay && params.venueId?.trim()) {
+      await this.venuePlayLimit.beginSoloWord(player.id, params.venueId.trim());
     }
 
     const rows: Word[] = await this.words.findRandomSessionDeck({

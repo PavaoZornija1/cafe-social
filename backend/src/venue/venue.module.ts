@@ -13,6 +13,7 @@ import { VenueOfferService } from './venue-offer.service';
 import { VenueOfferController } from './venue-offer.controller';
 import { VenueOrderNudgeCopyService } from './venue-order-nudge-copy.service';
 import { VenueNudgeAdminService } from './venue-nudge-admin.service';
+import { VenuePlayLimitService } from './venue-play-limit.service';
 import { PushModule } from '../push/push.module';
 
 @Module({
@@ -23,6 +24,7 @@ import { PushModule } from '../push/push.module';
     VenueOfferService,
     VenueOrderNudgeCopyService,
     VenueNudgeAdminService,
+    VenuePlayLimitService,
     VenueRepository,
     VenueAccessService,
     PlayerVenueRepository,
@@ -33,6 +35,7 @@ import { PushModule } from '../push/push.module';
     VenueOfferService,
     VenueOrderNudgeCopyService,
     VenueNudgeAdminService,
+    VenuePlayLimitService,
     SubscriptionRepository,
     PlayerVenueRepository,
   ],

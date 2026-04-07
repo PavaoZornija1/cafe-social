@@ -106,6 +106,8 @@ model Venue {
   feedEvents       VenueFeedEvent[]
   perks            VenuePerk[]
   visitDays        PlayerVenueVisitDay[]
+  venuePlayDays    PlayerVenuePlayDay[]
+  venuePlayCountedGames PlayerVenuePlayCountedGame[]
   staffMembers     VenueStaff[]
   staffInvites     VenueStaffInvite[]
   campaigns        VenueCampaign[]
@@ -444,6 +446,8 @@ model Player {
   dailyWords  PlayerDailyWord[]
   dailyStreaks PlayerDailyStreak[]
   venueVisitDays   PlayerVenueVisitDay[]
+  venuePlayDays    PlayerVenuePlayDay[]
+  venuePlayCountedGames PlayerVenuePlayCountedGame[]
   perkRedemptions  VenuePerkRedemption[] @relation("RedemptionGuest")
   offerRedemptions VenueOfferRedemption[]
 
@@ -475,6 +479,41 @@ model PlayerVenueVisitDay {
 
   @@id([playerId, venueId, dayKey])
   @@index([venueId, dayKey])
+  @@index([playerId, dayKey])
+}
+
+/// **Guest venue games started** per UTC calendar day (word solo / match / brawler at that venue).
+model PlayerVenuePlayDay {
+  playerId    String
+  venueId     String
+  dayKey      String
+  gamesPlayed Int       @default(0)
+  /// Dedupes repeated solo `/words/session` calls within this window as one game.
+  lastSoloDeckAt DateTime?
+  updatedAt   DateTime @updatedAt
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, venueId, dayKey])
+  @@index([venueId, dayKey])
+  @@index([playerId, dayKey])
+}
+
+/// One row per counted match/brawler `GameSession` so deck reloads / retries do not consume extra daily slots.
+model PlayerVenuePlayCountedGame {
+  id            String   @id @default(uuid())
+  playerId      String
+  venueId       String
+  dayKey        String
+  /// word_match | brawler
+  kind          String
+  gameSessionId String
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, gameSessionId, kind])
   @@index([playerId, dayKey])
 }
 

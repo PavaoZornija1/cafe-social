@@ -21,6 +21,7 @@ import { WORD_MATCH_REFRESH_EVENT } from './word-match.gateway';
 import { PushService } from '../push/push.service';
 import { VenueFeedService } from '../venue-feed/venue-feed.service';
 import { SubscriptionRepository } from '../venue/subscription.repository';
+import { VenuePlayLimitService } from '../venue/venue-play-limit.service';
 import { VenueService } from '../venue/venue.service';
 import { normalizeGuess } from './word-match.util';
 
@@ -42,6 +43,7 @@ export class WordMatchService {
     private readonly venueFeed: VenueFeedService,
     private readonly subscriptions: SubscriptionRepository,
     private readonly venues: VenueService,
+    private readonly venuePlayLimit: VenuePlayLimitService,
   ) {}
 
   /** When `sessionVenueId` is set, `latitude`/`longitude` must place the user in that venue’s geofence. */
@@ -352,6 +354,10 @@ export class WordMatchService {
     }
     await this.ensureParticipant(sessionId, player.id);
     await this.assertAtVenueIfNeeded(session.venueId, latitude, longitude);
+
+    if (session.venueId) {
+      await this.venuePlayLimit.beginWordMatchDeck(player.id, session.venueId, sessionId);
+    }
 
     const config = session.config as unknown as WordMatchConfig;
     const words = await this.prisma.word.findMany({

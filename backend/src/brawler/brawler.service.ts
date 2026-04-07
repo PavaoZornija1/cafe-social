@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { GameSessionStatus, type GameEventType, type Prisma } from '@prisma/client';
 import { PlayerService } from '../player/player.service';
+import { VenuePlayLimitService } from '../venue/venue-play-limit.service';
 import { BrawlerRepository } from './brawler.repository';
 import {
   CreateBrawlerSessionDto,
@@ -18,6 +19,7 @@ export class BrawlerService {
   constructor(
     private readonly brawlerRepo: BrawlerRepository,
     private readonly players: PlayerService,
+    private readonly venuePlayLimit: VenuePlayLimitService,
   ) {}
 
   listHeroes() {
@@ -95,11 +97,21 @@ export class BrawlerService {
     return session;
   }
 
-  async startSession(sessionId: string) {
+  async startSession(sessionId: string, email: string) {
     const session = await this.brawlerRepo.startSession(sessionId);
     if (!session) throw new NotFoundException('session not found');
     if (session.status !== GameSessionStatus.ACTIVE) {
       throw new BadRequestException('session is not pending');
+    }
+    if (session.venueId) {
+      const full = await this.brawlerRepo.findSessionById(sessionId);
+      if (full) {
+        const player = await this.players.findOrCreateByEmail(email);
+        const human = full.participants.find((p) => p.playerId === player.id && !p.isBot);
+        if (human) {
+          await this.venuePlayLimit.beginBrawler(player.id, session.venueId, sessionId);
+        }
+      }
     }
     return session;
   }

@@ -46,8 +46,11 @@ export class BrawlerController {
   }
 
   @Post('sessions/:sessionId/start')
-  startSession(@Param('sessionId', new ParseUUIDPipe()) sessionId: string) {
-    return this.brawler.startSession(sessionId);
+  startSession(
+    @CurrentUser() user: unknown,
+    @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+  ) {
+    return this.brawler.startSession(sessionId, this.email(user));
   }
 
   @Post('sessions/:sessionId/events')
