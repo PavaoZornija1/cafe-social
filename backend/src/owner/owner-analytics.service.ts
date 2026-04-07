@@ -19,6 +19,63 @@ function csvEscape(s: string): string {
   return s;
 }
 
+/** Repeat visits: players with 2+ distinct calendar days at the same venue. */
+function loyaltyMetricsSingleVenue(visitRows: { dayKey: string; playerId: string }[]) {
+  const daysByPlayer = new Map<string, Set<string>>();
+  for (const v of visitRows) {
+    if (!daysByPlayer.has(v.playerId)) daysByPlayer.set(v.playerId, new Set());
+    daysByPlayer.get(v.playerId)!.add(v.dayKey);
+  }
+  let repeatVisitPlayers = 0;
+  for (const days of daysByPlayer.values()) {
+    if (days.size >= 2) repeatVisitPlayers += 1;
+  }
+  const uniquePlayers = daysByPlayer.size;
+  const avgVisitDaysPerPlayer =
+    uniquePlayers === 0
+      ? 0
+      : Math.round((visitRows.length / uniquePlayers) * 10) / 10;
+  const shareRepeatVisitorsPercent =
+    uniquePlayers === 0
+      ? 0
+      : Math.round((repeatVisitPlayers / uniquePlayers) * 1000) / 10;
+  return {
+    repeatVisitPlayers,
+    avgVisitDaysPerPlayer,
+    shareRepeatVisitorsPercent,
+  };
+}
+
+/** Org roll-up: a player counts if they have 2+ visit days at any one venue in the set. */
+function loyaltyMetricsOrg(
+  visitRows: { dayKey: string; playerId: string; venueId: string }[],
+) {
+  const byVenuePlayer = new Map<string, Set<string>>();
+  for (const v of visitRows) {
+    const k = `${v.venueId}\t${v.playerId}`;
+    if (!byVenuePlayer.has(k)) byVenuePlayer.set(k, new Set());
+    byVenuePlayer.get(k)!.add(v.dayKey);
+  }
+  const repeatPlayers = new Set<string>();
+  for (const [key, days] of byVenuePlayer) {
+    if (days.size >= 2) repeatPlayers.add(key.split('\t')[1]!);
+  }
+  const uniquePlayers = new Set(visitRows.map((r) => r.playerId)).size;
+  const avgVisitDaysPerPlayer =
+    uniquePlayers === 0
+      ? 0
+      : Math.round((visitRows.length / uniquePlayers) * 10) / 10;
+  const shareRepeatVisitorsPercent =
+    uniquePlayers === 0
+      ? 0
+      : Math.round((repeatPlayers.size / uniquePlayers) * 1000) / 10;
+  return {
+    repeatVisitPlayers: repeatPlayers.size,
+    avgVisitDaysPerPlayer,
+    shareRepeatVisitorsPercent,
+  };
+}
+
 export type AnalyticsQueryOpts = {
   days?: number;
   from?: string;
@@ -201,6 +258,7 @@ export class OwnerAnalyticsService {
       .sort((a, b) => b.count - a.count);
 
     const funnelJourney = await this.funnelMetrics([venueId], start, end);
+    const visitLoyalty = loyaltyMetricsSingleVenue(visitRows);
 
     return {
       venueId,
@@ -226,6 +284,7 @@ export class OwnerAnalyticsService {
       visits: {
         uniquePlayers: uniqueVisitors.size,
         totalVisitDays: visitRows.length,
+        loyalty: visitLoyalty,
         byDay: timelineDays.map((day) => ({
           day,
           count: visitsByDay.get(day) ?? 0,
@@ -281,6 +340,11 @@ export class OwnerAnalyticsService {
           uniquePlayers: 0,
           totalVisitDays: 0,
           uniquePlayerDays: 0,
+          loyalty: {
+            repeatVisitPlayers: 0,
+            avgVisitDaysPerPlayer: 0,
+            shareRepeatVisitorsPercent: 0,
+          },
           byDay: [] as { day: string; count: number }[],
         },
         funnel: {
@@ -331,7 +395,7 @@ export class OwnerAnalyticsService {
           venueId: { in: venueIds },
           dayKey: { gte: startDay, lte: endDay },
         },
-        select: { dayKey: true, playerId: true },
+        select: { dayKey: true, playerId: true, venueId: true },
       }),
       this.prisma.venueFeedEvent.findMany({
         where: {
@@ -410,6 +474,7 @@ export class OwnerAnalyticsService {
       .sort((a, b) => b.count - a.count);
 
     const funnelJourney = await this.funnelMetrics(venueIds, start, end);
+    const visitLoyalty = loyaltyMetricsOrg(visitRows);
 
     return {
       organizationId,
@@ -438,6 +503,7 @@ export class OwnerAnalyticsService {
         uniquePlayers: uniqueVisitors.size,
         totalVisitDays: visitRows.length,
         uniquePlayerDays: playerDayKeys.size,
+        loyalty: visitLoyalty,
         byDay: timelineDays.map((day) => ({
           day,
           count: visitsByDayUnique.get(day)?.size ?? 0,

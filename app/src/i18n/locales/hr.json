@@ -160,7 +160,12 @@
     "findOnList": "Nađi na listi",
     "qrUnrecognized": "Ne mogu pročitati valjani kod iz ovog QR-a.",
     "codeInvalid": "Upiši valjani 8-znamenkasti kod ili UUID.",
-    "highlightMissing": "Ovaj kod nije na listi za odabrani UTC dan — probaj drugi datum ili potvrdi otkup."
+    "highlightMissing": "Ovaj kod nije na listi za odabrani UTC dan — probaj drugi datum ili potvrdi otkup.",
+    "moderationSnapshot": "Pregled sigurnosti (ovo mjesto)",
+    "modOpenReports": "{{n}} otvorenih prijava",
+    "modActiveBans": "{{n}} aktivnih zabrana",
+    "modOpenAppeals": "{{n}} otvorenih žalbi",
+    "modPartnerToolsHint": "Manageri rade u partnerskom portalu; ovo je samo za čitanje za osoblje na licu mjesta."
   },
   "home": {
     "appTitle": "Cafe Social",
@@ -177,6 +182,7 @@
     "venueTemporarilyUnavailable": "Ovo mjesto trenutačno ne nudi Cafe Social igre. Ponude i ostatak aplikacije i dalje rade.",
     "venueTemporarilyUnavailableShort": "Igre ovdje trenutačno nisu dostupne.",
     "bannedFromVenue": "Ovo mjesto ograničilo je tvoj račun za igre i otkupe ovdje. Obrati se osoblju ako misliš da je greška.",
+    "banAppealCta": "Podnesi žalbu na ograničenje",
     "challengeTitle": "Tvoj izazov",
     "unlockToStart": "Budi na lokalu s uključenom lokacijom ili pretplatom za globalno igranje.",
     "loadingChallenge": "Učitavanje izazova…",
@@ -421,7 +427,8 @@
     "loadError": "Ljestvica se nije učitala.",
     "xp": "XP",
     "you": "Ti",
-    "emptyBoard": "Još nema XP-a. Igraj da skupljaš!"
+    "emptyBoard": "Još nema XP-a. Igraj da skupljaš!",
+    "report": "Prijavi"
   },
   "parties": {
     "title": "Partyji",
@@ -508,7 +515,36 @@
     "subtitle": "Nedavno na lokalu (privatnost).",
     "empty": "Nitko vidljiv — provjeri postavke.",
     "friend": "Prijatelj",
-    "stranger": "Ovdje"
+    "stranger": "Ovdje",
+    "report": "Prijavi"
+  },
+  "reportPlayer": {
+    "title": "Prijavi igrača",
+    "subtitle": "Označuješ {{username}} osoblju ovog lokala. Budi jasan i stvaran.",
+    "reasonLabel": "Što se dogodilo?",
+    "reasonPlaceholder": "Kratak sažetak za osoblje (obavezno)",
+    "reasonHint": "{{n}} / {{max}} znakova · najmanje {{min}}",
+    "noteLabel": "Dodatni detalji (opcionalno)",
+    "notePlaceholder": "Kontekst, vrijeme ili druge napomene",
+    "noteHint": "Do {{max}} znakova",
+    "submit": "Pošalji prijavu",
+    "signInRequired": "Prijavi se da pošalješ prijavu.",
+    "successTitle": "Prijava poslana",
+    "successBody": "Osoblje može pregledati u partnerskim alatima. Hvala što pomažeš zajednici.",
+    "failed": "Prijava nije poslana. Pokušaj kasnije.",
+    "footer": "Lažne ili zlonamjerne prijave mogu se provjeriti. Ne možeš prijaviti samog sebe."
+  },
+  "banAppeal": {
+    "title": "Žalba na ograničenje mjesta",
+    "subtitle": "Objasni zašto misliš da bi ograničenje trebalo ukloniti. Manageri pregledavaju žalbe u alatima.",
+    "messageLabel": "Tvoja poruka",
+    "messagePlaceholder": "Što osoblje treba znati?",
+    "messageHint": "Najmanje 8 znakova",
+    "submit": "Pošalji žalbu",
+    "signInRequired": "Prijavi se za žalbu.",
+    "successTitle": "Žalba poslana",
+    "successBody": "Ako slijedi kontakt, koristit će email računa. Jedna otvorena žalba po mjestu.",
+    "failed": "Žalba nije poslana."
   },
   "categories": {
     "DRINK_FOOD": "Piće i hrana",

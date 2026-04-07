@@ -160,7 +160,12 @@
     "findOnList": "In Liste finden",
     "qrUnrecognized": "Kein gültiger Personal-Code aus diesem QR lesbar.",
     "codeInvalid": "Gib einen gültigen 8-stelligen Code oder eine UUID ein.",
-    "highlightMissing": "Dieser Code steht an diesem UTC-Tag nicht auf der Liste — anderes Datum oder Einlösung prüfen."
+    "highlightMissing": "Dieser Code steht an diesem UTC-Tag nicht auf der Liste — anderes Datum oder Einlösung prüfen.",
+    "moderationSnapshot": "Sicherheitsüberblick (dieses Lokal)",
+    "modOpenReports": "{{n}} offene Meldungen",
+    "modActiveBans": "{{n}} aktive Sperren",
+    "modOpenAppeals": "{{n}} offene Einsprüche",
+    "modPartnerToolsHint": "Manager können im Partner-Portal handeln; hier nur Lesen für Personal vor Ort."
   },
   "home": {
     "appTitle": "Cafe Social",
@@ -177,6 +182,7 @@
     "venueTemporarilyUnavailable": "Dieses Café nutzt Cafe Social hier gerade nicht für Spiele. Angebote und der Rest der App sind weiter offen.",
     "venueTemporarilyUnavailableShort": "Spiele sind hier vorerst nicht verfügbar.",
     "bannedFromVenue": "Dieses Lokal hat dein Konto für Spiele und Einlösungen hier gesperrt. Sprich das Personal an, wenn das ein Fehler ist.",
+    "banAppealCta": "Einspruch gegen die Sperre",
     "challengeTitle": "Deine Challenge",
     "unlockToStart": "Sei im Café mit Standort an oder nutze ein Abo für globales Spielen.",
     "loadingChallenge": "Challenge wird geladen…",
@@ -421,7 +427,8 @@
     "loadError": "Rangliste konnte nicht geladen werden.",
     "xp": "XP",
     "you": "Du",
-    "emptyBoard": "Noch keine XP. Spielen zum Sammeln!"
+    "emptyBoard": "Noch keine XP. Spielen zum Sammeln!",
+    "report": "Melden"
   },
   "parties": {
     "title": "Gruppen",
@@ -508,7 +515,36 @@
     "subtitle": "Kürzlich am Ort (Datenschutz beachtet).",
     "empty": "Niemand sichtbar — Einstellungen prüfen.",
     "friend": "Freund",
-    "stranger": "Hier"
+    "stranger": "Hier",
+    "report": "Melden"
+  },
+  "reportPlayer": {
+    "title": "Spieler melden",
+    "subtitle": "Du meldest {{username}} an das Personal dieses Lokals. Bitte sachlich und konkret.",
+    "reasonLabel": "Was ist passiert?",
+    "reasonPlaceholder": "Kurzfassung für das Lokal (Pflichtfeld)",
+    "reasonHint": "{{n}} / {{max}} Zeichen · mindestens {{min}}",
+    "noteLabel": "Weitere Details (optional)",
+    "notePlaceholder": "Kontext, Zeitpunkt oder andere Hinweise",
+    "noteHint": "Bis zu {{max}} Zeichen",
+    "submit": "Meldung senden",
+    "signInRequired": "Zum Melden bitte anmelden.",
+    "successTitle": "Meldung gesendet",
+    "successBody": "Das Personal kann die Meldung in den Partner-Tools prüfen. Danke, dass du hilfst, die Community zu schützen.",
+    "failed": "Meldung konnte nicht gesendet werden. Bitte später erneut versuchen.",
+    "footer": "Falsche oder missbräuchliche Meldungen können geprüft werden. Du kannst dich nicht selbst melden."
+  },
+  "banAppeal": {
+    "title": "Einspruch gegen Lokal-Sperre",
+    "subtitle": "Erkläre, warum die Sperre deiner Meinung nach aufgehoben werden sollte. Manager prüfen Einsprüche in den Tools.",
+    "messageLabel": "Deine Nachricht",
+    "messagePlaceholder": "Was sollte das Personal wissen?",
+    "messageHint": "Mindestens 8 Zeichen",
+    "submit": "Einspruch senden",
+    "signInRequired": "Zum Einspruch bitte anmelden.",
+    "successTitle": "Einspruch gesendet",
+    "successBody": "Bei Rückfragen nutzen Manager deine E-Mail. Pro Lokal nur ein offener Einspruch.",
+    "failed": "Einspruch konnte nicht gesendet werden."
   },
   "categories": {
     "DRINK_FOOD": "Getränk & Essen",

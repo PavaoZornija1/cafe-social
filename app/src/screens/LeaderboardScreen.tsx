@@ -192,6 +192,11 @@ export default function LeaderboardScreen({ navigation }: Props) {
           }
           renderItem={({ item, index }) => {
             const isMe = meId != null && item.player.id === meId;
+            const canReport =
+              scope === 'venue' &&
+              Boolean(venueId) &&
+              meId != null &&
+              !isMe;
             return (
               <View style={[styles.row, isMe && styles.rowMe]}>
                 <Text style={styles.rank}>#{index + 1}</Text>
@@ -201,9 +206,26 @@ export default function LeaderboardScreen({ navigation }: Props) {
                     {isMe ? ` (${t('leaderboard.you')})` : ''}
                   </Text>
                 </View>
-                <Text style={styles.xp}>
-                  {item.venueXp} {t('leaderboard.xp')}
-                </Text>
+                <View style={styles.rowRight}>
+                  <Text style={styles.xp}>
+                    {item.venueXp} {t('leaderboard.xp')}
+                  </Text>
+                  {canReport ? (
+                    <Pressable
+                      onPress={() =>
+                        navigation.navigate('ReportPlayer', {
+                          venueId: venueId!,
+                          venueName: venueName ?? undefined,
+                          reportedPlayerId: item.player.id,
+                          reportedUsername: item.player.username,
+                        })
+                      }
+                      style={({ pressed }) => [styles.reportTap, pressed && { opacity: 0.85 }]}
+                    >
+                      <Text style={styles.reportTapText}>{t('leaderboard.report')}</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
               </View>
             );
           }}
@@ -288,5 +310,8 @@ const styles = StyleSheet.create({
   rank: { color: '#6b7280', fontWeight: '800', width: 36 },
   rowMid: { flex: 1 },
   name: { color: '#f9fafb', fontWeight: '700' },
-  xp: { color: '#e9d5ff', fontWeight: '800' },
+  rowRight: { alignItems: 'flex-end', gap: 6, maxWidth: '42%' },
+  xp: { color: '#e9d5ff', fontWeight: '800', textAlign: 'right' },
+  reportTap: { paddingVertical: 4, paddingHorizontal: 8 },
+  reportTapText: { color: '#fdba74', fontWeight: '800', fontSize: 11 },
 });

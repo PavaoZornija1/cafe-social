@@ -520,15 +520,35 @@ export default function HomeScreen({ navigation }: Props) {
                                 {detectedVenue.isPremium ? t('home.premiumSuffix') : ''}
                             </Text>
                             {locked ? (
-                                <Text
-                                    style={
-                                        venueAdminLocked
-                                            ? styles.venuePausedHint
-                                            : styles.lockedHint
-                                    }
-                                >
-                                    {venueGamesLockedExplanation}
-                                </Text>
+                                <View>
+                                    <Text
+                                        style={
+                                            venueAdminLocked
+                                                ? styles.venuePausedHint
+                                                : styles.lockedHint
+                                        }
+                                    >
+                                        {venueGamesLockedExplanation}
+                                    </Text>
+                                    {access?.bannedFromVenue ? (
+                                        <Pressable
+                                            style={({ pressed }) => [
+                                                styles.banAppealBtn,
+                                                pressed && styles.banAppealBtnPressed,
+                                            ]}
+                                            onPress={() =>
+                                                navigation.navigate('BanAppeal', {
+                                                    venueId: detectedVenue.id,
+                                                    venueName: detectedVenue.name,
+                                                })
+                                            }
+                                        >
+                                            <Text style={styles.banAppealBtnText}>
+                                                {t('home.banAppealCta')}
+                                            </Text>
+                                        </Pressable>
+                                    ) : null}
+                                </View>
                             ) : (
                                 <Text style={styles.unlockedHint}>{t('home.unlockedHint')}</Text>
                             )}
@@ -944,6 +964,18 @@ const styles = StyleSheet.create({
     cardSubError: { marginTop: 8, color: '#f87171', fontSize: 13 },
     contextName: { color: '#fff', fontSize: 18, fontWeight: '900', marginTop: 10 },
     lockedHint: { marginTop: 8, color: '#fca5a5', fontSize: 13, fontWeight: '700' },
+    banAppealBtn: {
+        alignSelf: 'flex-start',
+        marginTop: 12,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        borderRadius: 12,
+        backgroundColor: '#422006',
+        borderWidth: 1,
+        borderColor: '#ca8a04',
+    },
+    banAppealBtnPressed: { opacity: 0.9 },
+    banAppealBtnText: { color: '#fde68a', fontWeight: '800', fontSize: 13 },
     venuePausedHint: {
         marginTop: 8,
         color: '#fcd34d',

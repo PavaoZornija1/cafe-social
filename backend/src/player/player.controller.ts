@@ -20,13 +20,16 @@ import { UpdatePlayerDto } from './dto/update-player.dto';
 import { UpdateMeSettingsDto } from './dto/update-me-settings.dto';
 import { UpdateMeOnboardingDto } from './dto/update-me-onboarding.dto';
 import { RegisterExpoPushTokenDto } from './dto/register-expo-push-token.dto';
+import { CreateBanAppealDto } from './dto/create-ban-appeal.dto';
 import { PushService } from '../push/push.service';
+import { VenueModerationService } from '../venue/venue-moderation.service';
 
 @Controller('players')
 export class PlayerController {
   constructor(
     private readonly playerService: PlayerService,
     private readonly pushService: PushService,
+    private readonly venueModeration: VenueModerationService,
   ) {}
 
   private normalizeEmail(user: unknown): string | null {
@@ -97,6 +100,18 @@ export class PlayerController {
     const p = await this.playerService.findOrCreateByEmail(email);
     await this.pushService.registerPlayerToken(p.id, dto.expoPushToken);
     return { ok: true };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('me/ban-appeals')
+  async createMyBanAppeal(
+    @CurrentUser() user: unknown,
+    @Body() dto: CreateBanAppealDto,
+  ) {
+    const email = this.normalizeEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    const player = await this.playerService.findOrCreateByEmail(email);
+    return this.venueModeration.createBanAppeal(player.id, dto.venueId, dto.message);
   }
 
   @UseGuards(JwtAuthGuard)

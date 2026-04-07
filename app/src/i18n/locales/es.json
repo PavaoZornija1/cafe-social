@@ -160,7 +160,12 @@
     "findOnList": "Buscar en la lista",
     "qrUnrecognized": "No se pudo leer un código de verificación válido del QR.",
     "codeInvalid": "Introduce un código de 8 caracteres o un UUID válido.",
-    "highlightMissing": "Este código no aparece en el día UTC seleccionado — prueba otra fecha o confirma el canje."
+    "highlightMissing": "Este código no aparece en el día UTC seleccionado — prueba otra fecha o confirma el canje.",
+    "moderationSnapshot": "Resumen de seguridad (este local)",
+    "modOpenReports": "{{n}} informes abiertos",
+    "modActiveBans": "{{n}} bloqueos activos",
+    "modOpenAppeals": "{{n}} apelaciones abiertas",
+    "modPartnerToolsHint": "Los gestores actúan en el portal partner; esto es solo lectura para el personal."
   },
   "home": {
     "appTitle": "Cafe Social",
@@ -177,6 +182,7 @@
     "venueTemporarilyUnavailable": "Este local no tiene los juegos de Cafe Social activos ahora. Las ofertas y el resto de la app siguen disponibles.",
     "venueTemporarilyUnavailableShort": "Los juegos no están disponibles en este local por ahora.",
     "bannedFromVenue": "Este local ha restringido tu cuenta para juegos y canjes aquí. Contacta al personal si crees que es un error.",
+    "banAppealCta": "Enviar apelación",
     "challengeTitle": "Tu reto",
     "unlockToStart": "Estate en el local con la ubicación activada, o suscríbete para jugar en global.",
     "loadingChallenge": "Cargando reto…",
@@ -421,7 +427,8 @@
     "loadError": "No se pudo cargar la clasificación.",
     "xp": "XP",
     "you": "Tú",
-    "emptyBoard": "Aún no hay XP. ¡Juega para ganar!"
+    "emptyBoard": "Aún no hay XP. ¡Juega para ganar!",
+    "report": "Reportar"
   },
   "parties": {
     "title": "Grupos",
@@ -508,7 +515,36 @@
     "subtitle": "Recientes en el local (privacidad).",
     "empty": "Nadie visible — revisa ajustes.",
     "friend": "Amigo",
-    "stranger": "Aquí"
+    "stranger": "Aquí",
+    "report": "Reportar"
+  },
+  "reportPlayer": {
+    "title": "Reportar jugador",
+    "subtitle": "Marcaste a {{username}} para revisión del personal en este local. Sé claro y objetivo.",
+    "reasonLabel": "¿Qué ocurrió?",
+    "reasonPlaceholder": "Resumen breve para el personal (obligatorio)",
+    "reasonHint": "{{n}} / {{max}} caracteres · mínimo {{min}}",
+    "noteLabel": "Más detalle (opcional)",
+    "notePlaceholder": "Contexto, hora u otras notas",
+    "noteHint": "Hasta {{max}} caracteres",
+    "submit": "Enviar reporte",
+    "signInRequired": "Inicia sesión para enviar un reporte.",
+    "successTitle": "Reporte enviado",
+    "successBody": "El personal puede revisarlo en sus herramientas. Gracias por ayudar a cuidar la comunidad.",
+    "failed": "No se pudo enviar el reporte. Inténtalo más tarde.",
+    "footer": "Los reportes falsos o abusivos pueden revisarse. No puedes reportarte a ti mismo."
+  },
+  "banAppeal": {
+    "title": "Apelar restricción del local",
+    "subtitle": "Explica por qué crees que la restricción debería levantarse. Los gestores revisan las apelaciones en sus herramientas.",
+    "messageLabel": "Tu mensaje",
+    "messagePlaceholder": "¿Qué debería saber el personal?",
+    "messageHint": "Al menos 8 caracteres",
+    "submit": "Enviar apelación",
+    "signInRequired": "Inicia sesión para apelar.",
+    "successTitle": "Apelación enviada",
+    "successBody": "Si hay seguimiento, usarán tu correo de la cuenta. Una apelación abierta por local.",
+    "failed": "No se pudo enviar la apelación."
   },
   "categories": {
     "DRINK_FOOD": "Bebida y comida",

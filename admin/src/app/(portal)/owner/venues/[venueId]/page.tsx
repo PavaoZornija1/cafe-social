@@ -38,6 +38,8 @@ import {
   useOwnerVenueCampaignsQuery,
   useOwnerVenueReceiptsQuery,
   useOwnerVenueModerationReportsQuery,
+  useOwnerVenueBanAppealsQuery,
+  useOwnerVenueDismissBanAppealMutation,
   useOwnerVenueStaffInvitesQuery,
   useOwnerVenuesListQuery,
   useOwnerVoidRedemptionMutation,
@@ -179,6 +181,12 @@ export default function OwnerVenueDetailPage() {
     getToken,
     Boolean(isLoaded && metaRow && canAnalytics),
   );
+  const modAppealsQ = useOwnerVenueBanAppealsQuery(
+    venueId,
+    getToken,
+    Boolean(isLoaded && metaRow && canAnalytics),
+  );
+  const dismissAppealMut = useOwnerVenueDismissBanAppealMutation(venueId, getToken);
   const dismissReportMut = useOwnerVenueDismissReportMutation(venueId, getToken);
   const banPlayerMut = useOwnerVenueBanPlayerMutation(venueId, getToken);
   const unbanPlayerMut = useOwnerVenueUnbanPlayerMutation(venueId, getToken);
@@ -845,7 +853,7 @@ export default function OwnerVenueDetailPage() {
                     ? ` · Venue TZ: ${analytics.analyticsTimeZone}`
                     : ""}
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-sm text-slate-600">Active redemptions</p>
                     <p className="text-2xl font-semibold mt-1">{analytics.redemptions.total}</p>
@@ -857,6 +865,22 @@ export default function OwnerVenueDetailPage() {
                     <p className="text-sm text-slate-600">Unique visitors</p>
                     <p className="text-2xl font-semibold mt-1">
                       {analytics.visits.uniquePlayers}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm text-slate-600">Repeat visitors</p>
+                    <p className="text-2xl font-semibold mt-1">
+                      {analytics.visits.loyalty.repeatVisitPlayers}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      ≥2 days at this venue ·{" "}
+                      {analytics.visits.loyalty.shareRepeatVisitorsPercent}% of visitors
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm text-slate-600">Avg visit days / player</p>
+                    <p className="text-2xl font-semibold mt-1">
+                      {analytics.visits.loyalty.avgVisitDaysPerPlayer}
                     </p>
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -1143,6 +1167,49 @@ export default function OwnerVenueDetailPage() {
                       >
                         Remove ban
                       </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-slate-800 mb-2">Ban appeals</h3>
+              <p className="text-xs text-slate-500 mb-2">
+                Players who are venue-banned can submit one open appeal per location.
+              </p>
+              {modAppealsQ.isError ? (
+                <p className="text-sm text-red-700">
+                  {modAppealsQ.error instanceof Error
+                    ? modAppealsQ.error.message
+                    : "Appeals failed"}
+                </p>
+              ) : null}
+              {(modAppealsQ.data ?? []).length === 0 ? (
+                <p className="text-sm text-slate-500">No open appeals.</p>
+              ) : (
+                <ul className="text-sm space-y-2 divide-y divide-slate-100">
+                  {(modAppealsQ.data ?? []).map((a) => (
+                    <li key={a.id} className="pt-2 first:pt-0">
+                      <p className="text-slate-800">
+                        <span className="font-mono text-xs">{a.player.email}</span>{" "}
+                        <span className="text-slate-500">
+                          (@{a.player.username} · {a.player.id.slice(0, 8)}…)
+                        </span>
+                      </p>
+                      <p className="text-xs text-slate-600 mt-0.5 whitespace-pre-wrap">{a.message}</p>
+                      <p className="text-xs text-slate-500">
+                        {new Date(a.createdAt).toLocaleString()}
+                      </p>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        <button
+                          type="button"
+                          disabled={readOnlyDisabled || dismissAppealMut.isPending}
+                          onClick={() => void dismissAppealMut.mutateAsync(a.id)}
+                          className="text-xs border border-slate-300 rounded px-2 py-1 hover:bg-slate-50 disabled:opacity-50"
+                        >
+                          Dismiss (reviewed)
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>

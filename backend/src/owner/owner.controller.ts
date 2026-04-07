@@ -536,6 +536,31 @@ export class OwnerController {
     return csv;
   }
 
+  @Get('venues/:venueId/moderation/staff-summary')
+  @UseGuards(VenueStaffGuard)
+  @MinVenueRole(VenueStaffRole.EMPLOYEE)
+  staffModerationSummary(@Param('venueId', new ParseUUIDPipe()) venueId: string) {
+    return this.venueModeration.staffSummaryForVenue(venueId);
+  }
+
+  @Get('venues/:venueId/moderation/ban-appeals')
+  @UseGuards(VenueStaffGuard)
+  @MinVenueRole(VenueStaffRole.MANAGER)
+  listBanAppeals(@Param('venueId', new ParseUUIDPipe()) venueId: string) {
+    return this.venueModeration.listBanAppealsForVenue(venueId);
+  }
+
+  @Post('venues/:venueId/moderation/ban-appeals/:appealId/dismiss')
+  @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard)
+  @MinVenueRole(VenueStaffRole.MANAGER)
+  async dismissBanAppeal(
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+    @Param('appealId', new ParseUUIDPipe()) appealId: string,
+  ) {
+    await this.venueModeration.dismissBanAppeal(appealId, venueId);
+    return { ok: true as const };
+  }
+
   @Get('venues/:venueId/moderation/reports')
   @UseGuards(VenueStaffGuard)
   @MinVenueRole(VenueStaffRole.MANAGER)

@@ -9,6 +9,7 @@ import { PlayerService } from '../player/player.service';
 import { VenueService } from '../venue/venue.service';
 import { ChallengeRepository } from './challenge.repository';
 import { PlayerVenueStatsRepository } from '../stats/player-venue-stats.repository';
+import { VenueModerationService } from '../venue/venue-moderation.service';
 import { isoWeekKeyUTC } from '../lib/week-key';
 import { isChallengeActiveWindow } from '../lib/challenge-window';
 
@@ -31,6 +32,7 @@ export class ChallengeService {
     private readonly players: PlayerService,
     private readonly venueStats: PlayerVenueStatsRepository,
     private readonly venues: VenueService,
+    private readonly moderation: VenueModerationService,
   ) {}
 
   async getVenueChallengesForPlayer(venueId: string, email: string): Promise<VenueChallengeDto[]> {
@@ -96,6 +98,8 @@ export class ChallengeService {
     if (increment <= 0) throw new BadRequestException('increment must be > 0');
 
     const player = await this.players.findOrCreateByEmail(email);
+
+    await this.moderation.assertNotBanned(venueId, player.id);
 
     const venueRow = await this.venues.findOne(venueId);
     if (venueRow.locked) {

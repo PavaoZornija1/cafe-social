@@ -20,9 +20,11 @@ import { StaffModule } from './staff/staff.module';
 import { RevenueCatModule } from './revenuecat/revenuecat.module';
 import { StripeModule } from './stripe/stripe.module';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {
         name: 'onboarding',

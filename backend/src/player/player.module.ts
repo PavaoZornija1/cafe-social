@@ -6,9 +6,10 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { StatsModule } from '../stats/stats.module';
 import { PushModule } from '../push/push.module';
+import { VenueModule } from '../venue/venue.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, StatsModule, PushModule],
+  imports: [PrismaModule, AuthModule, StatsModule, PushModule, VenueModule],
   controllers: [PlayerController],
   providers: [PlayerService, PlayerRepository],
   exports: [PlayerService],

@@ -18,6 +18,13 @@ export type RootStackParamList = {
     RedeemInvite: { token?: string } | undefined;
     RedeemPerk: { venueId?: string } | undefined;
     PeopleHere: { venueId: string; venueName?: string };
+    ReportPlayer: {
+        venueId: string;
+        venueName?: string;
+        reportedPlayerId: string;
+        reportedUsername: string;
+    };
+    BanAppeal: { venueId: string; venueName?: string };
     QrScan: { venueId?: string };
     WordLobby: { venueId?: string; challengeId?: string };
     WordMatchJoin: { venueId?: string; challengeId?: string };

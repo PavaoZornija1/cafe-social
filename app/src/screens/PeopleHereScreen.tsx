@@ -14,6 +14,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiGet } from '../lib/api';
+import type { MeSummaryDto } from '../lib/meSummary';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PeopleHere'>;
 
@@ -33,6 +34,7 @@ export default function PeopleHereScreen({ navigation, route }: Props) {
 
   const [loading, setLoading] = useState(true);
   const [people, setPeople] = useState<Person[]>([]);
+  const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!isLoaded) return;
@@ -41,15 +43,21 @@ export default function PeopleHereScreen({ navigation, route }: Props) {
       const token = await getTokenRef.current();
       if (!token) {
         setPeople([]);
+        setMyPlayerId(null);
         return;
       }
-      const list = await apiGet<Person[]>(
-        `/social/venues/${encodeURIComponent(venueId)}/people-here`,
-        token,
-      );
+      const [summary, list] = await Promise.all([
+        apiGet<MeSummaryDto>('/players/me/summary', token),
+        apiGet<Person[]>(
+          `/social/venues/${encodeURIComponent(venueId)}/people-here`,
+          token,
+        ),
+      ]);
+      setMyPlayerId(summary.playerId ?? null);
       setPeople(list);
     } catch {
       setPeople([]);
+      setMyPlayerId(null);
     } finally {
       setLoading(false);
     }
@@ -86,16 +94,36 @@ export default function PeopleHereScreen({ navigation, route }: Props) {
           ListEmptyComponent={
             <Text style={styles.empty}>{t('peopleHere.empty')}</Text>
           }
-          renderItem={({ item }) => (
-            <View style={styles.row}>
-              <Text style={styles.name}>{item.username}</Text>
-              <Text style={styles.tag}>
-                {item.relationship === 'friend'
-                  ? t('peopleHere.friend')
-                  : t('peopleHere.stranger')}
-              </Text>
-            </View>
-          )}
+          renderItem={({ item }) => {
+            const isSelf = myPlayerId != null && item.id === myPlayerId;
+            return (
+              <View style={styles.row}>
+                <View style={styles.rowMain}>
+                  <Text style={styles.name}>{item.username}</Text>
+                  <Text style={styles.tag}>
+                    {item.relationship === 'friend'
+                      ? t('peopleHere.friend')
+                      : t('peopleHere.stranger')}
+                  </Text>
+                </View>
+                {!isSelf ? (
+                  <Pressable
+                    style={({ pressed }) => [styles.reportBtn, pressed && styles.reportBtnPressed]}
+                    onPress={() =>
+                      navigation.navigate('ReportPlayer', {
+                        venueId,
+                        venueName,
+                        reportedPlayerId: item.id,
+                        reportedUsername: item.username,
+                      })
+                    }
+                  >
+                    <Text style={styles.reportBtnText}>{t('peopleHere.report')}</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            );
+          }}
         />
       )}
     </SafeAreaView>
@@ -127,6 +155,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 12,
     backgroundColor: '#111827',
     borderRadius: 14,
     padding: 16,
@@ -134,6 +163,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1f2937',
   },
+  rowMain: { flex: 1, minWidth: 0 },
   name: { color: '#f9fafb', fontWeight: '700' },
-  tag: { color: '#a78bfa', fontSize: 12, fontWeight: '800' },
+  tag: { color: '#a78bfa', fontSize: 12, fontWeight: '800', marginTop: 4 },
+  reportBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#422006',
+    borderWidth: 1,
+    borderColor: '#78350f',
+  },
+  reportBtnPressed: { opacity: 0.88 },
+  reportBtnText: { color: '#fdba74', fontSize: 12, fontWeight: '800' },
 });

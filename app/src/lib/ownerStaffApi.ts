@@ -43,6 +43,25 @@ export function fetchStaffRedemptions(token: string, venueId: string, dateYmd: s
   );
 }
 
+export type StaffModerationSummary = {
+  openReportsCount: number;
+  activeBansCount: number;
+  openAppealsCount: number;
+  recentOpenReports: {
+    id: string;
+    createdAt: string;
+    reasonPreview: string;
+    reportedUsername: string;
+  }[];
+};
+
+export function fetchStaffModerationSummary(token: string, venueId: string) {
+  return apiGet<StaffModerationSummary>(
+    `/owner/venues/${encodeURIComponent(venueId)}/moderation/staff-summary`,
+    token,
+  );
+}
+
 export function utcTodayYmd(): string {
   const n = new Date();
   const y = n.getUTCFullYear();

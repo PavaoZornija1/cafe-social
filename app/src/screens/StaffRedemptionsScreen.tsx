@@ -17,8 +17,10 @@ import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import {
   addUtcDaysYmd,
+  fetchStaffModerationSummary,
   fetchStaffRedemptions,
   utcTodayYmd,
+  type StaffModerationSummary,
   type StaffRedemptionRow,
   type StaffRedemptionsResponse,
 } from '../lib/ownerStaffApi';
@@ -33,6 +35,7 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
   const [payload, setPayload] = useState<StaffRedemptionsResponse | null>(null);
   const [filter, setFilter] = useState('');
   const [loading, setLoading] = useState(true);
+  const [modSummary, setModSummary] = useState<StaffModerationSummary | null>(null);
 
   const highlight = useMemo(() => {
     const h = routeHighlight?.trim().toUpperCase().replace(/\s/g, '');
@@ -45,10 +48,15 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
     try {
       const token = await getToken();
       if (!token) throw new Error(t('staff.signInFirst'));
-      const data = await fetchStaffRedemptions(token, venueId, dateYmd);
+      const [data, summary] = await Promise.all([
+        fetchStaffRedemptions(token, venueId, dateYmd),
+        fetchStaffModerationSummary(token, venueId).catch(() => null),
+      ]);
       setPayload(data);
+      setModSummary(summary);
     } catch (e) {
       setPayload(null);
+      setModSummary(null);
       Alert.alert(t('common.error'), (e as Error).message ?? t('staff.loadFailed'));
     } finally {
       setLoading(false);
@@ -91,6 +99,27 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
           {title}
         </Text>
       </View>
+
+      {modSummary ? (
+        <View style={styles.modPanel}>
+          <Text style={styles.modPanelTitle}>{t('staff.moderationSnapshot')}</Text>
+          <Text style={styles.modPanelLine}>
+            {t('staff.modOpenReports', { n: modSummary.openReportsCount })} ·{' '}
+            {t('staff.modActiveBans', { n: modSummary.activeBansCount })} ·{' '}
+            {t('staff.modOpenAppeals', { n: modSummary.openAppealsCount })}
+          </Text>
+          {modSummary.recentOpenReports.length > 0 ? (
+            <View style={styles.modReportList}>
+              {modSummary.recentOpenReports.map((r) => (
+                <Text key={r.id} style={styles.modReportItem} numberOfLines={2}>
+                  @{r.reportedUsername}: {r.reasonPreview}
+                </Text>
+              ))}
+            </View>
+          ) : null}
+          <Text style={styles.modPanelHint}>{t('staff.modPartnerToolsHint')}</Text>
+        </View>
+      ) : null}
 
       <View style={styles.row}>
         <Pressable
@@ -271,4 +300,18 @@ const styles = StyleSheet.create({
     borderColor: '#78350f',
   },
   warnText: { color: '#fde68a', fontSize: 13, lineHeight: 18 },
+  modPanel: {
+    marginHorizontal: 24,
+    marginTop: 14,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  modPanelTitle: { color: '#e2e8f0', fontWeight: '800', fontSize: 13 },
+  modPanelLine: { color: '#94a3b8', fontSize: 12, marginTop: 8, lineHeight: 18 },
+  modReportList: { marginTop: 10, gap: 6 },
+  modReportItem: { color: '#cbd5e1', fontSize: 11, lineHeight: 16 },
+  modPanelHint: { color: '#64748b', fontSize: 11, marginTop: 10, lineHeight: 15 },
 });

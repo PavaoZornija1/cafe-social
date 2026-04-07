@@ -676,6 +676,11 @@ export type OwnerVenueAnalytics = {
   visits: {
     uniquePlayers: number;
     totalVisitDays: number;
+    loyalty: {
+      repeatVisitPlayers: number;
+      avgVisitDaysPerPlayer: number;
+      shareRepeatVisitorsPercent: number;
+    };
     byDay: { day: string; count: number }[];
   };
   funnel: {
@@ -877,8 +882,11 @@ export function useOwnerVenueBanPlayerMutation(
       }),
     onSuccess: () => {
       if (venueId) {
-        void qc.invalidateQueries({ queryKey: queryKeys.owner.venueModerationBans(venueId) });
-        void qc.invalidateQueries({ queryKey: queryKeys.owner.venueModerationReports(venueId) });
+        void Promise.all([
+          qc.invalidateQueries({ queryKey: queryKeys.owner.venueModerationBans(venueId) }),
+          qc.invalidateQueries({ queryKey: queryKeys.owner.venueModerationReports(venueId) }),
+          qc.invalidateQueries({ queryKey: queryKeys.owner.venueModerationBanAppeals(venueId) }),
+        ]);
       }
     },
   });
@@ -898,7 +906,57 @@ export function useOwnerVenueUnbanPlayerMutation(
       ),
     onSuccess: () => {
       if (venueId) {
-        void qc.invalidateQueries({ queryKey: queryKeys.owner.venueModerationBans(venueId) });
+        void Promise.all([
+          qc.invalidateQueries({ queryKey: queryKeys.owner.venueModerationBans(venueId) }),
+          qc.invalidateQueries({ queryKey: queryKeys.owner.venueModerationBanAppeals(venueId) }),
+        ]);
+      }
+    },
+  });
+}
+
+export type OwnerVenueBanAppealRow = {
+  id: string;
+  venueId: string;
+  playerId: string;
+  message: string;
+  status: string;
+  createdAt: string;
+  player: { id: string; username: string; email: string };
+};
+
+export function useOwnerVenueBanAppealsQuery(
+  venueId: string | undefined,
+  getToken: () => Promise<string | null>,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: queryKeys.owner.venueModerationBanAppeals(venueId ?? ""),
+    queryFn: () =>
+      ownerJson<OwnerVenueBanAppealRow[]>(
+        getToken,
+        `/owner/venues/${venueId}/moderation/ban-appeals`,
+        { method: "GET" },
+      ),
+    enabled: Boolean(enabled && venueId),
+  });
+}
+
+export function useOwnerVenueDismissBanAppealMutation(
+  venueId: string | undefined,
+  getToken: () => Promise<string | null>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (appealId: string) =>
+      ownerJson<unknown>(
+        getToken,
+        `/owner/venues/${venueId}/moderation/ban-appeals/${appealId}/dismiss`,
+        { method: "POST" },
+      ),
+    onSuccess: () => {
+      if (venueId) {
+        void qc.invalidateQueries({ queryKey: queryKeys.owner.venueModerationBanAppeals(venueId) });
       }
     },
   });
@@ -1162,6 +1220,11 @@ export type OwnerOrganizationAnalytics = {
     uniquePlayers: number;
     totalVisitDays: number;
     uniquePlayerDays: number;
+    loyalty: {
+      repeatVisitPlayers: number;
+      avgVisitDaysPerPlayer: number;
+      shareRepeatVisitorsPercent: number;
+    };
     byDay: { day: string; count: number }[];
   };
   funnel: {

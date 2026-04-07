@@ -160,7 +160,12 @@
     "findOnList": "Find on list",
     "qrUnrecognized": "Could not read a staff verification code from this QR.",
     "codeInvalid": "Enter a valid 8-character code or UUID.",
-    "highlightMissing": "This code is not on the list for the selected UTC day — try another date or confirm the guest’s redemption."
+    "highlightMissing": "This code is not on the list for the selected UTC day — try another date or confirm the guest’s redemption.",
+    "moderationSnapshot": "Safety snapshot (this venue)",
+    "modOpenReports": "{{n}} open reports",
+    "modActiveBans": "{{n}} active bans",
+    "modOpenAppeals": "{{n}} open appeals",
+    "modPartnerToolsHint": "Managers can take action in the partner portal; this is a read-only signal for on-site staff."
   },
   "home": {
     "appTitle": "Cafe Social",
@@ -177,6 +182,7 @@
     "venueTemporarilyUnavailable": "This café isn’t running Cafe Social games right now. Offers and the rest of the app still work.",
     "venueTemporarilyUnavailableShort": "Games aren’t available at this venue for the moment.",
     "bannedFromVenue": "This venue has restricted your account from games and redemptions here. Contact the staff if you think this is a mistake.",
+    "banAppealCta": "Submit a restriction appeal",
     "challengeTitle": "Your challenge",
     "unlockToStart": "Be at the venue with location on, or subscribe for global play.",
     "loadingChallenge": "Loading challenge…",
@@ -424,7 +430,8 @@
     "loadError": "Could not load leaderboard.",
     "xp": "XP",
     "you": "You",
-    "emptyBoard": "No scores yet. Play to earn XP!"
+    "emptyBoard": "No scores yet. Play to earn XP!",
+    "report": "Report"
   },
   "parties": {
     "title": "Parties",
@@ -517,7 +524,36 @@
     "subtitle": "Players recently at this venue (respects privacy).",
     "empty": "Nobody visible right now — check discoverability in Settings or try again in a minute.",
     "friend": "Friend",
-    "stranger": "Here"
+    "stranger": "Here",
+    "report": "Report"
+  },
+  "reportPlayer": {
+    "title": "Report a player",
+    "subtitle": "You’re flagging {{username}} for staff at this venue. Be specific and factual.",
+    "reasonLabel": "What happened?",
+    "reasonPlaceholder": "Short summary for venue staff (required)",
+    "reasonHint": "{{n}} / {{max}} characters · minimum {{min}}",
+    "noteLabel": "Extra detail (optional)",
+    "notePlaceholder": "Context, time, or other notes",
+    "noteHint": "Up to {{max}} characters",
+    "submit": "Submit report",
+    "signInRequired": "Sign in to submit a report.",
+    "successTitle": "Report sent",
+    "successBody": "Venue staff can review this in their partner tools. Thank you for helping keep the community safe.",
+    "failed": "Could not send report. Try again in a moment.",
+    "footer": "False or abusive reports may be reviewed. You can’t report yourself."
+  },
+  "banAppeal": {
+    "title": "Appeal venue restriction",
+    "subtitle": "Explain why you believe this restriction should be lifted. Venue managers review appeals in their tools.",
+    "messageLabel": "Your message",
+    "messagePlaceholder": "What should staff know?",
+    "messageHint": "At least 8 characters",
+    "submit": "Submit appeal",
+    "signInRequired": "Sign in to submit an appeal.",
+    "successTitle": "Appeal sent",
+    "successBody": "If managers follow up, they’ll use your account email. You can submit one open appeal per venue.",
+    "failed": "Could not send appeal."
   },
   "categories": {
     "DRINK_FOOD": "Drink & food",

@@ -278,7 +278,7 @@ export default function OwnerOrganizationPage() {
               <span className="text-slate-800 font-medium">{analytics.venueCount}</span> venues:{' '}
               {analytics.venues.map((v) => v.name).join(' · ')}
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-6">
               <div className="rounded-lg border border-slate-200 bg-slate-100 p-3">
                 <p className="text-xs text-slate-500">Unique players (org)</p>
                 <p className="text-xl font-semibold text-slate-900">{analytics.visits.uniquePlayers}</p>
@@ -297,6 +297,16 @@ export default function OwnerOrganizationPage() {
                 <p className="text-xs text-slate-500">Player-days (all sites)</p>
                 <p className="text-xl font-semibold text-slate-900">
                   {analytics.visits.uniquePlayerDays}
+                </p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-100 p-3">
+                <p className="text-xs text-slate-500">Repeat visitors (same site)</p>
+                <p className="text-xl font-semibold text-slate-900">
+                  {analytics.visits.loyalty.repeatVisitPlayers}
+                </p>
+                <p className="text-[10px] text-slate-500 mt-0.5">
+                  {analytics.visits.loyalty.shareRepeatVisitorsPercent}% of org players · avg{" "}
+                  {analytics.visits.loyalty.avgVisitDaysPerPlayer} days/player
                 </p>
               </div>
             </div>
