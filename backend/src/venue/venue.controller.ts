@@ -29,8 +29,33 @@ export class VenueController {
 
   /** No auth — sanitized pins for the app map (no staff secrets). */
   @Get('discovery/map')
-  discoveryMap() {
-    return this.venueService.listForPublicDiscoveryMap();
+  discoveryMap(
+    @Query('venueTypeCodes') venueTypeCodesRaw?: string,
+    @Query('lat') latRaw?: string,
+    @Query('lng') lngRaw?: string,
+    @Query('radiusKm') radiusKmRaw?: string,
+    @Query('hasActiveOffer') hasActiveOfferRaw?: string,
+  ) {
+    const lat = latRaw !== undefined && latRaw !== '' ? Number(latRaw) : undefined;
+    const lng = lngRaw !== undefined && lngRaw !== '' ? Number(lngRaw) : undefined;
+    const radiusKm =
+      radiusKmRaw !== undefined && radiusKmRaw !== '' ? Number(radiusKmRaw) : undefined;
+    const venueTypeCodes =
+      venueTypeCodesRaw
+        ?.split(',')
+        .map((s) => s.trim())
+        .filter(Boolean) ?? undefined;
+    const wantOfferOnly =
+      hasActiveOfferRaw === '1' ||
+      hasActiveOfferRaw === 'true' ||
+      hasActiveOfferRaw === 'yes';
+    return this.venueService.listPublicDiscoveryMapFiltered({
+      venueTypeCodes,
+      lat: Number.isFinite(lat!) ? lat : undefined,
+      lng: Number.isFinite(lng!) ? lng : undefined,
+      radiusKm: Number.isFinite(radiusKm!) ? radiusKm : undefined,
+      hasActiveOffer: wantOfferOnly ? true : undefined,
+    });
   }
 
   @Get('leaderboard/xp/global')

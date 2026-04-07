@@ -19,19 +19,25 @@ import { PartnerReadOnlyBanner } from "@/components/PartnerReadOnlyBanner";
 import { partnerVenueMutationsBlockedReason } from "@/lib/partnerVenueReadOnly";
 import {
   invalidateOwnerVenuePartnerQueries,
+  ownerAnalyticsQueryString,
   type OwnerReceiptSummary,
   type OwnerStaffInviteRow,
   type OwnerVenueCampaignRow,
   useOwnerAckRedemptionMutation,
+  useOwnerVenueBanPlayerMutation,
   useOwnerCancelStaffInviteMutation,
   useOwnerCreateCampaignMutation,
   useOwnerCreateStaffInviteMutation,
+  useOwnerVenueDismissReportMutation,
   useOwnerReceiptDetailQuery,
   useOwnerReviewReceiptMutation,
   useOwnerSendCampaignMutation,
+  useOwnerVenueUnbanPlayerMutation,
   useOwnerVenueAnalyticsQuery,
+  useOwnerVenueModerationBansQuery,
   useOwnerVenueCampaignsQuery,
   useOwnerVenueReceiptsQuery,
+  useOwnerVenueModerationReportsQuery,
   useOwnerVenueStaffInvitesQuery,
   useOwnerVenuesListQuery,
   useOwnerVoidRedemptionMutation,
@@ -99,6 +105,10 @@ export default function OwnerVenueDetailPage() {
 
   const [dateYmd, setDateYmd] = useState(todayUtc);
   const [days, setDays] = useState(30);
+  const [analyticsFromYmd, setAnalyticsFromYmd] = useState("");
+  const [analyticsToYmd, setAnalyticsToYmd] = useState("");
+  const [modBanPlayerId, setModBanPlayerId] = useState("");
+  const [modBanReason, setModBanReason] = useState("");
   const [voidReason, setVoidReason] = useState("");
   const [receiptIdOpen, setReceiptIdOpen] = useState<string | null>(null);
   const [lastCreatedToken, setLastCreatedToken] = useState<string | null>(null);
@@ -156,7 +166,22 @@ export default function OwnerVenueDetailPage() {
     days,
     getToken,
     Boolean(isLoaded && metaRow && canAnalytics),
+    analyticsFromYmd.trim() || undefined,
+    analyticsToYmd.trim() || undefined,
   );
+  const modReportsQ = useOwnerVenueModerationReportsQuery(
+    venueId,
+    getToken,
+    Boolean(isLoaded && metaRow && canAnalytics),
+  );
+  const modBansQ = useOwnerVenueModerationBansQuery(
+    venueId,
+    getToken,
+    Boolean(isLoaded && metaRow && canAnalytics),
+  );
+  const dismissReportMut = useOwnerVenueDismissReportMutation(venueId, getToken);
+  const banPlayerMut = useOwnerVenueBanPlayerMutation(venueId, getToken);
+  const unbanPlayerMut = useOwnerVenueUnbanPlayerMutation(venueId, getToken);
   const campaignsQ = useOwnerVenueCampaignsQuery(
     venueId,
     getToken,
@@ -581,6 +606,13 @@ export default function OwnerVenueDetailPage() {
     getRowId: (r) => String(r.hour),
   });
 
+  const venueAnalyticsQs = () =>
+    ownerAnalyticsQueryString(
+      days,
+      analyticsFromYmd.trim() || undefined,
+      analyticsToYmd.trim() || undefined,
+    );
+
   const downloadCsv = async () => {
     setBannerError(null);
     try {
@@ -588,7 +620,7 @@ export default function OwnerVenueDetailPage() {
       if (!token) throw new Error("Sign in required");
       const res = await ownerFetch(
         getToken,
-        `/owner/venues/${venueId}/analytics/export.csv?days=${days}`,
+        `/owner/venues/${venueId}/analytics/export.csv?${venueAnalyticsQs()}`,
         { method: "GET" },
       );
       if (!res.ok) throw new Error(await res.text());
@@ -597,6 +629,29 @@ export default function OwnerVenueDetailPage() {
       const a = document.createElement("a");
       a.href = url;
       a.download = `redemptions-${venueId.slice(0, 8)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setBannerError(e instanceof Error ? e.message : "CSV download failed");
+    }
+  };
+
+  const downloadFunnelCsv = async () => {
+    setBannerError(null);
+    try {
+      const token = await getToken();
+      if (!token) throw new Error("Sign in required");
+      const res = await ownerFetch(
+        getToken,
+        `/owner/venues/${venueId}/analytics/funnel-export.csv?${venueAnalyticsQs()}`,
+        { method: "GET" },
+      );
+      if (!res.ok) throw new Error(await res.text());
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `funnel-events-${venueId.slice(0, 8)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -727,7 +782,15 @@ export default function OwnerVenueDetailPage() {
                       onClick={() => void downloadCsv()}
                       className="text-sm bg-emerald-50 border border-emerald-300 text-emerald-900 px-3 py-1 rounded-lg hover:bg-emerald-100 disabled:opacity-50"
                     >
-                      Download CSV
+                      Redemptions CSV
+                    </button>
+                    <button
+                      type="button"
+                      disabled={readOnlyDisabled}
+                      onClick={() => void downloadFunnelCsv()}
+                      className="text-sm bg-emerald-50 border border-emerald-300 text-emerald-900 px-3 py-1 rounded-lg hover:bg-emerald-100 disabled:opacity-50"
+                    >
+                      Funnel CSV
                     </button>
                     <label className="text-sm text-slate-600 flex items-center gap-2">
                       Period (days)
@@ -743,8 +806,39 @@ export default function OwnerVenueDetailPage() {
                         ))}
                       </select>
                     </label>
+                    <label className="text-sm text-slate-600 flex items-center gap-2">
+                      From
+                      <input
+                        type="date"
+                        value={analyticsFromYmd}
+                        onChange={(e) => setAnalyticsFromYmd(e.target.value)}
+                        className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-900"
+                      />
+                    </label>
+                    <label className="text-sm text-slate-600 flex items-center gap-2">
+                      To
+                      <input
+                        type="date"
+                        value={analyticsToYmd}
+                        onChange={(e) => setAnalyticsToYmd(e.target.value)}
+                        className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-900"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="text-xs text-slate-500 hover:underline"
+                      onClick={() => {
+                        setAnalyticsFromYmd("");
+                        setAnalyticsToYmd("");
+                      }}
+                    >
+                      Clear range
+                    </button>
                   </div>
                 </div>
+                <p className="text-xs text-slate-500 mb-2">
+                  Custom from/to overrides the rolling window when both are set (UTC dates).
+                </p>
                 <p className="text-xs text-slate-500 mb-4">
                   UTC range {analytics.period.startDay} → {analytics.period.endDay}
                   {analytics.analyticsTimeZone
@@ -779,6 +873,43 @@ export default function OwnerVenueDetailPage() {
                     <p className="text-sm text-slate-600">Feed events</p>
                     <p className="text-2xl font-semibold mt-1">{analytics.feedEvents.total}</p>
                   </div>
+                </div>
+
+                <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
+                  <h3 className="text-sm font-semibold text-slate-800 mb-3">
+                    Funnel journey (detect → enter → play → redeem)
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs text-slate-500">Detect impressions</p>
+                      <p className="text-lg font-semibold text-slate-900">
+                        {analytics.funnelJourney.detectImpressions}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Unique entered</p>
+                      <p className="text-lg font-semibold text-slate-900">
+                        {analytics.funnelJourney.uniqueEntered}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Unique played</p>
+                      <p className="text-lg font-semibold text-slate-900">
+                        {analytics.funnelJourney.uniquePlayed}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Unique redeemed</p>
+                      <p className="text-lg font-semibold text-slate-900">
+                        {analytics.funnelJourney.uniqueRedeemed}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-3">
+                    Enter→play {analytics.funnelJourney.enterToPlayPercent}% · play→redeem{" "}
+                    {analytics.funnelJourney.playToRedeemPercent}% · entered→redeem{" "}
+                    {analytics.funnelJourney.enteredToRedeemPercent}%
+                  </p>
                 </div>
 
                 <OwnerAnalyticsCharts
@@ -920,6 +1051,144 @@ export default function OwnerVenueDetailPage() {
                 </div>
               </>
             )}
+          </section>
+        )}
+
+        {canAnalytics && metaRow && (
+          <section className="border border-slate-200 rounded-xl p-4 space-y-4">
+            <h2 className="text-lg font-medium">Moderation</h2>
+            <p className="text-xs text-slate-500">
+              Open player reports and venue bans. Banning blocks play and redemptions at this
+              location. Dismiss clears a report without banning.
+            </p>
+            {modReportsQ.isError ? (
+              <p className="text-sm text-red-700">
+                {modReportsQ.error instanceof Error ? modReportsQ.error.message : "Reports failed"}
+              </p>
+            ) : null}
+            <div>
+              <h3 className="text-sm font-medium text-slate-800 mb-2">Recent reports</h3>
+              {(modReportsQ.data ?? []).length === 0 ? (
+                <p className="text-sm text-slate-500">No open reports.</p>
+              ) : (
+                <ul className="text-sm space-y-2 divide-y divide-slate-100">
+                  {(modReportsQ.data ?? []).map((r) => (
+                    <li key={r.id} className="pt-2 first:pt-0">
+                      <p className="text-slate-800">
+                        <span className="font-mono text-xs">{r.reportedPlayer.email}</span>{" "}
+                        <span className="text-slate-500">
+                          (@{r.reportedPlayer.username} · {r.reportedPlayer.id.slice(0, 8)}…)
+                        </span>
+                      </p>
+                      <p className="text-xs text-slate-600 mt-0.5">
+                        Reason: {r.reason}
+                        {r.note ? ` — ${r.note}` : ""}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        By {r.reporter.email} · {new Date(r.createdAt).toLocaleString()}
+                      </p>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        <button
+                          type="button"
+                          disabled={readOnlyDisabled || dismissReportMut.isPending}
+                          onClick={() => void dismissReportMut.mutateAsync(r.id)}
+                          className="text-xs border border-slate-300 rounded px-2 py-1 hover:bg-slate-50 disabled:opacity-50"
+                        >
+                          Dismiss
+                        </button>
+                        <button
+                          type="button"
+                          disabled={readOnlyDisabled || banPlayerMut.isPending}
+                          onClick={() =>
+                            void banPlayerMut.mutateAsync({
+                              playerId: r.reportedPlayerId,
+                              reason: `Report: ${r.reason}`.slice(0, 512),
+                            })
+                          }
+                          className="text-xs border border-amber-300 text-amber-900 rounded px-2 py-1 hover:bg-amber-50 disabled:opacity-50"
+                        >
+                          Ban player
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-slate-800 mb-2">Active bans</h3>
+              {(modBansQ.data ?? []).length === 0 ? (
+                <p className="text-sm text-slate-500">No bans at this venue.</p>
+              ) : (
+                <ul className="text-sm space-y-2">
+                  {(modBansQ.data ?? []).map((b) => (
+                    <li
+                      key={b.id}
+                      className="flex flex-wrap items-center justify-between gap-2 border border-slate-100 rounded-lg px-3 py-2"
+                    >
+                      <span>
+                        <span className="font-mono text-xs">{b.player.email}</span>{" "}
+                        <span className="text-slate-500 text-xs">
+                          {b.player.id.slice(0, 8)}…
+                        </span>
+                        {b.reason ? (
+                          <span className="block text-xs text-slate-600 mt-0.5">{b.reason}</span>
+                        ) : null}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={readOnlyDisabled || unbanPlayerMut.isPending}
+                        onClick={() => void unbanPlayerMut.mutateAsync(b.playerId)}
+                        className="text-xs text-emerald-800 hover:underline disabled:opacity-50"
+                      >
+                        Remove ban
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="border-t border-slate-100 pt-4">
+              <h3 className="text-sm font-medium text-slate-800 mb-2">Ban by player ID</h3>
+              <div className="flex flex-wrap gap-2 items-end">
+                <label className="text-sm text-slate-600 flex-1 min-w-[200px]">
+                  Player UUID
+                  <input
+                    className="mt-1 w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono"
+                    value={modBanPlayerId}
+                    onChange={(e) => setModBanPlayerId(e.target.value)}
+                    placeholder="00000000-0000-…"
+                  />
+                </label>
+                <label className="text-sm text-slate-600 flex-1 min-w-[180px]">
+                  Reason (optional)
+                  <input
+                    className="mt-1 w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                    value={modBanReason}
+                    onChange={(e) => setModBanReason(e.target.value)}
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={
+                    readOnlyDisabled ||
+                    banPlayerMut.isPending ||
+                    !/^[0-9a-f-]{36}$/i.test(modBanPlayerId.trim())
+                  }
+                  onClick={async () => {
+                    await banPlayerMut.mutateAsync({
+                      playerId: modBanPlayerId.trim(),
+                      reason: modBanReason.trim() || null,
+                    });
+                    setModBanPlayerId("");
+                    setModBanReason("");
+                  }}
+                  className="bg-amber-100 border border-amber-300 text-amber-950 rounded-lg px-3 py-2 text-sm h-[38px] disabled:opacity-50"
+                >
+                  Ban
+                </button>
+              </div>
+            </div>
           </section>
         )}
 

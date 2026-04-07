@@ -4,6 +4,8 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { utcDayKey } from '../lib/day-key';
 import { VenueService } from './venue.service';
+import { VenueFunnelService } from './venue-funnel.service';
+import { VenueModerationService } from './venue-moderation.service';
 
 const DEFAULT_DAILY_GAMES = 5;
 const SOLO_REUSE_MS = 20 * 60 * 1000;
@@ -16,17 +18,40 @@ export class VenuePlayLimitService {
     private readonly prisma: PrismaService,
     private readonly venues: VenueService,
     private readonly config: ConfigService,
+    private readonly funnel: VenueFunnelService,
+    private readonly moderation: VenueModerationService,
   ) {}
 
-  dailyGameLimit(): number {
+  platformDefaultDailyGames(): number {
     const raw = this.config.get<string>('VENUE_GUEST_PLAY_DAILY_GAMES')?.trim();
     const n = raw != null && raw !== '' ? Number(raw) : DEFAULT_DAILY_GAMES;
     return Math.max(1, Number.isFinite(n) ? Math.floor(n) : DEFAULT_DAILY_GAMES);
   }
 
-  private deny(): never {
+  /** venue override → org override → env default */
+  async effectiveDailyGameLimit(venueId: string): Promise<number> {
+    const fallback = this.platformDefaultDailyGames();
+    const row = await this.prisma.venue.findUnique({
+      where: { id: venueId },
+      select: {
+        guestPlayDailyGamesLimit: true,
+        organization: { select: { guestPlayDailyGamesLimit: true } },
+      },
+    });
+    if (!row) return fallback;
+    if (row.guestPlayDailyGamesLimit != null) {
+      return Math.max(1, Math.min(999, row.guestPlayDailyGamesLimit));
+    }
+    const orgLim = row.organization?.guestPlayDailyGamesLimit;
+    if (orgLim != null) {
+      return Math.max(1, Math.min(999, orgLim));
+    }
+    return fallback;
+  }
+
+  private deny(limit: number): never {
     throw new ForbiddenException(
-      `Daily venue game limit reached (${this.dailyGameLimit()} per UTC day). You can play again tomorrow.`,
+      `Daily venue game limit reached (${limit} games per UTC day). You can play again tomorrow.`,
     );
   }
 
@@ -37,12 +62,13 @@ export class VenuePlayLimitService {
     }
   }
 
-  /** Solo: counts one game per venue per UTC day; rapid deck refetches within SOLO_REUSE_MS reuse the same slot. */
   async beginSoloWord(playerId: string, venueId: string): Promise<void> {
+    await this.moderation.assertNotBanned(venueId, playerId);
     await this.assertVenuePlayable(venueId);
-    const limit = this.dailyGameLimit();
+    const limit = await this.effectiveDailyGameLimit(venueId);
     const dayKey = utcDayKey();
     const now = new Date();
+    let didCount = false;
 
     await this.prisma.$transaction(
       async (tx) => {
@@ -58,7 +84,7 @@ export class VenuePlayLimitService {
         }
 
         const used = day?.gamesPlayed ?? 0;
-        if (used >= limit) this.deny();
+        if (used >= limit) this.deny(limit);
 
         await tx.playerVenuePlayDay.upsert({
           where: { playerId_venueId_dayKey: { playerId, venueId, dayKey } },
@@ -74,19 +100,25 @@ export class VenuePlayLimitService {
             lastSoloDeckAt: now,
           },
         });
+        didCount = true;
       },
       TX_SERIALIZABLE,
     );
+
+    if (didCount) {
+      this.funnel.safeLog({ venueId, playerId, kind: 'play' });
+    }
   }
 
-  /** Match deck: one counted game per player per match session. */
   async beginWordMatchDeck(
     playerId: string,
     venueId: string,
     gameSessionId: string,
   ): Promise<void> {
+    await this.moderation.assertNotBanned(venueId, playerId);
     await this.assertVenuePlayable(venueId);
-    const limit = this.dailyGameLimit();
+    const limit = await this.effectiveDailyGameLimit(venueId);
+    let didCount = false;
 
     await this.prisma.$transaction(
       async (tx) => {
@@ -106,7 +138,7 @@ export class VenuePlayLimitService {
           where: { playerId_venueId_dayKey: { playerId, venueId, dayKey } },
         });
         const used = day?.gamesPlayed ?? 0;
-        if (used >= limit) this.deny();
+        if (used >= limit) this.deny(limit);
 
         await tx.playerVenuePlayCountedGame.create({
           data: {
@@ -128,19 +160,25 @@ export class VenuePlayLimitService {
           },
           update: { gamesPlayed: { increment: 1 } },
         });
+        didCount = true;
       },
       TX_SERIALIZABLE,
     );
+
+    if (didCount) {
+      this.funnel.safeLog({ venueId, playerId, kind: 'play' });
+    }
   }
 
-  /** Brawler arena start: one counted game per player per brawler session. */
   async beginBrawler(
     playerId: string,
     venueId: string,
     gameSessionId: string,
   ): Promise<void> {
+    await this.moderation.assertNotBanned(venueId, playerId);
     await this.assertVenuePlayable(venueId);
-    const limit = this.dailyGameLimit();
+    const limit = await this.effectiveDailyGameLimit(venueId);
+    let didCount = false;
 
     await this.prisma.$transaction(
       async (tx) => {
@@ -160,7 +198,7 @@ export class VenuePlayLimitService {
           where: { playerId_venueId_dayKey: { playerId, venueId, dayKey } },
         });
         const used = day?.gamesPlayed ?? 0;
-        if (used >= limit) this.deny();
+        if (used >= limit) this.deny(limit);
 
         await tx.playerVenuePlayCountedGame.create({
           data: {
@@ -182,8 +220,13 @@ export class VenuePlayLimitService {
           },
           update: { gamesPlayed: { increment: 1 } },
         });
+        didCount = true;
       },
       TX_SERIALIZABLE,
     );
+
+    if (didCount) {
+      this.funnel.safeLog({ venueId, playerId, kind: 'play' });
+    }
   }
 }

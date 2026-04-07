@@ -57,6 +57,8 @@ type VenueEditForm = {
   organizationId: string;
   locked: boolean;
   lockReason: string;
+  /** Empty string = inherit from organization / platform default */
+  guestPlayDailyGamesLimit: string;
 };
 
 const staffColHelper = createColumnHelper<AdminVenueStaffRow>();
@@ -72,6 +74,8 @@ function venueToForm(v: AdminVenueDetail): VenueEditForm {
     organizationId: v.organizationId ?? "",
     locked: v.locked ?? false,
     lockReason: v.lockReason ?? "",
+    guestPlayDailyGamesLimit:
+      v.guestPlayDailyGamesLimit != null ? String(v.guestPlayDailyGamesLimit) : "",
   };
 }
 
@@ -117,6 +121,7 @@ export default function EditVenuePage() {
       organizationId: "",
       locked: false,
       lockReason: "",
+      guestPlayDailyGamesLimit: "",
     } as VenueEditForm,
     onSubmit: async ({ value }) => {
       setPageErr(null);
@@ -129,6 +134,16 @@ export default function EditVenuePage() {
             return;
           }
         }
+        const limRaw = value.guestPlayDailyGamesLimit?.trim() ?? "";
+        let guestPlayDailyGamesLimit: number | null = null;
+        if (limRaw !== "") {
+          const n = Number.parseInt(limRaw, 10);
+          if (!Number.isFinite(n) || n < 1 || n > 999) {
+            setPageErr("Guest daily game cap must be empty (inherit) or an integer 1–999.");
+            return;
+          }
+          guestPlayDailyGamesLimit = n;
+        }
         const body: Record<string, unknown> = {
           menuUrl: value.menuUrl || null,
           orderingUrl: value.orderingUrl || null,
@@ -139,6 +154,7 @@ export default function EditVenuePage() {
           organizationId: value.organizationId || null,
           locked: value.locked,
           lockReason: value.lockReason?.trim() || null,
+          guestPlayDailyGamesLimit,
         };
         if (geoDirty) {
           body.latitude = geoPin.lat;
@@ -395,6 +411,30 @@ export default function EditVenuePage() {
               onChange={(e) => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
             />
+          </label>
+        )}
+      </venueForm.Field>
+
+      <venueForm.Field name="guestPlayDailyGamesLimit">
+        {(field) => (
+          <label className="block mb-3">
+            <span className="text-sm text-slate-600">
+              Guest daily game cap (optional)
+            </span>
+            <input
+              type="number"
+              min={1}
+              max={999}
+              placeholder="inherit from organization / default"
+              className="mt-1 w-full max-w-xs bg-white border border-slate-300 rounded px-3 py-2 text-sm"
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+              onBlur={field.handleBlur}
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              Max QR / guest play sessions per player per calendar day at this venue. Leave empty to
+              use the organization default, then the platform env fallback.
+            </p>
           </label>
         )}
       </venueForm.Field>

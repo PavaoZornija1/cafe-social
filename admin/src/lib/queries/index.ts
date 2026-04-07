@@ -89,6 +89,7 @@ export type AdminVenueDetail = {
   locked: boolean;
   lockReason: string | null;
   venueTypes?: AdminVenueTypeRow[];
+  guestPlayDailyGamesLimit?: number | null;
 };
 
 export type AdminVenueOfferRow = {
@@ -663,7 +664,7 @@ export function useStaffRedemptionsQuery(
 export type OwnerVenueAnalytics = {
   venueId: string;
   analyticsTimeZone: string | null;
-  period: { days: number; startDay: string; endDay: string };
+  period: { startDay: string; endDay: string; presetDays?: number };
   redemptions: {
     total: number;
     voided: number;
@@ -682,6 +683,15 @@ export type OwnerVenueAnalytics = {
     uniqueRedeemers: number;
     totalRedemptions: number;
     visitToRedeemPercent: number;
+  };
+  funnelJourney: {
+    detectImpressions: number;
+    uniqueEntered: number;
+    uniquePlayed: number;
+    uniqueRedeemed: number;
+    enterToPlayPercent: number;
+    playToRedeemPercent: number;
+    enteredToRedeemPercent: number;
   };
   feedEvents: {
     total: number;
@@ -748,21 +758,149 @@ export function invalidateOwnerVenuePartnerQueries(qc: QueryClient, venueId: str
   });
 }
 
+export function ownerAnalyticsQueryString(days: number, from?: string, to?: string): string {
+  const p = new URLSearchParams();
+  p.set("days", String(days));
+  if (from?.trim()) p.set("from", from.trim());
+  if (to?.trim()) p.set("to", to.trim());
+  return p.toString();
+}
+
 export function useOwnerVenueAnalyticsQuery(
   venueId: string | undefined,
   days: number,
   getToken: () => Promise<string | null>,
   enabled: boolean,
+  fromYmd?: string,
+  toYmd?: string,
 ) {
   return useQuery({
-    queryKey: queryKeys.owner.venueAnalytics(venueId ?? "", days),
+    queryKey: queryKeys.owner.venueAnalytics(venueId ?? "", days, fromYmd, toYmd),
     queryFn: () =>
       ownerJson<OwnerVenueAnalytics>(
         getToken,
-        `/owner/venues/${venueId}/analytics?days=${days}`,
+        `/owner/venues/${venueId}/analytics?${ownerAnalyticsQueryString(days, fromYmd, toYmd)}`,
         { method: "GET" },
       ),
     enabled: Boolean(enabled && venueId),
+  });
+}
+
+export type OwnerVenuePlayerReportRow = {
+  id: string;
+  venueId: string;
+  reporterId: string;
+  reportedPlayerId: string;
+  reason: string;
+  note: string | null;
+  status: string;
+  createdAt: string;
+  reporter: { id: string; username: string; email: string };
+  reportedPlayer: { id: string; username: string; email: string };
+};
+
+export type OwnerVenueBanRow = {
+  id: string;
+  venueId: string;
+  playerId: string;
+  reason: string | null;
+  createdByStaffPlayerId: string | null;
+  createdAt: string;
+  player: { id: string; username: string; email: string };
+  createdBy: { id: string; username: string; email: string } | null;
+};
+
+export function useOwnerVenueModerationReportsQuery(
+  venueId: string | undefined,
+  getToken: () => Promise<string | null>,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: queryKeys.owner.venueModerationReports(venueId ?? ""),
+    queryFn: () =>
+      ownerJson<OwnerVenuePlayerReportRow[]>(
+        getToken,
+        `/owner/venues/${venueId}/moderation/reports`,
+        { method: "GET" },
+      ),
+    enabled: Boolean(enabled && venueId),
+  });
+}
+
+export function useOwnerVenueModerationBansQuery(
+  venueId: string | undefined,
+  getToken: () => Promise<string | null>,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: queryKeys.owner.venueModerationBans(venueId ?? ""),
+    queryFn: () =>
+      ownerJson<OwnerVenueBanRow[]>(
+        getToken,
+        `/owner/venues/${venueId}/moderation/bans`,
+        { method: "GET" },
+      ),
+    enabled: Boolean(enabled && venueId),
+  });
+}
+
+export function useOwnerVenueDismissReportMutation(
+  venueId: string | undefined,
+  getToken: () => Promise<string | null>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (reportId: string) =>
+      ownerJson<unknown>(
+        getToken,
+        `/owner/venues/${venueId}/moderation/reports/${reportId}/dismiss`,
+        { method: "POST" },
+      ),
+    onSuccess: () => {
+      if (venueId) {
+        void qc.invalidateQueries({ queryKey: queryKeys.owner.venueModerationReports(venueId) });
+      }
+    },
+  });
+}
+
+export function useOwnerVenueBanPlayerMutation(
+  venueId: string | undefined,
+  getToken: () => Promise<string | null>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { playerId: string; reason?: string | null }) =>
+      ownerJson<unknown>(getToken, `/owner/venues/${venueId}/moderation/bans`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      if (venueId) {
+        void qc.invalidateQueries({ queryKey: queryKeys.owner.venueModerationBans(venueId) });
+        void qc.invalidateQueries({ queryKey: queryKeys.owner.venueModerationReports(venueId) });
+      }
+    },
+  });
+}
+
+export function useOwnerVenueUnbanPlayerMutation(
+  venueId: string | undefined,
+  getToken: () => Promise<string | null>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (playerId: string) =>
+      ownerJson<unknown>(
+        getToken,
+        `/owner/venues/${venueId}/moderation/bans/${playerId}`,
+        { method: "DELETE" },
+      ),
+    onSuccess: () => {
+      if (venueId) {
+        void qc.invalidateQueries({ queryKey: queryKeys.owner.venueModerationBans(venueId) });
+      }
+    },
   });
 }
 
@@ -962,7 +1100,12 @@ export function useOwnerVoidRedemptionMutation(
           queryKey: queryKeys.owner.venueRedemptions(venueId, dateYmd),
         });
         void qc.invalidateQueries({
-          queryKey: queryKeys.owner.venueAnalytics(venueId, analyticsDays),
+          predicate: (q) =>
+            Array.isArray(q.queryKey) &&
+            q.queryKey[0] === "owner" &&
+            q.queryKey[1] === "venues" &&
+            q.queryKey[2] === venueId &&
+            q.queryKey[3] === "analytics",
         });
       }
     },
@@ -1006,7 +1149,7 @@ export type OwnerOrganizationAnalytics = {
   venueCount: number;
   venues: { id: string; name: string }[];
   analyticsTimeZone: string | null;
-  period: { days: number; startDay: string; endDay: string };
+  period: { startDay: string; endDay: string; presetDays?: number };
   redemptions: {
     total: number;
     voided: number;
@@ -1027,6 +1170,15 @@ export type OwnerOrganizationAnalytics = {
     totalRedemptions: number;
     visitToRedeemPercent: number;
   };
+  funnelJourney: {
+    detectImpressions: number;
+    uniqueEntered: number;
+    uniquePlayed: number;
+    uniqueRedeemed: number;
+    enterToPlayPercent: number;
+    playToRedeemPercent: number;
+    enteredToRedeemPercent: number;
+  };
   feedEvents: { total: number; byKind: Record<string, number> };
 };
 
@@ -1036,13 +1188,15 @@ export function useOwnerOrganizationAnalyticsQuery(
   days: number,
   getToken: () => Promise<string | null>,
   enabled: boolean,
+  fromYmd?: string,
+  toYmd?: string,
 ) {
   return useQuery({
-    queryKey: queryKeys.owner.orgAnalytics(organizationId ?? "", days),
+    queryKey: queryKeys.owner.orgAnalytics(organizationId ?? "", days, fromYmd, toYmd),
     queryFn: () =>
       ownerJson<OwnerOrganizationAnalytics>(
         getToken,
-        `/owner/organizations/${organizationId}/analytics?days=${days}`,
+        `/owner/organizations/${organizationId}/analytics?${ownerAnalyticsQueryString(days, fromYmd, toYmd)}`,
         { method: "GET" },
       ),
     enabled: Boolean(enabled && organizationId),

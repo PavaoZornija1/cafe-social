@@ -11,6 +11,8 @@ import { PlayerVenueRepository } from './player-venue.repository';
 import { SubscriptionRepository } from './subscription.repository';
 import type { PublicVenueDetectResult } from './public-detect.types';
 import { VenueService } from './venue.service';
+import { VenueFunnelService } from './venue-funnel.service';
+import { VenueModerationService } from './venue-moderation.service';
 
 export type VenueAccessResult = {
   venueId: string;
@@ -25,6 +27,8 @@ export type VenueAccessResult = {
    * Games and venue-scoped challenges require this, regardless of subscription.
    */
   canEnterVenueContext: boolean;
+  /** Venue staff / moderation ban at this location. */
+  bannedFromVenue: boolean;
 };
 
 @Injectable()
@@ -36,6 +40,8 @@ export class VenueAccessService {
     private readonly players: PlayerService,
     private readonly playerVenues: PlayerVenueRepository,
     private readonly subscriptions: SubscriptionRepository,
+    private readonly funnel: VenueFunnelService,
+    private readonly moderation: VenueModerationService,
   ) {}
 
   /**
@@ -60,6 +66,7 @@ export class VenueAccessService {
       longitude!,
     );
     if (!v) return null;
+    this.funnel.safeLog({ venueId: v.id, kind: 'detect' });
     return {
       id: v.id,
       name: v.name,
@@ -85,6 +92,8 @@ export class VenueAccessService {
       throw new ForbiddenException('This venue is temporarily unavailable');
     }
 
+    await this.moderation.assertNotBanned(venueId, player.id);
+
     const existing = await this.playerVenues.findByPlayerAndVenue(player.id, venueId);
     if (existing) return;
 
@@ -104,6 +113,8 @@ export class VenueAccessService {
 
     const venue = await this.venues.findOne(venueId);
     const player = await this.players.findOrCreateByEmail(email);
+
+    const bannedFromVenue = await this.moderation.isBanned(venueId, player.id);
 
     const playerVenue = await this.playerVenues.findByPlayerAndVenue(player.id, venueId);
     const visitedBefore = !!playerVenue;
@@ -125,7 +136,12 @@ export class VenueAccessService {
       isPhysicallyAtVenue = at?.id === venueId;
     }
 
-    const canEnterVenueContext = !venue.locked && isPhysicallyAtVenue;
+    const canEnterVenueContext =
+      !venue.locked && !bannedFromVenue && isPhysicallyAtVenue;
+
+    if (canEnterVenueContext) {
+      this.funnel.safeLog({ venueId, playerId: player.id, kind: 'enter' });
+    }
 
     if (venue.locked && isPhysicallyAtVenue) {
       this.log.log(
@@ -144,6 +160,7 @@ export class VenueAccessService {
       visitedBefore,
       subscriptionActive,
       canEnterVenueContext,
+      bannedFromVenue,
     };
   }
 }

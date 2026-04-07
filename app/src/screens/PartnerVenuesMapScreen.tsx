@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -8,12 +9,18 @@ import {
   Pressable,
   SafeAreaView,
   StyleSheet,
+  Switch,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
-import { fetchDiscoveryVenuePins, type DiscoveryVenuePin } from '../lib/venueDiscoveryClient';
+import {
+  fetchDiscoveryVenuePins,
+  type DiscoveryMapFilters,
+  type DiscoveryVenuePin,
+} from '../lib/venueDiscoveryClient';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PartnerVenuesMap'>;
 
@@ -63,6 +70,48 @@ function formatAddress(v: DiscoveryVenuePin): string {
   return parts.join(', ');
 }
 
+function buildFilters(params: {
+  typeCodesRaw: string;
+  radiusKmRaw: string;
+  hasOfferOnly: boolean;
+  nearMe: boolean;
+}): Promise<{ filters?: DiscoveryMapFilters; locDenied?: boolean }> {
+  const codes = params.typeCodesRaw
+    .split(/[,\s]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const base: DiscoveryMapFilters = {
+    venueTypeCodes: codes.length ? codes : undefined,
+    hasActiveOffer: params.hasOfferOnly ? true : undefined,
+  };
+  const hasAny =
+    (base.venueTypeCodes?.length ?? 0) > 0 ||
+    base.hasActiveOffer ||
+    params.nearMe;
+  if (!params.nearMe) {
+    return Promise.resolve({
+      filters: hasAny ? { ...base } : undefined,
+    });
+  }
+  return (async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      return { locDenied: true };
+    }
+    const pos = await Location.getCurrentPositionAsync({});
+    let rKm = Number.parseFloat(params.radiusKmRaw);
+    if (!Number.isFinite(rKm) || rKm <= 0) rKm = 25;
+    return {
+      filters: {
+        ...base,
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        radiusKm: rKm,
+      },
+    };
+  })();
+}
+
 const Maps = Platform.OS === 'web' ? null : require('react-native-maps');
 const MapView = Maps?.default;
 const Marker = Maps?.Marker;
@@ -74,23 +123,37 @@ export default function PartnerVenuesMapScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<DiscoveryVenuePin | null>(null);
+  const [typeCodesRaw, setTypeCodesRaw] = useState('');
+  const [radiusKmRaw, setRadiusKmRaw] = useState('25');
+  const [hasOfferOnly, setHasOfferOnly] = useState(false);
+  const [nearMe, setNearMe] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const list = await fetchDiscoveryVenuePins();
-      setVenues(list);
-      if (list.length === 1) {
-        setSelected(list[0] ?? null);
+      const built = await buildFilters({
+        typeCodesRaw,
+        radiusKmRaw,
+        hasOfferOnly,
+        nearMe,
+      });
+      if (built.locDenied) {
+        setError(t('partnerMap.locationDenied'));
+        setVenues([]);
+        setSelected(null);
+        return;
       }
+      const list = await fetchDiscoveryVenuePins(built.filters);
+      setVenues(list);
+      setSelected(list.length === 1 ? (list[0] ?? null) : null);
     } catch (e) {
       setError((e as Error).message ?? t('partnerMap.loadError'));
       setVenues([]);
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, typeCodesRaw, radiusKmRaw, hasOfferOnly, nearMe]);
 
   useEffect(() => {
     void load();
@@ -119,6 +182,7 @@ export default function PartnerVenuesMapScreen({ navigation }: Props) {
         <Text style={styles.webRowTitle}>
           {item.name}
           {item.isPremium ? t('home.premiumSuffix') : ''}
+          {item.hasActiveOffer ? ' · ✨' : ''}
         </Text>
         {formatAddress(item) ? (
           <Text style={styles.webRowSub}>{formatAddress(item)}</Text>
@@ -137,6 +201,50 @@ export default function PartnerVenuesMapScreen({ navigation }: Props) {
         <Text style={styles.title}>{t('partnerMap.title')}</Text>
       </View>
       <Text style={styles.subtitle}>{t('partnerMap.subtitle')}</Text>
+
+      <View style={styles.filters}>
+        <Text style={styles.filtersTitle}>{t('partnerMap.filtersTitle')}</Text>
+        <TextInput
+          value={typeCodesRaw}
+          onChangeText={setTypeCodesRaw}
+          placeholder={t('partnerMap.venueTypesPlaceholder')}
+          placeholderTextColor="#64748b"
+          style={styles.filterInput}
+          autoCapitalize="characters"
+          autoCorrect={false}
+        />
+        <View style={styles.filterRow}>
+          <Text style={styles.filterLabel}>{t('partnerMap.nearMe')}</Text>
+          <Switch
+            value={nearMe}
+            onValueChange={setNearMe}
+            trackColor={{ false: '#334155', true: '#4338ca' }}
+            thumbColor="#e2e8f0"
+          />
+        </View>
+        {nearMe ? (
+          <TextInput
+            value={radiusKmRaw}
+            onChangeText={setRadiusKmRaw}
+            placeholder={t('partnerMap.radiusKm')}
+            placeholderTextColor="#64748b"
+            keyboardType="decimal-pad"
+            style={styles.filterInput}
+          />
+        ) : null}
+        <View style={styles.filterRow}>
+          <Text style={styles.filterLabel}>{t('partnerMap.activeOfferOnly')}</Text>
+          <Switch
+            value={hasOfferOnly}
+            onValueChange={setHasOfferOnly}
+            trackColor={{ false: '#334155', true: '#4338ca' }}
+            thumbColor="#e2e8f0"
+          />
+        </View>
+        <Pressable style={styles.applyBtn} onPress={() => void load()}>
+          <Text style={styles.applyBtnText}>{t('partnerMap.applyFilters')}</Text>
+        </Pressable>
+      </View>
 
       {loading ? (
         <View style={styles.center}>
@@ -192,6 +300,7 @@ export default function PartnerVenuesMapScreen({ navigation }: Props) {
           <Text style={styles.sheetTitle}>
             {selected.name}
             {selected.isPremium ? t('home.premiumSuffix') : ''}
+            {selected.hasActiveOffer ? ' · offer' : ''}
           </Text>
           {formatAddress(selected) ? (
             <Text style={styles.sheetAddr}>{formatAddress(selected)}</Text>
@@ -242,10 +351,45 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     paddingHorizontal: 24,
     marginTop: 8,
-    marginBottom: 12,
+    marginBottom: 8,
     fontSize: 14,
     lineHeight: 20,
   },
+  filters: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 12,
+    backgroundColor: '#0f172a',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    gap: 10,
+  },
+  filtersTitle: { color: '#e2e8f0', fontWeight: '700', fontSize: 13 },
+  filterInput: {
+    backgroundColor: '#020617',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: '#f1f5f9',
+    fontSize: 14,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  filterLabel: { color: '#94a3b8', fontSize: 14, flex: 1 },
+  applyBtn: {
+    backgroundColor: '#4f46e5',
+    paddingVertical: 11,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  applyBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 12 },
   muted: { color: '#64748b', textAlign: 'center' },
   errorText: { color: '#fca5a5', textAlign: 'center' },

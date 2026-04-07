@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   Param,
@@ -51,6 +52,8 @@ import { PartnerVenueWriteGuard } from './partner-venue-write.guard';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { PartnerOnboardingThrottlerFilter } from './partner-onboarding-throttle.filter';
 import { PORTAL_VENUE_CONTEXT_HEADER } from './portal-context.constants';
+import { VenueModerationService } from '../venue/venue-moderation.service';
+import { BanPlayerDto } from './dto/ban-player.dto';
 
 function utcTodayYmd(): string {
   const n = new Date();
@@ -82,6 +85,7 @@ export class OwnerController {
     private readonly partnerOrgAccess: PartnerOrgAccessService,
     private readonly partnerOnboarding: PartnerOnboardingService,
     private readonly ownerOrgVenues: OwnerOrganizationVenueService,
+    private readonly venueModeration: VenueModerationService,
   ) {}
 
   private async staffPlayerId(user: unknown): Promise<string> {
@@ -386,35 +390,71 @@ export class OwnerController {
   orgAnalytics(
     @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
     @Query('days') daysRaw: string | undefined,
+    @Query('from') fromYmd?: string,
+    @Query('to') toYmd?: string,
   ) {
     const days =
       daysRaw !== undefined && daysRaw !== ''
         ? Number.parseInt(daysRaw, 10)
         : 30;
     const safe = Number.isFinite(days) ? days : 30;
-    return this.analytics.getOrganizationSummary(organizationId, safe);
+    return this.analytics.getOrganizationSummary(organizationId, {
+      days: safe,
+      from: fromYmd?.trim() || undefined,
+      to: toYmd?.trim() || undefined,
+    });
   }
 
   @Get('organizations/:organizationId/analytics/export.csv')
   @UseGuards(OrganizationStaffGuard)
   async orgAnalyticsExportCsv(
+    @Res({ passthrough: true }) res: Response,
     @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
     @Query('days') daysRaw: string | undefined,
-    @Res({ passthrough: true }) res: Response,
+    @Query('from') fromYmd?: string,
+    @Query('to') toYmd?: string,
   ) {
     const days =
       daysRaw !== undefined && daysRaw !== ''
         ? Number.parseInt(daysRaw, 10)
         : 30;
     const safe = Number.isFinite(days) ? days : 30;
-    const csv = await this.analytics.buildOrganizationRedemptionsCsv(
-      organizationId,
-      safe,
-    );
+    const csv = await this.analytics.buildOrganizationRedemptionsCsv(organizationId, {
+      days: safe,
+      from: fromYmd?.trim() || undefined,
+      to: toYmd?.trim() || undefined,
+    });
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader(
       'Content-Disposition',
       'attachment; filename="cafe-social-org-redemptions.csv"',
+    );
+    return csv;
+  }
+
+  @Get('organizations/:organizationId/analytics/funnel-export.csv')
+  @UseGuards(OrganizationStaffGuard)
+  async orgFunnelExportCsv(
+    @Res({ passthrough: true }) res: Response,
+    @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
+    @Query('days') daysRaw: string | undefined,
+    @Query('from') fromYmd?: string,
+    @Query('to') toYmd?: string,
+  ) {
+    const days =
+      daysRaw !== undefined && daysRaw !== ''
+        ? Number.parseInt(daysRaw, 10)
+        : 30;
+    const safe = Number.isFinite(days) ? days : 30;
+    const csv = await this.analytics.buildOrganizationFunnelEventsCsv(organizationId, {
+      days: safe,
+      from: fromYmd?.trim() || undefined,
+      to: toYmd?.trim() || undefined,
+    });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="cafe-social-org-funnel-events.csv"',
     );
     return csv;
   }
@@ -425,35 +465,129 @@ export class OwnerController {
   venueAnalytics(
     @Param('venueId', new ParseUUIDPipe()) venueId: string,
     @Query('days') daysRaw: string | undefined,
+    @Query('from') fromYmd?: string,
+    @Query('to') toYmd?: string,
   ) {
     const days =
       daysRaw !== undefined && daysRaw !== ''
         ? Number.parseInt(daysRaw, 10)
         : 30;
     const safe = Number.isFinite(days) ? days : 30;
-    return this.analytics.getVenueSummary(venueId, safe);
+    return this.analytics.getVenueSummary(venueId, {
+      days: safe,
+      from: fromYmd?.trim() || undefined,
+      to: toYmd?.trim() || undefined,
+    });
   }
 
   @Get('venues/:venueId/analytics/export.csv')
   @UseGuards(VenueStaffGuard)
   @MinVenueRole(VenueStaffRole.MANAGER)
   async analyticsExportCsv(
+    @Res({ passthrough: true }) res: Response,
     @Param('venueId', new ParseUUIDPipe()) venueId: string,
     @Query('days') daysRaw: string | undefined,
-    @Res({ passthrough: true }) res: Response,
+    @Query('from') fromYmd?: string,
+    @Query('to') toYmd?: string,
   ) {
     const days =
       daysRaw !== undefined && daysRaw !== ''
         ? Number.parseInt(daysRaw, 10)
         : 30;
     const safe = Number.isFinite(days) ? days : 30;
-    const csv = await this.analytics.buildRedemptionsCsv(venueId, safe);
+    const csv = await this.analytics.buildRedemptionsCsv(venueId, {
+      days: safe,
+      from: fromYmd?.trim() || undefined,
+      to: toYmd?.trim() || undefined,
+    });
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader(
       'Content-Disposition',
       'attachment; filename="cafe-social-redemptions.csv"',
     );
     return csv;
+  }
+
+  @Get('venues/:venueId/analytics/funnel-export.csv')
+  @UseGuards(VenueStaffGuard)
+  @MinVenueRole(VenueStaffRole.MANAGER)
+  async funnelExportCsv(
+    @Res({ passthrough: true }) res: Response,
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+    @Query('days') daysRaw: string | undefined,
+    @Query('from') fromYmd?: string,
+    @Query('to') toYmd?: string,
+  ) {
+    const days =
+      daysRaw !== undefined && daysRaw !== ''
+        ? Number.parseInt(daysRaw, 10)
+        : 30;
+    const safe = Number.isFinite(days) ? days : 30;
+    const csv = await this.analytics.buildFunnelEventsCsv(venueId, {
+      days: safe,
+      from: fromYmd?.trim() || undefined,
+      to: toYmd?.trim() || undefined,
+    });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="cafe-social-funnel-events.csv"',
+    );
+    return csv;
+  }
+
+  @Get('venues/:venueId/moderation/reports')
+  @UseGuards(VenueStaffGuard)
+  @MinVenueRole(VenueStaffRole.MANAGER)
+  listPlayerReports(@Param('venueId', new ParseUUIDPipe()) venueId: string) {
+    return this.venueModeration.listReportsForVenue(venueId);
+  }
+
+  @Get('venues/:venueId/moderation/bans')
+  @UseGuards(VenueStaffGuard)
+  @MinVenueRole(VenueStaffRole.MANAGER)
+  listVenueBans(@Param('venueId', new ParseUUIDPipe()) venueId: string) {
+    return this.venueModeration.listBansForVenue(venueId);
+  }
+
+  @Post('venues/:venueId/moderation/bans')
+  @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard)
+  @MinVenueRole(VenueStaffRole.MANAGER)
+  async createVenueBan(
+    @CurrentUser() user: unknown,
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+    @Body() body: BanPlayerDto,
+  ) {
+    const staffId = await this.staffPlayerId(user);
+    await this.venueModeration.banPlayer({
+      venueId,
+      targetPlayerId: body.playerId,
+      staffPlayerId: staffId,
+      reason: body.reason,
+    });
+    return { ok: true as const };
+  }
+
+  @Delete('venues/:venueId/moderation/bans/:playerId')
+  @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard)
+  @MinVenueRole(VenueStaffRole.MANAGER)
+  async removeVenueBan(
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+    @Param('playerId', new ParseUUIDPipe()) playerId: string,
+  ) {
+    await this.venueModeration.removeBan(venueId, playerId);
+    return { ok: true as const };
+  }
+
+  @Post('venues/:venueId/moderation/reports/:reportId/dismiss')
+  @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard)
+  @MinVenueRole(VenueStaffRole.MANAGER)
+  async dismissPlayerReport(
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+    @Param('reportId', new ParseUUIDPipe()) reportId: string,
+  ) {
+    await this.venueModeration.dismissReport(reportId, venueId);
+    return { ok: true as const };
   }
 
   @Get('venues/:venueId/staff-invites')

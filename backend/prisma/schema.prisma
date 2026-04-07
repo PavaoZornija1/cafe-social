@@ -41,6 +41,9 @@ model VenueOrganization {
   /// Last time org billing fields were updated from a Stripe webhook (Checkout/subscription events).
   platformBillingSyncedAt  DateTime?
 
+  /// Default max guest **games per UTC day per venue** for org locations; null = platform env default.
+  guestPlayDailyGamesLimit Int?
+
   venues Venue[]
 
   createdAt DateTime @default(now())
@@ -105,6 +108,7 @@ model Venue {
   playerGameVenueStats PlayerGameVenueStats[]
   feedEvents       VenueFeedEvent[]
   perks            VenuePerk[]
+  perkRedemptionRows VenuePerkRedemption[] @relation("VenuePerkRedemptionVenue")
   visitDays        PlayerVenueVisitDay[]
   venuePlayDays    PlayerVenuePlayDay[]
   venuePlayCountedGames PlayerVenuePlayCountedGame[]
@@ -117,6 +121,13 @@ model Venue {
   lastAdminNudgeBroadcastAt DateTime?
 
   nudgeAssignments VenueNudgeAssignment[]
+
+  /// Max guest games per UTC day at **this** venue; null = inherit from organization then platform default.
+  guestPlayDailyGamesLimit Int?
+
+  funnelEvents    VenueFunnelEvent[]
+  playerReports   VenuePlayerReport[]
+  playerBans      VenuePlayerBan[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -451,6 +462,12 @@ model Player {
   perkRedemptions  VenuePerkRedemption[] @relation("RedemptionGuest")
   offerRedemptions VenueOfferRedemption[]
 
+  reportsFiled     VenuePlayerReport[] @relation("VenueReportReporter")
+  reportsAgainst   VenuePlayerReport[] @relation("VenueReportTarget")
+  bansReceived     VenuePlayerBan[]    @relation("VenueBanSubject")
+  bansIssued       VenuePlayerBan[]    @relation("VenueBanCreatedBy")
+  funnelEvents     VenueFunnelEvent[]
+
   venueStaff VenueStaff[]
   staffInvitesSent VenueStaffInvite[] @relation("StaffInviteSentBy")
   /// Orgs this player created via partner self-serve onboarding (rate limits).
@@ -517,6 +534,57 @@ model PlayerVenuePlayCountedGame {
   @@index([playerId, dayKey])
 }
 
+/// Partner funnel analytics: guest journey at a venue (`detect` has null playerId).
+model VenueFunnelEvent {
+  id        String   @id @default(uuid())
+  venueId   String
+  playerId  String?
+  /// detect | enter | play | redeem
+  kind      String
+  createdAt DateTime @default(now())
+
+  venue  Venue   @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  player Player? @relation(fields: [playerId], references: [id], onDelete: SetNull)
+
+  @@index([venueId, kind, createdAt])
+  @@index([playerId, createdAt])
+}
+
+model VenuePlayerReport {
+  id               String    @id @default(uuid())
+  venueId          String
+  reporterId       String
+  reportedPlayerId String
+  reason           String
+  note             String?
+  status           String    @default("open")
+  createdAt        DateTime  @default(now())
+  dismissedAt      DateTime?
+
+  venue          Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  reporter       Player @relation("VenueReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedPlayer Player @relation("VenueReportTarget", fields: [reportedPlayerId], references: [id], onDelete: Cascade)
+
+  @@index([venueId, createdAt])
+  @@index([reportedPlayerId])
+}
+
+model VenuePlayerBan {
+  id                     String   @id @default(uuid())
+  venueId                String
+  playerId               String
+  reason                 String?
+  createdByStaffPlayerId String?
+  createdAt              DateTime @default(now())
+
+  venue     Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  player    Player @relation("VenueBanSubject", fields: [playerId], references: [id], onDelete: Cascade)
+  createdBy Player? @relation("VenueBanCreatedBy", fields: [createdByStaffPlayerId], references: [id], onDelete: SetNull)
+
+  @@unique([venueId, playerId])
+  @@index([venueId])
+}
+
 /// Staff-configured perk codes (“show this screen for 10% off”).
 model VenuePerk {
   id        String   @id @default(uuid())
@@ -554,6 +622,7 @@ model VenuePerkRedemption {
   voidedByPlayerId              String?
 
   perk                 VenuePerk @relation(fields: [perkId], references: [id], onDelete: Cascade)
+  venue                Venue     @relation("VenuePerkRedemptionVenue", fields: [venueId], references: [id], onDelete: Cascade)
   player               Player    @relation("RedemptionGuest", fields: [playerId], references: [id], onDelete: Cascade)
   staffAcknowledgedBy  Player?   @relation("RedemptionStaffAck", fields: [staffAcknowledgedByPlayerId], references: [id], onDelete: SetNull)
   voidedBy             Player?   @relation("RedemptionStaffVoid", fields: [voidedByPlayerId], references: [id], onDelete: SetNull)

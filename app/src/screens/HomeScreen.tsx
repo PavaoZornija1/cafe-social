@@ -35,6 +35,8 @@ type VenueAccess = {
     visitedBefore: boolean;
     subscriptionActive: boolean;
     canEnterVenueContext: boolean;
+    /** Staff moderation ban at this venue — blocks venue play and redemptions. */
+    bannedFromVenue?: boolean;
 };
 
 type VenueChallenge = {
@@ -160,11 +162,12 @@ export default function HomeScreen({ navigation }: Props) {
 
     const venueGamesLockedExplanation = useMemo(() => {
         if (!locked || !detectedVenue) return '';
+        if (access?.bannedFromVenue) return t('home.bannedFromVenue');
         if (venueAdminLocked) return t('home.venueTemporarilyUnavailable');
         return detectedVenue.isPremium
             ? t('home.lockedHintPremium')
             : t('home.lockedHintStandard');
-    }, [locked, detectedVenue, venueAdminLocked, t]);
+    }, [locked, detectedVenue, venueAdminLocked, access?.bannedFromVenue, t]);
 
     const loadMeSummary = useCallback(async () => {
         if (!isLoaded) return;

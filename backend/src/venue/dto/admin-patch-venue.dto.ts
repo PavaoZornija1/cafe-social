@@ -3,10 +3,13 @@ import {
   Allow,
   IsArray,
   IsBoolean,
+  IsInt,
   IsOptional,
   IsString,
   IsUUID,
+  Max,
   MaxLength,
+  Min,
   ValidateIf,
 } from 'class-validator';
 import { CreateVenueDto } from './create-venue.dto';
@@ -34,4 +37,12 @@ export class AdminPatchVenueDto extends PartialType(CreateVenueDto) {
   @MaxLength(512)
   @ValidateIf((_, v) => v !== null)
   lockReason?: string | null;
+
+  /** Max guest games per UTC day at this venue; null clears override (use org / platform default). */
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined)
+  @IsInt()
+  @Min(1)
+  @Max(999)
+  guestPlayDailyGamesLimit?: number | null;
 }

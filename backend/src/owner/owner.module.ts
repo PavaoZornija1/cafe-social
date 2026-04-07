@@ -16,6 +16,7 @@ import { OwnerOrganizationVenueService } from './owner-organization-venue.servic
 import { PartnerVenueWriteGuard } from './partner-venue-write.guard';
 import { PartnerOpsListener } from './partner-ops.listener';
 import { PartnerOnboardingThrottlerFilter } from './partner-onboarding-throttle.filter';
+import { VenueModule } from '../venue/venue.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { PartnerOnboardingThrottlerFilter } from './partner-onboarding-throttle.
     PrismaModule,
     PlayerModule,
     VenueStaffModule,
+    VenueModule,
     StaffModule,
     PushModule,
     ReceiptModule,

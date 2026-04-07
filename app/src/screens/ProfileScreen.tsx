@@ -21,10 +21,25 @@ import { syncOnboardingFromServerSummary } from '../lib/onboardingStorage';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 
-type PerkRedemptionRow = {
+type PerkRedemptionItem = {
   id: string;
   redeemedAt: string;
-  perk: { title: string; subtitle: string | null; code: string };
+  voided: boolean;
+  venueId: string;
+  venueName: string;
+  perkCode: string;
+  perkTitle: string;
+  perkSubtitle: string | null;
+  perkActiveTo: string | null;
+  daysUntilExpiry: number | null;
+  expiringSoon: boolean;
+  expired: boolean;
+};
+
+type PerkRedemptionsPayload = {
+  wallet: { activeRedemptions: number };
+  expiringSoon: PerkRedemptionItem[];
+  items: PerkRedemptionItem[];
 };
 
 export default function ProfileScreen({ navigation }: Props) {
@@ -35,7 +50,7 @@ export default function ProfileScreen({ navigation }: Props) {
 
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<MeSummaryDto | null>(null);
-  const [redemptions, setRedemptions] = useState<PerkRedemptionRow[]>([]);
+  const [perkPayload, setPerkPayload] = useState<PerkRedemptionsPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
 
@@ -47,20 +62,58 @@ export default function ProfileScreen({ navigation }: Props) {
       const token = await getTokenRef.current();
       if (!token) {
         setSummary(null);
-        setRedemptions([]);
+        setPerkPayload(null);
         return;
       }
-      const [s, r] = await Promise.all([
+      const [s, raw] = await Promise.all([
         apiGet<MeSummaryDto>('/players/me/summary', token),
-        apiGet<PerkRedemptionRow[]>('/players/me/perk-redemptions', token),
+        apiGet<PerkRedemptionsPayload | PerkRedemptionItem[]>(
+          '/players/me/perk-redemptions',
+          token,
+        ),
       ]);
       await syncOnboardingFromServerSummary(s);
       setSummary(s);
-      setRedemptions(Array.isArray(r) ? r.slice(0, 15) : []);
+      if (raw && typeof raw === 'object' && 'items' in raw && Array.isArray(raw.items)) {
+        setPerkPayload(raw as PerkRedemptionsPayload);
+      } else if (
+        Array.isArray(raw) &&
+        raw.length > 0 &&
+        typeof raw[0] === 'object' &&
+        raw[0] !== null &&
+        'perk' in raw[0]
+      ) {
+        type Legacy = {
+          id: string;
+          redeemedAt: string;
+          perk: { title: string; subtitle: string | null; code: string };
+        };
+        const legacy = raw as unknown as Legacy[];
+        setPerkPayload({
+          wallet: { activeRedemptions: legacy.length },
+          expiringSoon: [],
+          items: legacy.map((r) => ({
+            id: r.id,
+            redeemedAt: r.redeemedAt,
+            voided: false,
+            venueId: '',
+            venueName: '',
+            perkCode: r.perk.code,
+            perkTitle: r.perk.title,
+            perkSubtitle: r.perk.subtitle,
+            perkActiveTo: null,
+            daysUntilExpiry: null,
+            expiringSoon: false,
+            expired: false,
+          })),
+        });
+      } else {
+        setPerkPayload({ wallet: { activeRedemptions: 0 }, expiringSoon: [], items: [] });
+      }
     } catch {
       setError(t('profile.loadError'));
       setSummary(null);
-      setRedemptions([]);
+      setPerkPayload(null);
     } finally {
       setLoading(false);
     }
@@ -92,6 +145,32 @@ export default function ProfileScreen({ navigation }: Props) {
       return iso;
     }
   };
+
+  const wallet = perkPayload?.wallet;
+  const expiringSoon = perkPayload?.expiringSoon ?? [];
+  const redemptionItems = perkPayload?.items ?? [];
+
+  const renderPerkLine = (row: PerkRedemptionItem) => (
+    <View key={row.id} style={styles.listItem}>
+      <Text style={styles.listTitle}>{row.perkTitle}</Text>
+      {row.perkSubtitle ? <Text style={styles.listSub}>{row.perkSubtitle}</Text> : null}
+      <Text style={styles.venueLine}>{t('profile.venueLine', { name: row.venueName })}</Text>
+      <View style={styles.badgeRow}>
+        {row.voided ? (
+          <Text style={styles.badgeVoid}>{t('profile.voidedBadge')}</Text>
+        ) : row.expired ? (
+          <Text style={styles.badgeExpired}>{t('profile.expiredBadge')}</Text>
+        ) : row.expiringSoon && row.daysUntilExpiry != null ? (
+          <Text style={styles.badgeExpiring}>
+            {t('profile.expiringBadge', { days: row.daysUntilExpiry })}
+          </Text>
+        ) : null}
+      </View>
+      <Text style={styles.listMeta}>
+        {t('profile.redeemedAt', { when: formatRedeemed(row.redeemedAt) })} · {row.perkCode}
+      </Text>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -149,23 +228,30 @@ export default function ProfileScreen({ navigation }: Props) {
           </View>
         ) : null}
 
+        {wallet ? (
+          <View style={[styles.card, styles.walletCard]}>
+            <Text style={styles.sectionTitle}>{t('profile.walletTitle')}</Text>
+            <Text style={styles.walletStat}>
+              {t('profile.walletActive', { count: wallet.activeRedemptions })}
+            </Text>
+          </View>
+        ) : null}
+
+        {expiringSoon.length > 0 ? (
+          <>
+            <Text style={styles.sectionTitle}>{t('profile.expiringSoonTitle')}</Text>
+            <Text style={styles.sectionHint}>{t('profile.expiringSoonHint')}</Text>
+            <View style={styles.list}>{expiringSoon.map(renderPerkLine)}</View>
+          </>
+        ) : null}
+
         <Text style={styles.sectionTitle}>{t('profile.recentPerksTitle')}</Text>
         <Text style={styles.sectionHint}>{t('profile.recentPerksHint')}</Text>
-        {loading ? null : redemptions.length === 0 ? (
+        {loading ? null : redemptionItems.length === 0 ? (
           <Text style={styles.muted}>{t('profile.recentPerksEmpty')}</Text>
         ) : (
           <View style={styles.list}>
-            {redemptions.map((row) => (
-              <View key={row.id} style={styles.listItem}>
-                <Text style={styles.listTitle}>{row.perk.title}</Text>
-                {row.perk.subtitle ? (
-                  <Text style={styles.listSub}>{row.perk.subtitle}</Text>
-                ) : null}
-                <Text style={styles.listMeta}>
-                  {t('profile.redeemedAt', { when: formatRedeemed(row.redeemedAt) })} · {row.perk.code}
-                </Text>
-              </View>
-            ))}
+            {redemptionItems.slice(0, 40).map(renderPerkLine)}
           </View>
         )}
       </ScrollView>
@@ -198,41 +284,79 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     minWidth: '45%',
     backgroundColor: '#111827',
-    borderWidth: 1,
-    borderColor: '#4c1d95',
-    borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#1e293b',
     alignItems: 'center',
   },
   linkBtnPressed: { opacity: 0.88 },
-  linkBtnText: { color: '#c4b5fd', fontWeight: '800', fontSize: 13 },
-  center: { marginTop: 24, alignItems: 'center' },
+  linkBtnText: { color: '#e5e7eb', fontWeight: '700', fontSize: 14 },
+  center: { paddingVertical: 24, alignItems: 'center' },
+  error: { color: '#fca5a5', marginTop: 12 },
   card: {
     marginTop: 20,
-    backgroundColor: '#111827',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#1f2937',
+    backgroundColor: '#0f172a',
+    borderRadius: 16,
     padding: 16,
-    gap: 12,
-  },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  label: { color: '#9ca3af', fontSize: 14, fontWeight: '600' },
-  value: { color: '#fff', fontSize: 16, fontWeight: '900' },
-  error: { color: '#f87171', marginTop: 16, fontSize: 14 },
-  sectionTitle: { color: '#fff', fontSize: 16, fontWeight: '800', marginTop: 28 },
-  sectionHint: { color: '#6b7280', fontSize: 12, marginTop: 6, lineHeight: 17 },
-  muted: { color: '#6b7280', marginTop: 10, fontSize: 13 },
-  list: { marginTop: 12, gap: 10 },
-  listItem: {
-    backgroundColor: '#111827',
-    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#1f2937',
-    padding: 14,
+    borderColor: '#1e293b',
   },
-  listTitle: { color: '#f4f4f5', fontSize: 15, fontWeight: '800' },
-  listSub: { color: '#9ca3af', fontSize: 13, marginTop: 4, lineHeight: 18 },
-  listMeta: { color: '#6b7280', fontSize: 11, marginTop: 8, fontWeight: '600' },
+  walletCard: { marginTop: 16 },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1e293b',
+  },
+  label: { color: '#94a3b8', fontSize: 14 },
+  value: { color: '#f8fafc', fontSize: 15, fontWeight: '600' },
+  sectionTitle: { color: '#e5e7eb', fontSize: 16, fontWeight: '700', marginTop: 24 },
+  sectionHint: { color: '#64748b', fontSize: 13, marginTop: 6, lineHeight: 18 },
+  walletStat: { color: '#a5b4fc', fontSize: 15, fontWeight: '600', marginTop: 8 },
+  list: { marginTop: 12, gap: 4 },
+  listItem: {
+    backgroundColor: '#0f172a',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+  },
+  listTitle: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  listSub: { color: '#94a3b8', marginTop: 4, fontSize: 14 },
+  venueLine: { color: '#818cf8', marginTop: 6, fontSize: 13, fontWeight: '600' },
+  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  badgeExpiring: {
+    color: '#fbbf24',
+    fontSize: 12,
+    fontWeight: '700',
+    backgroundColor: '#422006',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  badgeExpired: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '600',
+    backgroundColor: '#1e293b',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  badgeVoid: {
+    color: '#fca5a5',
+    fontSize: 12,
+    fontWeight: '600',
+    backgroundColor: '#450a0a',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  listMeta: { color: '#64748b', marginTop: 8, fontSize: 12 },
+  muted: { color: '#64748b', marginTop: 8 },
 });

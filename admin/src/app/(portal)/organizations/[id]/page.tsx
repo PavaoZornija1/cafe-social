@@ -51,6 +51,8 @@ type OrgDetail = {
   id: string;
   name: string;
   slug: string | null;
+  /** Venue-level cap inherits this when venue override is unset */
+  guestPlayDailyGamesLimit?: number | null;
   venues: {
     id: string;
     name: string;
@@ -123,7 +125,12 @@ export default function EditOrganizationPage() {
     const next = orgQ.data as OrgDetail;
     setO((prev) => {
       if (prev && prev.id === next.id) {
-        return { ...next, name: prev.name, slug: prev.slug };
+        return {
+          ...next,
+          name: prev.name,
+          slug: prev.slug,
+          guestPlayDailyGamesLimit: prev.guestPlayDailyGamesLimit,
+        };
       }
       return next;
     });
@@ -365,6 +372,29 @@ export default function EditOrganizationPage() {
           value={o.slug ?? ''}
           onChange={(e) => setO({ ...o, slug: e.target.value || null })}
         />
+      </label>
+
+      <label className="block mb-6">
+        <span className="text-sm text-slate-600">Default guest daily game cap (optional)</span>
+        <input
+          type="number"
+          min={1}
+          max={999}
+          className="mt-1 w-full max-w-xs bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm"
+          placeholder="platform default"
+          value={o.guestPlayDailyGamesLimit ?? ''}
+          onChange={(e) => {
+            const t = e.target.value;
+            setO({
+              ...o,
+              guestPlayDailyGamesLimit: t === '' ? null : Number.parseInt(t, 10),
+            });
+          }}
+        />
+        <p className="text-xs text-slate-500 mt-1">
+          Applies to linked venues that do not set their own cap (then env{' '}
+          <code className="text-slate-600">VENUE_GUEST_PLAY_DAILY_GAMES</code>).
+        </p>
       </label>
 
       <div className="border border-slate-200 rounded-xl bg-white shadow-sm">
@@ -638,10 +668,16 @@ export default function EditOrganizationPage() {
         onConfirm={async () => {
           if (!o || !id) return;
           setErr(null);
+          const lim = o.guestPlayDailyGamesLimit;
+          if (lim != null && (!Number.isFinite(lim) || lim < 1 || lim > 999)) {
+            setErr('Guest daily game cap must be empty or an integer 1–999.');
+            return;
+          }
           try {
             await patchMut.mutateAsync({
               name: o.name.trim(),
               slug: o.slug?.trim() || null,
+              guestPlayDailyGamesLimit: lim ?? null,
             });
             router.push('/organizations');
           } catch (e) {

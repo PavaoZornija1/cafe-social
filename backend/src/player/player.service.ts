@@ -169,14 +169,67 @@ export class PlayerService {
 
   async listMyPerkRedemptions(email: string) {
     const player = await this.findOrCreateByEmail(email);
-    return this.prisma.venuePerkRedemption.findMany({
+    const now = new Date();
+    const horizon = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const rows = await this.prisma.venuePerkRedemption.findMany({
       where: { playerId: player.id },
       orderBy: { redeemedAt: 'desc' },
       include: {
-        perk: { select: { title: true, subtitle: true, code: true } },
+        perk: {
+          select: {
+            title: true,
+            subtitle: true,
+            code: true,
+            activeFrom: true,
+            activeTo: true,
+          },
+        },
+        venue: { select: { id: true, name: true } },
       },
-      take: 50,
+      take: 80,
     });
+
+    const items = rows.map((r) => {
+      const voided = r.voidedAt != null;
+      const perkActiveTo = r.perk.activeTo;
+      const msToExpiry =
+        !voided && perkActiveTo && perkActiveTo.getTime() > now.getTime()
+          ? perkActiveTo.getTime() - now.getTime()
+          : null;
+      const daysUntilExpiry =
+        msToExpiry != null ? Math.ceil(msToExpiry / (24 * 60 * 60 * 1000)) : null;
+      const expiringSoon =
+        !voided &&
+        perkActiveTo != null &&
+        perkActiveTo > now &&
+        perkActiveTo <= horizon;
+      const expired =
+        !voided && perkActiveTo != null && perkActiveTo.getTime() <= now.getTime();
+      return {
+        id: r.id,
+        redeemedAt: r.redeemedAt.toISOString(),
+        voided,
+        venueId: r.venueId,
+        venueName: r.venue.name,
+        perkCode: r.perk.code,
+        perkTitle: r.perk.title,
+        perkSubtitle: r.perk.subtitle,
+        perkActiveTo: perkActiveTo?.toISOString() ?? null,
+        daysUntilExpiry,
+        expiringSoon,
+        expired,
+      };
+    });
+
+    const activeWalletCount = items.filter((i) => !i.voided && !i.expired).length;
+
+    return {
+      wallet: {
+        activeRedemptions: activeWalletCount,
+      },
+      expiringSoon: items.filter((i) => i.expiringSoon),
+      items,
+    };
   }
 
   async updateMeSettings(email: string, dto: UpdateMeSettingsDto): Promise<Player> {

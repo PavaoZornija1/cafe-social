@@ -351,6 +351,9 @@ export class AdminOrganizationController {
         ...(body.billingPortalUrl !== undefined && {
           billingPortalUrl: body.billingPortalUrl?.trim() || null,
         }),
+        ...(body.guestPlayDailyGamesLimit !== undefined && {
+          guestPlayDailyGamesLimit: body.guestPlayDailyGamesLimit,
+        }),
       },
     });
   }

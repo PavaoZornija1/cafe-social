@@ -3,6 +3,7 @@ import { VenueFeedEventKind } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { hourInTimeZone } from '../lib/hour-in-timezone';
 import { staffVerificationCodeFromRedemptionId } from '../lib/redemption-staff-code';
+import { resolveAnalyticsPeriod } from './analytics-period.util';
 
 function utcDayKey(d: Date): string {
   const y = d.getUTCFullYear();
@@ -18,18 +19,77 @@ function csvEscape(s: string): string {
   return s;
 }
 
+export type AnalyticsQueryOpts = {
+  days?: number;
+  from?: string;
+  to?: string;
+};
+
 @Injectable()
 export class OwnerAnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getVenueSummary(venueId: string, days: number) {
-    const safeDays = Math.min(Math.max(days, 1), 90);
-    const end = new Date();
-    const start = new Date(end);
-    start.setUTCDate(start.getUTCDate() - (safeDays - 1));
-    start.setUTCHours(0, 0, 0, 0);
-    const endDay = utcDayKey(end);
-    const startDay = utcDayKey(start);
+  private async funnelMetrics(venueIds: string[], start: Date, end: Date) {
+    if (venueIds.length === 0) {
+      return {
+        detectImpressions: 0,
+        uniqueEntered: 0,
+        uniquePlayed: 0,
+        uniqueRedeemed: 0,
+        enterToPlayPercent: 0,
+        playToRedeemPercent: 0,
+        enteredToRedeemPercent: 0,
+      };
+    }
+    const rows = await this.prisma.venueFunnelEvent.findMany({
+      where: {
+        venueId: { in: venueIds },
+        createdAt: { gte: start, lte: end },
+      },
+      select: { playerId: true, kind: true },
+    });
+    const detectImpressions = rows.filter((r) => r.kind === 'detect').length;
+    const enterIds = new Set(
+      rows.filter((r) => r.kind === 'enter' && r.playerId).map((r) => r.playerId!),
+    );
+    const playIds = new Set(
+      rows.filter((r) => r.kind === 'play' && r.playerId).map((r) => r.playerId!),
+    );
+    const redeemIds = new Set(
+      rows.filter((r) => r.kind === 'redeem' && r.playerId).map((r) => r.playerId!),
+    );
+    const uniqueEntered = enterIds.size;
+    const uniquePlayed = playIds.size;
+    const uniqueRedeemed = redeemIds.size;
+    const enterToPlayPercent =
+      uniqueEntered === 0
+        ? 0
+        : Math.round((uniquePlayed / uniqueEntered) * 1000) / 10;
+    const playToRedeemPercent =
+      uniquePlayed === 0
+        ? 0
+        : Math.round((uniqueRedeemed / uniquePlayed) * 1000) / 10;
+    const enteredToRedeemPercent =
+      uniqueEntered === 0
+        ? 0
+        : Math.round((uniqueRedeemed / uniqueEntered) * 1000) / 10;
+    return {
+      detectImpressions,
+      uniqueEntered,
+      uniquePlayed,
+      uniqueRedeemed,
+      enterToPlayPercent,
+      playToRedeemPercent,
+      enteredToRedeemPercent,
+    };
+  }
+
+  async getVenueSummary(venueId: string, opts: AnalyticsQueryOpts) {
+    const { start, end, startDay, endDay } = resolveAnalyticsPeriod(
+      opts.days,
+      opts.from,
+      opts.to,
+    );
 
     const venue = await this.prisma.venue.findUnique({
       where: { id: venueId },
@@ -140,10 +200,16 @@ export class OwnerAnalyticsService {
       })
       .sort((a, b) => b.count - a.count);
 
+    const funnelJourney = await this.funnelMetrics([venueId], start, end);
+
     return {
       venueId,
       analyticsTimeZone: tz,
-      period: { days: safeDays, startDay, endDay },
+      period: {
+        startDay,
+        endDay,
+        presetDays: opts.from || opts.to ? undefined : opts.days ?? 30,
+      },
       redemptions: {
         total: activeRedemptions.length,
         voided: voidedCountRow,
@@ -171,6 +237,7 @@ export class OwnerAnalyticsService {
         totalRedemptions: activeRedemptions.length,
         visitToRedeemPercent: conversionPercent,
       },
+      funnelJourney,
       feedEvents: {
         total: feedEvents.length,
         byKind: feedByKind,
@@ -179,14 +246,12 @@ export class OwnerAnalyticsService {
   }
 
   /** Roll up analytics across every venue in an organization (multi-location). */
-  async getOrganizationSummary(organizationId: string, days: number) {
-    const safeDays = Math.min(Math.max(days, 1), 90);
-    const end = new Date();
-    const start = new Date(end);
-    start.setUTCDate(start.getUTCDate() - (safeDays - 1));
-    start.setUTCHours(0, 0, 0, 0);
-    const endDay = utcDayKey(end);
-    const startDay = utcDayKey(start);
+  async getOrganizationSummary(organizationId: string, opts: AnalyticsQueryOpts) {
+    const { start, end, startDay, endDay } = resolveAnalyticsPeriod(
+      opts.days,
+      opts.from,
+      opts.to,
+    );
 
     const venues = await this.prisma.venue.findMany({
       where: { organizationId },
@@ -199,7 +264,11 @@ export class OwnerAnalyticsService {
         venueCount: 0,
         venues: [],
         analyticsTimeZone: null as string | null,
-        period: { days: safeDays, startDay, endDay },
+        period: {
+          startDay,
+          endDay,
+          presetDays: opts.from || opts.to ? undefined : opts.days ?? 30,
+        },
         redemptions: {
           total: 0,
           voided: 0,
@@ -219,6 +288,15 @@ export class OwnerAnalyticsService {
           uniqueRedeemers: 0,
           totalRedemptions: 0,
           visitToRedeemPercent: 0,
+        },
+        funnelJourney: {
+          detectImpressions: 0,
+          uniqueEntered: 0,
+          uniquePlayed: 0,
+          uniqueRedeemed: 0,
+          enterToPlayPercent: 0,
+          playToRedeemPercent: 0,
+          enteredToRedeemPercent: 0,
         },
         feedEvents: { total: 0, byKind: {} as Partial<Record<VenueFeedEventKind, number>> },
       };
@@ -331,12 +409,18 @@ export class OwnerAnalyticsService {
       })
       .sort((a, b) => b.count - a.count);
 
+    const funnelJourney = await this.funnelMetrics(venueIds, start, end);
+
     return {
       organizationId,
       venueCount: venues.length,
       venues: venues.map((v) => ({ id: v.id, name: v.name })),
       analyticsTimeZone: tz,
-      period: { days: safeDays, startDay, endDay },
+      period: {
+        startDay,
+        endDay,
+        presetDays: opts.from || opts.to ? undefined : opts.days ?? 30,
+      },
       redemptions: {
         total: activeRedemptions.length,
         voided: voidedCountRow,
@@ -365,6 +449,7 @@ export class OwnerAnalyticsService {
         totalRedemptions: activeRedemptions.length,
         visitToRedeemPercent: conversionPercent,
       },
+      funnelJourney,
       feedEvents: {
         total: feedEvents.length,
         byKind: feedByKind,
@@ -372,12 +457,8 @@ export class OwnerAnalyticsService {
     };
   }
 
-  async buildRedemptionsCsv(venueId: string, days: number): Promise<string> {
-    const safeDays = Math.min(Math.max(days, 1), 90);
-    const end = new Date();
-    const start = new Date(end);
-    start.setUTCDate(start.getUTCDate() - (safeDays - 1));
-    start.setUTCHours(0, 0, 0, 0);
+  async buildRedemptionsCsv(venueId: string, opts: AnalyticsQueryOpts): Promise<string> {
+    const { start, end } = resolveAnalyticsPeriod(opts.days, opts.from, opts.to);
 
     const rows = await this.prisma.venuePerkRedemption.findMany({
       where: {
@@ -419,15 +500,36 @@ export class OwnerAnalyticsService {
     return [header, ...lines].join('\n');
   }
 
+  async buildFunnelEventsCsv(venueId: string, opts: AnalyticsQueryOpts): Promise<string> {
+    const { start, end } = resolveAnalyticsPeriod(opts.days, opts.from, opts.to);
+    const rows = await this.prisma.venueFunnelEvent.findMany({
+      where: { venueId, createdAt: { gte: start, lte: end } },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        kind: true,
+        playerId: true,
+        createdAt: true,
+      },
+    });
+    const header = ['event_id', 'venue_id', 'kind', 'player_id', 'created_at_utc'].join(',');
+    const lines = rows.map((r) =>
+      [
+        r.id,
+        venueId,
+        r.kind,
+        r.playerId ?? '',
+        r.createdAt.toISOString(),
+      ].join(','),
+    );
+    return [header, ...lines].join('\n');
+  }
+
   async buildOrganizationRedemptionsCsv(
     organizationId: string,
-    days: number,
+    opts: AnalyticsQueryOpts,
   ): Promise<string> {
-    const safeDays = Math.min(Math.max(days, 1), 90);
-    const end = new Date();
-    const start = new Date(end);
-    start.setUTCDate(start.getUTCDate() - (safeDays - 1));
-    start.setUTCHours(0, 0, 0, 0);
+    const { start, end } = resolveAnalyticsPeriod(opts.days, opts.from, opts.to);
 
     const venueRows = await this.prisma.venue.findMany({
       where: { organizationId },
@@ -477,6 +579,37 @@ export class OwnerAnalyticsService {
       ].join(','),
     );
 
+    return [header, ...lines].join('\n');
+  }
+
+  async buildOrganizationFunnelEventsCsv(
+    organizationId: string,
+    opts: AnalyticsQueryOpts,
+  ): Promise<string> {
+    const { start, end } = resolveAnalyticsPeriod(opts.days, opts.from, opts.to);
+    const venueRows = await this.prisma.venue.findMany({
+      where: { organizationId },
+      select: { id: true },
+    });
+    const venueIds = venueRows.map((v) => v.id);
+    if (venueIds.length === 0) {
+      return ['event_id', 'venue_id', 'kind', 'player_id', 'created_at_utc'].join('\n');
+    }
+    const rows = await this.prisma.venueFunnelEvent.findMany({
+      where: { venueId: { in: venueIds }, createdAt: { gte: start, lte: end } },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, venueId: true, kind: true, playerId: true, createdAt: true },
+    });
+    const header = ['event_id', 'venue_id', 'kind', 'player_id', 'created_at_utc'].join(',');
+    const lines = rows.map((r) =>
+      [
+        r.id,
+        r.venueId,
+        r.kind,
+        r.playerId ?? '',
+        r.createdAt.toISOString(),
+      ].join(','),
+    );
     return [header, ...lines].join('\n');
   }
 

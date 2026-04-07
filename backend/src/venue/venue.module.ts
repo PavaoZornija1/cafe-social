@@ -14,16 +14,21 @@ import { VenueOfferController } from './venue-offer.controller';
 import { VenueOrderNudgeCopyService } from './venue-order-nudge-copy.service';
 import { VenueNudgeAdminService } from './venue-nudge-admin.service';
 import { VenuePlayLimitService } from './venue-play-limit.service';
+import { VenueFunnelService } from './venue-funnel.service';
+import { VenueModerationService } from './venue-moderation.service';
+import { VenuePlayerReportController } from './venue-player-report.controller';
 import { PushModule } from '../push/push.module';
 
 @Module({
   imports: [PrismaModule, PlayerModule, AuthModule, PushModule],
-  controllers: [VenueController, VenueAccessController, VenueOfferController],
+  controllers: [VenueController, VenueAccessController, VenueOfferController, VenuePlayerReportController],
   providers: [
     VenueService,
     VenueOfferService,
     VenueOrderNudgeCopyService,
     VenueNudgeAdminService,
+    VenueFunnelService,
+    VenueModerationService,
     VenuePlayLimitService,
     VenueRepository,
     VenueAccessService,
@@ -35,6 +40,8 @@ import { PushModule } from '../push/push.module';
     VenueOfferService,
     VenueOrderNudgeCopyService,
     VenueNudgeAdminService,
+    VenueFunnelService,
+    VenueModerationService,
     VenuePlayLimitService,
     SubscriptionRepository,
     PlayerVenueRepository,

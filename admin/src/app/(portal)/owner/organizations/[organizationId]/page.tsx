@@ -17,36 +17,12 @@ import {
   partnerOrganizationMutationsBlockedReason,
   partnerVenueMutationsBlockedReason,
 } from '@/lib/partnerVenueReadOnly';
-import { useOwnerOrganizationAnalyticsQuery, useOwnerVenuesListQuery } from '@/lib/queries';
-
-type OrgAnalytics = {
-  organizationId: string;
-  venueCount: number;
-  venues: { id: string; name: string }[];
-  analyticsTimeZone: string | null;
-  period: { days: number; startDay: string; endDay: string };
-  redemptions: {
-    total: number;
-    voided: number;
-    byDay: { day: string; count: number }[];
-    byHourUtc: { hour: number; count: number }[];
-    byHourVenue: { hour: number; count: number }[] | null;
-    perPerk: { perkId: string; code: string; title: string; count: number }[];
-  };
-  visits: {
-    uniquePlayers: number;
-    totalVisitDays: number;
-    uniquePlayerDays: number;
-    byDay: { day: string; count: number }[];
-  };
-  funnel: {
-    uniqueVisitors: number;
-    uniqueRedeemers: number;
-    totalRedemptions: number;
-    visitToRedeemPercent: number;
-  };
-  feedEvents: { total: number; byKind: Record<string, number> };
-};
+import {
+  ownerAnalyticsQueryString,
+  type OwnerOrganizationAnalytics,
+  useOwnerOrganizationAnalyticsQuery,
+  useOwnerVenuesListQuery,
+} from '@/lib/queries';
 
 type PortalVenueListRow = {
   role: string;
@@ -61,19 +37,24 @@ type PortalVenueListRow = {
   };
 };
 
-const perkColHelper = createColumnHelper<OrgAnalytics['redemptions']['perPerk'][number]>();
+const perkColHelper =
+  createColumnHelper<OwnerOrganizationAnalytics['redemptions']['perPerk'][number]>();
 
 export default function OwnerOrganizationPage() {
   const params = useParams();
   const organizationId = params.organizationId as string;
   const { getToken, isLoaded } = useAuth();
   const [days, setDays] = useState(30);
+  const [fromYmd, setFromYmd] = useState('');
+  const [toYmd, setToYmd] = useState('');
 
   const analyticsQ = useOwnerOrganizationAnalyticsQuery(
     organizationId,
     days,
     getToken,
     Boolean(isLoaded && organizationId),
+    fromYmd.trim() || undefined,
+    toYmd.trim() || undefined,
   );
   const venuesListQ = useOwnerVenuesListQuery(getToken, Boolean(isLoaded));
 
@@ -146,13 +127,16 @@ export default function OwnerOrganizationPage() {
     getRowId: (r) => r.perkId,
   });
 
+  const analyticsQs = () =>
+    ownerAnalyticsQueryString(days, fromYmd.trim() || undefined, toYmd.trim() || undefined);
+
   const exportCsv = async () => {
     if (readOnlyDisabled) return;
     const token = await getToken();
     if (!token) return;
     const res = await ownerFetch(
       getToken,
-      `/owner/organizations/${organizationId}/analytics/export.csv?days=${days}`,
+      `/owner/organizations/${organizationId}/analytics/export.csv?${analyticsQs()}`,
       { method: 'GET' },
     );
     if (!res.ok) return;
@@ -161,6 +145,25 @@ export default function OwnerOrganizationPage() {
     const a = document.createElement('a');
     a.href = url;
     a.download = 'org-redemptions.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportFunnelCsv = async () => {
+    if (readOnlyDisabled) return;
+    const token = await getToken();
+    if (!token) return;
+    const res = await ownerFetch(
+      getToken,
+      `/owner/organizations/${organizationId}/analytics/funnel-export.csv?${analyticsQs()}`,
+      { method: 'GET' },
+    );
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'org-funnel-events.csv';
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -199,7 +202,7 @@ export default function OwnerOrganizationPage() {
         ) : null}
         {analytics && analytics.venueCount > 0 ? (
           <>
-            <div className="flex flex-wrap gap-3 items-center mt-2">
+            <div className="flex flex-wrap gap-3 items-end mt-2">
               <label className="text-sm text-slate-600">
                 Period (days)
                 <select
@@ -214,15 +217,62 @@ export default function OwnerOrganizationPage() {
                   ))}
                 </select>
               </label>
+              <label className="text-sm text-slate-600">
+                From
+                <input
+                  type="date"
+                  value={fromYmd}
+                  onChange={(e) => setFromYmd(e.target.value)}
+                  className="ml-2 bg-white border border-slate-300 rounded px-2 py-1 text-slate-900"
+                />
+              </label>
+              <label className="text-sm text-slate-600">
+                To
+                <input
+                  type="date"
+                  value={toYmd}
+                  onChange={(e) => setToYmd(e.target.value)}
+                  className="ml-2 bg-white border border-slate-300 rounded px-2 py-1 text-slate-900"
+                />
+              </label>
+              <button
+                type="button"
+                className="text-xs text-slate-500 hover:underline"
+                onClick={() => {
+                  setFromYmd('');
+                  setToYmd('');
+                }}
+              >
+                Clear custom range
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">
+              Custom from/to overrides the rolling window when both are set (UTC dates).
+            </p>
+            <div className="flex flex-wrap gap-4 mt-3">
               <button
                 type="button"
                 disabled={readOnlyDisabled}
                 onClick={() => void exportCsv()}
                 className="text-sm text-emerald-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Export CSV (all locations)
+                Export redemptions CSV
+              </button>
+              <button
+                type="button"
+                disabled={readOnlyDisabled}
+                onClick={() => void exportFunnelCsv()}
+                className="text-sm text-emerald-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Export funnel events CSV
               </button>
             </div>
+            {analytics ? (
+              <p className="text-xs text-slate-500 mt-2">
+                Range {analytics.period.startDay} → {analytics.period.endDay}
+                {analytics.analyticsTimeZone ? ` · sample TZ: ${analytics.analyticsTimeZone}` : ''}
+              </p>
+            ) : null}
             <p className="text-sm text-slate-500 mt-4">
               Rolling up{' '}
               <span className="text-slate-800 font-medium">{analytics.venueCount}</span> venues:{' '}
@@ -249,6 +299,42 @@ export default function OwnerOrganizationPage() {
                   {analytics.visits.uniquePlayerDays}
                 </p>
               </div>
+            </div>
+            <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
+              <h3 className="text-sm font-semibold text-slate-800 mb-3">
+                Funnel journey (detect → enter → play → redeem)
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                <div>
+                  <p className="text-xs text-slate-500">Detect impressions</p>
+                  <p className="text-lg font-semibold text-slate-900">
+                    {analytics.funnelJourney.detectImpressions}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Unique entered</p>
+                  <p className="text-lg font-semibold text-slate-900">
+                    {analytics.funnelJourney.uniqueEntered}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Unique played</p>
+                  <p className="text-lg font-semibold text-slate-900">
+                    {analytics.funnelJourney.uniquePlayed}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Unique redeemed</p>
+                  <p className="text-lg font-semibold text-slate-900">
+                    {analytics.funnelJourney.uniqueRedeemed}
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 mt-3">
+                Enter→play {analytics.funnelJourney.enterToPlayPercent}% · play→redeem{' '}
+                {analytics.funnelJourney.playToRedeemPercent}% · entered→redeem{' '}
+                {analytics.funnelJourney.enteredToRedeemPercent}%
+              </p>
             </div>
             <OwnerAnalyticsCharts
               title="Organization trends (all locations)"

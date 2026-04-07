@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { VenueService } from '../venue/venue.service';
+import { VenueModerationService } from '../venue/venue-moderation.service';
+import { VenueFunnelService } from '../venue/venue-funnel.service';
 import { staffVerificationCodeFromRedemptionId } from '../lib/redemption-staff-code';
 
 export type VenuePerkPublicTeaserDto = {
@@ -23,6 +25,8 @@ export class VenuePerkService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly venues: VenueService,
+    private readonly moderation: VenueModerationService,
+    private readonly funnel: VenueFunnelService,
   ) {}
 
   /** Active perks for a venue (no secret codes). Used by the guest app. */
@@ -101,6 +105,8 @@ export class VenuePerkService {
       params.longitude!,
     );
 
+    await this.moderation.assertNotBanned(params.venueId, params.playerId);
+
     const perk = await this.prisma.venuePerk.findFirst({
       where: { code, venueId: params.venueId },
     });
@@ -162,7 +168,7 @@ export class VenuePerkService {
         data: { redemptionCount: { increment: 1 } },
       });
 
-      return {
+      const out = {
         redemptionId: redemption.id,
         staffVerificationCode: staffVerificationCodeFromRedemptionId(redemption.id),
         title: perk.title,
@@ -170,6 +176,14 @@ export class VenuePerkService {
         body: perk.body,
         redeemedAt: redemption.redeemedAt.toISOString(),
       };
+      return out;
+    }).then((out) => {
+      this.funnel.safeLog({
+        venueId: params.venueId,
+        playerId: params.playerId,
+        kind: 'redeem',
+      });
+      return out;
     });
   }
 }

@@ -13,6 +13,7 @@ import {
   parseVenueGeofencePolygonInput,
   pointInVenueGeofence,
 } from './geofence';
+import { haversineKm } from '../lib/haversine-km';
 import type { Polygon as GeoJsonPolygon } from 'geojson';
 import { loadPublicVenueOffersForVenue } from './venue-offer-public.util';
 
@@ -172,14 +173,124 @@ export class VenueService {
 
   /** Safe, unauthenticated list for the in-app partner discovery map. */
   async listForPublicDiscoveryMap() {
-    const rows = await this.venues.findAllForDiscoveryMap();
-    return rows.filter(
-      (r) =>
-        Number.isFinite(r.latitude) &&
-        Number.isFinite(r.longitude) &&
-        Math.abs(r.latitude) <= 90 &&
-        Math.abs(r.longitude) <= 180,
-    );
+    return this.listPublicDiscoveryMapFiltered({});
+  }
+
+  /**
+   * Map pins with optional filters: venue type codes (ANY match), distance from lat/lng,
+   * and venues with at least one **active, non-exhausted** public offer.
+   */
+  async listPublicDiscoveryMapFiltered(filters: {
+    venueTypeCodes?: string[];
+    lat?: number;
+    lng?: number;
+    radiusKm?: number;
+    hasActiveOffer?: boolean;
+  }) {
+    const now = new Date();
+    const typeCodesUpper = (filters.venueTypeCodes ?? [])
+      .map((c) => c.trim().toUpperCase())
+      .filter(Boolean);
+
+    const rows = await this.prisma.venue.findMany({
+      where: { locked: false },
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        latitude: true,
+        longitude: true,
+        address: true,
+        city: true,
+        country: true,
+        isPremium: true,
+        geofencePolygon: true,
+        venueVenueTypes: {
+          select: { venueType: { select: { code: true } } },
+        },
+      },
+    });
+
+    const offers = await this.prisma.venueOffer.findMany({
+      where: { status: 'ACTIVE' },
+      select: {
+        venueId: true,
+        maxRedemptions: true,
+        redemptionCount: true,
+        validFrom: true,
+        validTo: true,
+      },
+    });
+
+    const venuesWithActiveOffer = new Set<string>();
+    for (const o of offers) {
+      if (o.validFrom && now < o.validFrom) continue;
+      if (o.validTo && now > o.validTo) continue;
+      if (o.maxRedemptions != null && o.redemptionCount >= o.maxRedemptions) continue;
+      venuesWithActiveOffer.add(o.venueId);
+    }
+
+    const lat0 = filters.lat;
+    const lng0 = filters.lng;
+    const radiusKm = filters.radiusKm;
+    const hasCenter =
+      typeof lat0 === 'number' &&
+      typeof lng0 === 'number' &&
+      Number.isFinite(lat0) &&
+      Number.isFinite(lng0) &&
+      typeof radiusKm === 'number' &&
+      Number.isFinite(radiusKm) &&
+      radiusKm > 0;
+
+    const out: Array<{
+      id: string;
+      name: string;
+      latitude: number;
+      longitude: number;
+      address: string | null;
+      city: string | null;
+      country: string | null;
+      isPremium: boolean;
+      geofencePolygon: unknown | null;
+      venueTypeCodes: string[];
+      hasActiveOffer: boolean;
+    }> = [];
+
+    for (const r of rows) {
+      if (
+        !Number.isFinite(r.latitude) ||
+        !Number.isFinite(r.longitude) ||
+        Math.abs(r.latitude) > 90 ||
+        Math.abs(r.longitude) > 180
+      ) {
+        continue;
+      }
+      const codes = r.venueVenueTypes.map((x) => x.venueType.code);
+      if (typeCodesUpper.length > 0) {
+        const hit = codes.some((c) => typeCodesUpper.includes(c.toUpperCase()));
+        if (!hit) continue;
+      }
+      const hasOffer = venuesWithActiveOffer.has(r.id);
+      if (filters.hasActiveOffer && !hasOffer) continue;
+      if (hasCenter) {
+        const d = haversineKm(lat0!, lng0!, r.latitude, r.longitude);
+        if (d > radiusKm!) continue;
+      }
+      out.push({
+        id: r.id,
+        name: r.name,
+        latitude: r.latitude,
+        longitude: r.longitude,
+        address: r.address,
+        city: r.city,
+        country: r.country,
+        isPremium: r.isPremium,
+        geofencePolygon: r.geofencePolygon,
+        venueTypeCodes: codes,
+        hasActiveOffer: hasOffer,
+      });
+    }
+    return out;
   }
 
   async findDefaultVenue(): Promise<Venue | null> {
@@ -280,6 +391,7 @@ export class VenueService {
       lockReason,
       geofencePolygon: geoRaw,
       venueTypeCodes,
+      guestPlayDailyGamesLimit,
       ...venueFields
     } = dto;
 
@@ -321,6 +433,9 @@ export class VenueService {
     if (locked !== undefined) adminPatch.locked = locked;
     if (lockReason !== undefined) adminPatch.lockReason = lockReason;
     if (geofenceUpdate !== undefined) adminPatch.geofencePolygon = geofenceUpdate;
+    if (guestPlayDailyGamesLimit !== undefined) {
+      adminPatch.guestPlayDailyGamesLimit = guestPlayDailyGamesLimit;
+    }
 
     if (Object.keys(adminPatch).length > 0) {
       await this.venues.update(id, adminPatch);

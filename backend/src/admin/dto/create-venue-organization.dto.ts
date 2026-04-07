@@ -2,10 +2,14 @@ import { VenueOrganizationKind } from '@prisma/client';
 import {
   IsDateString,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
+  ValidateIf,
 } from 'class-validator';
 
 export class CreateVenueOrganizationDto {
@@ -46,4 +50,11 @@ export class CreateVenueOrganizationDto {
   @IsOptional()
   @MaxLength(2000)
   billingPortalUrl?: string | null;
+
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined)
+  @IsInt()
+  @Min(1)
+  @Max(999)
+  guestPlayDailyGamesLimit?: number | null;
 }
