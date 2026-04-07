@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { PlayerController } from './player.controller';
 import { PlayerService } from './player.service';
 import { PlayerRepository } from './player.repository';
@@ -9,7 +9,13 @@ import { PushModule } from '../push/push.module';
 import { VenueModule } from '../venue/venue.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, StatsModule, PushModule, VenueModule],
+  imports: [
+    PrismaModule,
+    AuthModule,
+    StatsModule,
+    PushModule,
+    forwardRef(() => VenueModule),
+  ],
   controllers: [PlayerController],
   providers: [PlayerService, PlayerRepository],
   exports: [PlayerService],
