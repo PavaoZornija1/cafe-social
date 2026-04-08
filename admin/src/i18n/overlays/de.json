@@ -86,6 +86,8 @@
     "filterScopeMulti": "Mehrere Standorte",
     "filterBilling": "Abrechnungsstatus",
     "filterBillingPlaceholder": "z. B. NONE",
+    "filtersTitle": "Filter",
+    "filtersHint": "Die Suche ist entprellt. Abrechnungsstatus entspricht der API-Teilzeichenkette.",
     "pageRange": "{{from}}–{{to}} von {{total}}",
     "pageStatus": "Seite {{page}} von {{pages}} · {{total}} gesamt",
     "pagePrev": "Zurück",

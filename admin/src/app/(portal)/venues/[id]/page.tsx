@@ -63,6 +63,12 @@ type VenueEditForm = {
 
 const staffColHelper = createColumnHelper<AdminVenueStaffRow>();
 
+/** Same 42px control height as venue CMS selects (native select ignores vertical padding). */
+const staffFieldText =
+  "w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 h-[42px] box-border py-0 leading-none";
+const staffFieldSelect =
+  "w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 h-[42px] box-border py-0 pr-9 leading-none";
+
 function venueToForm(v: AdminVenueDetail): VenueEditForm {
   return {
     menuUrl: v.menuUrl ?? "",
@@ -334,392 +340,643 @@ export default function EditVenuePage() {
         </Link>
         <h1 className="text-xl font-bold mt-4 mb-1">{v.name}</h1>
         <p className="text-xs text-slate-500 font-mono mb-6">{v.id}</p>
+        {/* Organization & access */}
+        <section className="mb-8 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.04] md:p-6">
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900">Organization &amp; access</h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Who owns this venue, suspension, and guest play limits.
+              </p>
+            </div>
 
-        {!meQ.isFetched ? (
-          <p className="text-sm text-slate-500 mb-3">Loading account…</p>
-        ) : isSuperAdmin ? (
-          <venueForm.Field name="organizationId">
-            {(field) => (
-              <label className="block mb-3">
-                <span className="text-sm font-medium text-slate-800">Organization</span>
-                <OrganizationAsyncSelect
-                  className="mt-1.5"
-                  inputId="venue-organization"
-                  value={field.state.value}
-                  selected={
-                    pickedOrg?.id === field.state.value ? pickedOrg : null
-                  }
-                  onChange={(nextId, meta) => {
-                    field.handleChange(nextId);
-                    setPickedOrg(meta);
-                  }}
-                  getToken={getToken}
-                  isDisabled={patchMut.isPending}
-                  placeholder="Type to search organizations…"
+            {!meQ.isFetched ? (
+              <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50/90 px-3 py-3 text-sm text-slate-500">
+                <span
+                  className="inline-block h-4 w-4 animate-pulse rounded-full bg-slate-200"
+                  aria-hidden
                 />
-                <p className="text-xs text-slate-500 mt-1.5">
-                  Results load from the server in pages of 20 (search is debounced). Manage billing
-                  and structure under{" "}
-                  <Link href="/organizations" className="text-brand hover:underline">
-                    Organizations
-                  </Link>
-                  .
+                Loading account…
+              </div>
+            ) : isSuperAdmin ? (
+              <venueForm.Field name="organizationId">
+                {(field) => (
+                  <label className="flex min-w-0 flex-col gap-1.5">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Organization
+                    </span>
+                    <OrganizationAsyncSelect
+                      className="w-full"
+                      inputId="venue-organization"
+                      value={field.state.value}
+                      selected={
+                        pickedOrg?.id === field.state.value ? pickedOrg : null
+                      }
+                      onChange={(nextId, meta) => {
+                        field.handleChange(nextId);
+                        setPickedOrg(meta);
+                      }}
+                      getToken={getToken}
+                      isDisabled={patchMut.isPending}
+                      placeholder="Type to search organizations…"
+                    />
+                    <p className="text-xs leading-snug text-slate-500">
+                      Results load in pages of 20 (search is debounced). Manage billing and structure
+                      under{" "}
+                      <Link href="/organizations" className="font-medium text-brand hover:underline">
+                        Organizations
+                      </Link>
+                      .
+                    </p>
+                  </label>
+                )}
+              </venueForm.Field>
+            ) : (
+              <div className="rounded-xl border border-slate-200/90 bg-slate-50/80 px-4 py-3">
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Organization
+                </span>
+                <p className="mt-1.5 text-sm font-medium text-slate-900">
+                  {v.organization?.name ??
+                    (v.organizationId ? v.organizationId : "— None —")}
                 </p>
-              </label>
+                <p className="mt-2 text-xs leading-snug text-slate-500">
+                  Only platform admins can attach or move a venue between organizations.
+                </p>
+              </div>
             )}
-          </venueForm.Field>
-        ) : (
-          <div className="mb-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5">
-            <span className="text-sm font-medium text-slate-800">Organization</span>
-            <p className="mt-1 text-sm text-slate-900">
-              {v.organization?.name ??
-                (v.organizationId ? v.organizationId : "— None —")}
-            </p>
-            <p className="text-xs text-slate-500 mt-1">
-              Only platform admins can attach or move a venue between organizations.
-            </p>
+
+            <div className="border-t border-slate-100 pt-6 space-y-5">
+              <venueForm.Field name="locked">
+                {(field) => (
+                  <label className="inline-flex cursor-pointer items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100/90">
+                    <input
+                      type="checkbox"
+                      checked={field.state.value}
+                      onChange={(e) => {
+                        const next = e.target.checked;
+                        if (next && !field.state.value) {
+                          setLockConfirmOpen(true);
+                          return;
+                        }
+                        field.handleChange(next);
+                      }}
+                      className="h-4 w-4 rounded border-slate-300 text-brand focus:ring-brand/30"
+                    />
+                    Locked (suspend play &amp; map)
+                  </label>
+                )}
+              </venueForm.Field>
+
+              <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
+                <venueForm.Field name="lockReason">
+                  {(field) => (
+                    <label className="flex min-w-0 flex-col gap-1.5">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Lock reason (optional)
+                      </span>
+                      <input
+                        className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        onBlur={field.handleBlur}
+                        placeholder="Shown to staff when relevant"
+                      />
+                    </label>
+                  )}
+                </venueForm.Field>
+
+                <venueForm.Field name="guestPlayDailyGamesLimit">
+                  {(field) => (
+                    <label className="flex min-w-0 flex-col gap-1.5">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Guest daily game cap (optional)
+                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={999}
+                        placeholder="Inherit from org / default"
+                        className="w-full min-w-0 max-w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 lg:max-w-xs"
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        onBlur={field.handleBlur}
+                      />
+                      <p className="text-xs leading-snug text-slate-500">
+                        Max QR / guest play sessions per player per calendar day at this venue. Leave
+                        empty for the organization default, then the platform env fallback.
+                      </p>
+                    </label>
+                  )}
+                </venueForm.Field>
+              </div>
+            </div>
           </div>
-        )}
+        </section>
 
-        <venueForm.Field name="locked">
-        {(field) => (
-          <label className="flex items-center gap-2 mb-3">
-            <input
-              type="checkbox"
-              checked={field.state.value}
-              onChange={(e) => {
-                const next = e.target.checked;
-                if (next && !field.state.value) {
-                  setLockConfirmOpen(true);
-                  return;
-                }
-                field.handleChange(next);
-              }}
-            />
-            <span className="text-sm text-slate-800">Locked (suspend play & map)</span>
-          </label>
-        )}
-      </venueForm.Field>
 
-      <venueForm.Field name="lockReason">
-        {(field) => (
-          <label className="block mb-3">
-            <span className="text-sm text-slate-600">Lock reason (optional)</span>
-            <input
-              className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
-              value={field.state.value}
-              onChange={(e) => field.handleChange(e.target.value)}
-              onBlur={field.handleBlur}
-            />
-          </label>
-        )}
-      </venueForm.Field>
+        <section className="mb-8 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.04] md:p-6">
+          <div className="space-y-5">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">Location &amp; geofence</h2>
+                <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
+                  Place the pin and draw the play-area polygon. Same workflow as when creating a venue;
+                  geometry is saved with the rest of this form.
+                </p>
+              </div>
+              {v.geofencePolygon ? (
+                <span className="inline-flex shrink-0 items-center rounded-full border border-emerald-200/90 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
+                  Geofence on file
+                </span>
+              ) : (
+                <span className="inline-flex shrink-0 items-center rounded-full border border-amber-200/90 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-900">
+                  No polygon yet
+                </span>
+              )}
+            </div>
 
-      <venueForm.Field name="guestPlayDailyGamesLimit">
-        {(field) => (
-          <label className="block mb-3">
-            <span className="text-sm text-slate-600">
-              Guest daily game cap (optional)
-            </span>
-            <input
-              type="number"
-              min={1}
-              max={999}
-              placeholder="inherit from organization / default"
-              className="mt-1 w-full max-w-xs bg-white border border-slate-300 rounded px-3 py-2 text-sm"
-              value={field.state.value}
-              onChange={(e) => field.handleChange(e.target.value)}
-              onBlur={field.handleBlur}
-            />
-            <p className="text-xs text-slate-500 mt-1">
-              Max QR / guest play sessions per player per calendar day at this venue. Leave empty to
-              use the organization default, then the platform env fallback.
-            </p>
-          </label>
-        )}
-      </venueForm.Field>
-
-      <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 mb-6 space-y-3">
-        <h2 className="text-sm font-semibold text-slate-800">Location &amp; geofence</h2>
-        <p className="text-xs text-slate-600">
-          Drag the pin and draw the play area — same map as when creating a venue under an
-          organization. Location updates are included when you save this page.
-        </p>
-        <VenueGeofenceMap
-          key={`${v.id}-${v.geofencePolygon ? "p" : "n"}`}
-          pin={geoPin}
-          onPinChange={onGeoPinChange}
-          onPolygonChange={onGeoPolyChange}
-          initialPolygon={adminVenueGeofenceToGeoJson(v.geofencePolygon)}
-        />
-        {!v.geofencePolygon ? (
-          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">
-            This venue has no geofence yet. Draw a polygon so in-venue play can detect the space.
-          </p>
-        ) : null}
-      </div>
-
-      <venueForm.Field name="menuUrl">
-        {(field) => (
-          <label className="block mb-3">
-            <span className="text-sm text-slate-600">Menu URL</span>
-            <input
-              className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
-              value={field.state.value}
-              onChange={(e) => field.handleChange(e.target.value)}
-              onBlur={field.handleBlur}
-            />
-          </label>
-        )}
-      </venueForm.Field>
-
-      <venueForm.Field name="orderingUrl">
-        {(field) => (
-          <label className="block mb-3">
-            <span className="text-sm text-slate-600">Ordering URL</span>
-            <input
-              className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
-              value={field.state.value}
-              onChange={(e) => field.handleChange(e.target.value)}
-              onBlur={field.handleBlur}
-            />
-          </label>
-        )}
-      </venueForm.Field>
-
-      <div className="rounded-xl border border-slate-200 bg-white/90 p-4 mb-6 shadow-sm">
-        <h2 className="text-sm font-semibold text-slate-900">Venue categories</h2>
-        <p className="text-xs text-slate-600 mt-1 max-w-3xl">
-          Pick any that apply (for example a coffee shop that also sells games). Dwell push copy is
-          chosen from platform templates using these categories; env defaults apply if none match.
-        </p>
-        {venueTypeCatalogQ.isError &&
-        venueTypeCatalogQ.error instanceof Error ? (
-          <p className="text-xs text-red-600 mt-2">{venueTypeCatalogQ.error.message}</p>
-        ) : null}
-        {isSuperAdmin ? (
-          <div className="mt-4 pt-4 border-t border-slate-200">
-            <h3 className="text-xs font-semibold text-slate-800 uppercase tracking-wide">
-              Add category
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Creates a new global tag (e.g. <span className="font-mono">BOARD_GAME_CAFE</span>). It
-              appears in this list for every venue; link nudge templates to this code in the database
-              if you want template-based copy for it.
-            </p>
-            <div className="mt-2 flex flex-wrap items-end gap-2">
-              <label className="text-xs text-slate-600 block min-w-[10rem]">
-                Code
-                <input
-                  className="mt-0.5 block w-full bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm font-mono"
-                  value={newVenueTypeCode}
-                  onChange={(e) => setNewVenueTypeCode(e.target.value)}
-                  placeholder="BOARD_GAME_CAFE"
-                  autoComplete="off"
-                />
-              </label>
-              <label className="text-xs text-slate-600 block min-w-[12rem] flex-1 max-w-md">
-                Display label (optional)
-                <input
-                  className="mt-0.5 block w-full bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
-                  value={newVenueTypeLabel}
-                  onChange={(e) => setNewVenueTypeLabel(e.target.value)}
-                  placeholder="Board game café"
-                  autoComplete="off"
-                />
-              </label>
-              <button
-                type="button"
-                disabled={createVenueTypeMut.isPending}
-                onClick={() => void addVenueCategory()}
-                className="bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white rounded-lg px-3 py-2 text-sm font-medium"
+            {!v.geofencePolygon ? (
+              <div
+                className="rounded-xl border border-amber-200/90 bg-amber-50/90 px-4 py-3 text-sm text-amber-950 shadow-sm"
+                role="status"
               >
-                {createVenueTypeMut.isPending ? "Adding…" : "Add & select"}
-              </button>
-            </div>
-            {createVenueTypeErr ? (
-              <p className="text-xs text-red-600 mt-2">{createVenueTypeErr}</p>
+                <p className="font-medium text-amber-950">Draw a geofence to enable in-venue detection</p>
+                <p className="mt-1 text-xs leading-snug text-amber-900/90">
+                  Without a polygon, apps cannot tell when players are inside this venue&apos;s play
+                  space. Use the map tools below to add one before saving.
+                </p>
+              </div>
             ) : null}
+
+            <VenueGeofenceMap
+              key={`${v.id}-${v.geofencePolygon ? "p" : "n"}`}
+              pin={geoPin}
+              onPinChange={onGeoPinChange}
+              onPolygonChange={onGeoPolyChange}
+              initialPolygon={adminVenueGeofenceToGeoJson(v.geofencePolygon)}
+            />
           </div>
-        ) : null}
-        <venueForm.Field name="venueTypeCodes">
-          {(field) => (
-            <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3">
-              {(venueTypeCatalogQ.data ?? []).map((t: AdminVenueTypeRow) => (
-                <label key={t.id} className="flex items-center gap-2 text-sm text-slate-800">
-                  <input
-                    type="checkbox"
-                    className="rounded border-slate-300"
-                    checked={(field.state.value ?? []).includes(t.code)}
-                    onChange={(e) => {
-                      const next = new Set(field.state.value ?? []);
-                      if (e.target.checked) next.add(t.code);
-                      else next.delete(t.code);
-                      field.handleChange([...next]);
-                    }}
-                  />
-                  <span>{t.label ?? t.code}</span>
-                  <span className="text-xs text-slate-400 font-mono">({t.code})</span>
-                </label>
-              ))}
+        </section>
+
+        <section className="mb-8 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.04] md:p-6">
+          <div className="space-y-5">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">Menu &amp; ordering</h2>
+                <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
+                  Public links surfaced in the player experience (for example from venue detail or
+                  nudges). Use full URLs including <span className="font-mono text-[11px]">https://</span>.
+                  Leave blank if not applicable.
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+                <venueForm.Subscribe selector={(s) => Boolean(s.values.menuUrl?.trim())}>
+                  {(hasMenu) =>
+                    hasMenu ? (
+                      <span className="inline-flex items-center rounded-full border border-slate-200/90 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-700">
+                        Menu URL set
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full border border-slate-200/90 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        No menu URL
+                      </span>
+                    )
+                  }
+                </venueForm.Subscribe>
+                <venueForm.Subscribe selector={(s) => Boolean(s.values.orderingUrl?.trim())}>
+                  {(hasOrder) =>
+                    hasOrder ? (
+                      <span className="inline-flex items-center rounded-full border border-slate-200/90 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-700">
+                        Ordering URL set
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full border border-slate-200/90 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        No ordering URL
+                      </span>
+                    )
+                  }
+                </venueForm.Subscribe>
+              </div>
             </div>
-          )}
-        </venueForm.Field>
-      </div>
 
-      <VenueNudgeSection
-        venueId={id}
-        getToken={getToken}
-        enabled={Boolean(isLoaded && id)}
-        isSuperAdmin={Boolean(isSuperAdmin)}
-      />
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
+              <venueForm.Field name="menuUrl">
+                {(field) => (
+                  <label className="flex min-w-0 flex-col gap-1.5">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Menu URL
+                    </span>
+                    <input
+                      inputMode="url"
+                      autoComplete="url"
+                      placeholder="https://example.com/menu"
+                      className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                    />
+                  </label>
+                )}
+              </venueForm.Field>
 
-      {isSuperAdmin ? (
-        <>
-          <h2 className="text-sm font-semibold text-slate-900 mt-2">Venue-wide copy fallback</h2>
-          <p className="text-xs text-slate-500 mb-2 max-w-3xl">
-            Optional. Used after per-assignment overrides but before template defaults when resolving
-            automatic nudges. Supports <span className="font-mono">{"{{venueName}}"}</span>.
-          </p>
-          <venueForm.Field name="orderNudgeTitle">
-            {(field) => (
-              <label className="block mb-3">
-                <span className="text-sm text-slate-600">Fallback title</span>
-                <input
-                  className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  onBlur={field.handleBlur}
-                />
-              </label>
-            )}
-          </venueForm.Field>
+              <venueForm.Field name="orderingUrl">
+                {(field) => (
+                  <label className="flex min-w-0 flex-col gap-1.5">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Ordering URL
+                    </span>
+                    <input
+                      inputMode="url"
+                      autoComplete="url"
+                      placeholder="https://order.example.com"
+                      className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                    />
+                  </label>
+                )}
+              </venueForm.Field>
+            </div>
+          </div>
+        </section>
 
-          <venueForm.Field name="orderNudgeBody">
-            {(field) => (
-              <label className="block mb-3">
-                <span className="text-sm text-slate-600">Fallback body</span>
-                <textarea
-                  className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm min-h-[72px]"
-                  value={field.state.value}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                  onBlur={field.handleBlur}
-                />
-              </label>
-            )}
-          </venueForm.Field>
-        </>
-      ) : null}
+        <section className="mb-8 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.04] md:p-6">
+          <div className="space-y-6">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">Venue categories</h2>
+                <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
+                  Pick any that apply (for example a coffee shop that also sells games). Dwell push copy
+                  is chosen from platform templates using these categories; env defaults apply if none
+                  match.
+                </p>
+              </div>
+              <venueForm.Subscribe selector={(s) => s.values.venueTypeCodes?.length ?? 0}>
+                {(n) => (
+                  <span
+                    className={
+                      n > 0
+                        ? "inline-flex shrink-0 items-center rounded-full border border-slate-200/90 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-700"
+                        : "inline-flex shrink-0 items-center rounded-full border border-slate-200/90 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500"
+                    }
+                  >
+                    {n === 0 ? "None selected" : `${n} selected`}
+                  </span>
+                )}
+              </venueForm.Subscribe>
+            </div>
 
-      <VenueOffersSection
-        venueId={id}
-        getToken={getToken}
-        enabled={Boolean(isLoaded && id)}
-      />
+            {venueTypeCatalogQ.isError && venueTypeCatalogQ.error instanceof Error ? (
+              <div
+                className="rounded-xl border border-red-200/90 bg-red-50/90 px-4 py-3 text-sm text-red-900"
+                role="alert"
+              >
+                {venueTypeCatalogQ.error.message}
+              </div>
+            ) : null}
 
-      <venueForm.Field name="analyticsTimeZone">
-        {(field) => (
-          <label className="block mb-3">
-            <span className="text-sm text-slate-600">
-              Analytics timezone (IANA, optional — hour-of-day charts for owners)
-            </span>
-            <input
-              className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
-              value={field.state.value}
-              onChange={(e) => field.handleChange(e.target.value)}
-              onBlur={field.handleBlur}
-              placeholder="e.g. Europe/Zagreb"
-            />
-          </label>
-        )}
-      </venueForm.Field>
+            {isSuperAdmin ? (
+              <div className="rounded-xl border border-slate-200/90 bg-slate-50/70 p-4 shadow-sm md:p-5">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Add category
+                    </h3>
+                    <p className="mt-1 text-xs leading-snug text-slate-500">
+                      Creates a new global tag (e.g.{" "}
+                      <span className="font-mono text-[11px] text-slate-600">BOARD_GAME_CAFE</span>).
+                      It appears in this list for every venue; link nudge templates to this code in the
+                      database if you want template-based copy for it.
+                    </p>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <label className="flex min-w-0 flex-col gap-1.5">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Code
+                        </span>
+                        <input
+                          className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-mono text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                          value={newVenueTypeCode}
+                          onChange={(e) => setNewVenueTypeCode(e.target.value)}
+                          placeholder="BOARD_GAME_CAFE"
+                          autoComplete="off"
+                        />
+                      </label>
+                      <label className="flex min-w-0 flex-col gap-1.5">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Display label (optional)
+                        </span>
+                        <input
+                          className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                          value={newVenueTypeLabel}
+                          onChange={(e) => setNewVenueTypeLabel(e.target.value)}
+                          placeholder="Board game café"
+                          autoComplete="off"
+                        />
+                      </label>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={createVenueTypeMut.isPending}
+                      onClick={() => void addVenueCategory()}
+                      className="h-[42px] w-full rounded-lg bg-slate-800 px-4 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-900 disabled:opacity-50 sm:w-auto"
+                    >
+                      {createVenueTypeMut.isPending ? "Adding…" : "Add & Select"}
+                    </button>
+                  </div>
+                  {createVenueTypeErr ? (
+                    <p className="text-xs font-medium text-red-600">{createVenueTypeErr}</p>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
 
-      <div className="border border-slate-300 rounded-lg p-4 mb-4 space-y-3">
-        <p className="text-sm text-slate-800 font-semibold">
-          Owner / manager / employee (Clerk)
-        </p>
-        <p className="text-xs text-slate-500">
-          Invite people with their real sign-in email. They use this partner portal with the same
-          Clerk project: employees see verification lists; managers and owners see analytics and
-          campaigns.
-        </p>
-        <div className="flex flex-wrap gap-2 items-end">
-          <label className="block text-sm text-slate-600 flex-1 min-w-[200px]">
-            Email
-            <input
-              type="email"
-              className="mt-1 w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
-              value={staffEmail}
-              onChange={(e) => setStaffEmail(e.target.value)}
-              placeholder="owner@venue.com"
-            />
-          </label>
-          <label className="block text-sm text-slate-600">
-            Role
-            <select
-              className="mt-1 block w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm"
-              value={staffRole}
-              onChange={(e) => setStaffRole(e.target.value as AdminVenueStaffRow["role"])}
+            <venueForm.Field name="venueTypeCodes">
+              {(field) => (
+                <div className="space-y-3">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Categories for this venue
+                  </span>
+                  {(venueTypeCatalogQ.data ?? []).length === 0 ? (
+                    <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/80 px-3 py-4 text-sm text-slate-500">
+                      {venueTypeCatalogQ.isPending
+                        ? "Loading categories…"
+                        : "No categories are defined yet."}
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                      {(venueTypeCatalogQ.data ?? []).map((t: AdminVenueTypeRow) => {
+                        const checked = (field.state.value ?? []).includes(t.code);
+                        return (
+                          <label
+                            key={t.id}
+                            className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2.5 text-sm shadow-sm transition-colors focus-within:ring-2 focus-within:ring-brand/25 ${checked
+                              ? "border-emerald-200/90 bg-emerald-50/50"
+                              : "border-slate-200/90 bg-white hover:bg-slate-50/90"
+                              }`}
+                          >
+                            <input
+                              type="checkbox"
+                              className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-brand focus:ring-brand/30"
+                              checked={checked}
+                              onChange={(e) => {
+                                const next = new Set(field.state.value ?? []);
+                                if (e.target.checked) next.add(t.code);
+                                else next.delete(t.code);
+                                field.handleChange([...next]);
+                              }}
+                            />
+                            <span className="min-w-0 leading-snug">
+                              <span className="font-medium text-slate-900">
+                                {t.label ?? t.code}
+                              </span>
+                              <span className="mt-0.5 block font-mono text-[11px] text-slate-500">
+                                {t.code}
+                              </span>
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </venueForm.Field>
+          </div>
+        </section>
+
+        {/* Nudge & copy */}
+        <VenueNudgeSection
+          venueId={id}
+          getToken={getToken}
+          enabled={Boolean(isLoaded && id)}
+          isSuperAdmin={Boolean(isSuperAdmin)}
+        />
+
+        {isSuperAdmin ? (
+          <section className="mb-8 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.04] md:p-6">
+            <div className="space-y-5">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">Venue-wide copy fallback</h2>
+                <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
+                  Optional. Used after per-assignment overrides but before template defaults when resolving
+                  automatic nudges. Supports{" "}
+                  <span className="font-mono text-[11px] text-slate-600">{"{{venueName}}"}</span>.
+                </p>
+              </div>
+              <div className="space-y-5">
+                <venueForm.Field name="orderNudgeTitle">
+                  {(field) => (
+                    <label className="flex min-w-0 flex-col gap-1.5">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Fallback title
+                      </span>
+                      <input
+                        className="w-full min-w-0 max-w-2xl rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        onBlur={field.handleBlur}
+                      />
+                    </label>
+                  )}
+                </venueForm.Field>
+                <venueForm.Field name="orderNudgeBody">
+                  {(field) => (
+                    <label className="flex min-w-0 flex-col gap-1.5">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Fallback body
+                      </span>
+                      <textarea
+                        className="min-h-[88px] w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        onBlur={field.handleBlur}
+                      />
+                    </label>
+                  )}
+                </venueForm.Field>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {/* Offers */}
+        <VenueOffersSection
+          venueId={id}
+          getToken={getToken}
+          enabled={Boolean(isLoaded && id)}
+        />
+
+        <section className="mb-8 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.04] md:p-6">
+          <div className="space-y-5">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900">Analytics</h2>
+              <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
+                IANA timezone for owner-facing hour-of-day charts in this portal. Leave empty to use
+                the default from the environment or organization.
+              </p>
+            </div>
+            <venueForm.Field name="analyticsTimeZone">
+              {(field) => (
+                <label className="flex max-w-xl min-w-0 flex-col gap-1.5">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Timezone (optional)
+                  </span>
+                  <input
+                    className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                    placeholder="e.g. Europe/Zagreb"
+                  />
+                </label>
+              )}
+            </venueForm.Field>
+          </div>
+        </section>
+
+        <section className="mb-8 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.04] md:p-6">
+          <div className="space-y-5">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">Portal staff</h2>
+                <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
+                  Clerk-backed access: invite people with their real sign-in email. They use this partner
+                  portal in the same Clerk project—employees see verification lists; managers and owners see
+                  analytics and campaigns.
+                </p>
+              </div>
+              <span
+                className={
+                  staffRows.length > 0
+                    ? "inline-flex shrink-0 items-center rounded-full border border-slate-200/90 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-700"
+                    : "inline-flex shrink-0 items-center rounded-full border border-slate-200/90 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500"
+                }
+              >
+                {staffRows.length === 0
+                  ? "No staff"
+                  : `${staffRows.length} member${staffRows.length === 1 ? "" : "s"}`}
+              </span>
+            </div>
+
+            <div className="rounded-xl border border-slate-200/90 bg-slate-50/70 p-4 shadow-sm md:p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Add or update access
+              </p>
+              <div className="mt-3 space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_10rem]">
+                  <label className="flex min-w-0 flex-col gap-1.5">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Email
+                    </span>
+                    <input
+                      type="email"
+                      className={staffFieldText}
+                      value={staffEmail}
+                      onChange={(e) => setStaffEmail(e.target.value)}
+                      placeholder="owner@venue.com"
+                      autoComplete="email"
+                    />
+                  </label>
+                  <label className="flex min-w-0 flex-col gap-1.5">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Role
+                    </span>
+                    <select
+                      className={staffFieldSelect}
+                      value={staffRole}
+                      onChange={(e) => setStaffRole(e.target.value as AdminVenueStaffRow["role"])}
+                    >
+                      <option value="EMPLOYEE">EMPLOYEE</option>
+                      <option value="MANAGER">MANAGER</option>
+                      <option value="OWNER">OWNER</option>
+                    </select>
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  disabled={staffAddMut.isPending}
+                  onClick={() => void addStaff()}
+                  className="h-[42px] w-full rounded-lg bg-slate-800 px-4 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-900 disabled:opacity-50 sm:w-auto"
+                >
+                  {staffAddMut.isPending ? "Working…" : "Add / update"}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Current access
+              </p>
+              <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm">
+                {staffRows.length === 0 ? (
+                  <p className="px-3 py-6 text-center text-sm text-slate-500">No staff yet.</p>
+                ) : (
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-slate-50/90">
+                      {staffTable.getHeaderGroups().map((hg) => (
+                        <tr
+                          key={hg.id}
+                          className="border-b border-slate-200 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
+                        >
+                          {hg.headers.map((h) => (
+                            <th key={h.id} className="px-3 py-2.5 pr-3 text-left">
+                              {flexRender(h.column.columnDef.header, h.getContext())}
+                            </th>
+                          ))}
+                        </tr>
+                      ))}
+                    </thead>
+                    <tbody>
+                      {staffTable.getRowModel().rows.map((row) => (
+                        <tr key={row.id} className="border-b border-slate-100">
+                          {row.getVisibleCells().map((cell) => (
+                            <td key={cell.id} className="px-3 py-2.5 align-top">
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-10 rounded-2xl border border-slate-200/90 bg-slate-50/60 p-5 shadow-sm ring-1 ring-slate-900/[0.04] md:p-6">
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900">Save venue settings</h2>
+              <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
+                Writes everything in this form (organization, access, URLs, categories, geofence,
+                nudges, fallback copy, analytics). Perks and challenges below save on their own actions.
+              </p>
+            </div>
+            {pageErr ? (
+              <div
+                className="rounded-xl border border-red-200/90 bg-red-50/90 px-4 py-3 text-sm text-red-900"
+                role="alert"
+              >
+                {pageErr}
+              </div>
+            ) : null}
+            <button
+              type="submit"
+              disabled={patchMut.isPending}
+              className="mx-auto block w-full max-w-md rounded-lg border border-brand-active bg-brand py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover disabled:opacity-50"
             >
-              <option value="EMPLOYEE">EMPLOYEE</option>
-              <option value="MANAGER">MANAGER</option>
-              <option value="OWNER">OWNER</option>
-            </select>
-          </label>
-          <button
-            type="button"
-            disabled={staffAddMut.isPending}
-            onClick={() => void addStaff()}
-            className="bg-slate-200 hover:bg-slate-300 disabled:opacity-50 rounded-lg px-4 py-2 text-sm h-[38px]"
-          >
-            Add / update
-          </button>
-        </div>
-        <div className="rounded border border-slate-200 overflow-x-auto bg-white">
-          {staffRows.length === 0 ? (
-            <p className="text-sm text-slate-500 p-3">No staff yet.</p>
-          ) : (
-            <table className="min-w-full text-sm">
-              <thead>
-                {staffTable.getHeaderGroups().map((hg) => (
-                  <tr key={hg.id} className="border-b border-slate-200 bg-slate-50">
-                    {hg.headers.map((h) => (
-                      <th
-                        key={h.id}
-                        className="text-left px-3 py-2 text-xs uppercase text-slate-500"
-                      >
-                        {flexRender(h.column.columnDef.header, h.getContext())}
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody>
-                {staffTable.getRowModel().rows.map((row) => (
-                  <tr key={row.id} className="border-b border-slate-100 bg-slate-50">
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-3 py-2">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-
-        {pageErr ? <p className="text-red-600 text-sm mb-2">{pageErr}</p> : null}
-        <button
-          type="submit"
-          disabled={patchMut.isPending}
-          className="mt-4 w-full max-w-xl bg-brand border border-brand-active text-white hover:bg-brand-hover disabled:opacity-50 rounded-lg py-2 font-semibold"
-        >
-          {patchMut.isPending ? "Saving…" : "Save venue settings…"}
-        </button>
+              {patchMut.isPending ? "Saving…" : "Save venue settings…"}
+            </button>
+          </div>
+        </section>
       </form>
 
+      {/* Save confirmation modal */}
       <ConfirmModal
         open={saveConfirmOpen}
         onClose={() => setSaveConfirmOpen(false)}
@@ -734,6 +991,7 @@ export default function EditVenuePage() {
         onConfirm={() => venueForm.handleSubmit()}
       />
 
+      {/* Lock confirmation modal */}
       <ConfirmModal
         open={lockConfirmOpen}
         onClose={() => setLockConfirmOpen(false)}
@@ -751,6 +1009,7 @@ export default function EditVenuePage() {
         }}
       />
 
+      {/* Staff removal confirmation modal */}
       <ConfirmModal
         open={staffRemoveTarget !== null}
         onClose={() => setStaffRemoveTarget(null)}
@@ -780,6 +1039,7 @@ export default function EditVenuePage() {
         }}
       />
 
+      {/* Staff addition confirmation modal */}
       <ConfirmModal
         open={addStaffConfirmOpen}
         onClose={() => setAddStaffConfirmOpen(false)}
@@ -794,7 +1054,7 @@ export default function EditVenuePage() {
         onConfirm={runAddStaff}
       />
 
-      <div className="px-8 max-w-5xl mx-auto space-y-10">
+      <div className="mx-auto max-w-5xl space-y-8 px-8 pb-12">
         <VenuePerksSection
           venueId={id}
           getToken={getToken}

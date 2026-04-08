@@ -86,6 +86,8 @@
     "filterScopeMulti": "Multi-sede",
     "filterBilling": "Estado de facturación",
     "filterBillingPlaceholder": "p. ej. NONE",
+    "filtersTitle": "Filtros",
+    "filtersHint": "La búsqueda tiene debounce. El estado de facturación coincide con el filtro parcial de la API.",
     "pageRange": "{{from}}–{{to}} de {{total}}",
     "pageStatus": "Página {{page}} de {{pages}} · {{total}} en total",
     "pagePrev": "Anterior",

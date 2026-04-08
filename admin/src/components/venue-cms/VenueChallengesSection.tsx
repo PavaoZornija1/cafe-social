@@ -20,6 +20,12 @@ type Ch = {
 
 const colHelper = createColumnHelper<Ch>();
 
+const fieldLbl = "text-[11px] font-semibold uppercase tracking-wide text-slate-500";
+const fieldDt =
+  "w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
+const btnRow =
+  "rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-white shadow-sm transition-colors hover:bg-slate-900 disabled:opacity-50";
+
 type Props = {
   venueId: string;
   getToken: () => Promise<string | null>;
@@ -73,12 +79,12 @@ export function VenueChallengesSection({
           const r = row.original;
           const ed = edits[r.id];
           return (
-            <div className="flex gap-2 text-sm flex-wrap items-end">
-              <label className="flex-1 min-w-[140px]">
-                activeFrom
+            <div className="flex flex-wrap items-end gap-3 text-sm">
+              <label className="flex min-w-[160px] flex-1 flex-col gap-1">
+                <span className={fieldLbl}>activeFrom (UTC)</span>
                 <input
                   type="datetime-local"
-                  className="w-full bg-white border border-slate-300 rounded px-1 mt-0.5"
+                  className={fieldDt}
                   value={ed?.from ?? ""}
                   onChange={(e) =>
                     setEdits((prev) => ({
@@ -88,11 +94,11 @@ export function VenueChallengesSection({
                   }
                 />
               </label>
-              <label className="flex-1 min-w-[140px]">
-                activeTo
+              <label className="flex min-w-[160px] flex-1 flex-col gap-1">
+                <span className={fieldLbl}>activeTo (UTC)</span>
                 <input
                   type="datetime-local"
-                  className="w-full bg-white border border-slate-300 rounded px-1 mt-0.5"
+                  className={fieldDt}
                   value={ed?.to ?? ""}
                   onChange={(e) =>
                     setEdits((prev) => ({
@@ -115,7 +121,7 @@ export function VenueChallengesSection({
                     to: eRow.to,
                   });
                 }}
-                className="text-xs bg-emerald-700 text-white rounded px-2 py-1.5 h-fit"
+                className={`h-[38px] shrink-0 ${btnRow}`}
               >
                 Save…
               </button>
@@ -135,25 +141,37 @@ export function VenueChallengesSection({
 
   const err = q.isError && q.error instanceof Error ? q.error.message : null;
   const embedded = variant === "embedded";
+  const challengeCount = (q.data ?? []).length;
 
   return (
     <section
       className={
         embedded
-          ? "rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm"
-          : "min-h-screen bg-slate-50 text-slate-900 p-8"
+          ? "mb-8 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.04] md:p-6"
+          : "min-h-screen bg-slate-50 p-8 text-slate-900"
       }
     >
       {embedded ? (
-        <header className="mb-4">
-          <h2 className="text-lg font-semibold text-slate-900 tracking-tight">
-            Challenges
-          </h2>
-          <p className="text-sm text-slate-600 mt-1 max-w-2xl">
-            Goals and schedules for this venue. Times are stored in UTC; adjust windows with care
-            for your audience.
-          </p>
-        </header>
+        <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">Challenges</h2>
+            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
+              Goals and schedules for this venue. Times are stored in UTC; adjust windows with care
+              for your audience.
+            </p>
+          </div>
+          <span
+            className={
+              challengeCount > 0
+                ? "inline-flex shrink-0 items-center rounded-full border border-slate-200/90 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-700"
+                : "inline-flex shrink-0 items-center rounded-full border border-slate-200/90 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500"
+            }
+          >
+            {challengeCount === 0
+              ? "None"
+              : `${challengeCount} challenge${challengeCount === 1 ? "" : "s"}`}
+          </span>
+        </div>
       ) : (
         <>
           <Link href="/venues" className="text-brand text-sm">
@@ -163,27 +181,53 @@ export function VenueChallengesSection({
         </>
       )}
 
-      {err ? <p className="text-red-600 mb-2">{err}</p> : null}
+      {err ? (
+        <div
+          className="mb-4 rounded-xl border border-red-200/90 bg-red-50/90 px-4 py-3 text-sm text-red-900"
+          role="alert"
+        >
+          {err}
+        </div>
+      ) : null}
       {patchMut.isError && patchMut.error instanceof Error ? (
-        <p className="text-red-600 mb-2 text-sm">{patchMut.error.message}</p>
+        <div
+          className="mb-4 rounded-xl border border-red-200/90 bg-red-50/90 px-4 py-3 text-sm text-red-900"
+          role="alert"
+        >
+          {patchMut.error.message}
+        </div>
       ) : null}
 
+      {embedded ? (
+        <p className={fieldLbl}>Schedule &amp; windows</p>
+      ) : null}
       {q.isPending && !q.data ? (
-        <p className="text-slate-600 text-sm">Loading challenges…</p>
+        <p
+          className={
+            embedded
+              ? "mt-3 rounded-lg border border-dashed border-slate-200 bg-slate-50/80 px-3 py-4 text-sm text-slate-500"
+              : "text-sm text-slate-600"
+          }
+        >
+          Loading challenges…
+        </p>
       ) : (
         <div
           className={
             embedded
-              ? "rounded-xl border border-slate-200 bg-white overflow-x-auto"
-              : "rounded-xl border border-slate-200 bg-white overflow-x-auto max-w-4xl"
+              ? "mt-3 overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm"
+              : "max-w-4xl overflow-x-auto rounded-xl border border-slate-200 bg-white"
           }
         >
           <table className="min-w-full text-sm">
-            <thead>
+            <thead className="bg-slate-50/90">
               {table.getHeaderGroups().map((hg) => (
-                <tr key={hg.id} className="border-b border-slate-200 bg-slate-50">
+                <tr
+                  key={hg.id}
+                  className="border-b border-slate-200 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
+                >
                   {hg.headers.map((h) => (
-                    <th key={h.id} className="text-left px-3 py-2 text-xs uppercase text-slate-500">
+                    <th key={h.id} className="px-3 py-2.5 pr-3 text-left">
                       {flexRender(h.column.columnDef.header, h.getContext())}
                     </th>
                   ))}
@@ -191,15 +235,26 @@ export function VenueChallengesSection({
               ))}
             </thead>
             <tbody>
-              {table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="border-b border-slate-100 align-top">
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-3 py-3">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
+              {table.getRowModel().rows.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={2}
+                    className="border-t border-slate-100 px-3 py-6 text-center text-sm text-slate-500"
+                  >
+                    No challenges for this venue.
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                table.getRowModel().rows.map((row) => (
+                  <tr key={row.id} className="border-b border-slate-100 align-top">
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-3 py-3">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

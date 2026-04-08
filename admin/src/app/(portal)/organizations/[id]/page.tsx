@@ -76,6 +76,11 @@ type VenueListRow = {
 
 const venueColHelper = createColumnHelper<VenueListRow>();
 
+const fieldCol = 'flex min-w-0 flex-col gap-1.5';
+const fieldLbl = 'text-xs font-semibold uppercase tracking-wide text-slate-500';
+const fieldInp =
+  'w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 h-[42px] box-border py-0 leading-none';
+
 const emptyCreateVenue = () => ({
   name: '',
   pin: { ...DEFAULT_VENUE_PIN },
@@ -327,75 +332,110 @@ export default function EditOrganizationPage() {
         </div>
       </div>
 
-      <div className="mb-6 border border-slate-200 rounded-xl p-4 bg-white space-y-3">
-        <h2 className="text-sm font-semibold text-slate-800">People</h2>
-        {o.selfServeCreatedBy ? (
-          <div className="text-sm">
-            <span className="text-slate-500 text-xs block mb-0.5">Self-serve onboarding</span>
-            <span className="text-slate-800">{o.selfServeCreatedBy.email}</span>
-            <span className="text-slate-500 text-xs ml-2 font-mono">{o.selfServeCreatedBy.id}</span>
+      <section className="mb-8 space-y-6 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.04] md:p-6">
+        <div className="space-y-5">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">People</h2>
+            <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500">
+              Self-serve signup and venue owners across venues linked to this organization.
+            </p>
           </div>
-        ) : (
-          <p className="text-xs text-slate-500">No self-serve creator recorded for this org.</p>
-        )}
-        <div>
-          <span className="text-slate-500 text-xs block mb-1">Venue owners (across linked venues)</span>
-          {ownerList.length === 0 ? (
-            <p className="text-xs text-slate-500">No owner staff on these venues yet.</p>
-          ) : (
-            <ul className="text-sm space-y-1">
-              {ownerList.map((p) => (
-                <li key={p.playerId} className="text-slate-800">
-                  {p.email}{' '}
-                  <span className="text-slate-500 text-xs">
-                    ({p.username}) · <span className="font-mono">{p.playerId}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className={fieldCol}>
+              <span className={fieldLbl}>Self-serve onboarding</span>
+              {o.selfServeCreatedBy ? (
+                <div className="rounded-lg border border-slate-200/90 bg-slate-50/80 px-3 py-2.5 text-sm text-slate-900">
+                  <p className="font-medium text-slate-900">{o.selfServeCreatedBy.email}</p>
+                  <p className="mt-0.5 font-mono text-xs text-slate-500">{o.selfServeCreatedBy.id}</p>
+                </div>
+              ) : (
+                <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 px-3 py-2.5 text-xs text-slate-500">
+                  No self-serve creator recorded for this org.
+                </p>
+              )}
+            </div>
+
+            <div className={fieldCol}>
+              <span className={fieldLbl}>Venue owners (linked venues)</span>
+              {ownerList.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 px-3 py-2.5 text-xs text-slate-500">
+                  No owner staff on these venues yet.
+                </p>
+              ) : (
+                <ul className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-slate-200/90 bg-slate-50/80 px-3 py-2.5 text-sm">
+                  {ownerList.map((p) => (
+                    <li key={p.playerId} className="border-b border-slate-200/80 pb-2 last:border-0 last:pb-0">
+                      <span className="font-medium text-slate-900">{p.email}</span>
+                      <span className="mt-0.5 block text-xs text-slate-500">
+                        ({p.username}) · <span className="font-mono text-slate-600">{p.playerId}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
 
-      <label className="block mb-3">
-        <span className="text-sm text-slate-600">Name</span>
-        <input
-          className="mt-1 w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm"
-          value={o.name}
-          onChange={(e) => setO({ ...o, name: e.target.value })}
-        />
-      </label>
-      <label className="block mb-6">
-        <span className="text-sm text-slate-600">Slug (optional)</span>
-        <input
-          className="mt-1 w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm"
-          value={o.slug ?? ''}
-          onChange={(e) => setO({ ...o, slug: e.target.value || null })}
-        />
-      </label>
+        <div className="border-t border-slate-100 pt-6">
+          <h2 className="text-sm font-semibold text-slate-900">Organization</h2>
+          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500">
+            Display name, URL slug, and default guest play limit for venues without their own cap.
+          </p>
 
-      <label className="block mb-6">
-        <span className="text-sm text-slate-600">Default guest daily game cap (optional)</span>
-        <input
-          type="number"
-          min={1}
-          max={999}
-          className="mt-1 w-full max-w-xs bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm"
-          placeholder="platform default"
-          value={o.guestPlayDailyGamesLimit ?? ''}
-          onChange={(e) => {
-            const t = e.target.value;
-            setO({
-              ...o,
-              guestPlayDailyGamesLimit: t === '' ? null : Number.parseInt(t, 10),
-            });
-          }}
-        />
-        <p className="text-xs text-slate-500 mt-1">
-          Applies to linked venues that do not set their own cap (then env{' '}
-          <code className="text-slate-600">VENUE_GUEST_PLAY_DAILY_GAMES</code>).
-        </p>
-      </label>
+          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
+            <label className={fieldCol} htmlFor="org-detail-name">
+              <span className={fieldLbl}>Name</span>
+              <input
+                id="org-detail-name"
+                className={fieldInp}
+                value={o.name}
+                onChange={(e) => setO({ ...o, name: e.target.value })}
+                autoComplete="off"
+              />
+            </label>
+            <label className={fieldCol} htmlFor="org-detail-slug">
+              <span className={fieldLbl}>Slug (optional)</span>
+              <input
+                id="org-detail-slug"
+                className={fieldInp}
+                value={o.slug ?? ''}
+                onChange={(e) => setO({ ...o, slug: e.target.value || null })}
+                placeholder="url-friendly-id"
+                autoComplete="off"
+              />
+            </label>
+          </div>
+
+          <label className={`${fieldCol} mt-4 max-w-md`} htmlFor="org-detail-guest-cap">
+            <span className={fieldLbl}>Default guest daily game cap (optional)</span>
+            <input
+              id="org-detail-guest-cap"
+              type="number"
+              min={1}
+              max={999}
+              className={fieldInp}
+              placeholder="Platform default"
+              value={o.guestPlayDailyGamesLimit ?? ''}
+              onChange={(e) => {
+                const t = e.target.value;
+                setO({
+                  ...o,
+                  guestPlayDailyGamesLimit: t === '' ? null : Number.parseInt(t, 10),
+                });
+              }}
+            />
+            <p className="text-xs leading-relaxed text-slate-500">
+              Applies to linked venues that do not set their own cap (then env{' '}
+              <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[0.7rem] text-slate-700">
+                VENUE_GUEST_PLAY_DAILY_GAMES
+              </code>
+              ).
+            </p>
+          </label>
+        </div>
+      </section>
 
       <div className="border border-slate-200 rounded-xl bg-white shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-5 sm:py-4">

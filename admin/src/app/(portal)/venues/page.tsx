@@ -126,10 +126,10 @@ export default function VenuesPage() {
 
   const hasActiveFilters = Boolean(
     debouncedSearch.trim() ||
-      debouncedLocation.trim() ||
-      lockedOnly ||
-      orgFilter ||
-      (isSuperAdmin && countryIsoFilters.length > 0),
+    debouncedLocation.trim() ||
+    lockedOnly ||
+    orgFilter ||
+    (isSuperAdmin && countryIsoFilters.length > 0),
   );
 
   const listErr =
@@ -258,65 +258,85 @@ export default function VenuesPage() {
           <p className="text-slate-500">{t("admin.venues.loading")}</p>
         ) : (
           <>
-            <div className="border border-slate-200 rounded-xl p-4 mb-8 flex flex-wrap gap-2 items-end bg-white shadow-sm">
-              <label className="text-sm text-slate-600">
-                {t("admin.venues.filterSearchName")}
-                <input
-                  className="mt-1 block w-48 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder={t("admin.venues.filterSearchPlaceholder")}
-                />
-              </label>
-              <label className="text-sm text-slate-600">
-                {t("admin.venues.filterCityCountry")}
-                <input
-                  className="mt-1 block w-40 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
-                  value={cityQ}
-                  onChange={(e) => setCityQ(e.target.value)}
-                  placeholder={t("admin.venues.filterCityPlaceholder")}
-                />
-              </label>
-              <label className="text-sm text-slate-600 flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={lockedOnly}
-                  onChange={(e) => setLockedOnly(e.target.checked)}
-                  className="rounded border-slate-300"
-                />
-                {t("admin.venues.filterLockedOnly")}
-              </label>
-              <label className="text-sm text-slate-600 block min-w-[13rem]">
-                {t("admin.venues.filterOrganization")}
-                <FilterableSelect<FilterableOption, false>
-                  containerClassName="mt-1"
-                  options={orgSelectOptions}
-                  value={selectedOrgOption}
-                  onChange={(opt) => setOrgFilter(opt?.value ?? "")}
-                  placeholder={t("admin.venues.filterOrgPlaceholder")}
-                  isClearable={false}
-                />
-              </label>
-              {isSuperAdmin ? (
-                <label className="text-sm text-slate-600 block min-w-[14rem] max-w-[min(100%,22rem)]">
-                  {t("admin.venues.filterCountries")}
-                  <FilterableSelect<FilterableOption, true>
-                    isMulti
-                    containerClassName="mt-1"
-                    options={countryOptions}
-                    value={selectedCountryOptions}
-                    onChange={(opts) =>
-                      setCountryIsoFilters((opts ?? []).map((o) => o.value))
-                    }
-                    placeholder={t("admin.venues.filterCountriesPlaceholder")}
-                    closeMenuOnSelect={false}
-                  />
-                  <span className="mt-1 block text-xs font-normal text-slate-500">
-                    {t("admin.venues.filterCountriesHint")}
-                  </span>
-                </label>
-              ) : null}
-            </div>
+            <section className="mb-8 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.04] md:p-6">
+              <div className="space-y-5">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
+                  <label className="flex min-w-0 flex-col gap-1.5">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      {t("admin.venues.filterSearchName")}
+                    </span>
+                    <input
+                      className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                      value={q}
+                      onChange={(e) => setQ(e.target.value)}
+                      placeholder={t("admin.venues.filterSearchPlaceholder")}
+                    />
+                  </label>
+                  <label className="flex min-w-0 flex-col gap-1.5">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      {t("admin.venues.filterCityCountry")}
+                    </span>
+                    <input
+                      className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                      value={cityQ}
+                      onChange={(e) => setCityQ(e.target.value)}
+                      placeholder={t("admin.venues.filterCityPlaceholder")}
+                    />
+                  </label>
+                </div>
+
+                <div
+                  className={`grid grid-cols-1 gap-4 lg:gap-5 ${isSuperAdmin ? "lg:grid-cols-2" : ""}`}
+                >
+                  <label className="flex min-w-0 flex-col gap-1.5">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      {t("admin.venues.filterOrganization")}
+                    </span>
+                    <FilterableSelect<FilterableOption, false>
+                      containerClassName="w-full"
+                      options={orgSelectOptions}
+                      value={selectedOrgOption}
+                      onChange={(opt) => setOrgFilter(opt?.value ?? "")}
+                      placeholder={t("admin.venues.filterOrgPlaceholder")}
+                      isClearable={false}
+                    />
+                  </label>
+                  {isSuperAdmin ? (
+                    <label className="flex min-w-0 flex-col gap-1.5">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        {t("admin.venues.filterCountries")}
+                      </span>
+                      <FilterableSelect<FilterableOption, true>
+                        isMulti
+                        containerClassName="w-full"
+                        options={countryOptions}
+                        value={selectedCountryOptions}
+                        onChange={(opts) =>
+                          setCountryIsoFilters((opts ?? []).map((o) => o.value))
+                        }
+                        placeholder={t("admin.venues.filterCountriesPlaceholder")}
+                        closeMenuOnSelect={false}
+                      />
+                      <span className="text-xs font-normal leading-snug text-slate-500">
+                        {t("admin.venues.filterCountriesHint")}
+                      </span>
+                    </label>
+                  ) : null}
+                </div>
+
+                <div className="border-t border-slate-100 pt-4">
+                  <label className="inline-flex cursor-pointer items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100/90">
+                    <input
+                      type="checkbox"
+                      checked={lockedOnly}
+                      onChange={(e) => setLockedOnly(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-brand focus:ring-brand/30"
+                    />
+                    {t("admin.venues.filterLockedOnly")}
+                  </label>
+                </div>
+              </div>
+            </section>
             <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto relative">
               {venuesQ.isFetching && venuesQ.data ? (
                 <div className="absolute top-2 right-3 text-xs text-slate-500 z-10">

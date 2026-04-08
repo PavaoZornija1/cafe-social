@@ -37,6 +37,14 @@ const colHelper = createColumnHelper<OrgRow>();
 
 const PAGE_SIZE = 25;
 
+const fieldCol = "flex min-w-0 flex-col gap-1.5";
+const fieldLbl = "text-xs font-semibold uppercase tracking-wide text-slate-500";
+/** Same 42px height as `fieldSelect` (native select ignores vertical padding). */
+const fieldInp =
+  "w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 h-[42px] box-border py-0 leading-none";
+const fieldSelect =
+  "w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 h-[42px] box-border py-0 pr-9 leading-none";
+
 function formatShortDate(iso: string | null | undefined) {
   if (!iso) return "—";
   try {
@@ -236,10 +244,10 @@ export default function OrganizationsPage() {
               {showInitialLoading
                 ? t("admin.organizations.loading")
                 : t("admin.organizations.pageRange", {
-                    from: total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1,
-                    to: Math.min(page * PAGE_SIZE, total),
-                    total,
-                  })}
+                  from: total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1,
+                  to: Math.min(page * PAGE_SIZE, total),
+                  total,
+                })}
             </p>
           </div>
         </div>
@@ -304,49 +312,64 @@ export default function OrganizationsPage() {
           <p className="text-slate-500">{t("admin.organizations.loading")}</p>
         ) : (
           <>
-            <div className="border border-slate-200 rounded-xl p-4 mb-8 flex flex-wrap gap-2 items-end bg-white shadow-sm">
-              <label className="text-sm text-slate-600">
-                {t("admin.organizations.filterSearchName")}
-                <input
-                  className="mt-1 block w-52 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  placeholder={t("admin.organizations.filterSearchPlaceholder")}
-                  autoComplete="off"
-                />
-              </label>
-              <label className="text-sm text-slate-600 block min-w-[12rem]">
-                {t("admin.organizations.filterScope")}
-                <select
-                  className="mt-1 w-full bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
-                  value={locationKind}
-                  onChange={(e) =>
-                    setLocationKind(
-                      e.target.value as "" | "SINGLE_LOCATION" | "MULTI_LOCATION",
-                    )
-                  }
-                >
-                  <option value="">{t("admin.organizations.filterScopeAny")}</option>
-                  <option value="SINGLE_LOCATION">
-                    {t("admin.organizations.filterScopeSingle")}
-                  </option>
-                  <option value="MULTI_LOCATION">
-                    {t("admin.organizations.filterScopeMulti")}
-                  </option>
-                </select>
-              </label>
-              <label className="text-sm text-slate-600">
-                {t("admin.organizations.filterBilling")}
-                <input
-                  className="mt-1 block w-40 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
-                  value={billingInput}
-                  onChange={(e) => setBillingInput(e.target.value)}
-                  placeholder={t("admin.organizations.filterBillingPlaceholder")}
-                  autoComplete="off"
-                />
-              </label>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto relative">
+            <section className="mb-8 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.04] md:p-6">
+              <div className="space-y-5">
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-900">
+                    {t("admin.organizations.filtersTitle", { defaultValue: "Filters" })}
+                  </h2>
+                  <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500">
+                    {t("admin.organizations.filtersHint", {
+                      defaultValue:
+                        "Search is debounced. Billing status matches the API filter substring.",
+                    })}
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
+                  <label className={fieldCol}>
+                    <span className={fieldLbl}>{t("admin.organizations.filterSearchName")}</span>
+                    <input
+                      className={fieldInp}
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      placeholder={t("admin.organizations.filterSearchPlaceholder")}
+                      autoComplete="off"
+                    />
+                  </label>
+                  <label className={fieldCol}>
+                    <span className={fieldLbl}>{t("admin.organizations.filterScope")}</span>
+                    <select
+                      className={fieldSelect}
+                      value={locationKind}
+                      onChange={(e) =>
+                        setLocationKind(
+                          e.target.value as "" | "SINGLE_LOCATION" | "MULTI_LOCATION",
+                        )
+                      }
+                    >
+                      <option value="">{t("admin.organizations.filterScopeAny")}</option>
+                      <option value="SINGLE_LOCATION">
+                        {t("admin.organizations.filterScopeSingle")}
+                      </option>
+                      <option value="MULTI_LOCATION">
+                        {t("admin.organizations.filterScopeMulti")}
+                      </option>
+                    </select>
+                  </label>
+                  <label className={`${fieldCol} sm:col-span-2 lg:col-span-1`}>
+                    <span className={fieldLbl}>{t("admin.organizations.filterBilling")}</span>
+                    <input
+                      className={fieldInp}
+                      value={billingInput}
+                      onChange={(e) => setBillingInput(e.target.value)}
+                      placeholder={t("admin.organizations.filterBillingPlaceholder")}
+                      autoComplete="off"
+                    />
+                  </label>
+                </div>
+              </div>
+            </section>
+            <div className="relative overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-900/[0.04]">
               {orgsQ.isFetching && orgsQ.data ? (
                 <div className="absolute top-2 right-3 text-xs text-slate-500 z-10">
                   {t("admin.organizations.loading")}

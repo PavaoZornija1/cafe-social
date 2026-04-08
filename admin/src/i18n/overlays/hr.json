@@ -86,6 +86,8 @@
     "filterScopeMulti": "Više lokacija",
     "filterBilling": "Status naplate",
     "filterBillingPlaceholder": "npr. NONE",
+    "filtersTitle": "Filteri",
+    "filtersHint": "Pretraga je odgođena. Status naplate podudara se s podnizom API filtera.",
     "pageRange": "{{from}}–{{to}} od {{total}}",
     "pageStatus": "Stranica {{page}} od {{pages}} · ukupno {{total}}",
     "pagePrev": "Prethodna",

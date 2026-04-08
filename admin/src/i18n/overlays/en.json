@@ -86,6 +86,8 @@
     "filterScopeMulti": "Multi-location",
     "filterBilling": "Billing status",
     "filterBillingPlaceholder": "e.g. NONE",
+    "filtersTitle": "Filters",
+    "filtersHint": "Search is debounced. Billing status matches the API filter substring.",
     "pageRange": "{{from}}–{{to}} of {{total}}",
     "pageStatus": "Page {{page}} of {{pages}} · {{total}} total",
     "pagePrev": "Previous",

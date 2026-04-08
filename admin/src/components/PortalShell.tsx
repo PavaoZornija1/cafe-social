@@ -12,11 +12,10 @@ import { TrialContactBar } from "./TrialContactBar";
 import { SuperAdminVenuePicker } from "./SuperAdminVenuePicker";
 
 function navClass(active: boolean) {
-  return `group flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium tracking-tight transition-all duration-200 ${
-    active
-      ? "bg-brand text-brand-foreground shadow-md shadow-brand/25"
-      : "text-slate-600 hover:bg-brand-light/80 hover:text-brand border border-transparent"
-  }`;
+  return `group flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium tracking-tight transition-all duration-200 ${active
+    ? "bg-brand text-brand-foreground shadow-md shadow-brand/25"
+    : "text-slate-600 hover:bg-brand-light/80 hover:text-brand border border-transparent"
+    }`;
 }
 
 function partnerHasCmsAccess(me: PortalMeResponse | null): boolean {
@@ -94,13 +93,13 @@ export default function PortalShell({
   const showPartnerCmsLink = !isSa && partnerHasCmsAccess(me);
 
   return (
-    <div className="min-h-screen flex text-slate-900">
-      <aside className="w-64 shrink-0 flex flex-col relative border-r border-slate-200/90 bg-white shadow-portal-nav z-10">
+    <div className="min-h-screen text-slate-900">
+      <aside className="fixed top-0 left-0 z-10 flex h-screen w-64 flex-col overflow-hidden border-r border-slate-200/90 bg-white shadow-portal-nav">
         <div
-          className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-brand/[0.07] to-transparent pointer-events-none"
+          className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-brand/[0.07] to-transparent"
           aria-hidden
         />
-        <div className="relative p-5 flex flex-col gap-6 flex-1 min-h-0">
+        <div className="relative flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-5">
           <div>
             <Link
               href={isSa ? "/platform" : "/owner/venues"}
@@ -142,7 +141,7 @@ export default function PortalShell({
                   href="/venues"
                   className={navClass(
                     pathname === "/venues" ||
-                      (!!pathname?.startsWith("/venues/") && !pathname?.startsWith("/owner")),
+                    (!!pathname?.startsWith("/venues/") && !pathname?.startsWith("/owner")),
                   )}
                 >
                   {t("admin.shell.venuesCms")}
@@ -184,8 +183,8 @@ export default function PortalShell({
                     href="/venues"
                     className={navClass(
                       pathname === "/venues" ||
-                        (!!pathname?.startsWith("/venues/") &&
-                          !pathname?.startsWith("/owner")),
+                      (!!pathname?.startsWith("/venues/") &&
+                        !pathname?.startsWith("/owner")),
                     )}
                   >
                     {t("admin.shell.locationsCms")}
@@ -220,7 +219,7 @@ export default function PortalShell({
         </div>
       </aside>
 
-      <main className="flex-1 min-w-0 overflow-auto bg-gradient-to-br from-brand-lighter via-[var(--background)] to-white">
+      <main className="ml-64 min-h-screen min-w-0 overflow-auto bg-gradient-to-br from-brand-lighter via-[var(--background)] to-white">
         {me && !me.needsPartnerOnboarding && me.platformRole !== "SUPER_ADMIN" ? (
           <TrialContactBar organizations={trialOrganizations} />
         ) : null}
