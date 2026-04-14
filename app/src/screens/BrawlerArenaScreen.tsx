@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import LottieView from 'lottie-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BruiserSpriteView, type BruiserSpriteAnim } from '../components/BruiserSpriteView';
 import { VirtualJoystick } from '../components/VirtualJoystick';
@@ -64,7 +65,7 @@ type Enemy = {
 /** Mossy tile — one stretched strip per platform hitbox. */
 const ARENA_MAP_BG = require('../../assets/Mossy - FloatingPlatforms.png');
 /** Distant sky behind platforms and hero. */
-const ARENA_SKY_BG = require('../../assets/cloud-background.png');
+const ARENA_SKY_LOTTIE = require('../../assets/lottie/Underwater Ocean Fish and Turtle.json');
 
 const ACTION_CIRCLE_SIZE = 54;
 
@@ -198,14 +199,14 @@ function aabbOverlap(
 /** Visual slabs aligned 1:1 with physics hitboxes from `buildArenaPlatforms`. */
 function ArenaPlatformArt({
   platforms,
-  arenaW,
-  arenaH,
+  worldW,
+  worldH,
 }: {
   platforms: PlatformWorld[];
-  arenaW: number;
-  arenaH: number;
+  worldW: number;
+  worldH: number;
 }) {
-  if (arenaW < 2 || arenaH < 2) return null;
+  if (worldW < 2 || worldH < 2) return null;
   return (
     <>
       {platforms.map((p, i) => (
@@ -213,17 +214,11 @@ function ArenaPlatformArt({
           key={i}
           style={[
             styles.platformArtClip,
-            /* {
-              left: `${(p.x / arenaW) * 100}%`,
-              top: `${(p.y / arenaH) * 100}%`,
-              width: `${(p.w / arenaW) * 100}%`,
-              height: `${(p.h / arenaH) * 100}%`,
-            }, */
             {
-              left: `${(p.x / arenaW) * 100}%`,
-              top: `${(p.y / arenaH) * 100}%`,
-              width: `${(p.w / arenaW) * 100}%`,
-              height: `${(p.h / arenaH) * 100}%`,
+              left: p.x,
+              top: p.y,
+              width: p.w,
+              height: p.h,
               backgroundColor: 'rgba(34, 197, 94)',
               borderColor: '#22c55e',
               borderWidth: 2,
@@ -250,6 +245,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const [arenaBox, setArenaBox] = useState({ w: 0, h: 0 });
   const arenaW = arenaBox.w || 1;
   const arenaInnerH = arenaBox.h || 1;
+  const worldW = Math.max(arenaW, Math.round(arenaW * 2.4));
+  const worldH = Math.max(arenaInnerH, Math.round(arenaInnerH * 1.35));
 
   const playerX = useRef(0);
   const playerY = useRef(0);
@@ -296,13 +293,13 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const FEET_W = bodyW * 0.22;
 
   const floorY = useMemo(
-    () => Math.max(0, arenaInnerH - GROUND_STRIP_H - bodyH - 4),
-    [arenaInnerH, bodyH],
+    () => Math.max(0, worldH - GROUND_STRIP_H - bodyH - 4),
+    [worldH, bodyH],
   );
 
   const platformsWorld = useMemo(
-    () => buildArenaPlatforms(arenaW, arenaInnerH, GROUND_STRIP_H, 4),
-    [arenaW, arenaInnerH],
+    () => buildArenaPlatforms(worldW, worldH, GROUND_STRIP_H, 4),
+    [worldW, worldH],
   );
 
 
@@ -346,7 +343,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
   const spawnDummiesRandomOnPlatforms = useCallback(
     (count: number, heroSpawn: { x: number; y: number }) => {
-      const plats = buildArenaPlatforms(arenaW, arenaInnerH, GROUND_STRIP_H, 4);
+      const plats = buildArenaPlatforms(worldW, worldH, GROUND_STRIP_H, 4);
       const validPlats = plats.filter((p) => p.w >= DUMMY_W + 2);
       const next: Dummy[] = [];
 
@@ -361,11 +358,11 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         for (let attempt = 0; attempt < 24; attempt++) {
           const p = validPlats[Math.floor(Math.random() * validPlats.length)];
           if (!p) break;
-          const xMin = clamp(p.x, MARGIN_SCREEN, arenaW - MARGIN_SCREEN - DUMMY_W);
-          const xMax = clamp(p.x + p.w - DUMMY_W, MARGIN_SCREEN, arenaW - MARGIN_SCREEN - DUMMY_W);
+          const xMin = clamp(p.x, MARGIN_SCREEN, worldW - MARGIN_SCREEN - DUMMY_W);
+          const xMax = clamp(p.x + p.w - DUMMY_W, MARGIN_SCREEN, worldW - MARGIN_SCREEN - DUMMY_W);
           if (xMax <= xMin) continue;
           const x = rand(xMin, xMax);
-          const y = clamp(p.y - DUMMY_H, 0, arenaInnerH - DUMMY_H);
+          const y = clamp(p.y - DUMMY_H, 0, worldH - DUMMY_H);
           if (overlapsExisting(x, y)) continue;
 
           next.push({
@@ -388,8 +385,12 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
         if (!placed) {
           // Fallback: place near hero spawn.
-          const x = clamp(heroSpawn.x + bodyW + 24 + i * (DUMMY_W + 18), MARGIN_SCREEN, arenaW - MARGIN_SCREEN - DUMMY_W);
-          const y = clamp(heroSpawn.y + bodyH - DUMMY_H, 0, arenaInnerH - DUMMY_H);
+          const x = clamp(
+            heroSpawn.x + bodyW + 24 + i * (DUMMY_W + 18),
+            MARGIN_SCREEN,
+            worldW - MARGIN_SCREEN - DUMMY_W,
+          );
+          const y = clamp(heroSpawn.y + bodyH - DUMMY_H, 0, worldH - DUMMY_H);
           next.push({
             id: nextDummyIdRef.current++,
             x,
@@ -409,11 +410,11 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
       dummiesRef.current = next;
     },
-    [arenaW, arenaInnerH, bodyW, bodyH],
+    [worldW, worldH, bodyW, bodyH],
   );
 
   const spawnEnemyOnRandomPlatform = useCallback(() => {
-    const plats = buildArenaPlatforms(arenaW, arenaInnerH, GROUND_STRIP_H, 4);
+    const plats = buildArenaPlatforms(worldW, worldH, GROUND_STRIP_H, 4);
     const valid: { p: PlatformWorld; idx: number }[] = [];
     for (let i = 0; i < plats.length; i++) {
       const p = plats[i]!;
@@ -424,9 +425,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       : { p: plats[plats.length - 1]!, idx: Math.max(0, plats.length - 1) };
 
     const xMin = Math.max(MARGIN_SCREEN, pick.p.x);
-    const xMax = Math.min(arenaW - MARGIN_SCREEN - ENEMY_W, pick.p.x + pick.p.w - ENEMY_W);
+    const xMax = Math.min(worldW - MARGIN_SCREEN - ENEMY_W, pick.p.x + pick.p.w - ENEMY_W);
     const x = xMax > xMin ? xMin + Math.random() * (xMax - xMin) : xMin;
-    const y = Math.max(0, Math.min(arenaInnerH - ENEMY_H, pick.p.y - ENEMY_H));
+    const y = Math.max(0, Math.min(worldH - ENEMY_H, pick.p.y - ENEMY_H));
     const dir = Math.random() < 0.5 ? -1 : 1;
 
     enemyRef.current = {
@@ -445,29 +446,29 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       knockVx: 0,
       platformIndex: pick.idx,
     };
-  }, [arenaW, arenaInnerH]);
+  }, [worldW, worldH]);
 
   useEffect(() => {
     if (arenaW < 32 || arenaInnerH < 32) return;
     const eg = HERO_FEET_EMBED_GROUND_PLATFORM_PX;
     const ef = HERO_FEET_EMBED_FLOATING_PLATFORM_PX;
     if (
-      lastSpawnKey.current.w === arenaW &&
-      lastSpawnKey.current.h === arenaInnerH &&
+      lastSpawnKey.current.w === worldW &&
+      lastSpawnKey.current.h === worldH &&
       lastSpawnKey.current.embedG === eg &&
       lastSpawnKey.current.embedF === ef
     ) {
       return;
     }
     lastSpawnKey.current = {
-      w: arenaW,
-      h: arenaInnerH,
+      w: worldW,
+      h: worldH,
       embedG: eg,
       embedF: ef,
     };
     const spawn = spawnOnBottomPlatform(
-      arenaW,
-      arenaInnerH,
+      worldW,
+      worldH,
       bodyW,
       bodyH,
       MARGIN_SCREEN,
@@ -489,6 +490,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   }, [
     arenaW,
     arenaInnerH,
+    worldW,
+    worldH,
     bodyW,
     bodyH,
     HERO_FEET_EMBED_GROUND_PLATFORM_PX,
@@ -514,8 +517,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const resetArenaRound = useCallback(() => {
     if (arenaW < 32 || arenaInnerH < 32) return;
     const spawn = spawnOnBottomPlatform(
-      arenaW,
-      arenaInnerH,
+      worldW,
+      worldH,
       bodyW,
       bodyH,
       MARGIN_SCREEN,
@@ -557,6 +560,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   }, [
     arenaW,
     arenaInnerH,
+    worldW,
+    worldH,
     bodyW,
     bodyH,
     bump,
@@ -701,9 +706,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
               ? valid[Math.floor(Math.random() * valid.length)]!
               : platsNow[platsNow.length - 1]!;
             const xMin = Math.max(MARGIN_SCREEN, p.x);
-            const xMax = Math.min(arenaW - MARGIN_SCREEN - d.w, p.x + p.w - d.w);
+            const xMax = Math.min(worldW - MARGIN_SCREEN - d.w, p.x + p.w - d.w);
             d.x = xMax > xMin ? xMin + Math.random() * (xMax - xMin) : xMin;
-            d.y = Math.max(0, Math.min(arenaInnerH - d.h, p.y - d.h));
+            d.y = Math.max(0, Math.min(worldH - d.h, p.y - d.h));
             d.prevY = d.y;
             d.vy = 0;
             d.onGround = true;
@@ -721,7 +726,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           if (Math.abs(d.knockVx) < 2) d.knockVx = 0;
 
           d.x += d.knockVx * dt;
-          d.x = Math.max(MARGIN_SCREEN, Math.min(arenaW - MARGIN_SCREEN - d.w, d.x));
+          d.x = Math.max(MARGIN_SCREEN, Math.min(worldW - MARGIN_SCREEN - d.w, d.x));
           dummiesChanged = true;
         }
 
@@ -753,7 +758,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           }
 
           // Fell out of view: respawn somewhere sane.
-          if (d.y > arenaInnerH + 120) {
+          if (d.y > worldH + 120) {
             d.respawnLeft = 0.15;
             d.hp = 0;
             dummiesChanged = true;
@@ -797,8 +802,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         if (alive) {
           const p = plats[e.platformIndex] ?? plats[plats.length - 1]!;
           const xMin = Math.max(MARGIN_SCREEN, p.x);
-          const xMax = Math.min(arenaW - MARGIN_SCREEN - e.w, p.x + p.w - e.w);
-          const y = Math.max(0, Math.min(arenaInnerH - e.h, p.y - e.h));
+          const xMax = Math.min(worldW - MARGIN_SCREEN - e.w, p.x + p.w - e.w);
+          const y = Math.max(0, Math.min(worldH - e.h, p.y - e.h));
 
           // Horizontal: patrol clamps/reverses only when not being knocked.
           const knocked = Math.abs(e.knockVx) > 1;
@@ -849,7 +854,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           }
 
           // Fell out of view: respawn on a platform (keep HP).
-          if (e.y > arenaInnerH + 160) {
+          if (e.y > worldH + 160) {
             const hpKeep = e.hp;
             spawnEnemyOnRandomPlatform();
             enemyRef.current.hp = hpKeep;
@@ -915,7 +920,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           e.knockVx = dir * DASH_KNOCKBACK;
           e.x = Math.max(
             MARGIN_SCREEN,
-            Math.min(arenaW - MARGIN_SCREEN - e.w, e.x + dir * DASH_SHOVE_PX),
+            Math.min(worldW - MARGIN_SCREEN - e.w, e.x + dir * DASH_SHOVE_PX),
           );
           if (e.hp <= 0) e.respawnLeft = ENEMY_RESPAWN_DELAY_S;
 
@@ -941,7 +946,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
             hitDummy.x = Math.max(
               MARGIN_SCREEN,
               Math.min(
-                arenaW - MARGIN_SCREEN - hitDummy.w,
+                worldW - MARGIN_SCREEN - hitDummy.w,
                 hitDummy.x + dir * DASH_SHOVE_PX,
               ),
             );
@@ -1056,7 +1061,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
       playerX.current += vx.current * dt;
       const minX = MARGIN_SCREEN;
-      const maxX = arenaW - MARGIN_SCREEN - bodyW;
+      const maxX = worldW - MARGIN_SCREEN - bodyW;
       playerX.current = Math.max(minX, Math.min(maxX, playerX.current));
 
       // Strict platformer: support checks use a narrow "feet" probe, not full body width.
@@ -1182,10 +1187,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
       // Fell through a bottom-deck gap — respawn only after dropping past the view.
       const feetBottom = playerY.current + bodyH;
-      if (feetBottom > arenaInnerH + 36) {
+      if (feetBottom > worldH + 36) {
         const spawn = spawnOnBottomPlatform(
-          arenaW,
-          arenaInnerH,
+          worldW,
+          worldH,
           bodyW,
           bodyH,
           MARGIN_SCREEN,
@@ -1242,6 +1247,14 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
   const px = Math.round(playerX.current);
   const py = Math.round(playerY.current);
+  const camX = Math.max(
+    0,
+    Math.min(worldW - arenaW, px + bodyW / 2 - arenaW / 2),
+  );
+  const camY = Math.max(
+    0,
+    Math.min(worldH - arenaInnerH, py + bodyH / 2 - arenaInnerH / 2),
+  );
   const attackingNow = spriteAnimRef.current === 'hit';
   const hitFineSheetPx = attackingNow
     ? BRUISER_HIT_FINE_OFFSET_SHEET_PX[facing.current]
@@ -1361,40 +1374,56 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       <View style={styles.arenaFlex}>
         <View style={styles.arena} onLayout={onArenaLayout}>
           <View style={styles.arenaSkyBack} pointerEvents="none">
-            <Image
-              source={ARENA_SKY_BG}
-              style={styles.arenaSkyBackImage}
-              resizeMode="stretch"
-              accessible={false}
-              accessibilityIgnoresInvertColors
+            <LottieView
+              source={ARENA_SKY_LOTTIE}
+              autoPlay
+              loop
+              resizeMode="cover"
+              style={[
+                StyleSheet.absoluteFill,
+                {
+                  transform: [
+                    { translateX: -camX * 0.18 },
+                    { translateY: -camY * 0.10 },
+                    { scale: 1.1 },
+                  ],
+                },
+              ]}
             />
           </View>
-          <View style={styles.platformBg}>
-            <ArenaPlatformArt
-              platforms={platformsWorld}
-              arenaW={arenaW}
-              arenaH={arenaInnerH}
-            />
-          </View>
-
           <View
+            pointerEvents="none"
             style={[
-              styles.playerWrap,
+              styles.worldLayer,
               {
-                left: px - hitDrawOffsetX,
-                top: py,
-                zIndex: 5,
+                width: worldW,
+                height: worldH,
+                transform: [{ translateX: -camX }, { translateY: -camY }],
               },
             ]}
           >
-            <BruiserSpriteView
-              anim={spriteAnimRef.current}
-              walkFrame={walkFrameRef.current}
-              hitFrame={hitFrameRef.current}
-              facing={facing.current}
-              scale={SPRITE_SCALE}
-            />
-          </View>
+            <View style={styles.platformBg}>
+              <ArenaPlatformArt platforms={platformsWorld} worldW={worldW} worldH={worldH} />
+            </View>
+
+            <View
+              style={[
+                styles.playerWrap,
+                {
+                  left: px - hitDrawOffsetX,
+                  top: py,
+                  zIndex: 5,
+                },
+              ]}
+            >
+              <BruiserSpriteView
+                anim={spriteAnimRef.current}
+                walkFrame={walkFrameRef.current}
+                hitFrame={hitFrameRef.current}
+                facing={facing.current}
+                scale={SPRITE_SCALE}
+              />
+            </View>
 
           {enemyRef.current.hp > 0 && enemyRef.current.respawnLeft <= 0 ? (
             <View
@@ -1520,6 +1549,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
               </Text>
             );
           })}
+          </View>
 
           {/* Touchable controls sit on top of the map (no separate bottom tray). */}
           <View
@@ -1793,6 +1823,12 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     zIndex: 0,
     overflow: 'hidden',
+  },
+  worldLayer: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    zIndex: 1,
   },
   arenaSkyBackImage: {
     position: 'absolute',
