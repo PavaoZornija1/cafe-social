@@ -1346,6 +1346,15 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         </View>
         <View style={styles.hudSideRight}>
           <Text style={styles.hudTitle}>Arena</Text>
+          <Pressable
+            onPress={resetArenaRound}
+            style={({ pressed }) => [
+              styles.resetBtn,
+              pressed && styles.resetBtnPressed,
+            ]}
+          >
+            <Text style={styles.resetBtnText}>Reset</Text>
+          </Pressable>
         </View>
       </View>
 
@@ -1748,6 +1757,27 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 15,
     fontWeight: '900',
+    textAlign: 'right',
+  },
+  resetBtn: {
+    marginTop: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: 'rgba(30, 41, 59, 0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.25)',
+  },
+  resetBtnPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
+  },
+  resetBtnText: {
+    color: '#e2e8f0',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
     textAlign: 'right',
   },
   arenaFlex: {
