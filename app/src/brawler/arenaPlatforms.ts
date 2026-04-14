@@ -47,7 +47,7 @@ export const ARENA_FLOATING_PLATFORM_NORMALIZED: PlatformNorm[] = [
   // Top center platform
   bridge(0.37, 0.52, 0.26, 0.028),
   // Side platforms (same height)
-  ledge(0.16, 0.70, 0.22, 0.03),
+  ledge(0.16, 0.70, 0.42, 0.03),
   ledge(0.62, 0.70, 0.22, 0.03),
 
   //Top left platform

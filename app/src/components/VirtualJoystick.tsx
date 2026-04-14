@@ -27,6 +27,7 @@ export function VirtualJoystick({
   const [knob, setKnob] = useState({ x: 0, y: 0 });
   const layoutRef = useRef({ w: size, h: size });
   const knobRadius = Math.max(11, Math.min(24, size * 0.19));
+  const ringInset = 12;
   const maxTravel = Math.max(8, size / 2 - knobRadius - 5);
 
   const applyTouch = useCallback(
@@ -97,12 +98,34 @@ export function VirtualJoystick({
       {...panResponder.panHandlers}
     >
       <View
+        pointerEvents="none"
+        style={[
+          styles.outerHighlight,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+          },
+        ]}
+      />
+      <View
         style={[
           styles.ring,
           {
-            width: size - 12,
-            height: size - 12,
-            borderRadius: (size - 12) / 2,
+            width: size - ringInset,
+            height: size - ringInset,
+            borderRadius: (size - ringInset) / 2,
+          },
+        ]}
+      />
+      <View
+        pointerEvents="none"
+        style={[
+          styles.ringInner,
+          {
+            width: size - ringInset - 14,
+            height: size - ringInset - 14,
+            borderRadius: (size - ringInset - 14) / 2,
           },
         ]}
       />
@@ -116,32 +139,78 @@ export function VirtualJoystick({
             transform: [{ translateX: knob.x }, { translateY: knob.y }],
           },
         ]}
-      />
+      >
+        <View style={styles.knobHighlight} pointerEvents="none" />
+        <View style={styles.knobCore} pointerEvents="none" />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   outer: {
-    backgroundColor: '#1e293b',
-    borderWidth: 2,
-    borderColor: '#334155',
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.20)',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
   },
   outerDisabled: {
     opacity: 0.45,
   },
+  outerHighlight: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+  },
   ring: {
     position: 'absolute',
-    borderWidth: 2,
-    borderColor: '#475569',
-    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: 'rgba(226, 232, 240, 0.18)',
+    backgroundColor: 'transparent',
+  },
+  ringInner: {
+    position: 'absolute',
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.12)',
+    backgroundColor: 'transparent',
   },
   knob: {
     position: 'absolute',
     backgroundColor: '#7c3aed',
-    borderWidth: 2,
-    borderColor: '#a78bfa',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    shadowColor: '#000',
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  knobHighlight: {
+    position: 'absolute',
+    left: 3,
+    top: 3,
+    width: 10,
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+  },
+  knobCore: {
+    width: 10,
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(2, 6, 23, 0.28)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
   },
 });

@@ -28,6 +28,31 @@ import {
 } from '../brawler/arenaPlatforms';
 import type { RootStackParamList } from '../navigation/type';
 
+type Dummy = {
+  id: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  hp: number;
+  respawnLeft: number;
+  flashLeft: number;
+  knockVx: number;
+};
+
+type Enemy = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  vx: number;
+  hp: number;
+  iFramesLeft: number;
+  respawnLeft: number;
+  /** Index into `buildArenaPlatforms` / `platformsRef.current`. */
+  platformIndex: number;
+};
+
 /** Mossy tile — one stretched strip per platform hitbox. */
 const ARENA_MAP_BG = require('../../assets/Mossy - FloatingPlatforms.png');
 /** Distant sky behind platforms and hero. */
@@ -50,6 +75,18 @@ const DUMMY_H = 52;
 const DUMMY_HP_MAX = 100;
 const DUMMY_RESPAWN_DELAY_S = 1.2;
 
+const HERO_HP_MAX = 100;
+const HERO_IFRAMES_S = 0.65;
+const ENEMY_CONTACT_DMG = 10;
+
+const ENEMY_HP_MAX = 60;
+const ENEMY_IFRAMES_S = 0.25;
+const ENEMY_RESPAWN_DELAY_S = 1.4;
+
+const ENEMY_W = 46;
+const ENEMY_H = 46;
+const ENEMY_SPEED = 45;
+
 const ATTACK_HIT_W = 46;
 const ATTACK_HIT_H = 34;
 /** How far in front of the hero the hitbox starts (px). */
@@ -58,6 +95,9 @@ const ATTACK_HIT_FORWARD = 10;
 const ATTACK_HIT_Y_FROM_TOP = 18;
 
 const SHOW_ATTACK_HITBOX_DEBUG = true;
+
+const DMG_FLOAT_LIFETIME_S = 0.65;
+const DMG_FLOAT_RISE_PX = 26;
 
 /**
  * Dev toggle: disable pre-match + match timer so the arena never ends.
@@ -198,18 +238,37 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
   const playerX = useRef(0);
   const playerY = useRef(0);
-  const dummyRef = useRef({
+  const dummiesRef = useRef<Dummy[]>([]);
+  const nextDummyIdRef = useRef(1);
+
+  const hitAppliedThisSwing = useRef(false);
+
+  const heroHpRef = useRef(HERO_HP_MAX);
+  const heroIFramesLeftRef = useRef(0);
+  const [heroDeadOpen, setHeroDeadOpen] = useState(false);
+
+  const enemyRef = useRef<Enemy>({
     x: 0,
     y: 0,
-    w: DUMMY_W,
-    h: DUMMY_H,
-    hp: DUMMY_HP_MAX,
-  })
-  const dummyRespawnLeft = useRef(0);
+    w: ENEMY_W,
+    h: ENEMY_H,
+    vx: ENEMY_SPEED,
+    hp: ENEMY_HP_MAX,
+    iFramesLeft: 0,
+    respawnLeft: 0,
+    platformIndex: 0,
+  });
 
-  const hitAppliedThisSwing = useRef(false)
-  const dummyFlashLeft = useRef(0);
-  const dummyKnockVx = useRef(0);
+  type DmgFloat = {
+    id: number;
+    x: number;
+    y: number;
+    text: string;
+    age: number; // seconds
+  };
+
+  const dmgFloatsRef = useRef<DmgFloat[]>([]);
+  const dmgFloatIdRef = useRef(1);
 
   const bodyW = BRUISER_FRAME_PX.w * SPRITE_SCALE;
   const bodyH = BRUISER_FRAME_PX.h * SPRITE_SCALE;
@@ -264,6 +323,98 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     setRenderTick((t) => (t + 1) % 1_000_000);
   }, []);
 
+  const spawnDummiesRandomOnPlatforms = useCallback(
+    (count: number, heroSpawn: { x: number; y: number }) => {
+      const plats = buildArenaPlatforms(arenaW, arenaInnerH, GROUND_STRIP_H, 4);
+      const validPlats = plats.filter((p) => p.w >= DUMMY_W + 2);
+      const next: Dummy[] = [];
+
+      const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+      const rand = (lo: number, hi: number) => lo + Math.random() * (hi - lo);
+
+      const overlapsExisting = (x: number, y: number) =>
+        next.some((d) => aabbOverlap(x, y, DUMMY_W, DUMMY_H, d.x, d.y, d.w, d.h));
+
+      for (let i = 0; i < count; i++) {
+        let placed = false;
+        for (let attempt = 0; attempt < 24; attempt++) {
+          const p = validPlats[Math.floor(Math.random() * validPlats.length)];
+          if (!p) break;
+          const xMin = clamp(p.x, MARGIN_SCREEN, arenaW - MARGIN_SCREEN - DUMMY_W);
+          const xMax = clamp(p.x + p.w - DUMMY_W, MARGIN_SCREEN, arenaW - MARGIN_SCREEN - DUMMY_W);
+          if (xMax <= xMin) continue;
+          const x = rand(xMin, xMax);
+          const y = clamp(p.y - DUMMY_H, 0, arenaInnerH - DUMMY_H);
+          if (overlapsExisting(x, y)) continue;
+
+          next.push({
+            id: nextDummyIdRef.current++,
+            x,
+            y,
+            w: DUMMY_W,
+            h: DUMMY_H,
+            hp: DUMMY_HP_MAX,
+            respawnLeft: 0,
+            flashLeft: 0,
+            knockVx: 0,
+          });
+          placed = true;
+          break;
+        }
+
+        if (!placed) {
+          // Fallback: place near hero spawn.
+          const x = clamp(heroSpawn.x + bodyW + 24 + i * (DUMMY_W + 18), MARGIN_SCREEN, arenaW - MARGIN_SCREEN - DUMMY_W);
+          const y = clamp(heroSpawn.y + bodyH - DUMMY_H, 0, arenaInnerH - DUMMY_H);
+          next.push({
+            id: nextDummyIdRef.current++,
+            x,
+            y,
+            w: DUMMY_W,
+            h: DUMMY_H,
+            hp: DUMMY_HP_MAX,
+            respawnLeft: 0,
+            flashLeft: 0,
+            knockVx: 0,
+          });
+        }
+      }
+
+      dummiesRef.current = next;
+    },
+    [arenaW, arenaInnerH, bodyW, bodyH],
+  );
+
+  const spawnEnemyOnRandomPlatform = useCallback(() => {
+    const plats = buildArenaPlatforms(arenaW, arenaInnerH, GROUND_STRIP_H, 4);
+    const valid: { p: PlatformWorld; idx: number }[] = [];
+    for (let i = 0; i < plats.length; i++) {
+      const p = plats[i]!;
+      if (p.w >= ENEMY_W + 2) valid.push({ p, idx: i });
+    }
+    const pick = valid.length
+      ? valid[Math.floor(Math.random() * valid.length)]!
+      : { p: plats[plats.length - 1]!, idx: Math.max(0, plats.length - 1) };
+
+    const xMin = Math.max(MARGIN_SCREEN, pick.p.x);
+    const xMax = Math.min(arenaW - MARGIN_SCREEN - ENEMY_W, pick.p.x + pick.p.w - ENEMY_W);
+    const x = xMax > xMin ? xMin + Math.random() * (xMax - xMin) : xMin;
+    const y = Math.max(0, Math.min(arenaInnerH - ENEMY_H, pick.p.y - ENEMY_H));
+    const dir = Math.random() < 0.5 ? -1 : 1;
+
+    enemyRef.current = {
+      x,
+      y,
+      w: ENEMY_W,
+      h: ENEMY_H,
+      vx: dir * ENEMY_SPEED,
+      hp: ENEMY_HP_MAX,
+      iFramesLeft: 0,
+      respawnLeft: 0,
+      platformIndex: pick.idx,
+    };
+  }, [arenaW, arenaInnerH]);
+
   useEffect(() => {
     if (arenaW < 32 || arenaInnerH < 32) return;
     const eg = HERO_FEET_EMBED_GROUND_PLATFORM_PX;
@@ -295,11 +446,14 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     playerY.current = spawn.y;
     prevPlayerY.current = spawn.y;
 
-    // Spawn dummy near the player so it's always visible.
-    dummyRef.current.x = Math.min(arenaW - MARGIN_SCREEN - DUMMY_W, spawn.x + bodyW + 24);
-    dummyRef.current.y = Math.max(0, spawn.y + bodyH - DUMMY_H);
-    dummyRef.current.hp = DUMMY_HP_MAX;
+    spawnDummiesRandomOnPlatforms(3, spawn);
+    spawnEnemyOnRandomPlatform();
+    heroHpRef.current = HERO_HP_MAX;
+    heroIFramesLeftRef.current = 0;
+    setHeroDeadOpen(false);
+
     hitAppliedThisSwing.current = false;
+    bump();
   }, [
     arenaW,
     arenaInnerH,
@@ -307,6 +461,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     bodyH,
     HERO_FEET_EMBED_GROUND_PLATFORM_PX,
     HERO_FEET_EMBED_FLOATING_PLATFORM_PX,
+    spawnDummiesRandomOnPlatforms,
+    spawnEnemyOnRandomPlatform,
   ]);
 
   useEffect(() => {
@@ -337,6 +493,12 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     playerX.current = spawn.x;
     playerY.current = spawn.y;
     prevPlayerY.current = spawn.y;
+    spawnDummiesRandomOnPlatforms(3, spawn);
+    spawnEnemyOnRandomPlatform();
+    heroHpRef.current = HERO_HP_MAX;
+    heroIFramesLeftRef.current = 0;
+    setHeroDeadOpen(false);
+
     vx.current = 0;
     vy.current = 0;
     onGround.current = true;
@@ -360,7 +522,15 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       : PRE_MATCH_COUNTDOWN_S;
     setGameOverOpen(false);
     bump();
-  }, [arenaW, arenaInnerH, bodyW, bodyH, bump]);
+  }, [
+    arenaW,
+    arenaInnerH,
+    bodyW,
+    bodyH,
+    bump,
+    spawnDummiesRandomOnPlatforms,
+    spawnEnemyOnRandomPlatform,
+  ]);
 
   useEffect(() => {
     if (arenaInnerH <= 0) return;
@@ -453,6 +623,26 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         return;
       }
 
+      // Hero death: freeze inputs and physics while overlay is open.
+      if (heroDeadOpen) {
+        joyRef.current.x = 0;
+        joyRef.current.y = 0;
+        jumpQueued.current = false;
+        hitQueued.current = false;
+        dashQueued.current = false;
+        vx.current = 0;
+        vy.current = 0;
+        attackTimeLeft.current = 0;
+        dashTimeLeft.current = 0;
+        dashCooldownLeft.current = 0;
+        hitFrameRef.current = 0;
+        spriteAnimRef.current = 'idle';
+        walkAccum.current = 0;
+        prevPlayerY.current = playerY.current;
+        rafRef.current = requestAnimationFrame(step);
+        return;
+      }
+
       const plats = platformsRef.current;
       const prevY = prevPlayerY.current;
 
@@ -466,27 +656,75 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
       attackTimeLeft.current = Math.max(0, attackTimeLeft.current - dt);
 
-      // Dummy respawn countdown (runs every frame)
-      if (dummyRespawnLeft.current > 0) {
-        dummyRespawnLeft.current = Math.max(0, dummyRespawnLeft.current - dt);
-        if (dummyRespawnLeft.current <= 0) {
-          dummyRef.current.hp = DUMMY_HP_MAX;
-          hitAppliedThisSwing.current = false;
-          bump();
+      // Dummies: respawn / flash / knockback (runs every frame)
+      let dummiesChanged = false;
+      for (const d of dummiesRef.current) {
+        if (d.respawnLeft > 0) {
+          d.respawnLeft = Math.max(0, d.respawnLeft - dt);
+          if (d.respawnLeft <= 0) {
+            d.hp = DUMMY_HP_MAX;
+            dummiesChanged = true;
+          }
+        }
+
+        if (d.flashLeft > 0) {
+          d.flashLeft = Math.max(0, d.flashLeft - dt);
+        }
+
+        if (d.knockVx !== 0) {
+          d.knockVx *= Math.pow(0.05, dt * 10);
+          if (Math.abs(d.knockVx) < 2) d.knockVx = 0;
+
+          d.x += d.knockVx * dt;
+          d.x = Math.max(MARGIN_SCREEN, Math.min(arenaW - MARGIN_SCREEN - d.w, d.x));
+          dummiesChanged = true;
         }
       }
+      if (dummiesChanged) bump();
 
-      // Dummy hit flash + knockback decay
-      dummyFlashLeft.current = Math.max(0, dummyFlashLeft.current - dt);
+      // Floating damage numbers tick
+      const floats = dmgFloatsRef.current;
+      if (floats.length > 0) {
+        for (const f of floats) f.age += dt;
+        dmgFloatsRef.current = floats.filter((f) => f.age < DMG_FLOAT_LIFETIME_S);
+        bump();
+      }
 
-      dummyKnockVx.current *= Math.pow(0.05, dt * 10);
-      if (Math.abs(dummyKnockVx.current) < 2) dummyKnockVx.current = 0;
+      // Hero invulnerability frames (contact damage cooldown).
+      heroIFramesLeftRef.current = Math.max(0, heroIFramesLeftRef.current - dt);
 
-      dummyRef.current.x += dummyKnockVx.current * dt;
-      dummyRef.current.x = Math.max(
-        MARGIN_SCREEN,
-        Math.min(arenaW - MARGIN_SCREEN - dummyRef.current.w, dummyRef.current.x),
-      );
+      // Enemy state tick (respawn / i-frames / patrol).
+      {
+        const e = enemyRef.current;
+
+        if (e.respawnLeft > 0) {
+          e.respawnLeft = Math.max(0, e.respawnLeft - dt);
+          if (e.respawnLeft <= 0) {
+            spawnEnemyOnRandomPlatform();
+            bump();
+          }
+        }
+
+        e.iFramesLeft = Math.max(0, e.iFramesLeft - dt);
+
+        const alive = e.hp > 0 && e.respawnLeft <= 0;
+        if (alive) {
+          const p = plats[e.platformIndex] ?? plats[plats.length - 1]!;
+          const xMin = Math.max(MARGIN_SCREEN, p.x);
+          const xMax = Math.min(arenaW - MARGIN_SCREEN - e.w, p.x + p.w - e.w);
+          const y = Math.max(0, Math.min(arenaInnerH - e.h, p.y - e.h));
+
+          e.x += e.vx * dt;
+          if (e.x <= xMin) {
+            e.x = xMin;
+            e.vx = Math.abs(e.vx);
+          } else if (e.x >= xMax) {
+            e.x = xMax;
+            e.vx = -Math.abs(e.vx);
+          }
+          e.y = y;
+        }
+      }
 
       if (
         hitQueued.current &&
@@ -533,19 +771,62 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
               ? playerX.current + bodyW + ATTACK_HIT_FORWARD
               : playerX.current - hitW - ATTACK_HIT_FORWARD;
 
-          const d = dummyRef.current;
-          const didHit = aabbOverlap(hitX, hitY, hitW, hitH, d.x, d.y, d.w, d.h);
+          const dmg = 25;
 
-          if (didHit && d.hp > 0) {
-            d.hp = Math.max(0, d.hp - 25);
-            if (d.hp <= 0) {
-              dummyRespawnLeft.current = DUMMY_RESPAWN_DELAY_S;
+          // Priority: hit enemy first if overlapping, else hit a dummy.
+          const e = enemyRef.current;
+          const enemyAlive = e.hp > 0 && e.respawnLeft <= 0;
+          const hitEnemy =
+            enemyAlive &&
+            e.iFramesLeft <= 0 &&
+            aabbOverlap(hitX, hitY, hitW, hitH, e.x, e.y, e.w, e.h);
+
+          if (hitEnemy) {
+            e.hp = Math.max(0, e.hp - dmg);
+            e.iFramesLeft = ENEMY_IFRAMES_S;
+
+            dmgFloatsRef.current.push({
+              id: dmgFloatIdRef.current++,
+              x: e.x + e.w / 2,
+              y: e.y,
+              text: `-${dmg}`,
+              age: 0,
+            });
+
+            if (e.hp <= 0) {
+              e.respawnLeft = ENEMY_RESPAWN_DELAY_S;
             }
+
             hitAppliedThisSwing.current = true;
-            dummyFlashLeft.current = 0.12;
-            const dir = facing.current === 'right' ? 1 : -1;
-            dummyKnockVx.current = dir * 420;
-            bump(); // force re-render to show HP drop
+            bump();
+          } else {
+            const hitAny = dummiesRef.current.find(
+              (d) =>
+                d.hp > 0 &&
+                aabbOverlap(hitX, hitY, hitW, hitH, d.x, d.y, d.w, d.h),
+            );
+
+            if (hitAny) {
+              hitAny.hp = Math.max(0, hitAny.hp - dmg);
+
+              dmgFloatsRef.current.push({
+                id: dmgFloatIdRef.current++,
+                x: hitAny.x + hitAny.w / 2,
+                y: hitAny.y,
+                text: `-${dmg}`,
+                age: 0,
+              });
+
+              if (hitAny.hp <= 0) {
+                hitAny.respawnLeft = DUMMY_RESPAWN_DELAY_S;
+              }
+
+              hitAppliedThisSwing.current = true;
+              hitAny.flashLeft = 0.12;
+              const dir = facing.current === 'right' ? 1 : -1;
+              hitAny.knockVx = dir * 420;
+              bump(); // force re-render to show HP drop
+            }
           }
         }
       }
@@ -656,6 +937,43 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         onGround.current = supported;
       }
 
+      // Enemy contact damage (strict contact collider: inset rectangles).
+      if (
+        enemyRef.current.hp > 0 &&
+        enemyRef.current.respawnLeft <= 0 &&
+        heroHpRef.current > 0 &&
+        heroIFramesLeftRef.current <= 0
+      ) {
+        const e = enemyRef.current;
+        // Tighten both colliders so being on a nearby platform doesn't count as contact.
+        const heroInsetX = bodyW * 0.22;
+        const heroInsetTop = bodyH * 0.18;
+        const heroInsetBottom = bodyH * 0.08;
+        const hx = playerX.current + heroInsetX;
+        const hy = playerY.current + heroInsetTop;
+        const hw = Math.max(1, bodyW - heroInsetX * 2);
+        const hh = Math.max(1, bodyH - heroInsetTop - heroInsetBottom);
+
+        const enemyInset = 6;
+        const ex = e.x + enemyInset;
+        const ey = e.y + enemyInset;
+        const ew = Math.max(1, e.w - enemyInset * 2);
+        const eh = Math.max(1, e.h - enemyInset * 2);
+
+        const touching = aabbOverlap(hx, hy, hw, hh, ex, ey, ew, eh);
+        if (touching) {
+          heroHpRef.current = Math.max(0, heroHpRef.current - ENEMY_CONTACT_DMG);
+          heroIFramesLeftRef.current = HERO_IFRAMES_S;
+          // Light knockback away from enemy to make hits readable.
+          const dir = playerX.current + bodyW / 2 < e.x + e.w / 2 ? -1 : 1;
+          vx.current = dir * 220;
+          if (heroHpRef.current <= 0) {
+            setHeroDeadOpen(true);
+          }
+          bump();
+        }
+      }
+
       // Fell through a bottom-deck gap — respawn only after dropping past the view.
       const feetBottom = playerY.current + bodyH;
       if (feetBottom > arenaInnerH + 36) {
@@ -729,8 +1047,11 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
   const arenaReadyHud = arenaW >= 32 && arenaInnerH >= 32;
   const controlsLive = DISABLE_BRAWLER_MATCH_TIMER
-    ? arenaReadyHud
-    : arenaReadyHud && preMatchLeftRef.current <= 0 && !matchEndedRef.current;
+    ? arenaReadyHud && !heroDeadOpen
+    : arenaReadyHud &&
+    preMatchLeftRef.current <= 0 &&
+    !matchEndedRef.current &&
+    !heroDeadOpen;
   const showHudMatchClock =
     !DISABLE_BRAWLER_MATCH_TIMER &&
     arenaReadyHud &&
@@ -770,11 +1091,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     );
   }, [gameOverOpen, navigation]);
 
-  const dummy = dummyRef.current;
-  const dummyHpPct = dummy.hp / DUMMY_HP_MAX;
-  const dummyAlive = dummy.hp > 0;
-
-  //const attackingNow = spriteAnimRef.current === 'hit';
+  const dummies = dummiesRef.current;
   const debugHitW = ATTACK_HIT_W;
   const debugHitH = ATTACK_HIT_H;
   const debugHitY = playerY.current + ATTACK_HIT_Y_FROM_TOP;
@@ -783,6 +1100,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       ? playerX.current + bodyW + ATTACK_HIT_FORWARD
       : playerX.current - debugHitW - ATTACK_HIT_FORWARD;
 
+  const dmgFloats = dmgFloatsRef.current;
+
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.hud}>
@@ -790,6 +1109,24 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           <Pressable onPress={requestExitFromHud} style={styles.backBtn}>
             <Text style={styles.backText}>← Exit</Text>
           </Pressable>
+          <View style={styles.hudHpWrap} pointerEvents="none">
+            <View style={styles.hudHpTrack}>
+              <View
+                style={[
+                  styles.hudHpFill,
+                  {
+                    width: `${Math.round(
+                      (heroHpRef.current / HERO_HP_MAX) * 100,
+                    )}%`,
+                    opacity: heroIFramesLeftRef.current > 0 ? 0.7 : 1,
+                  },
+                ]}
+              />
+            </View>
+            <Text style={styles.hudHpText}>
+              HP {Math.round(heroHpRef.current)}/{HERO_HP_MAX}
+            </Text>
+          </View>
         </View>
         <View style={styles.hudCenter}>
           {showHudMatchClock ? (
@@ -844,6 +1181,45 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
             />
           </View>
 
+          {enemyRef.current.hp > 0 && enemyRef.current.respawnLeft <= 0 ? (
+            <View
+              style={{
+                position: 'absolute',
+                left: enemyRef.current.x,
+                top: enemyRef.current.y,
+                width: enemyRef.current.w,
+                height: enemyRef.current.h,
+                backgroundColor: '#dc2626',
+                borderWidth: 2,
+                borderColor: '#7f1d1d',
+                zIndex: 4,
+              }}
+            >
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: -10,
+                  width: '100%',
+                  height: 6,
+                  backgroundColor: '#111827',
+                }}
+              >
+                <View
+                  style={{
+                    width: `${Math.round(
+                      (enemyRef.current.hp / ENEMY_HP_MAX) * 100,
+                    )}%`,
+                    height: '100%',
+                    backgroundColor: '#f97316',
+                    opacity: enemyRef.current.iFramesLeft > 0 ? 0.65 : 1,
+                  }}
+                />
+              </View>
+            </View>
+          ) : null}
+
           {SHOW_ATTACK_HITBOX_DEBUG && attackingNow ? (
             <View
               pointerEvents="none"
@@ -861,25 +1237,74 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
             />
           ) : null}
 
-          {dummyAlive ? (
-            <View
-              style={{
-                position: 'absolute',
-                left: dummy.x,
-                top: dummy.y,
-                width: dummy.w,
-                height: dummy.h,
-                backgroundColor: dummyFlashLeft.current > 0 ? '#fde047' : '#f59e0b',
-                borderWidth: 2,
-                borderColor: '#92400e',
-                zIndex: 4,
-              }}
-            >
-              <View style={{ position: 'absolute', left: 0, top: -10, width: '100%', height: 6, backgroundColor: '#111827' }}>
-                <View style={{ width: `${Math.round(dummyHpPct * 100)}%`, height: '100%', backgroundColor: '#ef4444' }} />
+          {dummies.map((d) => {
+            const alive = d.hp > 0;
+            if (!alive) return null;
+            const hpPct = d.hp / DUMMY_HP_MAX;
+            return (
+              <View
+                key={d.id}
+                style={{
+                  position: 'absolute',
+                  left: d.x,
+                  top: d.y,
+                  width: d.w,
+                  height: d.h,
+                  backgroundColor: d.flashLeft > 0 ? '#fde047' : '#f59e0b',
+                  borderWidth: 2,
+                  borderColor: '#92400e',
+                  zIndex: 4,
+                }}
+              >
+                <View
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    top: -10,
+                    width: '100%',
+                    height: 6,
+                    backgroundColor: '#111827',
+                  }}
+                >
+                  <View
+                    style={{
+                      width: `${Math.round(hpPct * 100)}%`,
+                      height: '100%',
+                      backgroundColor: '#ef4444',
+                    }}
+                  />
+                </View>
               </View>
-            </View>
-          ) : null}
+            );
+          })}
+
+          {dmgFloats.map((f) => {
+            const t = Math.min(1, f.age / DMG_FLOAT_LIFETIME_S);
+            const y = f.y - t * DMG_FLOAT_RISE_PX;
+            const opacity = 1 - t;
+            return (
+              <Text
+                key={f.id}
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  left: f.x,
+                  top: y,
+                  transform: [{ translateX: -10 }], // centers roughly
+                  color: '#fde047',
+                  fontWeight: '900',
+                  fontSize: 16,
+                  opacity,
+                  zIndex: 30,
+                  textShadowColor: 'rgba(0,0,0,0.8)',
+                  textShadowOffset: { width: 0, height: 1 },
+                  textShadowRadius: 2,
+                }}
+              >
+                {f.text}
+              </Text>
+            );
+          })}
 
           {/* Touchable controls sit on top of the map (no separate bottom tray). */}
           <View
@@ -918,6 +1343,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
                   hitQueued.current = true;
                 }}
               >
+                <View style={styles.ctrlCircleGloss} pointerEvents="none" />
                 <Text style={styles.ctrlCircleLabel}>Hit</Text>
               </Pressable>
               <Pressable
@@ -936,6 +1362,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
                   dashQueued.current = true;
                 }}
               >
+                <View style={styles.ctrlCircleGloss} pointerEvents="none" />
                 <Text style={styles.ctrlCircleLabel}>Dash</Text>
                 {!dashReady && <Text style={styles.ctrlCircleSub}>CD</Text>}
               </Pressable>
@@ -955,6 +1382,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
                   jumpQueued.current = true;
                 }}
               >
+                <View style={styles.ctrlCircleGloss} pointerEvents="none" />
                 <Text style={styles.ctrlCircleLabel}>Jump</Text>
               </Pressable>
             </View>
@@ -973,6 +1401,39 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
                 <Text style={styles.gameOverTitle}>Match over</Text>
                 <Text style={styles.gameOverHint}>
                   Play again or return to the lobby.
+                </Text>
+                <View style={styles.gameOverActions}>
+                  <Pressable
+                    onPress={resetArenaRound}
+                    style={({ pressed }) => [
+                      styles.gameOverBtn,
+                      styles.gameOverBtnPrimary,
+                      pressed && styles.gameOverBtnPressed,
+                    ]}
+                  >
+                    <Text style={styles.gameOverBtnPrimaryText}>Replay</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => navigation.goBack()}
+                    style={({ pressed }) => [
+                      styles.gameOverBtn,
+                      styles.gameOverBtnSecondary,
+                      pressed && styles.gameOverBtnPressed,
+                    ]}
+                  >
+                    <Text style={styles.gameOverBtnSecondaryText}>Exit</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          ) : null}
+
+          {arenaReadyHud && heroDeadOpen ? (
+            <View style={styles.gameOverOverlay}>
+              <View style={styles.gameOverCard}>
+                <Text style={styles.gameOverTitle}>You died</Text>
+                <Text style={styles.gameOverHint}>
+                  Replay or exit to the lobby.
                 </Text>
                 <View style={styles.gameOverActions}>
                   <Pressable
@@ -1054,6 +1515,29 @@ const styles = StyleSheet.create({
     backgroundColor: '#1e293b',
   },
   backText: { color: '#e2e8f0', fontWeight: '800', fontSize: 12 },
+  hudHpWrap: {
+    marginTop: 4,
+    width: 120,
+  },
+  hudHpTrack: {
+    height: 8,
+    width: '100%',
+    borderRadius: 999,
+    backgroundColor: '#0b1220',
+    borderWidth: 1,
+    borderColor: '#334155',
+    overflow: 'hidden',
+  },
+  hudHpFill: {
+    height: '100%',
+    backgroundColor: '#22c55e',
+  },
+  hudHpText: {
+    marginTop: 2,
+    color: '#cbd5e1',
+    fontSize: 10,
+    fontWeight: '800',
+  },
   hudTitle: {
     color: '#fff',
     fontSize: 15,
@@ -1202,6 +1686,15 @@ const styles = StyleSheet.create({
   },
   ctrlCircleAbsolute: {
     position: 'absolute',
+    overflow: 'hidden',
+  },
+  ctrlCircleGloss: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: '52%',
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
   },
   ctrlCircleHit: {
     width: ACTION_CIRCLE_SIZE,
@@ -1209,9 +1702,14 @@ const styles = StyleSheet.create({
     borderRadius: ACTION_CIRCLE_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    backgroundColor: '#9a3412',
-    borderColor: '#ea580c',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    backgroundColor: 'rgba(154, 52, 18, 0.72)',
+    shadowColor: '#000',
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 10,
   },
   ctrlCircleDash: {
     width: ACTION_CIRCLE_SIZE,
@@ -1219,9 +1717,14 @@ const styles = StyleSheet.create({
     borderRadius: ACTION_CIRCLE_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    backgroundColor: '#0e7490',
-    borderColor: '#22d3ee',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    backgroundColor: 'rgba(14, 116, 144, 0.72)',
+    shadowColor: '#000',
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 10,
   },
   ctrlCircleJump: {
     width: ACTION_CIRCLE_SIZE,
@@ -1229,23 +1732,30 @@ const styles = StyleSheet.create({
     borderRadius: ACTION_CIRCLE_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    backgroundColor: '#5b21b6',
-    borderColor: '#7c3aed',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    backgroundColor: 'rgba(91, 33, 182, 0.72)',
+    shadowColor: '#000',
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 10,
   },
   ctrlBtnDisabled: {
     opacity: 0.45,
   },
-  ctrlPressed: { opacity: 0.85 },
+  ctrlPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
   ctrlCircleLabel: {
     color: '#f8fafc',
     fontSize: 12,
     fontWeight: '900',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
   ctrlCircleSub: {
     color: '#94a3b8',
-    fontSize: 8,
-    fontWeight: '800',
-    marginTop: 1,
+    fontSize: 9,
+    fontWeight: '900',
+    marginTop: 0,
   },
 });
