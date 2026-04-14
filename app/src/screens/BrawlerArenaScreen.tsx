@@ -45,6 +45,26 @@ const GROUND_STRIP_H = 40;
 const SPRITE_SCALE = 1.65 * 0.75;
 const WALK_FRAME_MS = 140;
 
+const DUMMY_W = 52;
+const DUMMY_H = 52;
+const DUMMY_HP_MAX = 100;
+const DUMMY_RESPAWN_DELAY_S = 1.2;
+
+const ATTACK_HIT_W = 46;
+const ATTACK_HIT_H = 34;
+/** How far in front of the hero the hitbox starts (px). */
+const ATTACK_HIT_FORWARD = 10;
+/** Vertical placement of hitbox relative to hero (px from top). */
+const ATTACK_HIT_Y_FROM_TOP = 18;
+
+const SHOW_ATTACK_HITBOX_DEBUG = true;
+
+/**
+ * Dev toggle: disable pre-match + match timer so the arena never ends.
+ * Useful while iterating on map/platform layout.
+ */
+const DISABLE_BRAWLER_MATCH_TIMER = true;
+
 const ATTACK_DURATION_S = 0.28;
 const DASH_DURATION_S = 0.18;
 const DASH_SPEED = 560;
@@ -113,6 +133,13 @@ function overlapX(
   return ax + aw > p.x + inset && ax < p.x + p.w - inset;
 }
 
+function aabbOverlap(
+  ax: number, ay: number, aw: number, ah: number,
+  bx: number, by: number, bw: number, bh: number
+): boolean {
+  return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+}
+
 /** Visual slabs aligned 1:1 with physics hitboxes from `buildArenaPlatforms`. */
 function ArenaPlatformArt({
   platforms,
@@ -131,21 +158,30 @@ function ArenaPlatformArt({
           key={i}
           style={[
             styles.platformArtClip,
+            /* {
+              left: `${(p.x / arenaW) * 100}%`,
+              top: `${(p.y / arenaH) * 100}%`,
+              width: `${(p.w / arenaW) * 100}%`,
+              height: `${(p.h / arenaH) * 100}%`,
+            }, */
             {
               left: `${(p.x / arenaW) * 100}%`,
               top: `${(p.y / arenaH) * 100}%`,
               width: `${(p.w / arenaW) * 100}%`,
               height: `${(p.h / arenaH) * 100}%`,
+              backgroundColor: 'rgba(34, 197, 94)',
+              borderColor: '#22c55e',
+              borderWidth: 2,
             },
           ]}
           accessibilityLabel={`Platform ${i + 1}`}
         >
-          <Image
+          {/*  <Image
             source={ARENA_MAP_BG}
             style={styles.platformArtImage}
             resizeMode="stretch"
             accessibilityIgnoresInvertColors
-          />
+          /> */}
         </View>
       ))}
     </>
@@ -160,8 +196,25 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const arenaW = arenaBox.w || 1;
   const arenaInnerH = arenaBox.h || 1;
 
+  const playerX = useRef(0);
+  const playerY = useRef(0);
+  const dummyRef = useRef({
+    x: 0,
+    y: 0,
+    w: DUMMY_W,
+    h: DUMMY_H,
+    hp: DUMMY_HP_MAX,
+  })
+  const dummyRespawnLeft = useRef(0);
+
+  const hitAppliedThisSwing = useRef(false)
+  const dummyFlashLeft = useRef(0);
+  const dummyKnockVx = useRef(0);
+
   const bodyW = BRUISER_FRAME_PX.w * SPRITE_SCALE;
   const bodyH = BRUISER_FRAME_PX.h * SPRITE_SCALE;
+
+  const FEET_W = bodyW * 0.22;
 
   const floorY = useMemo(
     () => Math.max(0, arenaInnerH - GROUND_STRIP_H - bodyH - 4),
@@ -173,8 +226,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     [arenaW, arenaInnerH],
   );
 
-  const playerX = useRef(0);
-  const playerY = useRef(0);
+
   const prevPlayerY = useRef(0);
   const vx = useRef(0);
   const vy = useRef(0);
@@ -201,7 +253,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     embedF: -9999,
   });
 
-  const preMatchLeftRef = useRef(PRE_MATCH_COUNTDOWN_S);
+  const preMatchLeftRef = useRef(
+    DISABLE_BRAWLER_MATCH_TIMER ? 0 : PRE_MATCH_COUNTDOWN_S,
+  );
   const matchClockRef = useRef(0);
   const matchEndedRef = useRef(false);
   const [gameOverOpen, setGameOverOpen] = useState(false);
@@ -240,6 +294,12 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     playerX.current = spawn.x;
     playerY.current = spawn.y;
     prevPlayerY.current = spawn.y;
+
+    // Spawn dummy near the player so it's always visible.
+    dummyRef.current.x = Math.min(arenaW - MARGIN_SCREEN - DUMMY_W, spawn.x + bodyW + 24);
+    dummyRef.current.y = Math.max(0, spawn.y + bodyH - DUMMY_H);
+    dummyRef.current.hp = DUMMY_HP_MAX;
+    hitAppliedThisSwing.current = false;
   }, [
     arenaW,
     arenaInnerH,
@@ -295,7 +355,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     walkAccum.current = 0;
     matchEndedRef.current = false;
     matchClockRef.current = 0;
-    preMatchLeftRef.current = PRE_MATCH_COUNTDOWN_S;
+    preMatchLeftRef.current = DISABLE_BRAWLER_MATCH_TIMER
+      ? 0
+      : PRE_MATCH_COUNTDOWN_S;
     setGameOverOpen(false);
     bump();
   }, [arenaW, arenaInnerH, bodyW, bodyH, bump]);
@@ -314,7 +376,11 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
       const arenaReady = arenaW >= 32 && arenaInnerH >= 32;
 
-      if (arenaReady && preMatchLeftRef.current > 0) {
+      if (
+        arenaReady &&
+        !DISABLE_BRAWLER_MATCH_TIMER &&
+        preMatchLeftRef.current > 0
+      ) {
         const t0 = preMatchLeftRef.current;
         preMatchLeftRef.current = Math.max(0, t0 - dt);
         const ceilBefore = t0 > 0 ? Math.max(1, Math.ceil(t0)) : 0;
@@ -346,7 +412,11 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         return;
       }
 
-      if (arenaReady && preMatchLeftRef.current <= 0) {
+      if (
+        arenaReady &&
+        !DISABLE_BRAWLER_MATCH_TIMER &&
+        preMatchLeftRef.current <= 0
+      ) {
         if (!matchEndedRef.current) {
           matchClockRef.current = Math.min(
             MATCH_MAX_S,
@@ -359,7 +429,12 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         }
       }
 
-      if (arenaReady && preMatchLeftRef.current <= 0 && matchEndedRef.current) {
+      if (
+        arenaReady &&
+        !DISABLE_BRAWLER_MATCH_TIMER &&
+        preMatchLeftRef.current <= 0 &&
+        matchEndedRef.current
+      ) {
         joyRef.current.x = 0;
         joyRef.current.y = 0;
         jumpQueued.current = false;
@@ -391,6 +466,28 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
       attackTimeLeft.current = Math.max(0, attackTimeLeft.current - dt);
 
+      // Dummy respawn countdown (runs every frame)
+      if (dummyRespawnLeft.current > 0) {
+        dummyRespawnLeft.current = Math.max(0, dummyRespawnLeft.current - dt);
+        if (dummyRespawnLeft.current <= 0) {
+          dummyRef.current.hp = DUMMY_HP_MAX;
+          hitAppliedThisSwing.current = false;
+          bump();
+        }
+      }
+
+      // Dummy hit flash + knockback decay
+      dummyFlashLeft.current = Math.max(0, dummyFlashLeft.current - dt);
+
+      dummyKnockVx.current *= Math.pow(0.05, dt * 10);
+      if (Math.abs(dummyKnockVx.current) < 2) dummyKnockVx.current = 0;
+
+      dummyRef.current.x += dummyKnockVx.current * dt;
+      dummyRef.current.x = Math.max(
+        MARGIN_SCREEN,
+        Math.min(arenaW - MARGIN_SCREEN - dummyRef.current.w, dummyRef.current.x),
+      );
+
       if (
         hitQueued.current &&
         attackTimeLeft.current <= 0 &&
@@ -399,6 +496,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         hitQueued.current = false;
         attackTimeLeft.current = ATTACK_DURATION_S;
         hitFrameRef.current = 0;
+        hitAppliedThisSwing.current = false;
       }
 
       if (
@@ -422,6 +520,36 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       const dashing = dashTimeLeft.current > 0;
       const attacking = attackTimeLeft.current > 0;
 
+
+      if (attacking) {
+        // Only allow 1 damage application per swing.
+        if (!hitAppliedThisSwing.current) {
+          const hitW = ATTACK_HIT_W;
+          const hitH = ATTACK_HIT_H;
+
+          const hitY = playerY.current + ATTACK_HIT_Y_FROM_TOP;
+          const hitX =
+            facing.current === 'right'
+              ? playerX.current + bodyW + ATTACK_HIT_FORWARD
+              : playerX.current - hitW - ATTACK_HIT_FORWARD;
+
+          const d = dummyRef.current;
+          const didHit = aabbOverlap(hitX, hitY, hitW, hitH, d.x, d.y, d.w, d.h);
+
+          if (didHit && d.hp > 0) {
+            d.hp = Math.max(0, d.hp - 25);
+            if (d.hp <= 0) {
+              dummyRespawnLeft.current = DUMMY_RESPAWN_DELAY_S;
+            }
+            hitAppliedThisSwing.current = true;
+            dummyFlashLeft.current = 0.12;
+            const dir = facing.current === 'right' ? 1 : -1;
+            dummyKnockVx.current = dir * 420;
+            bump(); // force re-render to show HP drop
+          }
+        }
+      }
+
       if (dashing) {
         const dir = facing.current === 'right' ? 1 : -1;
         vx.current = dir * DASH_SPEED;
@@ -444,6 +572,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       const maxX = arenaW - MARGIN_SCREEN - bodyW;
       playerX.current = Math.max(minX, Math.min(maxX, playerX.current));
 
+      // Strict platformer: support checks use a narrow "feet" probe, not full body width.
+      const feetX = playerX.current + (bodyW - FEET_W) / 2;
+
       if (jumpQueued.current && onGround.current && !attacking) {
         vy.current = JUMP_VELOCITY;
         onGround.current = false;
@@ -462,7 +593,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       if (vy.current > 0) {
         let best: PlatformWorld | null = null;
         for (const p of plats) {
-          if (!overlapX(playerX.current, bodyW, p)) continue;
+          if (!overlapX(feetX, FEET_W, p)) continue;
           const pt = p.y;
           if (prevBottom <= pt + 14 && newBottom >= pt - 6) {
             if (!best || pt < best.y) best = p;
@@ -482,7 +613,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       if (vy.current >= 0) {
         newBottom = playerY.current + bodyH;
         for (const p of plats) {
-          if (!overlapX(playerX.current, bodyW, p)) continue;
+          if (!overlapX(feetX, FEET_W, p)) continue;
           const pt = p.y;
           if (newBottom >= pt - 2 && newBottom <= pt + 18) {
             const e = p.feetEmbedPx;
@@ -496,7 +627,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       }
 
       const bot = plats[plats.length - 1]!;
-      const horizOnBottom = overlapX(playerX.current, bodyW, bot, 0);
+      const horizOnBottom = overlapX(feetX, FEET_W, bot, 0);
 
       const floorClampY = floorY + HERO_FEET_EMBED_GROUND_PLATFORM_PX;
       // Only snap to the “floor” when still under the bottom slab in X; in side gaps
@@ -513,7 +644,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         let supported = false;
         const feet = playerY.current + bodyH;
         for (const p of plats) {
-          if (!overlapX(playerX.current, bodyW, p)) continue;
+          if (!overlapX(feetX, FEET_W, p)) continue;
           if (
             Math.abs(feet - p.y - p.feetEmbedPx) < 10 &&
             vy.current >= -20
@@ -597,11 +728,13 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const dashReady = dashCooldownLeft.current <= 0 && dashTimeLeft.current <= 0;
 
   const arenaReadyHud = arenaW >= 32 && arenaInnerH >= 32;
-  const controlsLive =
+  const controlsLive = DISABLE_BRAWLER_MATCH_TIMER
+    ? arenaReadyHud
+    : arenaReadyHud && preMatchLeftRef.current <= 0 && !matchEndedRef.current;
+  const showHudMatchClock =
+    !DISABLE_BRAWLER_MATCH_TIMER &&
     arenaReadyHud &&
-    preMatchLeftRef.current <= 0 &&
-    !matchEndedRef.current;
-  const showHudMatchClock = arenaReadyHud && preMatchLeftRef.current <= 0;
+    preMatchLeftRef.current <= 0;
   const preMatchCeil =
     preMatchLeftRef.current > 0
       ? Math.max(1, Math.ceil(preMatchLeftRef.current))
@@ -636,6 +769,19 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       ],
     );
   }, [gameOverOpen, navigation]);
+
+  const dummy = dummyRef.current;
+  const dummyHpPct = dummy.hp / DUMMY_HP_MAX;
+  const dummyAlive = dummy.hp > 0;
+
+  //const attackingNow = spriteAnimRef.current === 'hit';
+  const debugHitW = ATTACK_HIT_W;
+  const debugHitH = ATTACK_HIT_H;
+  const debugHitY = playerY.current + ATTACK_HIT_Y_FROM_TOP;
+  const debugHitX =
+    facing.current === 'right'
+      ? playerX.current + bodyW + ATTACK_HIT_FORWARD
+      : playerX.current - debugHitW - ATTACK_HIT_FORWARD;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -697,6 +843,43 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
               scale={SPRITE_SCALE}
             />
           </View>
+
+          {SHOW_ATTACK_HITBOX_DEBUG && attackingNow ? (
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                left: debugHitX,
+                top: debugHitY,
+                width: debugHitW,
+                height: debugHitH,
+                borderWidth: 2,
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.20)',
+                zIndex: 6,
+              }}
+            />
+          ) : null}
+
+          {dummyAlive ? (
+            <View
+              style={{
+                position: 'absolute',
+                left: dummy.x,
+                top: dummy.y,
+                width: dummy.w,
+                height: dummy.h,
+                backgroundColor: dummyFlashLeft.current > 0 ? '#fde047' : '#f59e0b',
+                borderWidth: 2,
+                borderColor: '#92400e',
+                zIndex: 4,
+              }}
+            >
+              <View style={{ position: 'absolute', left: 0, top: -10, width: '100%', height: 6, backgroundColor: '#111827' }}>
+                <View style={{ width: `${Math.round(dummyHpPct * 100)}%`, height: '100%', backgroundColor: '#ef4444' }} />
+              </View>
+            </View>
+          ) : null}
 
           {/* Touchable controls sit on top of the map (no separate bottom tray). */}
           <View

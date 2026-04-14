@@ -14,13 +14,47 @@ export type PlatformNorm = {
   nh: number;
 };
 
+const ledge = (nx: number, ny: number, nw: number, nh: number) => ({ nx, ny, nw, nh });
+const bridge = (nx: number, ny: number, nw = 0.55, nh = 0.03) => ({ nx, ny, nw, nh });
+const stairs = (opts: {
+  startX: number;
+  startY: number;
+  steps: number;
+  dx?: number;
+  dy?: number;
+  stepW?: number;
+  stepH?: number;
+}) => {
+  const { startX, startY, steps, dx = 0.11, dy = -0.07, stepW = 0.12, stepH = 0.03 } = opts;
+  return Array.from({ length: steps }, (_, i) => ({
+    nx: startX + i * dx,
+    ny: startY + i * dy,
+    nw: stepW,
+    nh: stepH,
+  }));
+};
+
 /** Upper two platforms only (normalized). Bottom tier is from `buildArenaPlatforms`. */
-export const ARENA_FLOATING_PLATFORM_NORMALIZED: PlatformNorm[] = [
+/* export const ARENA_FLOATING_PLATFORM_NORMALIZED: PlatformNorm[] = [
   { nx: 0.38, ny: 0.52, nw: 0.24, nh: 0.028 },
   { nx: 0.19, ny: 0.71, nw: 0.60, nh: 0.03 },
   { nx: 0.49, ny: 0.41, nw: 0.30, nh: 0.03 },
   { nx: 0.19, ny: 0.41, nw: 0.10, nh: 0.03 },
   { nx: 0.19, ny: 0.51, nw: 0.10, nh: 0.03 },
+]; */
+
+export const ARENA_FLOATING_PLATFORM_NORMALIZED: PlatformNorm[] = [
+  // Top center platform
+  bridge(0.37, 0.52, 0.26, 0.028),
+  // Side platforms (same height)
+  ledge(0.16, 0.70, 0.22, 0.03),
+  ledge(0.62, 0.70, 0.22, 0.03),
+
+  //Top left platform
+  ledge(0.06, 0.30, 0.42, 0.03),
+
+  //Top right platform
+  ledge(0.55, 0.30, 0.42, 0.03),
 ];
 
 /** Largest platform: width as fraction of arena width (centered). */
