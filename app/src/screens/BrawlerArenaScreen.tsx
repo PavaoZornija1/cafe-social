@@ -34,6 +34,9 @@ type Dummy = {
   y: number;
   w: number;
   h: number;
+  vy: number;
+  prevY: number;
+  onGround: boolean;
   hp: number;
   respawnLeft: number;
   flashLeft: number;
@@ -46,9 +49,14 @@ type Enemy = {
   w: number;
   h: number;
   vx: number;
+  vy: number;
+  prevY: number;
+  onGround: boolean;
   hp: number;
   iFramesLeft: number;
   respawnLeft: number;
+  flashLeft: number;
+  knockVx: number;
   /** Index into `buildArenaPlatforms` / `platformsRef.current`. */
   platformIndex: number;
 };
@@ -109,6 +117,13 @@ const ATTACK_DURATION_S = 0.28;
 const DASH_DURATION_S = 0.18;
 const DASH_SPEED = 560;
 const DASH_COOLDOWN_S = 1.0;
+
+const ATTACK_DMG = 25;
+const DASH_DMG = Math.round(ATTACK_DMG * 0.5);
+// Match dash shove to dash movement speed.
+const DASH_KNOCKBACK = DASH_SPEED;
+// Additional immediate shove so dash always feels like a "push".
+const DASH_SHOVE_PX = DASH_SPEED * DASH_DURATION_S;
 
 const MARGIN_SCREEN = 20;
 const JOYSTICK_SIZE = 102;
@@ -253,9 +268,14 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     w: ENEMY_W,
     h: ENEMY_H,
     vx: ENEMY_SPEED,
+    vy: 0,
+    prevY: 0,
+    onGround: true,
     hp: ENEMY_HP_MAX,
     iFramesLeft: 0,
     respawnLeft: 0,
+    flashLeft: 0,
+    knockVx: 0,
     platformIndex: 0,
   });
 
@@ -300,6 +320,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const dashTimeLeft = useRef(0);
   const dashCooldownLeft = useRef(0);
   const hitFrameRef = useRef(0);
+  const dashHitAppliedRef = useRef(false);
 
   const [, setRenderTick] = useState(0);
   const spriteAnimRef = useRef<BruiserSpriteAnim>('idle');
@@ -353,6 +374,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
             y,
             w: DUMMY_W,
             h: DUMMY_H,
+            vy: 0,
+            prevY: y,
+            onGround: true,
             hp: DUMMY_HP_MAX,
             respawnLeft: 0,
             flashLeft: 0,
@@ -372,6 +396,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
             y,
             w: DUMMY_W,
             h: DUMMY_H,
+            vy: 0,
+            prevY: y,
+            onGround: true,
             hp: DUMMY_HP_MAX,
             respawnLeft: 0,
             flashLeft: 0,
@@ -408,9 +435,14 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       w: ENEMY_W,
       h: ENEMY_H,
       vx: dir * ENEMY_SPEED,
+      vy: 0,
+      prevY: y,
+      onGround: true,
       hp: ENEMY_HP_MAX,
       iFramesLeft: 0,
       respawnLeft: 0,
+      flashLeft: 0,
+      knockVx: 0,
       platformIndex: pick.idx,
     };
   }, [arenaW, arenaInnerH]);
@@ -662,6 +694,19 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         if (d.respawnLeft > 0) {
           d.respawnLeft = Math.max(0, d.respawnLeft - dt);
           if (d.respawnLeft <= 0) {
+            // Respawn on a valid platform.
+            const platsNow = plats;
+            const valid = platsNow.filter((p) => p.w >= d.w + 2);
+            const p = valid.length
+              ? valid[Math.floor(Math.random() * valid.length)]!
+              : platsNow[platsNow.length - 1]!;
+            const xMin = Math.max(MARGIN_SCREEN, p.x);
+            const xMax = Math.min(arenaW - MARGIN_SCREEN - d.w, p.x + p.w - d.w);
+            d.x = xMax > xMin ? xMin + Math.random() * (xMax - xMin) : xMin;
+            d.y = Math.max(0, Math.min(arenaInnerH - d.h, p.y - d.h));
+            d.prevY = d.y;
+            d.vy = 0;
+            d.onGround = true;
             d.hp = DUMMY_HP_MAX;
             dummiesChanged = true;
           }
@@ -672,12 +717,47 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         }
 
         if (d.knockVx !== 0) {
-          d.knockVx *= Math.pow(0.05, dt * 10);
+          d.knockVx *= Math.pow(0.25, dt * 10);
           if (Math.abs(d.knockVx) < 2) d.knockVx = 0;
 
           d.x += d.knockVx * dt;
           d.x = Math.max(MARGIN_SCREEN, Math.min(arenaW - MARGIN_SCREEN - d.w, d.x));
           dummiesChanged = true;
+        }
+
+        // Gravity + platform landing (so knockback can push off ledges).
+        if (d.hp > 0 && d.respawnLeft <= 0) {
+          d.prevY = d.y;
+          d.vy += GRAVITY * dt;
+          d.y += d.vy * dt;
+
+          const prevBottom = d.prevY + d.h;
+          const newBottom = d.y + d.h;
+          if (d.vy > 0) {
+            let best: PlatformWorld | null = null;
+            for (const p of plats) {
+              if (!overlapX(d.x, d.w, p, 0)) continue;
+              const pt = p.y;
+              if (prevBottom <= pt + 14 && newBottom >= pt - 6) {
+                if (!best || pt < best.y) best = p;
+              }
+            }
+            if (best) {
+              d.y = best.y - d.h;
+              d.vy = 0;
+              d.onGround = true;
+              dummiesChanged = true;
+            } else {
+              d.onGround = false;
+            }
+          }
+
+          // Fell out of view: respawn somewhere sane.
+          if (d.y > arenaInnerH + 120) {
+            d.respawnLeft = 0.15;
+            d.hp = 0;
+            dummiesChanged = true;
+          }
         }
       }
       if (dummiesChanged) bump();
@@ -706,6 +786,12 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         }
 
         e.iFramesLeft = Math.max(0, e.iFramesLeft - dt);
+        e.flashLeft = Math.max(0, e.flashLeft - dt);
+
+        if (e.knockVx !== 0) {
+          e.knockVx *= Math.pow(0.25, dt * 10);
+          if (Math.abs(e.knockVx) < 2) e.knockVx = 0;
+        }
 
         const alive = e.hp > 0 && e.respawnLeft <= 0;
         if (alive) {
@@ -714,15 +800,62 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           const xMax = Math.min(arenaW - MARGIN_SCREEN - e.w, p.x + p.w - e.w);
           const y = Math.max(0, Math.min(arenaInnerH - e.h, p.y - e.h));
 
-          e.x += e.vx * dt;
-          if (e.x <= xMin) {
-            e.x = xMin;
-            e.vx = Math.abs(e.vx);
-          } else if (e.x >= xMax) {
-            e.x = xMax;
-            e.vx = -Math.abs(e.vx);
+          // Horizontal: patrol clamps/reverses only when not being knocked.
+          const knocked = Math.abs(e.knockVx) > 1;
+          if (!knocked && e.onGround) {
+            e.x += e.vx * dt;
+            if (e.x <= xMin) {
+              e.x = xMin;
+              e.vx = Math.abs(e.vx);
+            } else if (e.x >= xMax) {
+              e.x = xMax;
+              e.vx = -Math.abs(e.vx);
+            }
+          } else {
+            // Knockback can push it off the platform edge.
+            e.x += (e.vx + e.knockVx) * dt;
           }
-          e.y = y;
+
+          // Gravity + landing (enemy falls if pushed off).
+          e.prevY = e.y;
+          e.vy += GRAVITY * dt;
+          e.y += e.vy * dt;
+
+          const prevBottom = e.prevY + e.h;
+          const newBottom = e.y + e.h;
+          if (e.vy > 0) {
+            let best: { p: PlatformWorld; idx: number } | null = null;
+            for (let i = 0; i < plats.length; i++) {
+              const pl = plats[i]!;
+              if (!overlapX(e.x, e.w, pl, 0)) continue;
+              const pt = pl.y;
+              if (prevBottom <= pt + 14 && newBottom >= pt - 6) {
+                if (!best || pt < best.p.y) best = { p: pl, idx: i };
+              }
+            }
+            if (best) {
+              e.y = best.p.y - e.h;
+              e.vy = 0;
+              e.onGround = true;
+              e.platformIndex = best.idx;
+            } else {
+              e.onGround = false;
+            }
+          }
+
+          // Keep y aligned to platform top when onGround and not falling (stability).
+          if (e.onGround && e.vy === 0 && !knocked) {
+            e.y = y;
+          }
+
+          // Fell out of view: respawn on a platform (keep HP).
+          if (e.y > arenaInnerH + 160) {
+            const hpKeep = e.hp;
+            spawnEnemyOnRandomPlatform();
+            enemyRef.current.hp = hpKeep;
+            enemyRef.current.iFramesLeft = Math.max(enemyRef.current.iFramesLeft, 0.2);
+            bump();
+          }
         }
       }
 
@@ -749,6 +882,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           facing.current = jx < 0 ? 'left' : 'right';
         }
         dashTimeLeft.current = DASH_DURATION_S;
+        dashHitAppliedRef.current = false;
       }
 
       if (attackTimeLeft.current <= 0) {
@@ -757,6 +891,75 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
       const dashing = dashTimeLeft.current > 0;
       const attacking = attackTimeLeft.current > 0;
+
+      // Dash damage: one hit per dash, enemy first, then dummies.
+      if (dashing && !dashHitAppliedRef.current) {
+        const dashW = bodyW * 0.9;
+        const dashH = bodyH * 0.7;
+        const dashY = playerY.current + bodyH * 0.15;
+        const dashX =
+          facing.current === 'right'
+            ? playerX.current + bodyW * 0.55
+            : playerX.current - dashW + bodyW * 0.45;
+
+        const e = enemyRef.current;
+        const enemyAlive = e.hp > 0 && e.respawnLeft <= 0;
+        const hitEnemy =
+          enemyAlive && aabbOverlap(dashX, dashY, dashW, dashH, e.x, e.y, e.w, e.h);
+
+        if (hitEnemy && e.iFramesLeft <= 0) {
+          e.hp = Math.max(0, e.hp - DASH_DMG);
+          e.iFramesLeft = ENEMY_IFRAMES_S;
+          e.flashLeft = 0.12;
+          const dir = facing.current === 'right' ? 1 : -1;
+          e.knockVx = dir * DASH_KNOCKBACK;
+          e.x = Math.max(
+            MARGIN_SCREEN,
+            Math.min(arenaW - MARGIN_SCREEN - e.w, e.x + dir * DASH_SHOVE_PX),
+          );
+          if (e.hp <= 0) e.respawnLeft = ENEMY_RESPAWN_DELAY_S;
+
+          dmgFloatsRef.current.push({
+            id: dmgFloatIdRef.current++,
+            x: e.x + e.w / 2,
+            y: e.y,
+            text: `-${DASH_DMG}`,
+            age: 0,
+          });
+
+          dashHitAppliedRef.current = true;
+          bump();
+        } else {
+          const hitDummy = dummiesRef.current.find(
+            (d) => d.hp > 0 && aabbOverlap(dashX, dashY, dashW, dashH, d.x, d.y, d.w, d.h),
+          );
+          if (hitDummy) {
+            hitDummy.hp = Math.max(0, hitDummy.hp - DASH_DMG);
+            hitDummy.flashLeft = 0.12;
+            const dir = facing.current === 'right' ? 1 : -1;
+            hitDummy.knockVx = dir * DASH_KNOCKBACK;
+            hitDummy.x = Math.max(
+              MARGIN_SCREEN,
+              Math.min(
+                arenaW - MARGIN_SCREEN - hitDummy.w,
+                hitDummy.x + dir * DASH_SHOVE_PX,
+              ),
+            );
+            if (hitDummy.hp <= 0) hitDummy.respawnLeft = DUMMY_RESPAWN_DELAY_S;
+
+            dmgFloatsRef.current.push({
+              id: dmgFloatIdRef.current++,
+              x: hitDummy.x + hitDummy.w / 2,
+              y: hitDummy.y,
+              text: `-${DASH_DMG}`,
+              age: 0,
+            });
+
+            dashHitAppliedRef.current = true;
+            bump();
+          }
+        }
+      }
 
 
       if (attacking) {
@@ -771,7 +974,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
               ? playerX.current + bodyW + ATTACK_HIT_FORWARD
               : playerX.current - hitW - ATTACK_HIT_FORWARD;
 
-          const dmg = 25;
+          const dmg = ATTACK_DMG;
 
           // Priority: hit enemy first if overlapping, else hit a dummy.
           const e = enemyRef.current;
@@ -784,6 +987,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           if (hitEnemy) {
             e.hp = Math.max(0, e.hp - dmg);
             e.iFramesLeft = ENEMY_IFRAMES_S;
+            e.flashLeft = 0.12;
+            const dir = facing.current === 'right' ? 1 : -1;
+            e.knockVx = dir * 520;
 
             dmgFloatsRef.current.push({
               id: dmgFloatIdRef.current++,
@@ -1189,7 +1395,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
                 top: enemyRef.current.y,
                 width: enemyRef.current.w,
                 height: enemyRef.current.h,
-                backgroundColor: '#dc2626',
+                backgroundColor: enemyRef.current.flashLeft > 0 ? '#fb7185' : '#dc2626',
                 borderWidth: 2,
                 borderColor: '#7f1d1d',
                 zIndex: 4,
