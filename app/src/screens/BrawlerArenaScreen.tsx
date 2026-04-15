@@ -27,7 +27,7 @@ import {
   spawnOnBottomPlatform,
   type PlatformWorld,
 } from '../brawler/arenaPlatforms';
-import type { RootStackParamList } from '../navigation/type';
+import type { BrawlerArenaHeroStats, RootStackParamList } from '../navigation/type';
 
 type Dummy = {
   id: number;
@@ -71,7 +71,8 @@ const ACTION_CIRCLE_SIZE = 54;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BrawlerArena'>;
 
-const MOVE_SPEED = 260;
+/** Walk speed when DB `moveSpeed` multiplier is 1.0 (legacy arena tuning). */
+const BASE_MOVE_SPEED_PX = 260;
 const GRAVITY = 2200;
 const JUMP_VELOCITY = -640;
 const GROUND_STRIP_H = 40;
@@ -84,7 +85,6 @@ const DUMMY_H = 52;
 const DUMMY_HP_MAX = 100;
 const DUMMY_RESPAWN_DELAY_S = 1.2;
 
-const HERO_HP_MAX = 100;
 const HERO_IFRAMES_S = 0.65;
 const ENEMY_CONTACT_DMG = 10;
 
@@ -117,14 +117,32 @@ const DISABLE_BRAWLER_MATCH_TIMER = true;
 const ATTACK_DURATION_S = 0.28;
 const DASH_DURATION_S = 0.18;
 const DASH_SPEED = 560;
-const DASH_COOLDOWN_S = 1.0;
 
-const ATTACK_DMG = 25;
-const DASH_DMG = Math.round(ATTACK_DMG * 0.5);
-// Match dash shove to dash movement speed.
-const DASH_KNOCKBACK = DASH_SPEED;
-// Additional immediate shove so dash always feels like a "push".
-const DASH_SHOVE_PX = DASH_SPEED * DASH_DURATION_S;
+/** Used when `heroStats` is omitted (deep link / older callers). Matches prior hardcoded arena. */
+const FALLBACK_ARENA_HERO_STATS: BrawlerArenaHeroStats = {
+  baseHp: 100,
+  moveSpeed: 1.0,
+  dashCooldownMs: 1000,
+  attackDamage: 25,
+  attackKnockback: 1.0,
+};
+
+function arenaHeroCombat(stats: BrawlerArenaHeroStats | undefined) {
+  const s: BrawlerArenaHeroStats = { ...FALLBACK_ARENA_HERO_STATS, ...stats };
+  const dashCooldownS = Math.max(0.05, s.dashCooldownMs / 1000);
+  const dashDmg = Math.round(s.attackDamage * 0.5);
+  const dashKnockbackSpeed = DASH_SPEED * s.attackKnockback;
+  const dashShovePx = dashKnockbackSpeed * DASH_DURATION_S;
+  return {
+    baseHp: s.baseHp,
+    moveSpeedPx: BASE_MOVE_SPEED_PX * s.moveSpeed,
+    dashCooldownS,
+    attackDamage: s.attackDamage,
+    dashDmg,
+    dashKnockbackSpeed,
+    dashShovePx,
+  };
+}
 
 const MARGIN_SCREEN = 20;
 const JOYSTICK_SIZE = 102;
@@ -239,7 +257,7 @@ function ArenaPlatformArt({
 }
 
 export default function BrawlerArenaScreen({ navigation, route }: Props) {
-  const { heroId } = route.params;
+  const { heroId, heroStats: heroStatsParam } = route.params;
   const insets = useSafeAreaInsets();
 
   const [arenaBox, setArenaBox] = useState({ w: 0, h: 0 });
@@ -248,6 +266,17 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const worldW = Math.max(arenaW, Math.round(arenaW * 2.4));
   const worldH = Math.max(arenaInnerH, Math.round(arenaInnerH * 1.35));
 
+  const heroCombat = useMemo(
+    () => arenaHeroCombat(heroStatsParam),
+    [
+      heroStatsParam?.baseHp,
+      heroStatsParam?.moveSpeed,
+      heroStatsParam?.dashCooldownMs,
+      heroStatsParam?.attackDamage,
+      heroStatsParam?.attackKnockback,
+    ],
+  );
+
   const playerX = useRef(0);
   const playerY = useRef(0);
   const dummiesRef = useRef<Dummy[]>([]);
@@ -255,7 +284,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
   const hitAppliedThisSwing = useRef(false);
 
-  const heroHpRef = useRef(HERO_HP_MAX);
+  const heroHpRef = useRef(heroCombat.baseHp);
   const heroIFramesLeftRef = useRef(0);
   const [heroDeadOpen, setHeroDeadOpen] = useState(false);
 
@@ -481,7 +510,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
     spawnDummiesRandomOnPlatforms(3, spawn);
     spawnEnemyOnRandomPlatform();
-    heroHpRef.current = HERO_HP_MAX;
+    heroHpRef.current = heroCombat.baseHp;
     heroIFramesLeftRef.current = 0;
     setHeroDeadOpen(false);
 
@@ -494,6 +523,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     worldH,
     bodyW,
     bodyH,
+    heroCombat.baseHp,
     HERO_FEET_EMBED_GROUND_PLATFORM_PX,
     HERO_FEET_EMBED_FLOATING_PLATFORM_PX,
     spawnDummiesRandomOnPlatforms,
@@ -530,7 +560,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     prevPlayerY.current = spawn.y;
     spawnDummiesRandomOnPlatforms(3, spawn);
     spawnEnemyOnRandomPlatform();
-    heroHpRef.current = HERO_HP_MAX;
+    heroHpRef.current = heroCombat.baseHp;
     heroIFramesLeftRef.current = 0;
     setHeroDeadOpen(false);
 
@@ -564,6 +594,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     worldH,
     bodyW,
     bodyH,
+    heroCombat.baseHp,
     bump,
     spawnDummiesRandomOnPlatforms,
     spawnEnemyOnRandomPlatform,
@@ -688,7 +719,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       const wasDashing = dashTimeLeft.current > 0;
       dashTimeLeft.current = Math.max(0, dashTimeLeft.current - dt);
       if (wasDashing && dashTimeLeft.current <= 0) {
-        dashCooldownLeft.current = DASH_COOLDOWN_S;
+        dashCooldownLeft.current = heroCombat.dashCooldownS;
       }
 
       attackTimeLeft.current = Math.max(0, attackTimeLeft.current - dt);
@@ -913,14 +944,14 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           enemyAlive && aabbOverlap(dashX, dashY, dashW, dashH, e.x, e.y, e.w, e.h);
 
         if (hitEnemy && e.iFramesLeft <= 0) {
-          e.hp = Math.max(0, e.hp - DASH_DMG);
+          e.hp = Math.max(0, e.hp - heroCombat.dashDmg);
           e.iFramesLeft = ENEMY_IFRAMES_S;
           e.flashLeft = 0.12;
           const dir = facing.current === 'right' ? 1 : -1;
-          e.knockVx = dir * DASH_KNOCKBACK;
+          e.knockVx = dir * heroCombat.dashKnockbackSpeed;
           e.x = Math.max(
             MARGIN_SCREEN,
-            Math.min(worldW - MARGIN_SCREEN - e.w, e.x + dir * DASH_SHOVE_PX),
+            Math.min(worldW - MARGIN_SCREEN - e.w, e.x + dir * heroCombat.dashShovePx),
           );
           if (e.hp <= 0) e.respawnLeft = ENEMY_RESPAWN_DELAY_S;
 
@@ -928,7 +959,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
             id: dmgFloatIdRef.current++,
             x: e.x + e.w / 2,
             y: e.y,
-            text: `-${DASH_DMG}`,
+            text: `-${heroCombat.dashDmg}`,
             age: 0,
           });
 
@@ -939,15 +970,15 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
             (d) => d.hp > 0 && aabbOverlap(dashX, dashY, dashW, dashH, d.x, d.y, d.w, d.h),
           );
           if (hitDummy) {
-            hitDummy.hp = Math.max(0, hitDummy.hp - DASH_DMG);
+            hitDummy.hp = Math.max(0, hitDummy.hp - heroCombat.dashDmg);
             hitDummy.flashLeft = 0.12;
             const dir = facing.current === 'right' ? 1 : -1;
-            hitDummy.knockVx = dir * DASH_KNOCKBACK;
+            hitDummy.knockVx = dir * heroCombat.dashKnockbackSpeed;
             hitDummy.x = Math.max(
               MARGIN_SCREEN,
               Math.min(
                 worldW - MARGIN_SCREEN - hitDummy.w,
-                hitDummy.x + dir * DASH_SHOVE_PX,
+                hitDummy.x + dir * heroCombat.dashShovePx,
               ),
             );
             if (hitDummy.hp <= 0) hitDummy.respawnLeft = DUMMY_RESPAWN_DELAY_S;
@@ -956,7 +987,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
               id: dmgFloatIdRef.current++,
               x: hitDummy.x + hitDummy.w / 2,
               y: hitDummy.y,
-              text: `-${DASH_DMG}`,
+              text: `-${heroCombat.dashDmg}`,
               age: 0,
             });
 
@@ -979,7 +1010,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
               ? playerX.current + bodyW + ATTACK_HIT_FORWARD
               : playerX.current - hitW - ATTACK_HIT_FORWARD;
 
-          const dmg = ATTACK_DMG;
+          const dmg = heroCombat.attackDamage;
 
           // Priority: hit enemy first if overlapping, else hit a dummy.
           const e = enemyRef.current;
@@ -1048,7 +1079,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       } else if (!attacking) {
         const jx = joyRef.current.x;
         if (Math.abs(jx) > 0.02) {
-          vx.current = jx * MOVE_SPEED;
+          vx.current = jx * heroCombat.moveSpeedPx;
           facing.current = jx < 0 ? 'left' : 'right';
         } else {
           vx.current *= Math.pow(0.2, dt * 10);
@@ -1237,10 +1268,14 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   }, [
     arenaW,
     arenaInnerH,
+    worldW,
+    worldH,
     bump,
     bodyW,
     bodyH,
     floorY,
+    heroCombat,
+    heroDeadOpen,
     HERO_FEET_EMBED_GROUND_PLATFORM_PX,
     HERO_FEET_EMBED_FLOATING_PLATFORM_PX,
   ]);
@@ -1335,7 +1370,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
                   styles.hudHpFill,
                   {
                     width: `${Math.round(
-                      (heroHpRef.current / HERO_HP_MAX) * 100,
+                      (heroHpRef.current / heroCombat.baseHp) * 100,
                     )}%`,
                     opacity: heroIFramesLeftRef.current > 0 ? 0.7 : 1,
                   },
@@ -1343,7 +1378,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
               />
             </View>
             <Text style={styles.hudHpText}>
-              HP {Math.round(heroHpRef.current)}/{HERO_HP_MAX}
+              HP {Math.round(heroHpRef.current)}/{heroCombat.baseHp}
             </Text>
           </View>
         </View>

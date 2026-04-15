@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { apiGet, apiPost } from '../lib/api';
 import { BRUISER_ARENA_HERO_ID } from '../brawler/bruiserSpritesheet';
-import type { RootStackParamList } from '../navigation/type';
+import type { BrawlerArenaHeroStats, RootStackParamList } from '../navigation/type';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BrawlerLobby'>;
 
@@ -113,9 +113,20 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
 
       await apiPost(`/brawler/sessions/${encodeURIComponent(created.id)}/start`, {}, token);
 
+      const heroStats: BrawlerArenaHeroStats | undefined = selectedHero
+        ? {
+            baseHp: selectedHero.baseHp,
+            moveSpeed: selectedHero.moveSpeed,
+            dashCooldownMs: selectedHero.dashCooldownMs,
+            attackDamage: selectedHero.attackDamage,
+            attackKnockback: selectedHero.attackKnockback,
+          }
+        : undefined;
+
       navigation.navigate('BrawlerArena', {
         heroId: selectedHeroId,
         venueId,
+        heroStats,
       });
     } catch (e) {
       Alert.alert('Error', (e as Error).message || 'Failed to start brawler session');

@@ -1,3 +1,12 @@
+/** Brawler hero combat fields (matches API / DB); passed into arena for local simulation. */
+export type BrawlerArenaHeroStats = {
+  baseHp: number;
+  moveSpeed: number;
+  dashCooldownMs: number;
+  attackDamage: number;
+  attackKnockback: number;
+};
+
 export type RootStackParamList = {
     Login: undefined;
     SignUp: undefined;
@@ -7,7 +16,11 @@ export type RootStackParamList = {
     DailyWord: undefined;
     ChooseGame: { venueId?: string; challengeId?: string } | undefined;
     BrawlerLobby: { venueId?: string } | undefined;
-    BrawlerArena: { heroId: string; venueId?: string };
+    BrawlerArena: {
+      heroId: string;
+      venueId?: string;
+      heroStats?: BrawlerArenaHeroStats;
+    };
     Challenges: undefined;
     Leaderboard: undefined;
     Profile: undefined;
