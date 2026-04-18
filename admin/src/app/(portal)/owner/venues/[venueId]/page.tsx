@@ -34,12 +34,14 @@ import {
   useOwnerSendCampaignMutation,
   useOwnerVenueUnbanPlayerMutation,
   useOwnerVenueAnalyticsQuery,
+  useOwnerVenueGeofenceDwellQuery,
+  useOwnerVenueModerationAuditQuery,
   useOwnerVenueModerationBansQuery,
   useOwnerVenueCampaignsQuery,
   useOwnerVenueReceiptsQuery,
   useOwnerVenueModerationReportsQuery,
   useOwnerVenueBanAppealsQuery,
-  useOwnerVenueDismissBanAppealMutation,
+  useOwnerVenueResolveBanAppealMutation,
   useOwnerVenueStaffInvitesQuery,
   useOwnerVenuesListQuery,
   useOwnerVoidRedemptionMutation,
@@ -116,6 +118,21 @@ export default function OwnerVenueDetailPage() {
   const [lastCreatedToken, setLastCreatedToken] = useState<string | null>(null);
   const [clerkInviteNotice, setClerkInviteNotice] = useState<string | null>(null);
   const [bannerError, setBannerError] = useState<string | null>(null);
+  const [appealsIncludeResolved, setAppealsIncludeResolved] = useState(false);
+  const [appealsFromYmd, setAppealsFromYmd] = useState("");
+  const [appealsToYmd, setAppealsToYmd] = useState("");
+  const [appealStaffNote, setAppealStaffNote] = useState<Record<string, string>>({});
+  const [appealStaffMessage, setAppealStaffMessage] = useState<Record<string, string>>({});
+  const [appealNotifyPlayer, setAppealNotifyPlayer] = useState<Record<string, boolean>>({});
+  const [reportDismissNotes, setReportDismissNotes] = useState<Record<string, string>>({});
+  const [auditOpen, setAuditOpen] = useState(false);
+
+  const STAFF_NOTE_TEMPLATES = [
+    "Reviewed — no policy violation found.",
+    "Spoke with parties on site; resolved informally.",
+    "Escalating to venue owner.",
+    "Duplicate report — closing.",
+  ];
 
   const venuesListQ = useOwnerVenuesListQuery(getToken, Boolean(isLoaded));
 
@@ -171,6 +188,20 @@ export default function OwnerVenueDetailPage() {
     analyticsFromYmd.trim() || undefined,
     analyticsToYmd.trim() || undefined,
   );
+  const geofenceDwellQ = useOwnerVenueGeofenceDwellQuery(
+    venueId,
+    days,
+    getToken,
+    Boolean(isLoaded && metaRow && canAnalytics),
+    analyticsFromYmd.trim() || undefined,
+    analyticsToYmd.trim() || undefined,
+  );
+  const moderationAuditQ = useOwnerVenueModerationAuditQuery(
+    venueId,
+    getToken,
+    Boolean(isLoaded && metaRow && canAnalytics && auditOpen),
+    80,
+  );
   const modReportsQ = useOwnerVenueModerationReportsQuery(
     venueId,
     getToken,
@@ -185,8 +216,18 @@ export default function OwnerVenueDetailPage() {
     venueId,
     getToken,
     Boolean(isLoaded && metaRow && canAnalytics),
+    {
+      includeResolved: appealsIncludeResolved,
+      fromYmd: appealsFromYmd.trim() || undefined,
+      toYmd: appealsToYmd.trim() || undefined,
+    },
   );
-  const dismissAppealMut = useOwnerVenueDismissBanAppealMutation(venueId, getToken);
+
+  const bannedPlayerIds = useMemo(() => {
+    const rows = modBansQ.data ?? [];
+    return new Set(rows.map((b) => b.playerId));
+  }, [modBansQ.data]);
+  const resolveAppealMut = useOwnerVenueResolveBanAppealMutation(venueId, getToken);
   const dismissReportMut = useOwnerVenueDismissReportMutation(venueId, getToken);
   const banPlayerMut = useOwnerVenueBanPlayerMutation(venueId, getToken);
   const unbanPlayerMut = useOwnerVenueUnbanPlayerMutation(venueId, getToken);
@@ -667,6 +708,29 @@ export default function OwnerVenueDetailPage() {
     }
   };
 
+  const downloadGeofenceCsv = async () => {
+    setBannerError(null);
+    try {
+      const token = await getToken();
+      if (!token) throw new Error("Sign in required");
+      const res = await ownerFetch(
+        getToken,
+        `/owner/venues/${venueId}/analytics/geofence-events.csv?${venueAnalyticsQs()}`,
+        { method: "GET" },
+      );
+      if (!res.ok) throw new Error(await res.text());
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `geofence-events-${venueId.slice(0, 8)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setBannerError(e instanceof Error ? e.message : "CSV download failed");
+    }
+  };
+
   const accessError =
     venuesListQ.isSuccess && !metaRow
       ? "You do not have access to this venue or it does not exist."
@@ -799,6 +863,14 @@ export default function OwnerVenueDetailPage() {
                       className="text-sm bg-emerald-50 border border-emerald-300 text-emerald-900 px-3 py-1 rounded-lg hover:bg-emerald-100 disabled:opacity-50"
                     >
                       Funnel CSV
+                    </button>
+                    <button
+                      type="button"
+                      disabled={readOnlyDisabled}
+                      onClick={() => void downloadGeofenceCsv()}
+                      className="text-sm bg-indigo-50 border border-indigo-300 text-indigo-900 px-3 py-1 rounded-lg hover:bg-indigo-100 disabled:opacity-50"
+                    >
+                      Geofence events CSV
                     </button>
                     <label className="text-sm text-slate-600 flex items-center gap-2">
                       Period (days)
@@ -935,6 +1007,57 @@ export default function OwnerVenueDetailPage() {
                     {analytics.funnelJourney.enteredToRedeemPercent}%
                   </p>
                 </div>
+
+                {geofenceDwellQ.data ? (
+                  <div className="mb-6 rounded-xl border border-indigo-200 bg-indigo-50/50 p-4">
+                    <h3 className="text-sm font-semibold text-slate-800 mb-2">
+                      Visit boundary (geofence enter/exit)
+                    </h3>
+                    <p className="text-xs text-slate-600 mb-3">
+                      Approximate dwell from OS geofence events. Pairs each player&apos;s enter→exit;
+                      open enters at period end are listed separately. Compare with calendar visit rows
+                      (presence proxy) for context.
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                      <div>
+                        <p className="text-xs text-slate-500">Enter / exit events</p>
+                        <p className="text-lg font-semibold text-slate-900">
+                          {geofenceDwellQ.data.geofenceEnterEvents} /{" "}
+                          {geofenceDwellQ.data.geofenceExitEvents}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Players (≥1 event)</p>
+                        <p className="text-lg font-semibold text-slate-900">
+                          {geofenceDwellQ.data.uniquePlayersWithGeofenceEvent}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Completed sessions</p>
+                        <p className="text-lg font-semibold text-slate-900">
+                          {geofenceDwellQ.data.completedVisitSessions}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Open at period end</p>
+                        <p className="text-lg font-semibold text-slate-900">
+                          {geofenceDwellQ.data.openSessionsAtPeriodEnd}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-600 mt-3">
+                      Avg completed dwell:{" "}
+                      <strong>{geofenceDwellQ.data.avgDwellSecondsCompletedSessions}s</strong>
+                      {geofenceDwellQ.data.medianDwellSecondsCompleted != null
+                        ? ` · median ${geofenceDwellQ.data.medianDwellSecondsCompleted}s`
+                        : null}
+                      . Calendar visit-day rows:{" "}
+                      <strong>{geofenceDwellQ.data.calendarVisitDayRows}</strong>.
+                    </p>
+                  </div>
+                ) : geofenceDwellQ.isLoading ? (
+                  <p className="text-xs text-slate-500 mb-4">Loading geofence dwell…</p>
+                ) : null}
 
                 <OwnerAnalyticsCharts
                   visitsByDay={analytics.visits.byDay}
@@ -1111,11 +1234,27 @@ export default function OwnerVenueDetailPage() {
                       <p className="text-xs text-slate-500">
                         By {r.reporter.email} · {new Date(r.createdAt).toLocaleString()}
                       </p>
+                      <label className="block text-xs text-slate-600 mt-2">
+                        Note to reporter (optional, shown in app)
+                        <textarea
+                          className="mt-0.5 w-full max-w-md text-sm border border-slate-200 rounded px-2 py-1 bg-white"
+                          rows={2}
+                          value={reportDismissNotes[r.id] ?? ""}
+                          onChange={(e) =>
+                            setReportDismissNotes((m) => ({ ...m, [r.id]: e.target.value }))
+                          }
+                        />
+                      </label>
                       <div className="flex flex-wrap gap-2 mt-2">
                         <button
                           type="button"
                           disabled={readOnlyDisabled || dismissReportMut.isPending}
-                          onClick={() => void dismissReportMut.mutateAsync(r.id)}
+                          onClick={() =>
+                            void dismissReportMut.mutateAsync({
+                              reportId: r.id,
+                              dismissalNoteToReporter: reportDismissNotes[r.id],
+                            })
+                          }
                           className="text-xs border border-slate-300 rounded px-2 py-1 hover:bg-slate-50 disabled:opacity-50"
                         >
                           Dismiss
@@ -1148,7 +1287,8 @@ export default function OwnerVenueDetailPage() {
                   {(modBansQ.data ?? []).map((b) => (
                     <li
                       key={b.id}
-                      className="flex flex-wrap items-center justify-between gap-2 border border-slate-100 rounded-lg px-3 py-2"
+                      id={`ban-row-${b.playerId}`}
+                      className="flex flex-wrap items-center justify-between gap-2 border border-slate-100 rounded-lg px-3 py-2 scroll-mt-24"
                     >
                       <span>
                         <span className="font-mono text-xs">{b.player.email}</span>{" "}
@@ -1173,9 +1313,44 @@ export default function OwnerVenueDetailPage() {
               )}
             </div>
             <div>
-              <h3 className="text-sm font-medium text-slate-800 mb-2">Ban appeals</h3>
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <h3 className="text-sm font-medium text-slate-800">Ban appeals</h3>
+                <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={appealsIncludeResolved}
+                    onChange={(e) => setAppealsIncludeResolved(e.target.checked)}
+                    className="rounded border-slate-300"
+                  />
+                  Show resolved history
+                </label>
+              </div>
+              <div className="flex flex-wrap gap-3 mb-3 text-xs text-slate-600">
+                <label>
+                  From (UTC)
+                  <input
+                    type="text"
+                    placeholder="YYYY-MM-DD"
+                    className="mt-0.5 block bg-white border border-slate-300 rounded px-2 py-1 font-mono"
+                    value={appealsFromYmd}
+                    onChange={(e) => setAppealsFromYmd(e.target.value.trim())}
+                  />
+                </label>
+                <label>
+                  To (UTC)
+                  <input
+                    type="text"
+                    placeholder="YYYY-MM-DD"
+                    className="mt-0.5 block bg-white border border-slate-300 rounded px-2 py-1 font-mono"
+                    value={appealsToYmd}
+                    onChange={(e) => setAppealsToYmd(e.target.value.trim())}
+                  />
+                </label>
+              </div>
               <p className="text-xs text-slate-500 mb-2">
-                Players who are venue-banned can submit one open appeal per location.
+                Players who are venue-banned can submit one open appeal per location. Resolve with an
+                outcome, optional internal note, and an optional message to the player (if you notify
+                them).
               </p>
               {modAppealsQ.isError ? (
                 <p className="text-sm text-red-700">
@@ -1185,33 +1360,163 @@ export default function OwnerVenueDetailPage() {
                 </p>
               ) : null}
               {(modAppealsQ.data ?? []).length === 0 ? (
-                <p className="text-sm text-slate-500">No open appeals.</p>
+                <p className="text-sm text-slate-500">
+                  {appealsIncludeResolved ? "No appeals on file." : "No open appeals."}
+                </p>
               ) : (
-                <ul className="text-sm space-y-2 divide-y divide-slate-100">
-                  {(modAppealsQ.data ?? []).map((a) => (
-                    <li key={a.id} className="pt-2 first:pt-0">
-                      <p className="text-slate-800">
-                        <span className="font-mono text-xs">{a.player.email}</span>{" "}
-                        <span className="text-slate-500">
-                          (@{a.player.username} · {a.player.id.slice(0, 8)}…)
-                        </span>
-                      </p>
-                      <p className="text-xs text-slate-600 mt-0.5 whitespace-pre-wrap">{a.message}</p>
-                      <p className="text-xs text-slate-500">
-                        {new Date(a.createdAt).toLocaleString()}
-                      </p>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        <button
-                          type="button"
-                          disabled={readOnlyDisabled || dismissAppealMut.isPending}
-                          onClick={() => void dismissAppealMut.mutateAsync(a.id)}
-                          className="text-xs border border-slate-300 rounded px-2 py-1 hover:bg-slate-50 disabled:opacity-50"
-                        >
-                          Dismiss (reviewed)
-                        </button>
-                      </div>
-                    </li>
-                  ))}
+                <ul className="text-sm space-y-3 divide-y divide-slate-100">
+                  {(modAppealsQ.data ?? []).map((a) => {
+                    const isOpen = a.status === "open";
+                    const noteVal = appealStaffNote[a.id] ?? "";
+                    const msgVal = appealStaffMessage[a.id] ?? "";
+                    const notifyVal = appealNotifyPlayer[a.id] ?? true;
+                    const resolve = async (outcome: "dismissed" | "upheld" | "lifted") => {
+                      await resolveAppealMut.mutateAsync({
+                        appealId: a.id,
+                        body: {
+                          outcome,
+                          staffNote: noteVal.trim() || undefined,
+                          staffMessageToPlayer: msgVal.trim() || undefined,
+                          notifyPlayer: notifyVal,
+                        },
+                      });
+                    };
+                    return (
+                      <li key={a.id} className="pt-3 first:pt-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${
+                              a.status === "open"
+                                ? "bg-amber-100 text-amber-900"
+                                : a.status === "lifted"
+                                  ? "bg-emerald-100 text-emerald-900"
+                                  : "bg-slate-100 text-slate-700"
+                            }`}
+                          >
+                            {a.status}
+                          </span>
+                          {a.playerNotifiedAt ? (
+                            <span className="text-[10px] text-slate-500">Player notified</span>
+                          ) : null}
+                        </div>
+                        <p className="text-slate-800 mt-1">
+                          <span className="font-mono text-xs">{a.player.email}</span>{" "}
+                          <span className="text-slate-500">
+                            (@{a.player.username} · {a.player.id.slice(0, 8)}…)
+                          </span>
+                        </p>
+                        <p className="text-xs text-slate-600 mt-0.5 whitespace-pre-wrap">{a.message}</p>
+                        <p className="text-xs text-slate-500">
+                          Submitted {new Date(a.createdAt).toLocaleString()}
+                        </p>
+                        {bannedPlayerIds.has(a.playerId) ? (
+                          <a
+                            href={`#ban-row-${a.playerId}`}
+                            className="text-xs text-blue-700 hover:underline mt-1 inline-block"
+                          >
+                            View active ban for this player
+                          </a>
+                        ) : null}
+                        {a.resolvedAt ? (
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Resolved {new Date(a.resolvedAt).toLocaleString()}
+                            {a.resolvedBy
+                              ? ` · by ${a.resolvedBy.username} (${a.resolvedBy.email})`
+                              : ""}
+                          </p>
+                        ) : null}
+                        {a.staffNote ? (
+                          <p className="text-xs text-slate-600 mt-1">
+                            <span className="font-medium">Staff note:</span> {a.staffNote}
+                          </p>
+                        ) : null}
+                        {a.staffMessageToPlayer ? (
+                          <p className="text-xs text-slate-600 mt-0.5">
+                            <span className="font-medium">Message to player:</span>{" "}
+                            {a.staffMessageToPlayer}
+                          </p>
+                        ) : null}
+                        {isOpen ? (
+                          <div className="mt-2 space-y-2 border border-slate-100 rounded-lg p-2 bg-slate-50/80">
+                            <div className="flex flex-wrap gap-1">
+                              <span className="text-[10px] text-slate-500 w-full">Note templates</span>
+                              {STAFF_NOTE_TEMPLATES.map((tpl) => (
+                                <button
+                                  key={tpl}
+                                  type="button"
+                                  className="text-[10px] border border-slate-200 rounded px-1.5 py-0.5 bg-white hover:bg-slate-100"
+                                  onClick={() =>
+                                    setAppealStaffNote((m) => ({ ...m, [a.id]: tpl }))
+                                  }
+                                >
+                                  {tpl.length > 42 ? `${tpl.slice(0, 42)}…` : tpl}
+                                </button>
+                              ))}
+                            </div>
+                            <label className="block text-xs text-slate-600">
+                              Internal note (staff only)
+                              <textarea
+                                className="mt-0.5 w-full text-sm border border-slate-200 rounded px-2 py-1 bg-white"
+                                rows={2}
+                                value={noteVal}
+                                onChange={(e) =>
+                                  setAppealStaffNote((m) => ({ ...m, [a.id]: e.target.value }))
+                                }
+                              />
+                            </label>
+                            <label className="block text-xs text-slate-600">
+                              Message to player (optional; used if you notify)
+                              <textarea
+                                className="mt-0.5 w-full text-sm border border-slate-200 rounded px-2 py-1 bg-white"
+                                rows={2}
+                                value={msgVal}
+                                onChange={(e) =>
+                                  setAppealStaffMessage((m) => ({ ...m, [a.id]: e.target.value }))
+                                }
+                              />
+                            </label>
+                            <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={notifyVal}
+                                onChange={(e) =>
+                                  setAppealNotifyPlayer((m) => ({ ...m, [a.id]: e.target.checked }))
+                                }
+                                className="rounded border-slate-300"
+                              />
+                              Notify player (push)
+                            </label>
+                            <div className="flex flex-wrap gap-2 pt-1">
+                              <button
+                                type="button"
+                                disabled={readOnlyDisabled || resolveAppealMut.isPending}
+                                onClick={() => void resolve("lifted")}
+                                className="text-xs bg-emerald-100 border border-emerald-300 text-emerald-950 rounded px-2 py-1 hover:bg-emerald-200 disabled:opacity-50"
+                              >
+                                Lift ban
+                              </button>
+                              <button
+                                type="button"
+                                disabled={readOnlyDisabled || resolveAppealMut.isPending}
+                                onClick={() => void resolve("upheld")}
+                                className="text-xs bg-slate-200 border border-slate-300 text-slate-900 rounded px-2 py-1 hover:bg-slate-300 disabled:opacity-50"
+                              >
+                                Uphold ban
+                              </button>
+                              <button
+                                type="button"
+                                disabled={readOnlyDisabled || resolveAppealMut.isPending}
+                                onClick={() => void resolve("dismissed")}
+                                className="text-xs border border-slate-300 rounded px-2 py-1 hover:bg-white disabled:opacity-50"
+                              >
+                                Dismiss appeal
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>
@@ -1255,6 +1560,42 @@ export default function OwnerVenueDetailPage() {
                   Ban
                 </button>
               </div>
+            </div>
+            <div className="border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={() => setAuditOpen((v) => !v)}
+                className="text-sm font-medium text-slate-800 hover:text-slate-950"
+              >
+                Moderation audit log {auditOpen ? "▼" : "▶"}
+              </button>
+              {auditOpen ? (
+                moderationAuditQ.isLoading ? (
+                  <p className="text-xs text-slate-500 mt-2">Loading audit…</p>
+                ) : (
+                  <ul className="mt-2 text-xs space-y-2 max-h-64 overflow-auto text-slate-700">
+                    {(moderationAuditQ.data ?? []).length === 0 ? (
+                      <li className="text-slate-500">No entries yet.</li>
+                    ) : (
+                      (moderationAuditQ.data ?? []).map((row) => (
+                        <li key={row.id} className="border-b border-slate-100 pb-2 font-mono">
+                          <span className="text-slate-500">
+                            {new Date(row.createdAt).toLocaleString()}
+                          </span>
+                          {" · "}
+                          {row.action}
+                          {row.entityId ? ` · ${row.entityId}` : ""}
+                          {row.actor
+                            ? ` · ${row.actor.username}`
+                            : row.actorPlayerId
+                              ? ` · staff ${row.actorPlayerId.slice(0, 8)}…`
+                              : ""}
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                )
+              ) : null}
             </div>
           </section>
         )}

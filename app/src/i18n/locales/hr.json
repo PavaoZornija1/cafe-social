@@ -77,6 +77,7 @@
     "version": "Verzija {{version}}",
     "location": "Lokacija",
     "locationHint": "Lokacija samo za prijedlog obližnjih partnera. Možeš je odbiti i zalijepiti kod kad si na lokalu za prijavu na igre.",
+    "locationGeofenceHint": "Dok si prijavljen/a, aplikacija može tražiti lokaciju „Uvijek“ da sustav kratko probudi pri prelasku granice lokala — bilježimo ulaz/izlaz za analitiku, ne za oglase. „Tijekom korištenja“ i dalje pokriva igre i otkrivanje dok je app otvoren.",
     "notifications": "Obavijesti",
     "notificationsHint": "Odaberi koje obavijesti šaljemo (riječ-mčevi vs. partnerske ponude). Postavke OS-a i dalje vrijede.",
     "pushMatchActivity": "Aktivnost riječ-mčeva",
@@ -93,6 +94,7 @@
     "friendInviteLink": "Podijeli pozivnicu za prijatelja",
     "friendInviteHint": "S poveznicom te mogu dodati nakon prijave.",
     "openFriends": "Prijatelji",
+    "openMyVenueReports": "Tvoje prijave lokalu",
     "signOut": "Odjava",
     "signingOut": "Odjavljivanje…",
     "legalTitle": "Pravne informacije i podaci",
@@ -132,8 +134,9 @@
   "chooseGame": {
     "title": "Odaberi igru",
     "subtitle": "Na lokalu: igre su vezane za taj lokal. Uz pretplatu možeš i globalno igrati riječi (bez lokala).",
-    "wordTitle": "Igra riječi",
-    "wordDescription": "Solo, suradnja ili duel s izazovima lokala.",
+    "dailyWordNote": "Tražiš jednu zagonetku dnevno? To je na Početku → Dnevna riječ (ne ovdje).",
+    "wordTitle": "Sobe za riječi",
+    "wordDescription": "Više rundi s nagovještajima — solo ili soba s prijateljima. Nije isto što i dnevna riječ.",
     "wordCtaVenue": "Otvori lobby (ovaj lokal)",
     "wordCtaGlobal": "Otvori lobby (globalno — pretplatnici)",
     "needVenue": "Prvo se prijavi na lokalu.",
@@ -202,6 +205,11 @@
     "linkPeopleHere": "Tko je ovdje",
     "linkRedeemInvite": "Iskoristi pozivnicu",
     "linkDailyWord": "Dnevna riječ",
+    "linkWordRooms": "Sobe za riječi",
+    "wordGamesCardTitle": "Igre riječima",
+    "wordGamesCardBody": "Dnevna riječ je jedna zagonetka dnevno s ograničenim pokušajima (Wordle-stil). Sobe su više rundi s nagovještajima — solo ili s prijateljima u sobi.",
+    "linkDailyWordSub": "Jedna zagonetka dnevno · ograničeni pokušaji",
+    "linkWordRoomsSub": "Runde s nagovještajima · solo ili s prijateljima",
     "venueFeedTitle": "U ovom lokalu",
     "venueFeedEmpty": "Još nema aktivnosti — pokreni meč ili riješi dnevnu riječ lokala.",
     "venueFeedActor": "{{user}} · {{action}}",
@@ -213,6 +221,10 @@
     "openOrdering": "Naruči",
     "openMenu": "Jelovnik",
     "friendsVisitedVenue": "{{count}} prijatelja posjetilo je ovaj lokal u zadnjih 30 dana.",
+    "friendsAtVenueTitle": "Prijatelji u ovom lokalu",
+    "friendHereNow": "Ovdje sada",
+    "friendLastVisitDay": "Zadnji posjet {{day}} (UTC)",
+    "reportAtVenue": "Prijavi",
     "visitsThisWeek": "{{n}} dana posjeta ovaj tjedan",
     "badgeRegularWeek": "Redovan posjet ovaj tjedan",
     "badgeVenueExplorer": "Istraživač lokala",
@@ -267,7 +279,8 @@
     "guessError": "Pogodak nije uspio.",
     "needVenue": "Detektiraj lokal za dnevnu riječ lokala.",
     "notSignedIn": "Nisi prijavljen",
-    "globalRequiresSub": "Globalna dnevna riječ treba aktivnu pretplatu."
+    "globalRequiresSub": "Globalna dnevna riječ treba aktivnu pretplatu.",
+    "wordRoomsHint": "Za više rundi s nagovještajima (solo ili sobe) koristi „Sobe za riječi“ na Početku — ovaj ekran je samo dnevna zagonetka."
   },
   "challenges": {
     "title": "Izazovi",
@@ -299,14 +312,18 @@
     "easy": "Lako",
     "normal": "Normalno",
     "hard": "Teško",
-    "easyDesc": "Lako: savjet u rečenici",
-    "normalDesc": "Normalno: savjeti riječima",
-    "hardDesc": "Teško: emoji savjeti",
+    "easyDesc": "Lako: jedna puna rečenica kao savjet po riječi.",
+    "normalDesc": "Normalno: rečenica plus opcijski popis ključnih riječi.",
+    "hardDesc": "Teško: rečenica plus opcijski red emojija.",
     "cardTitle": "{{label}}",
     "cardSub": "Nakon sesije ažuriramo izazov kad pravila dopuštaju.",
     "startSolo": "Kreni solo",
     "startRoom": "Stvori sobu",
-    "joinWithCode": "Uđi s kodom"
+    "joinWithCode": "Uđi s kodom",
+    "deckLengthTitle": "Riječi po igri",
+    "deckLengthHint": "Ista duljina špila za sve u sobi.",
+    "categoryTitle": "Filtar kategorije",
+    "categoryAll": "Sve kategorije"
   },
   "wordMatch": {
     "joinTitle": "Pridruži se meču",
@@ -335,7 +352,8 @@
       "es": "španjolski"
     },
     "socketReconnecting": "Ponovno povezivanje sobe…",
-    "needPresenceToCreate": "Uključi lokaciju i budi u kafiću da stvoriš sobu na lokalu."
+    "needPresenceToCreate": "Uključi lokaciju i budi u kafiću da stvoriš sobu na lokalu.",
+    "deckWords": "{{n}} riječi"
   },
   "wordGame": {
     "title": "Igra riječima",
@@ -345,9 +363,11 @@
     "difficultyHard": "Težina: teško",
     "guessTitle": "Pogodi riječ",
     "category": "Kategorija: {{category}}",
+    "clueLabel": "Nagovještaj",
     "guessPlaceholder": "Upiši pokušaj…",
-    "botHint": "Savjet bota",
-    "hintShown": "Savjet prikazan",
+    "showExtraHint": "Više pomoći",
+    "extraHintShown": "Dodatna pomoć prikazana",
+    "easyNoExtra": "Na lako koristi se samo nagovještaj iznad.",
     "submit": "Pošalji",
     "checking": "Provjera…",
     "correct": "Točno: {{count}}",
@@ -365,7 +385,9 @@
     "you": "ti",
     "coopProgress": "Zajednička riječ {{current}}/{{total}}",
     "coopHint": "Bilo tko u sobi može poslati sljedeći pokušaj.",
-    "back": "Natrag"
+    "back": "Natrag",
+    "rematch": "Igraj opet (nova soba)",
+    "rematchBusy": "Stvaram…"
   },
   "qr": {
     "title": "Prijava na lokalu",
@@ -462,6 +484,18 @@
     "transferConfirm": "{{name}} postaje vođa? Izgubit ćeš ovlasti vođe.",
     "transferDone": "Vođa promijenjen."
   },
+  "myReports": {
+    "title": "Tvoje prijave lokalu",
+    "subtitle": "Status sigurnosnih prijava koje si poslao osoblju. Osoblje može ostaviti kratku napomenu kad zatvore prijavu.",
+    "empty": "Još nema prijava.",
+    "statusOpen": "Otvoreno",
+    "statusDismissed": "Zatvorilo osoblje",
+    "staffNote": "Napomena osoblja",
+    "loadError": "Prijave se nisu učitale.",
+    "refresh": "Osvježi",
+    "filedAt": "Poslano {{when}}",
+    "reasonLabel": "Što si prijavio/la"
+  },
   "friends": {
     "title": "Prijatelji",
     "myFriends": "Moji prijatelji",
@@ -486,7 +520,15 @@
     "loadError": "Prijatelji se nisu učitali.",
     "accepted": "Sada ste prijatelji!",
     "shareFriendInviteMessage": "Dodaj me na Cafe Social:\n{{url}}\n\nToken:\n{{raw}}",
-    "friendLinkFailed": "Poveznica nije uspjela."
+    "friendLinkFailed": "Poveznica nije uspjela.",
+    "blockedTitle": "Blokirani igrači",
+    "blockedHint": "Blokirani te ne mogu dodati u prijatelje i ne vide se u društvenim listama. Možeš odblokirati kad god.",
+    "blockedEmpty": "Nitko nije blokiran.",
+    "block": "Blokiraj",
+    "unblock": "Odblokiraj",
+    "blockTitle": "Blokirati ovog igrača?",
+    "blockConfirm": "{{username}} neće moći slati zahtjeve niti se pojavljivati u prijateljskim funkcijama. Uklanjamo i sve čekajuće zahtjeve.",
+    "blockFailed": "Lista blokiranih se nije ažurirala."
   },
   "perk": {
     "title": "Iskoristi pogodnost",

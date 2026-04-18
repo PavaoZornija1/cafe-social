@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -103,6 +104,15 @@ export class PlayerController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('me/ban-appeals')
+  async listMyBanAppeals(@CurrentUser() user: unknown) {
+    const email = this.normalizeEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    const player = await this.playerService.findOrCreateByEmail(email);
+    return this.playerService.listMyBanAppeals(player.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post('me/ban-appeals')
   async createMyBanAppeal(
     @CurrentUser() user: unknown,
@@ -112,6 +122,50 @@ export class PlayerController {
     if (!email) throw new UnauthorizedException('Missing user email');
     const player = await this.playerService.findOrCreateByEmail(email);
     return this.venueModeration.createBanAppeal(player.id, dto.venueId, dto.message);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/venue-reports')
+  async listMyVenueReports(@CurrentUser() user: unknown) {
+    const email = this.normalizeEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    const player = await this.playerService.findOrCreateByEmail(email);
+    return this.playerService.listMyFiledVenueReports(player.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/blocks')
+  async listMyBlocks(@CurrentUser() user: unknown) {
+    const email = this.normalizeEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    const player = await this.playerService.findOrCreateByEmail(email);
+    return this.playerService.listBlockedPlayers(player.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('me/blocks/:blockedPlayerId')
+  async addMyBlock(
+    @CurrentUser() user: unknown,
+    @Param('blockedPlayerId', new ParseUUIDPipe()) blockedPlayerId: string,
+  ) {
+    const email = this.normalizeEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    const player = await this.playerService.findOrCreateByEmail(email);
+    await this.playerService.addPlayerBlock(player.id, blockedPlayerId);
+    return { ok: true as const };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('me/blocks/:blockedPlayerId')
+  async removeMyBlock(
+    @CurrentUser() user: unknown,
+    @Param('blockedPlayerId', new ParseUUIDPipe()) blockedPlayerId: string,
+  ) {
+    const email = this.normalizeEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    const player = await this.playerService.findOrCreateByEmail(email);
+    await this.playerService.removePlayerBlock(player.id, blockedPlayerId);
+    return { ok: true as const };
   }
 
   @UseGuards(JwtAuthGuard)

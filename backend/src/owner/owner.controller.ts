@@ -54,6 +54,9 @@ import { PartnerOnboardingThrottlerFilter } from './partner-onboarding-throttle.
 import { PORTAL_VENUE_CONTEXT_HEADER } from './portal-context.constants';
 import { VenueModerationService } from '../venue/venue-moderation.service';
 import { BanPlayerDto } from './dto/ban-player.dto';
+import { ResolveBanAppealDto } from './dto/resolve-ban-appeal.dto';
+import { DismissModerationReportDto } from './dto/dismiss-moderation-report.dto';
+import { parseYmdUtc } from './analytics-period.util';
 
 function utcTodayYmd(): string {
   const n = new Date();
@@ -536,6 +539,55 @@ export class OwnerController {
     return csv;
   }
 
+  @Get('venues/:venueId/analytics/geofence-dwell')
+  @UseGuards(VenueStaffGuard)
+  @MinVenueRole(VenueStaffRole.MANAGER)
+  venueGeofenceDwell(
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+    @Query('days') daysRaw: string | undefined,
+    @Query('from') fromYmd?: string,
+    @Query('to') toYmd?: string,
+  ) {
+    const days =
+      daysRaw !== undefined && daysRaw !== ''
+        ? Number.parseInt(daysRaw, 10)
+        : 30;
+    const safe = Number.isFinite(days) ? days : 30;
+    return this.analytics.getVenueGeofenceDwellSummary(venueId, {
+      days: safe,
+      from: fromYmd?.trim() || undefined,
+      to: toYmd?.trim() || undefined,
+    });
+  }
+
+  @Get('venues/:venueId/analytics/geofence-events.csv')
+  @UseGuards(VenueStaffGuard)
+  @MinVenueRole(VenueStaffRole.MANAGER)
+  async geofenceEventsExportCsv(
+    @Res({ passthrough: true }) res: Response,
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+    @Query('days') daysRaw: string | undefined,
+    @Query('from') fromYmd?: string,
+    @Query('to') toYmd?: string,
+  ) {
+    const days =
+      daysRaw !== undefined && daysRaw !== ''
+        ? Number.parseInt(daysRaw, 10)
+        : 30;
+    const safe = Number.isFinite(days) ? days : 30;
+    const csv = await this.analytics.buildGeofenceEventsCsv(venueId, {
+      days: safe,
+      from: fromYmd?.trim() || undefined,
+      to: toYmd?.trim() || undefined,
+    });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="cafe-social-geofence-events.csv"',
+    );
+    return csv;
+  }
+
   @Get('venues/:venueId/moderation/staff-summary')
   @UseGuards(VenueStaffGuard)
   @MinVenueRole(VenueStaffRole.EMPLOYEE)
@@ -545,32 +597,101 @@ export class OwnerController {
 
   @Get('venues/:venueId/moderation/ban-appeals')
   @UseGuards(VenueStaffGuard)
+  @MinVenueRole(VenueStaffRole.EMPLOYEE)
+  listBanAppeals(
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+    @Query('includeResolved') includeResolvedRaw?: string,
+    @Query('status') statusRaw?: string,
+    @Query('from') fromYmd?: string,
+    @Query('to') toYmd?: string,
+  ) {
+    const includeResolved =
+      includeResolvedRaw === '1' || includeResolvedRaw?.toLowerCase() === 'true';
+    const statusAll =
+      includeResolved ||
+      statusRaw?.toLowerCase() === 'all' ||
+      statusRaw?.toLowerCase() === 'history';
+    let createdFrom: Date | undefined;
+    let createdTo: Date | undefined;
+    if (fromYmd?.trim()) {
+      const d = parseYmdUtc(fromYmd.trim());
+      if (d) createdFrom = d;
+    }
+    if (toYmd?.trim()) {
+      const d = parseYmdUtc(toYmd.trim());
+      if (d) {
+        createdTo = new Date(d);
+        createdTo.setUTCHours(23, 59, 59, 999);
+      }
+    }
+    return this.venueModeration.listBanAppealsForVenue(venueId, {
+      includeResolved: statusAll,
+      status: statusAll ? 'all' : 'open',
+      createdFrom,
+      createdTo,
+    });
+  }
+
+  @Get('venues/:venueId/moderation/audit-log')
+  @UseGuards(VenueStaffGuard)
   @MinVenueRole(VenueStaffRole.MANAGER)
-  listBanAppeals(@Param('venueId', new ParseUUIDPipe()) venueId: string) {
-    return this.venueModeration.listBanAppealsForVenue(venueId);
+  moderationAuditLog(
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+    @Query('limit') limitRaw?: string,
+  ) {
+    const n =
+      limitRaw !== undefined && limitRaw !== ''
+        ? Number.parseInt(limitRaw, 10)
+        : 80;
+    const safe = Number.isFinite(n) ? n : 80;
+    return this.venueModeration.listModerationAudit(venueId, safe);
   }
 
   @Post('venues/:venueId/moderation/ban-appeals/:appealId/dismiss')
   @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard)
   @MinVenueRole(VenueStaffRole.MANAGER)
   async dismissBanAppeal(
+    @CurrentUser() user: unknown,
     @Param('venueId', new ParseUUIDPipe()) venueId: string,
     @Param('appealId', new ParseUUIDPipe()) appealId: string,
   ) {
-    await this.venueModeration.dismissBanAppeal(appealId, venueId);
+    const staffId = await this.staffPlayerId(user);
+    await this.venueModeration.dismissBanAppeal(appealId, venueId, staffId);
+    return { ok: true as const };
+  }
+
+  @Post('venues/:venueId/moderation/ban-appeals/:appealId/resolve')
+  @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard)
+  @MinVenueRole(VenueStaffRole.MANAGER)
+  async resolveBanAppeal(
+    @CurrentUser() user: unknown,
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+    @Param('appealId', new ParseUUIDPipe()) appealId: string,
+    @Body() body: ResolveBanAppealDto,
+  ) {
+    const staffId = await this.staffPlayerId(user);
+    await this.venueModeration.resolveBanAppeal({
+      appealId,
+      venueId,
+      staffPlayerId: staffId,
+      outcome: body.outcome,
+      staffNote: body.staffNote,
+      staffMessageToPlayer: body.staffMessageToPlayer,
+      notifyPlayer: body.notifyPlayer,
+    });
     return { ok: true as const };
   }
 
   @Get('venues/:venueId/moderation/reports')
   @UseGuards(VenueStaffGuard)
-  @MinVenueRole(VenueStaffRole.MANAGER)
+  @MinVenueRole(VenueStaffRole.EMPLOYEE)
   listPlayerReports(@Param('venueId', new ParseUUIDPipe()) venueId: string) {
     return this.venueModeration.listReportsForVenue(venueId);
   }
 
   @Get('venues/:venueId/moderation/bans')
   @UseGuards(VenueStaffGuard)
-  @MinVenueRole(VenueStaffRole.MANAGER)
+  @MinVenueRole(VenueStaffRole.EMPLOYEE)
   listVenueBans(@Param('venueId', new ParseUUIDPipe()) venueId: string) {
     return this.venueModeration.listBansForVenue(venueId);
   }
@@ -597,10 +718,12 @@ export class OwnerController {
   @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard)
   @MinVenueRole(VenueStaffRole.MANAGER)
   async removeVenueBan(
+    @CurrentUser() user: unknown,
     @Param('venueId', new ParseUUIDPipe()) venueId: string,
     @Param('playerId', new ParseUUIDPipe()) playerId: string,
   ) {
-    await this.venueModeration.removeBan(venueId, playerId);
+    const staffId = await this.staffPlayerId(user);
+    await this.venueModeration.removeBan(venueId, playerId, staffId);
     return { ok: true as const };
   }
 
@@ -608,10 +731,16 @@ export class OwnerController {
   @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard)
   @MinVenueRole(VenueStaffRole.MANAGER)
   async dismissPlayerReport(
+    @CurrentUser() user: unknown,
     @Param('venueId', new ParseUUIDPipe()) venueId: string,
     @Param('reportId', new ParseUUIDPipe()) reportId: string,
+    @Body() body: DismissModerationReportDto,
   ) {
-    await this.venueModeration.dismissReport(reportId, venueId);
+    const staffId = await this.staffPlayerId(user);
+    await this.venueModeration.dismissReport(reportId, venueId, {
+      staffPlayerId: staffId,
+      dismissalNoteToReporter: body.dismissalNoteToReporter,
+    });
     return { ok: true as const };
   }
 

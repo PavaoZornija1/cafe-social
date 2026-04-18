@@ -77,6 +77,7 @@
     "version": "Versión {{version}}",
     "location": "Ubicación",
     "locationHint": "La ubicación solo sugiere socios cercanos. Puedes denegarla y pegar el código cuando estés allí para hacer check-in a juegos.",
+    "locationGeofenceHint": "Mientras estés registrado, la app puede pedir ubicación «Siempre» para que el sistema la despierte al cruzar el perímetro del local: registramos entradas/salidas para analíticas, no para anuncios. «Al usar la app» sigue valiendo para juegos y detección con la app abierta.",
     "notifications": "Notificaciones",
     "notificationsHint": "Elige qué notificaciones permitimos (partidas de palabras vs. ofertas de socios). El sistema operativo también filtra.",
     "pushMatchActivity": "Actividad de partidas de palabras",
@@ -93,6 +94,7 @@
     "friendInviteLink": "Compartir enlace de amistad",
     "friendInviteHint": "Quien tenga el enlace puede añadirte tras iniciar sesión.",
     "openFriends": "Amigos",
+    "openMyVenueReports": "Tus reportes del local",
     "signOut": "Cerrar sesión",
     "signingOut": "Cerrando sesión…",
     "legalTitle": "Legal y datos",
@@ -132,8 +134,9 @@
   "chooseGame": {
     "title": "Elige un juego",
     "subtitle": "En el local: los juegos usan ese local. Con suscripción también puedes jugar al modo palabras global (sin local).",
-    "wordTitle": "Juego de palabras",
-    "wordDescription": "Solo, cooperativo o versus con retos del local.",
+    "dailyWordNote": "¿Buscas el puzzle de un intento al día? Está en Inicio → Palabra del día (no aquí).",
+    "wordTitle": "Salas de palabras",
+    "wordDescription": "Varias rondas con pistas: solo o en sala con amigos. No es lo mismo que la palabra del día.",
     "wordCtaVenue": "Abrir lobby (este local)",
     "wordCtaGlobal": "Abrir lobby (global — suscriptores)",
     "needVenue": "Haz check-in en un local primero.",
@@ -202,6 +205,11 @@
     "linkPeopleHere": "Quién hay aquí",
     "linkRedeemInvite": "Canjear invitación",
     "linkDailyWord": "Palabra del día",
+    "linkWordRooms": "Salas de palabras",
+    "wordGamesCardTitle": "Juegos de palabras",
+    "wordGamesCardBody": "La palabra del día es un puzzle diario con intentos limitados (estilo Wordle). Las salas son varias rondas con pistas — solo o con amigos en una sala.",
+    "linkDailyWordSub": "Un puzzle al día · intentos limitados",
+    "linkWordRoomsSub": "Rondas con pistas · solo o con amigos",
     "venueFeedTitle": "En este local",
     "venueFeedEmpty": "Sin actividad aún — empieza una partida o resuelve la palabra del local.",
     "venueFeedActor": "{{user}} · {{action}}",
@@ -213,6 +221,10 @@
     "openOrdering": "Pedir",
     "openMenu": "Carta",
     "friendsVisitedVenue": "{{count}} amigos han pasado por este local en los últimos 30 días.",
+    "friendsAtVenueTitle": "Amigos en este local",
+    "friendHereNow": "Aquí ahora",
+    "friendLastVisitDay": "Última visita {{day}} (UTC)",
+    "reportAtVenue": "Reportar",
     "visitsThisWeek": "{{n}} días con visita esta semana",
     "badgeRegularWeek": "Habitual esta semana",
     "badgeVenueExplorer": "Explorador de locales",
@@ -267,7 +279,8 @@
     "guessError": "El intento falló.",
     "needVenue": "Detecta un local para la palabra del local.",
     "notSignedIn": "No has iniciado sesión",
-    "globalRequiresSub": "La palabra global requiere suscripción activa."
+    "globalRequiresSub": "La palabra global requiere suscripción activa.",
+    "wordRoomsHint": "Para varias rondas con pistas (solo o salas), usa «Salas de palabras» en Inicio — esta pantalla es solo el puzzle diario."
   },
   "challenges": {
     "title": "Retos",
@@ -299,14 +312,18 @@
     "easy": "Fácil",
     "normal": "Normal",
     "hard": "Difícil",
-    "easyDesc": "Fácil: pista en frase",
-    "normalDesc": "Normal: pistas de palabras",
-    "hardDesc": "Difícil: pistas con emoji",
+    "easyDesc": "Fácil: una frase completa como pista por palabra.",
+    "normalDesc": "Normal: frase más lista opcional de palabras clave.",
+    "hardDesc": "Difícil: frase más línea opcional de emojis.",
     "cardTitle": "{{label}}",
     "cardSub": "Al terminar actualizamos el reto si las reglas lo permiten.",
     "startSolo": "Empezar solo",
     "startRoom": "Crear sala",
-    "joinWithCode": "Entrar con código"
+    "joinWithCode": "Entrar con código",
+    "deckLengthTitle": "Palabras por partida",
+    "deckLengthHint": "Misma longitud del mazo para todos en la sala.",
+    "categoryTitle": "Filtro de categoría",
+    "categoryAll": "Todas las categorías"
   },
   "wordMatch": {
     "joinTitle": "Unirse a partida",
@@ -335,7 +352,8 @@
       "es": "español"
     },
     "socketReconnecting": "Reconectando a la sala…",
-    "needPresenceToCreate": "Activa la ubicación y entra en el café para crear una sala del local."
+    "needPresenceToCreate": "Activa la ubicación y entra en el café para crear una sala del local.",
+    "deckWords": "{{n}} palabras"
   },
   "wordGame": {
     "title": "Juego de palabras",
@@ -345,9 +363,11 @@
     "difficultyHard": "Dificultad: difícil",
     "guessTitle": "Adivina la palabra",
     "category": "Categoría: {{category}}",
+    "clueLabel": "Pista",
     "guessPlaceholder": "Escribe tu respuesta…",
-    "botHint": "Pista del bot",
-    "hintShown": "Pista mostrada",
+    "showExtraHint": "Más ayuda",
+    "extraHintShown": "Ayuda extra mostrada",
+    "easyNoExtra": "En fácil solo se usa la pista de arriba.",
     "submit": "Enviar",
     "checking": "Comprobando…",
     "correct": "Aciertos: {{count}}",
@@ -365,7 +385,9 @@
     "you": "tú",
     "coopProgress": "Palabra en equipo {{current}}/{{total}}",
     "coopHint": "Cualquiera en la sala puede enviar el intento.",
-    "back": "Atrás"
+    "back": "Atrás",
+    "rematch": "Jugar otra vez (nueva sala)",
+    "rematchBusy": "Creando…"
   },
   "qr": {
     "title": "Check-in en el local",
@@ -462,6 +484,18 @@
     "transferConfirm": "¿{{name}} será líder? Perderás el liderazgo.",
     "transferDone": "Liderazgo transferido."
   },
+  "myReports": {
+    "title": "Tus reportes del local",
+    "subtitle": "Estado de los reportes de seguridad que enviaste al personal. Pueden dejar una nota breve al cerrar un reporte.",
+    "empty": "Aún no has enviado reportes.",
+    "statusOpen": "Abierto",
+    "statusDismissed": "Cerrado por el personal",
+    "staffNote": "Nota del personal",
+    "loadError": "No se pudieron cargar tus reportes.",
+    "refresh": "Actualizar",
+    "filedAt": "Enviado {{when}}",
+    "reasonLabel": "Lo que reportaste"
+  },
   "friends": {
     "title": "Amigos",
     "myFriends": "Mis amigos",
@@ -486,7 +520,15 @@
     "loadError": "No se pudieron cargar los amigos.",
     "accepted": "¡Sois amigos!",
     "shareFriendInviteMessage": "Añádeme en Cafe Social:\n{{url}}\n\nToken:\n{{raw}}",
-    "friendLinkFailed": "No se pudo crear el enlace."
+    "friendLinkFailed": "No se pudo crear el enlace.",
+    "blockedTitle": "Jugadores bloqueados",
+    "blockedHint": "Los bloqueados no pueden enviarte solicitudes ni aparecen en tus listas sociales. Puedes desbloquear cuando quieras.",
+    "blockedEmpty": "Nadie bloqueado.",
+    "block": "Bloquear",
+    "unblock": "Desbloquear",
+    "blockTitle": "¿Bloquear a este jugador?",
+    "blockConfirm": "{{username}} no podrá enviarte solicitudes ni aparecer en funciones de amigos. Se quita cualquier solicitud pendiente.",
+    "blockFailed": "No se pudo actualizar la lista de bloqueados."
   },
   "perk": {
     "title": "Canjear beneficio",

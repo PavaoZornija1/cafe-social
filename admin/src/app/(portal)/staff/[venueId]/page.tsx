@@ -95,6 +95,16 @@ export default function StaffRedemptionsPage() {
         <strong className="text-slate-800">8-character code</strong> after they redeem — it must
         appear on this list for the selected UTC date.
       </p>
+      <p className="text-sm text-slate-600 mb-4">
+        <Link
+          href={`/owner/venues/${venueId}`}
+          className="text-brand font-medium underline-offset-2 hover:underline"
+        >
+          Open the partner dashboard
+        </Link>{" "}
+        for this venue to triage reports, appeals, and bans (same sign-in; needs MANAGER or OWNER
+        role on the venue).
+      </p>
       <div className="space-y-3 border border-slate-200 rounded-lg p-3 mb-4 max-w-lg">
         <label className="block text-sm">
           Date (UTC, YYYY-MM-DD)

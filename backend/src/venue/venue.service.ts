@@ -516,9 +516,17 @@ export class VenueService {
         menuUrl: true,
         orderingUrl: true,
         locked: true,
+        latitude: true,
+        longitude: true,
       },
     });
     if (!v) throw new NotFoundException(`Venue ${id} not found`);
+    const geofenceForClient = {
+      latitude: v.latitude,
+      longitude: v.longitude,
+      /// Circular region radius for OS geofencing (meters); approximate vs polygon geofence.
+      radiusMeters: 200,
+    };
     if (v.locked) {
       return {
         id: v.id,
@@ -527,6 +535,7 @@ export class VenueService {
         orderingUrl: v.orderingUrl,
         offers: [],
         featuredOffer: null,
+        geofence: geofenceForClient,
       };
     }
     const { offers, featuredOffer } = await loadPublicVenueOffersForVenue(this.prisma, id);
@@ -537,6 +546,7 @@ export class VenueService {
       orderingUrl: v.orderingUrl,
       offers,
       featuredOffer,
+      geofence: geofenceForClient,
     };
   }
 

@@ -32,6 +32,9 @@ export default {
           'Cafe Social can attach a receipt photo when a venue asks for purchase proof.',
         NSLocationWhenInUseUsageDescription:
           'Cafe Social uses your approximate location only to detect when you are inside a partner café’s geofence, so venue games, challenges, and (if you allow them in Settings) partner notifications can apply. Location is not used for continuous tracking in the background for advertising.',
+        NSLocationAlwaysAndWhenInUseUsageDescription:
+          'If you allow “Always”, the app can record approximate venue boundary enter/exit events while the app is in the background — for visit analytics and social features — without continuous GPS tracking for ads.',
+        UIBackgroundModes: ['location'],
         ...(googleIosUrlScheme && {
           CFBundleURLTypes: [
             {

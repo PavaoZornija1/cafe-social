@@ -8,6 +8,7 @@ import {
     Animated,
     Image,
     Linking,
+    Platform,
     Pressable,
     SafeAreaView,
     StyleSheet,
@@ -17,6 +18,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiGet, apiPost } from '../lib/api';
+import { setBackgroundApiToken } from '../lib/backgroundApiToken';
+import { syncVenueGeofenceMonitoring } from '../lib/venueGeofenceTask';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { syncOnboardingFromServerSummary } from '../lib/onboardingStorage';
 import { openOrderingOrMenu } from '../lib/openOrderingLinks';
@@ -84,6 +87,18 @@ type VenuePublicCard = {
         body: string | null;
         endsAt: string | null;
     } | null;
+    geofence?: {
+        latitude: number;
+        longitude: number;
+        radiusMeters: number;
+    };
+};
+
+type FriendAtVenueRow = {
+    id: string;
+    username: string;
+    hereNow: boolean;
+    lastVisitDayKey: string | null;
 };
 
 type FriendsVisitSummary = {
@@ -123,6 +138,8 @@ export default function HomeScreen({ navigation }: Props) {
     const [loadingPublicCard, setLoadingPublicCard] = useState(false);
     const [friendsVisit, setFriendsVisit] = useState<FriendsVisitSummary | null>(null);
     const [loadingFriendsVisit, setLoadingFriendsVisit] = useState(false);
+    const [friendsAtVenue, setFriendsAtVenue] = useState<FriendAtVenueRow[]>([]);
+    const [loadingFriendsAtVenue, setLoadingFriendsAtVenue] = useState(false);
     const [engagement, setEngagement] = useState<Engagement | null>(null);
     const [loadingEngagement, setLoadingEngagement] = useState(false);
     const [venuePerkTeasers, setVenuePerkTeasers] = useState<VenuePerkPublicTeaser[]>([]);
@@ -176,8 +193,10 @@ export default function HomeScreen({ navigation }: Props) {
             const token = await getTokenRef.current();
             if (!token) {
                 setMeSummary(null);
+                void setBackgroundApiToken(null);
                 return;
             }
+            void setBackgroundApiToken(token);
             const s = await apiGet<MeSummaryDto>('/players/me/summary', token);
             await syncOnboardingFromServerSummary(s);
             setMeSummary(s);
@@ -316,6 +335,76 @@ export default function HomeScreen({ navigation }: Props) {
             cancelled = true;
         };
     }, [detectedVenue?.id, isLoaded]);
+
+    useEffect(() => {
+        let cancelled = false;
+        async function run() {
+            if (!detectedVenue || !isLoaded) {
+                setFriendsAtVenue([]);
+                return;
+            }
+            setLoadingFriendsAtVenue(true);
+            try {
+                const token = await getTokenRef.current();
+                if (!token) {
+                    setFriendsAtVenue([]);
+                    return;
+                }
+                const res = await apiGet<{ friends: FriendAtVenueRow[] }>(
+                    `/social/venues/${encodeURIComponent(detectedVenue.id)}/friends-at-venue`,
+                    token,
+                );
+                if (!cancelled) setFriendsAtVenue(Array.isArray(res.friends) ? res.friends : []);
+            } catch {
+                if (!cancelled) setFriendsAtVenue([]);
+            } finally {
+                if (!cancelled) setLoadingFriendsAtVenue(false);
+            }
+        }
+        void run();
+        return () => {
+            cancelled = true;
+        };
+    }, [detectedVenue?.id, isLoaded]);
+
+    useEffect(() => {
+        if (Platform.OS === 'web') return;
+        let cancelled = false;
+
+        async function run() {
+            if (!detectedVenue?.id || !publicCard?.geofence) {
+                await syncVenueGeofenceMonitoring(null);
+                return;
+            }
+            const g = publicCard.geofence;
+            if (
+                typeof g.latitude !== 'number' ||
+                typeof g.longitude !== 'number' ||
+                typeof g.radiusMeters !== 'number'
+            ) {
+                await syncVenueGeofenceMonitoring(null);
+                return;
+            }
+            if (cancelled) return;
+            await syncVenueGeofenceMonitoring({
+                venueId: detectedVenue.id,
+                latitude: g.latitude,
+                longitude: g.longitude,
+                radiusMeters: g.radiusMeters,
+            });
+        }
+
+        void run();
+        return () => {
+            cancelled = true;
+            void syncVenueGeofenceMonitoring(null);
+        };
+    }, [
+        detectedVenue?.id,
+        publicCard?.geofence?.latitude,
+        publicCard?.geofence?.longitude,
+        publicCard?.geofence?.radiusMeters,
+    ]);
 
     useEffect(() => {
         let cancelled = false;
@@ -665,6 +754,57 @@ export default function HomeScreen({ navigation }: Props) {
                                     })}
                             </Text>
                         ) : null}
+                        {detectedVenue && friendsAtVenue.length > 0 ? (
+                            <View style={styles.friendsAtVenueBlock}>
+                                <Text style={styles.friendsAtVenueTitle}>
+                                    {t('home.friendsAtVenueTitle')}
+                                </Text>
+                                {loadingFriendsAtVenue ? (
+                                    <ActivityIndicator color="#a78bfa" style={{ marginTop: 8 }} />
+                                ) : (
+                                    friendsAtVenue.map((f) => (
+                                        <View key={f.id} style={styles.friendsAtVenueRow}>
+                                            <View style={styles.friendsAtVenueMain}>
+                                                <Text style={styles.friendsAtVenueName}>
+                                                    {f.username}
+                                                </Text>
+                                                <View style={styles.friendsAtVenueMeta}>
+                                                    {f.hereNow ? (
+                                                        <Text style={styles.friendsHerePill}>
+                                                            {t('home.friendHereNow')}
+                                                        </Text>
+                                                    ) : f.lastVisitDayKey ? (
+                                                        <Text style={styles.friendsVisitMeta}>
+                                                            {t('home.friendLastVisitDay', {
+                                                                day: f.lastVisitDayKey,
+                                                            })}
+                                                        </Text>
+                                                    ) : null}
+                                                </View>
+                                            </View>
+                                            <Pressable
+                                                style={({ pressed }) => [
+                                                    styles.friendsAtVenueReport,
+                                                    pressed && styles.quickLinkPressed,
+                                                ]}
+                                                onPress={() =>
+                                                    navigation.navigate('ReportPlayer', {
+                                                        venueId: detectedVenue.id,
+                                                        venueName: detectedVenue.name,
+                                                        reportedPlayerId: f.id,
+                                                        reportedUsername: f.username,
+                                                    })
+                                                }
+                                            >
+                                                <Text style={styles.friendsAtVenueReportText}>
+                                                    {t('home.reportAtVenue')}
+                                                </Text>
+                                            </Pressable>
+                                        </View>
+                                    ))
+                                )}
+                            </View>
+                        ) : null}
                         {engagement && !loadingEngagement ? (
                             <View style={styles.engagementRow}>
                                 <Text style={styles.engagementMeta}>
@@ -706,6 +846,42 @@ export default function HomeScreen({ navigation }: Props) {
                     </View>
                 ) : null}
 
+                <View style={styles.wordGamesCard}>
+                    <Text style={styles.wordGamesCardTitle}>{t('home.wordGamesCardTitle')}</Text>
+                    <Text style={styles.wordGamesCardBody}>{t('home.wordGamesCardBody')}</Text>
+                    <Pressable
+                        style={({ pressed }) => [
+                            styles.wordGamesRow,
+                            pressed && styles.quickLinkPressed,
+                        ]}
+                        onPress={() => navigation.navigate('DailyWord')}
+                    >
+                        <View>
+                            <Text style={styles.wordGamesRowTitle}>{t('home.linkDailyWord')}</Text>
+                            <Text style={styles.wordGamesRowSub}>{t('home.linkDailyWordSub')}</Text>
+                        </View>
+                    </Pressable>
+                    <Pressable
+                        style={({ pressed }) => [
+                            styles.wordGamesRow,
+                            pressed && styles.quickLinkPressed,
+                            !gamesPlayable && styles.quickLinkDisabled,
+                        ]}
+                        disabled={!gamesPlayable}
+                        onPress={() =>
+                            navigation.navigate('WordLobby', {
+                                venueId: detectedVenue?.id,
+                                challengeId: venueChallenges.find((c) => !c.isCompleted)?.id,
+                            })
+                        }
+                    >
+                        <View>
+                            <Text style={styles.wordGamesRowTitle}>{t('home.linkWordRooms')}</Text>
+                            <Text style={styles.wordGamesRowSub}>{t('home.linkWordRoomsSub')}</Text>
+                        </View>
+                    </Pressable>
+                </View>
+
                 <View style={styles.quickLinks}>
                     <Pressable
                         style={({ pressed }) => [styles.quickLink, pressed && styles.quickLinkPressed]}
@@ -746,12 +922,6 @@ export default function HomeScreen({ navigation }: Props) {
                         onPress={() => navigation.navigate('RedeemInvite', {})}
                     >
                         <Text style={styles.quickLinkText}>{t('home.linkRedeemInvite')}</Text>
-                    </Pressable>
-                    <Pressable
-                        style={({ pressed }) => [styles.quickLink, pressed && styles.quickLinkPressed]}
-                        onPress={() => navigation.navigate('DailyWord')}
-                    >
-                        <Text style={styles.quickLinkText}>{t('home.linkDailyWord')}</Text>
                     </Pressable>
                     <Pressable
                         style={({ pressed }) => [
@@ -1034,6 +1204,41 @@ const styles = StyleSheet.create({
     },
     partnerLinkText: { color: '#e9d5ff', fontWeight: '800', fontSize: 13 },
     friendsVenueLine: { color: '#93c5fd', fontSize: 12, marginTop: 12, fontWeight: '700' },
+    friendsAtVenueBlock: { marginTop: 14 },
+    friendsAtVenueTitle: { color: '#e2e8f0', fontSize: 12, fontWeight: '900', marginBottom: 8 },
+    friendsAtVenueRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 10,
+        paddingVertical: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#1e293b',
+    },
+    friendsAtVenueMain: { flex: 1, minWidth: 0 },
+    friendsAtVenueName: { color: '#fff', fontSize: 13, fontWeight: '800' },
+    friendsAtVenueMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
+    friendsHerePill: {
+        color: '#bbf7d0',
+        fontSize: 10,
+        fontWeight: '800',
+        backgroundColor: '#14532d',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 8,
+        overflow: 'hidden',
+        alignSelf: 'flex-start',
+    },
+    friendsVisitMeta: { color: '#64748b', fontSize: 11, fontWeight: '600' },
+    friendsAtVenueReport: {
+        paddingVertical: 6,
+        paddingHorizontal: 10,
+        borderRadius: 10,
+        backgroundColor: '#1e293b',
+        borderWidth: 1,
+        borderColor: '#334155',
+    },
+    friendsAtVenueReportText: { color: '#fca5a5', fontSize: 11, fontWeight: '800' },
     engagementRow: { marginTop: 12 },
     engagementMeta: { color: '#94a3b8', fontSize: 12, fontWeight: '600' },
     badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
@@ -1066,6 +1271,27 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     venuePerkPillMuted: { color: '#64748b', fontSize: 12, fontWeight: '700' },
+    wordGamesCard: {
+        backgroundColor: '#0b1220',
+        borderWidth: 1,
+        borderColor: '#312e81',
+        borderRadius: 16,
+        padding: 14,
+        marginBottom: 14,
+    },
+    wordGamesCardTitle: { color: '#fff', fontSize: 15, fontWeight: '900' },
+    wordGamesCardBody: { color: '#94a3b8', fontSize: 12, lineHeight: 17, marginTop: 6 },
+    wordGamesRow: {
+        marginTop: 12,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        borderRadius: 12,
+        backgroundColor: '#111827',
+        borderWidth: 1,
+        borderColor: '#1f2937',
+    },
+    wordGamesRowTitle: { color: '#e9d5ff', fontWeight: '900', fontSize: 14 },
+    wordGamesRowSub: { color: '#64748b', fontSize: 11, marginTop: 4, fontWeight: '600' },
     quickLinks: {
         flexDirection: 'row',
         flexWrap: 'wrap',

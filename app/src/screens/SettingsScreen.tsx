@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { LANGUAGE_OPTIONS, type AppLanguage, setAppLanguage } from '../i18n';
 import { apiGet, apiPatch } from '../lib/api';
+import { setBackgroundApiToken } from '../lib/backgroundApiToken';
 import { createAndShareFriendInviteLink } from '../lib/friendInviteShare';
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../lib/legalUrls';
 import {
@@ -327,6 +328,9 @@ export default function SettingsScreen({ navigation }: Props) {
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.location')}</Text>
         <View style={styles.card}>
           <Text style={styles.cardText}>{t('settings.locationHint')}</Text>
+          <Text style={[styles.cardText, { marginTop: 12, color: '#9ca3af' }]}>
+            {t('settings.locationGeofenceHint')}
+          </Text>
         </View>
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.notifications')}</Text>
@@ -521,6 +525,13 @@ export default function SettingsScreen({ navigation }: Props) {
           <Text style={styles.actionRowChev}>›</Text>
         </Pressable>
         <Pressable
+          style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+          onPress={() => navigation.navigate('MyVenueReports')}
+        >
+          <Text style={styles.actionRowText}>{t('settings.openMyVenueReports')}</Text>
+          <Text style={styles.actionRowChev}>›</Text>
+        </Pressable>
+        <Pressable
           style={({ pressed }) => [
             styles.actionRow,
             pressed && styles.actionRowPressed,
@@ -546,6 +557,7 @@ export default function SettingsScreen({ navigation }: Props) {
             if (busy) return;
             setBusy(true);
             try {
+              await setBackgroundApiToken(null);
               await signOut();
               navigation.replace('Login');
             } finally {

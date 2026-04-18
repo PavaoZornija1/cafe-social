@@ -77,6 +77,7 @@
     "version": "Version {{version}}",
     "location": "Location",
     "locationHint": "We use your location only to suggest nearby partner venues. Deny access if you want — you can still paste a venue code when you’re there to check in for games.",
+    "locationGeofenceHint": "While you’re checked in, the app may ask for “Always” location so iOS/Android can wake it briefly when you cross the venue boundary — we log enter/exit for analytics, not ads. “When in use” still works for games and detection while the app is open.",
     "notifications": "Notifications",
     "notificationsHint": "Choose which kinds of pushes we may send (word matches vs. partner offers). OS settings always apply.",
     "pushMatchActivity": "Word match activity",
@@ -93,6 +94,7 @@
     "friendInviteLink": "Share friend invite link",
     "friendInviteHint": "Anyone with the link can add you as a friend after they sign in.",
     "openFriends": "Friends",
+    "openMyVenueReports": "Your venue reports",
     "signOut": "Sign out",
     "signingOut": "Signing out…",
     "legalTitle": "Legal & data",
@@ -132,8 +134,9 @@
   "chooseGame": {
     "title": "Choose a game",
     "subtitle": "At a venue: games use that venue. With a subscription you can also play word games globally (no venue).",
-    "wordTitle": "Word game",
-    "wordDescription": "Solo, co-op, or versus guessing with venue challenges.",
+    "dailyWordNote": "Looking for the one-a-day puzzle? It’s under Home → Daily word (not here).",
+    "wordTitle": "Word rooms",
+    "wordDescription": "Multi-round clue games: solo or create/join a room. Not the same as Daily word.",
     "wordCtaVenue": "Open word lobby (this venue)",
     "wordCtaGlobal": "Open word lobby (global — subscribers)",
     "needVenue": "Check in at a venue first.",
@@ -202,6 +205,11 @@
     "linkPeopleHere": "Who's here",
     "linkRedeemInvite": "Redeem invite",
     "linkDailyWord": "Daily word",
+    "linkWordRooms": "Word rooms",
+    "wordGamesCardTitle": "Word games",
+    "wordGamesCardBody": "Daily word is one puzzle per day with limited tries (like Wordle). Word rooms are multi-round clue games — solo or with friends in a room.",
+    "linkDailyWordSub": "One puzzle a day · limited guesses",
+    "linkWordRoomsSub": "Clue rounds · solo or friends",
     "venueFeedTitle": "At this venue",
     "venueFeedEmpty": "No recent activity yet — start a match or solve the venue daily.",
     "venueFeedActor": "{{user}} · {{action}}",
@@ -213,6 +221,10 @@
     "openOrdering": "Order",
     "openMenu": "Menu",
     "friendsVisitedVenue": "{{count}} friends have visited this venue in the last 30 days.",
+    "friendsAtVenueTitle": "Friends at this venue",
+    "friendHereNow": "Here now",
+    "friendLastVisitDay": "Last visit {{day}} (UTC)",
+    "reportAtVenue": "Report",
     "visitsThisWeek": "{{n}} visit days this week",
     "badgeRegularWeek": "Regular this week",
     "badgeVenueExplorer": "Venue explorer",
@@ -270,7 +282,8 @@
     "guessError": "Guess failed.",
     "needVenue": "Detect a venue to play the venue daily.",
     "notSignedIn": "Not signed in",
-    "globalRequiresSub": "The global daily word needs an active subscription."
+    "globalRequiresSub": "The global daily word needs an active subscription.",
+    "wordRoomsHint": "For multi-round games with clues (solo or rooms), use Word rooms on Home — this screen is only the daily puzzle."
   },
   "challenges": {
     "title": "Challenges",
@@ -302,14 +315,18 @@
     "easy": "Easy",
     "normal": "Normal",
     "hard": "Hard",
-    "easyDesc": "Easy: sentence hint",
-    "normalDesc": "Normal: word hints",
-    "hardDesc": "Hard: emoji hints",
+    "easyDesc": "Easy: one full-sentence clue per word.",
+    "normalDesc": "Normal: sentence clue plus optional keyword list.",
+    "hardDesc": "Hard: sentence clue plus optional emoji line.",
     "cardTitle": "{{label}}",
     "cardSub": "When you finish, we’ll update your in-venue challenge when rules allow.",
     "startSolo": "Start solo",
     "startRoom": "Create room",
-    "joinWithCode": "Join with code"
+    "joinWithCode": "Join with code",
+    "deckLengthTitle": "Words per game",
+    "deckLengthHint": "Same deck length for everyone in a room.",
+    "categoryTitle": "Category filter",
+    "categoryAll": "All categories"
   },
   "wordMatch": {
     "joinTitle": "Join word match",
@@ -338,7 +355,8 @@
       "es": "Spanish"
     },
     "socketReconnecting": "Reconnecting to room…",
-    "needPresenceToCreate": "Enable location and be at the café to create a venue room."
+    "needPresenceToCreate": "Enable location and be at the café to create a venue room.",
+    "deckWords": "{{n}} words"
   },
   "wordGame": {
     "title": "Word Game",
@@ -348,9 +366,11 @@
     "difficultyHard": "Difficulty: hard",
     "guessTitle": "Guess the word",
     "category": "Category: {{category}}",
+    "clueLabel": "Clue",
     "guessPlaceholder": "Type your guess…",
-    "botHint": "Bot hint",
-    "hintShown": "Hint shown",
+    "showExtraHint": "More help",
+    "extraHintShown": "Extra help shown",
+    "easyNoExtra": "Easy uses the clue above only.",
     "submit": "Submit",
     "checking": "Checking…",
     "correct": "Correct: {{count}}",
@@ -368,7 +388,9 @@
     "you": "you",
     "coopProgress": "Team word {{current}}/{{total}}",
     "coopHint": "Anyone in the room can submit the next guess.",
-    "back": "Back"
+    "back": "Back",
+    "rematch": "Play again (new room)",
+    "rematchBusy": "Creating…"
   },
   "qr": {
     "title": "Check in at venue",
@@ -465,6 +487,18 @@
     "transferConfirm": "Make {{name}} the leader? You will lose leader powers unless you are selected again.",
     "transferDone": "Leadership transferred."
   },
+  "myReports": {
+    "title": "Your venue reports",
+    "subtitle": "Status of safety reports you sent to venue staff. Staff may leave a short note when a report is closed.",
+    "empty": "You haven’t filed any reports yet.",
+    "statusOpen": "Open",
+    "statusDismissed": "Closed by staff",
+    "staffNote": "Staff note",
+    "loadError": "Could not load your reports.",
+    "refresh": "Refresh",
+    "filedAt": "Filed {{when}}",
+    "reasonLabel": "What you reported"
+  },
   "friends": {
     "title": "Friends",
     "myFriends": "My friends",
@@ -489,7 +523,15 @@
     "loadError": "Could not load friends.",
     "accepted": "You are now friends!",
     "shareFriendInviteMessage": "Add me on Cafe Social:\n{{url}}\n\nToken:\n{{raw}}",
-    "friendLinkFailed": "Could not create invite link."
+    "friendLinkFailed": "Could not create invite link.",
+    "blockedTitle": "Blocked players",
+    "blockedHint": "Blocked players can’t friend you or appear in your social lists. You can unblock anytime.",
+    "blockedEmpty": "Nobody blocked.",
+    "block": "Block",
+    "unblock": "Unblock",
+    "blockTitle": "Block this player?",
+    "blockConfirm": "{{username}} won’t be able to send friend requests or appear in your friend features. Any pending request is removed.",
+    "blockFailed": "Could not update block list."
   },
   "perk": {
     "title": "Redeem perk",
@@ -553,7 +595,20 @@
     "signInRequired": "Sign in to submit an appeal.",
     "successTitle": "Appeal sent",
     "successBody": "If managers follow up, they’ll use your account email. You can submit one open appeal per venue.",
-    "failed": "Could not send appeal."
+    "failed": "Could not send appeal.",
+    "outcomeTitleLifted": "Good news — {{venue}} lifted the restriction",
+    "outcomeTitleUpheld": "Appeal outcome at {{venue}}",
+    "outcomeTitleDismissed": "Appeal closed at {{venue}}",
+    "outcomeTitleOther": "Venue restriction update",
+    "outcomeBodyLifted": "Staff granted your appeal. You may be able to use games and redemptions at this venue again when you’re on site — pull to refresh the home screen after a moment.",
+    "outcomeBodyUpheld": "Staff reviewed your appeal and the venue restriction is still in place. If you have new information, contact the venue directly.",
+    "outcomeBodyDismissed": "Staff reviewed and closed your appeal without lifting the restriction. Contact the venue if you need more detail.",
+    "outcomeBodyOther": "Staff updated your appeal. Check below for any message they left for you.",
+    "staffMessageLabel": "From staff: ",
+    "resolvedAt": "Resolved {{date}}",
+    "refresh": "Refresh status",
+    "pendingTitle": "Appeal in review",
+    "pendingBody": "Venue managers have your message and will review it in their partner tools."
   },
   "categories": {
     "DRINK_FOOD": "Drink & food",

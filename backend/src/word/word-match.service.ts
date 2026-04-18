@@ -10,13 +10,13 @@ import {
   GameSessionStatus,
   GameType,
   type Prisma,
+  type WordCategory,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlayerService } from '../player/player.service';
 import { WordRepository } from './word.repository';
 import type { CreateWordMatchDto } from './dto/create-word-match.dto';
 import type { CoopGuessDto } from './dto/coop-guess.dto';
-import type { VersusScoreDto } from './dto/versus-score.dto';
 import { WORD_MATCH_REFRESH_EVENT } from './word-match.gateway';
 import { PushService } from '../push/push.service';
 import { VenueFeedService } from '../venue-feed/venue-feed.service';
@@ -30,7 +30,12 @@ export type WordMatchConfig = {
   difficulty: string;
   wordIds: string[];
   hostPlayerId: string;
+  category?: WordCategory | null;
 };
+
+function isParticipantActive(p: { playerId: string | null; leftAt: Date | null }): boolean {
+  return Boolean(p.playerId && !p.leftAt);
+}
 
 @Injectable()
 export class WordMatchService {
@@ -100,10 +105,11 @@ export class WordMatchService {
     }
     const deck = await this.wordRepo.findRandomSessionDeck({
       language: dto.language,
+      category: dto.category,
       count: dto.wordCount,
     });
     if (deck.length === 0) {
-      throw new BadRequestException('no words for this language');
+      throw new BadRequestException('no words for this language/category');
     }
     const wordIds = deck.map((w) => w.id);
     const inviteCode = await this.newInviteCode();
@@ -112,6 +118,7 @@ export class WordMatchService {
       difficulty: dto.difficulty,
       wordIds,
       hostPlayerId: player.id,
+      category: dto.category ?? null,
     };
 
     const session = await this.prisma.gameSession.create({
@@ -166,10 +173,11 @@ export class WordMatchService {
 
     const config = session.config as unknown as WordMatchConfig | null;
     const max = config?.wordGameMode === 'versus' ? 4 : 6;
-    if (session.participants.length >= max) {
+    const active = session.participants.filter(isParticipantActive);
+    if (active.length >= max) {
       throw new BadRequestException('match is full');
     }
-    if (session.participants.some((p) => p.playerId === player.id)) {
+    if (session.participants.some((p) => p.playerId === player.id && !p.leftAt)) {
       return this.getStateForViewer(player.id, session.id);
     }
 
@@ -182,9 +190,17 @@ export class WordMatchService {
       }
     }
 
-    const alreadyThere = session.participants
-      .map((p) => p.playerId)
-      .filter((id): id is string => !!id);
+    const rejoin = session.participants.find((p) => p.playerId === player.id && p.leftAt);
+    if (rejoin) {
+      await this.prisma.gameParticipant.update({
+        where: { id: rejoin.id },
+        data: { leftAt: null },
+      });
+      this.pushSessionRefresh(session.id);
+      return this.getStateForViewer(player.id, session.id);
+    }
+
+    const alreadyThere = active.map((p) => p.playerId!).filter(Boolean);
 
     await this.prisma.gameParticipant.create({
       data: {
@@ -232,7 +248,8 @@ export class WordMatchService {
     if (!config?.hostPlayerId || config.hostPlayerId !== player.id) {
       throw new ForbiddenException('only the host can start the match');
     }
-    if (session.participants.filter((p) => p.playerId).length < 2) {
+    const activeHumans = session.participants.filter(isParticipantActive);
+    if (activeHumans.length < 2) {
       throw new BadRequestException('need at least 2 players');
     }
 
@@ -252,9 +269,7 @@ export class WordMatchService {
 
     this.pushSessionRefresh(sessionId);
 
-    const participantIds = session.participants
-      .map((p) => p.playerId)
-      .filter((id): id is string => !!id);
+    const participantIds = activeHumans.map((p) => p.playerId!).filter(Boolean);
     void this.pushNotifications.sendToPlayers(
       participantIds,
       undefined,
@@ -282,7 +297,9 @@ export class WordMatchService {
     if (!session || session.gameType !== GameType.WORD_GAME) {
       throw new NotFoundException('session not found');
     }
-    const isParticipant = session.participants.some((p) => p.playerId === playerId);
+    const isParticipant = session.participants.some(
+      (p) => p.playerId === playerId && !p.leftAt,
+    );
     if (!isParticipant) throw new ForbiddenException('not in this match');
     return this.getState(sessionId, playerId);
   }
@@ -307,13 +324,14 @@ export class WordMatchService {
       difficulty: config.difficulty,
       venueId: session.venueId,
       deckLanguage: ws?.language ?? 'en',
+      deckCategory: config.category ?? null,
       hostPlayerId: config.hostPlayerId,
       inviteCode: session.inviteCode,
       targetWordCount: config.wordIds.length,
       sharedWordIndex: ws?.sharedWordIndex ?? 0,
       startedAt: session.startedAt,
       endedAt: session.endedAt,
-      participants: session.participants.map((p) => ({
+      participants: session.participants.filter(isParticipantActive).map((p) => ({
         id: p.id,
         playerId: p.playerId,
         username: p.displayNameSnapshot ?? p.player?.username ?? 'Player',
@@ -322,14 +340,14 @@ export class WordMatchService {
         isYou: viewerPlayerId ? p.playerId === viewerPlayerId : false,
       })),
       isParticipant: viewerPlayerId
-        ? session.participants.some((p) => p.playerId === viewerPlayerId)
+        ? session.participants.some((p) => p.playerId === viewerPlayerId && !p.leftAt)
         : false,
     };
   }
 
   private async ensureParticipant(sessionId: string, playerId: string) {
     const p = await this.prisma.gameParticipant.findFirst({
-      where: { sessionId, playerId },
+      where: { sessionId, playerId, leftAt: null },
     });
     if (!p) throw new ForbiddenException('not in this match');
     return p;
@@ -443,7 +461,7 @@ export class WordMatchService {
             endedAt: new Date(),
           },
         });
-        for (const p of session.participants) {
+        for (const p of session.participants.filter(isParticipantActive)) {
           if (!p.playerId) continue;
           await tx.gameParticipant.update({
             where: { id: p.id },
@@ -462,7 +480,8 @@ export class WordMatchService {
     return result;
   }
 
-  async versusScore(email: string, sessionId: string, dto: VersusScoreDto) {
+  /** Server validates the answer (same as co-op) so scores cannot be faked. */
+  async versusGuess(email: string, sessionId: string, dto: CoopGuessDto) {
     const player = await this.players.findOrCreateByEmail(email);
     const part = await this.ensureParticipant(sessionId, player.id);
 
@@ -486,15 +505,39 @@ export class WordMatchService {
       }
       const target = config.wordIds.length;
 
+      const partRow = session.participants.find((p) => p.id === part.id);
+      if (!partRow?.playerId || partRow.leftAt) {
+        throw new ForbiddenException('not in this match');
+      }
+
+      const idx = partRow.score;
+      if (idx >= target) {
+        throw new BadRequestException('already finished your deck');
+      }
+
+      const word = await tx.word.findUnique({ where: { id: config.wordIds[idx] } });
+      if (!word) throw new BadRequestException('word missing');
+
+      const ok = normalizeGuess(dto.guess) === normalizeGuess(word.text);
+
+      if (!ok) {
+        await tx.wordParticipantStats.upsert({
+          where: { participantId: part.id },
+          create: { participantId: part.id, wrongAnswers: 1 },
+          update: { wrongAnswers: { increment: 1 } },
+        });
+        return { correct: false, finished: false, yourScore: partRow.score, winner: false };
+      }
+
       const updated = await tx.gameParticipant.update({
         where: { id: part.id },
-        data: { score: { increment: dto.increment } },
+        data: { score: { increment: 1 } },
       });
 
       await tx.wordParticipantStats.upsert({
         where: { participantId: part.id },
-        create: { participantId: part.id, correctAnswers: dto.increment },
-        update: { correctAnswers: { increment: dto.increment } },
+        create: { participantId: part.id, correctAnswers: 1 },
+        update: { correctAnswers: { increment: 1 } },
       });
 
       if (updated.score >= target) {
@@ -502,7 +545,8 @@ export class WordMatchService {
           where: { id: sessionId },
           data: { status: GameSessionStatus.FINISHED, endedAt: new Date() },
         });
-        for (const p of session.participants) {
+        const stillIn = session.participants.filter(isParticipantActive);
+        for (const p of stillIn) {
           if (!p.playerId) continue;
           const isWinner = p.id === part.id;
           await tx.gameParticipant.update({
@@ -515,13 +559,160 @@ export class WordMatchService {
             },
           });
         }
-        return { finished: true, yourScore: updated.score, winner: true };
+        return { correct: true, finished: true, yourScore: updated.score, winner: true };
       }
 
-      return { finished: false, yourScore: updated.score, winner: false };
+      return { correct: true, finished: false, yourScore: updated.score, winner: false };
     });
 
-    this.pushSessionRefresh(sessionId);
+    if (result.correct) {
+      this.pushSessionRefresh(sessionId);
+    }
     return result;
+  }
+
+  async leave(email: string, sessionId: string) {
+    const player = await this.players.findOrCreateByEmail(email);
+    const session = await this.prisma.gameSession.findUnique({
+      where: { id: sessionId },
+      include: { participants: true, wordSession: true },
+    });
+    if (!session || session.gameType !== GameType.WORD_GAME) {
+      throw new NotFoundException('session not found');
+    }
+    const part = session.participants.find((p) => p.playerId === player.id && !p.leftAt);
+    if (!part) throw new NotFoundException('not in this match');
+
+    if (session.status === GameSessionStatus.FINISHED) {
+      throw new BadRequestException('match already finished');
+    }
+
+    const config = session.config as unknown as WordMatchConfig;
+
+    if (session.status === GameSessionStatus.PENDING) {
+      await this.prisma.gameParticipant.update({
+        where: { id: part.id },
+        data: { leftAt: new Date() },
+      });
+      const after = await this.prisma.gameSession.findUnique({
+        where: { id: sessionId },
+        include: { participants: true },
+      });
+      const active = after!.participants.filter(isParticipantActive);
+      if (active.length === 0) {
+        await this.prisma.gameSession.update({
+          where: { id: sessionId },
+          data: { status: GameSessionStatus.CANCELLED, endedAt: new Date() },
+        });
+      } else if (config.hostPlayerId === player.id) {
+        const nextHost = active[0]!.playerId!;
+        await this.prisma.gameSession.update({
+          where: { id: sessionId },
+          data: {
+            config: {
+              ...config,
+              hostPlayerId: nextHost,
+            } as unknown as Prisma.InputJsonValue,
+          },
+        });
+      }
+      this.pushSessionRefresh(sessionId);
+      return { ok: true as const };
+    }
+
+    if (session.status === GameSessionStatus.ACTIVE) {
+      await this.prisma.gameParticipant.update({
+        where: { id: part.id },
+        data: { leftAt: new Date(), result: GameParticipantResult.LOSS },
+      });
+      this.pushSessionRefresh(sessionId);
+      return { ok: true as const };
+    }
+
+    throw new BadRequestException('cannot leave this match');
+  }
+
+  async rematch(email: string, sessionId: string) {
+    const player = await this.players.findOrCreateByEmail(email);
+    const session = await this.prisma.gameSession.findUnique({
+      where: { id: sessionId },
+      include: { participants: true, wordSession: true },
+    });
+    if (!session || session.gameType !== GameType.WORD_GAME) {
+      throw new NotFoundException('session not found');
+    }
+    if (session.status !== GameSessionStatus.FINISHED) {
+      throw new BadRequestException('can only rematch after a finished game');
+    }
+    const finisher = session.participants.some((p) => p.playerId === player.id && !p.leftAt);
+    if (!finisher) throw new ForbiddenException('not in this match');
+
+    const config = session.config as unknown as WordMatchConfig;
+    const ws = session.wordSession;
+    if (!ws) throw new BadRequestException('invalid session');
+
+    const deck = await this.wordRepo.findRandomSessionDeck({
+      language: ws.language,
+      category: config.category ?? undefined,
+      count: config.wordIds.length,
+    });
+    if (deck.length === 0) {
+      throw new BadRequestException('no words for this language/category');
+    }
+
+    const wordIds = deck.map((w) => w.id);
+    const inviteCode = await this.newInviteCode();
+    const playerIds = session.participants
+      .filter((p) => p.playerId && !p.leftAt)
+      .map((p) => p.playerId!);
+
+    let hostId = config.hostPlayerId;
+    if (!playerIds.includes(hostId)) {
+      hostId = playerIds[0]!;
+    }
+
+    const newConfig: WordMatchConfig = {
+      ...config,
+      wordIds,
+      hostPlayerId: hostId,
+    };
+
+    const newSession = await this.prisma.gameSession.create({
+      data: {
+        gameType: GameType.WORD_GAME,
+        status: GameSessionStatus.PENDING,
+        inviteCode,
+        venueId: session.venueId,
+        config: newConfig as unknown as Prisma.InputJsonValue,
+        wordSession: {
+          create: {
+            roundCount: wordIds.length,
+            language: ws.language,
+            sharedWordIndex: 0,
+          },
+        },
+        participants: {
+          create: playerIds.map((pid) => {
+            const snap =
+              session.participants.find((x) => x.playerId === pid)?.displayNameSnapshot ??
+              'Player';
+            return {
+              playerId: pid,
+              isBot: false,
+              displayNameSnapshot: snap,
+            };
+          }),
+        },
+      },
+      include: { participants: true },
+    });
+
+    return {
+      sessionId: newSession.id,
+      inviteCode: newSession.inviteCode,
+      mode: newConfig.wordGameMode,
+      status: newSession.status,
+      participantCount: newSession.participants.filter(isParticipantActive).length,
+    };
   }
 }

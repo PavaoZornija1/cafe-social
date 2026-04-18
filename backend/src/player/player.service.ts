@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { Player, Prisma } from '@prisma/client';
 import { CreatePlayerDto } from './dto/create-player.dto';
 import { UpdatePlayerDto } from './dto/update-player.dto';
@@ -7,6 +12,7 @@ import { PlayerRepository } from './player.repository';
 import { PlayerVenueStatsRepository } from '../stats/player-venue-stats.repository';
 import { PrismaService } from '../prisma/prisma.service';
 import { utcDayKeyDaysAgo, utcWeekDayKeyRange } from '../lib/engagement-dates';
+import { orderedPlayerPair } from '../common/player-pair';
 
 @Injectable()
 export class PlayerService {
@@ -243,6 +249,79 @@ export class PlayerService {
       ...(dto.matchActivityPush !== undefined && {
         matchActivityPush: dto.matchActivityPush,
       }),
+    });
+  }
+
+  /** Player-visible ban appeal history for Settings / notifications UX. */
+  listMyBanAppeals(playerId: string) {
+    return this.prisma.venueBanAppeal.findMany({
+      where: { playerId },
+      orderBy: { createdAt: 'desc' },
+      take: 40,
+      select: {
+        id: true,
+        venueId: true,
+        message: true,
+        status: true,
+        createdAt: true,
+        resolvedAt: true,
+        staffMessageToPlayer: true,
+        venue: { select: { name: true } },
+      },
+    });
+  }
+
+  /** Reports this player filed (status + optional note from staff). */
+  listMyFiledVenueReports(playerId: string) {
+    return this.prisma.venuePlayerReport.findMany({
+      where: { reporterId: playerId },
+      orderBy: { createdAt: 'desc' },
+      take: 40,
+      select: {
+        id: true,
+        venueId: true,
+        status: true,
+        reason: true,
+        createdAt: true,
+        dismissedAt: true,
+        dismissalNoteToReporter: true,
+        venue: { select: { name: true } },
+      },
+    });
+  }
+
+  async addPlayerBlock(blockerId: string, blockedId: string): Promise<void> {
+    if (blockerId === blockedId) {
+      throw new BadRequestException('Cannot block yourself');
+    }
+    await this.prisma.playerBlock.upsert({
+      where: {
+        blockerId_blockedId: { blockerId, blockedId },
+      },
+      create: { blockerId, blockedId },
+      update: {},
+    });
+    const { low, high } = orderedPlayerPair(blockerId, blockedId);
+    await this.prisma.friendship.deleteMany({
+      where: { playerLowId: low, playerHighId: high },
+    });
+  }
+
+  async removePlayerBlock(blockerId: string, blockedId: string): Promise<void> {
+    await this.prisma.playerBlock.deleteMany({
+      where: { blockerId, blockedId },
+    });
+  }
+
+  listBlockedPlayers(blockerId: string) {
+    return this.prisma.playerBlock.findMany({
+      where: { blockerId },
+      select: {
+        blockedId: true,
+        createdAt: true,
+        blocked: { select: { id: true, username: true } },
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 

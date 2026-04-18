@@ -77,6 +77,7 @@
     "version": "Version {{version}}",
     "location": "Standort",
     "locationHint": "Standort nur für nahe Partner-Vorschläge. Ablehnen ist ok — am Lokal kannst du den Code manuell eingeben, um für Spiele einzuchecken.",
+    "locationGeofenceHint": "Während du eingecheckt bist, kann die App „Immer“ fragen, damit iOS/Android bei Grenzübertritt kurz aufwacht — wir loggen Ein-/Ausgang für Analytics, nicht für Werbung. „Bei Nutzung“ reicht für Erkennung und Spiele, solange die App offen ist.",
     "notifications": "Benachrichtigungen",
     "notificationsHint": "Wähle, welche Push-Typen erlaubt sind (Wort-Matches vs. Partnerangebote). OS-Einstellungen gelten zusätzlich.",
     "pushMatchActivity": "Wort-Match-Aktivität",
@@ -93,6 +94,7 @@
     "friendInviteLink": "Freundes-Einladungslink teilen",
     "friendInviteHint": "Mit dem Link können andere dich nach der Anmeldung als Freund hinzufügen.",
     "openFriends": "Freunde",
+    "openMyVenueReports": "Deine Lokal-Meldungen",
     "signOut": "Abmelden",
     "signingOut": "Abmelden…",
     "legalTitle": "Rechtliches & Daten",
@@ -132,8 +134,9 @@
   "chooseGame": {
     "title": "Spiel wählen",
     "subtitle": "Vor Ort: Spiele hängen an diesem Venue. Mit Abo zusätzlich global spielen (ohne Venue).",
-    "wordTitle": "Wortspiel",
-    "wordDescription": "Solo, Koop oder Duell mit Venue-Challenges.",
+    "dailyWordNote": "Das eine Rätsel pro Tag? Start → Tageswort (nicht hier).",
+    "wordTitle": "Worträume",
+    "wordDescription": "Mehrere Runden mit Hinweisen — solo oder Raum mit Freunden. Nicht dasselbe wie das Tageswort.",
     "wordCtaVenue": "Wort-Lobby (dieses Venue)",
     "wordCtaGlobal": "Wort-Lobby (global — Abonnenten)",
     "needVenue": "Erst am Venue einchecken.",
@@ -202,6 +205,11 @@
     "linkPeopleHere": "Wer ist hier",
     "linkRedeemInvite": "Einladung einlösen",
     "linkDailyWord": "Tageswort",
+    "linkWordRooms": "Worträume",
+    "wordGamesCardTitle": "Wortspiele",
+    "wordGamesCardBody": "Tageswort ist ein Rätsel pro Tag mit begrenzten Versuchen (wie Wordle). Worträume sind mehrstufige Hinweisrunden — solo oder mit Freunden im Raum.",
+    "linkDailyWordSub": "Ein Rätsel täglich · begrenzte Versuche",
+    "linkWordRoomsSub": "Hinweisrunden · solo oder mit Freunden",
     "venueFeedTitle": "In diesem Café",
     "venueFeedEmpty": "Noch keine Aktivität — starte ein Match oder löse das Tageswort vor Ort.",
     "venueFeedActor": "{{user}} · {{action}}",
@@ -213,6 +221,10 @@
     "openOrdering": "Bestellen",
     "openMenu": "Speisekarte",
     "friendsVisitedVenue": "{{count}} Freund:innen waren in den letzten 30 Tagen hier.",
+    "friendsAtVenueTitle": "Freund:innen in diesem Lokal",
+    "friendHereNow": "Gerade da",
+    "friendLastVisitDay": "Letzter Besuch {{day}} (UTC)",
+    "reportAtVenue": "Melden",
     "visitsThisWeek": "{{n}} Besuchstage diese Woche",
     "badgeRegularWeek": "Stammgast diese Woche",
     "badgeVenueExplorer": "Lokal-Entdecker",
@@ -267,7 +279,8 @@
     "guessError": "Tipp fehlgeschlagen.",
     "needVenue": "Café erkennen für das lokale Tageswort.",
     "notSignedIn": "Nicht angemeldet",
-    "globalRequiresSub": "Das globale Tageswort braucht ein aktives Abo."
+    "globalRequiresSub": "Das globale Tageswort braucht ein aktives Abo.",
+    "wordRoomsHint": "Für mehrstufige Spiele mit Hinweisen (solo oder Räume) nutze „Worträume“ auf der Startseite — hier nur das Tagesrätsel."
   },
   "challenges": {
     "title": "Challenges",
@@ -299,14 +312,18 @@
     "easy": "Einfach",
     "normal": "Normal",
     "hard": "Schwer",
-    "easyDesc": "Einfach: Satz-Tipp",
-    "normalDesc": "Normal: Wort-Tipps",
-    "hardDesc": "Schwer: Emoji-Tipps",
+    "easyDesc": "Einfach: ein vollständiger Satz als Tipp pro Wort.",
+    "normalDesc": "Normal: Satz-Tipp plus optionale Stichwortliste.",
+    "hardDesc": "Schwer: Satz-Tipp plus optionale Emoji-Zeile.",
     "cardTitle": "{{label}}",
     "cardSub": "Nach der Runde wird die Challenge aktualisiert, wenn die Regeln es erlauben.",
     "startSolo": "Solo starten",
     "startRoom": "Raum erstellen",
-    "joinWithCode": "Mit Code beitreten"
+    "joinWithCode": "Mit Code beitreten",
+    "deckLengthTitle": "Wörter pro Spiel",
+    "deckLengthHint": "Gleiche Kartensatz-Länge für alle im Raum.",
+    "categoryTitle": "Kategorie-Filter",
+    "categoryAll": "Alle Kategorien"
   },
   "wordMatch": {
     "joinTitle": "Match beitreten",
@@ -335,7 +352,8 @@
       "es": "Spanisch"
     },
     "socketReconnecting": "Verbindung zum Raum wird wiederhergestellt…",
-    "needPresenceToCreate": "Standort aktivieren und im Café sein, um einen Lokal-Raum zu erstellen."
+    "needPresenceToCreate": "Standort aktivieren und im Café sein, um einen Lokal-Raum zu erstellen.",
+    "deckWords": "{{n}} Wörter"
   },
   "wordGame": {
     "title": "Wortspiel",
@@ -345,9 +363,11 @@
     "difficultyHard": "Schwierigkeit: schwer",
     "guessTitle": "Errate das Wort",
     "category": "Kategorie: {{category}}",
+    "clueLabel": "Hinweis",
     "guessPlaceholder": "Dein Tipp…",
-    "botHint": "Bot-Tipp",
-    "hintShown": "Tipp angezeigt",
+    "showExtraHint": "Mehr Hilfe",
+    "extraHintShown": "Zusatz-Hilfe angezeigt",
+    "easyNoExtra": "Einfach nutzt nur den Hinweis oben.",
     "submit": "Senden",
     "checking": "Prüfe…",
     "correct": "Richtig: {{count}}",
@@ -365,7 +385,9 @@
     "you": "du",
     "coopProgress": "Team-Wort {{current}}/{{total}}",
     "coopHint": "Jeder im Raum darf raten.",
-    "back": "Zurück"
+    "back": "Zurück",
+    "rematch": "Nochmal spielen (neuer Raum)",
+    "rematchBusy": "Wird erstellt…"
   },
   "qr": {
     "title": "Vor Ort einchecken",
@@ -462,6 +484,18 @@
     "transferConfirm": "{{name}} als Leiter/in setzen? Du verlierst Leiterrechte.",
     "transferDone": "Leitung übertragen."
   },
+  "myReports": {
+    "title": "Deine Lokal-Meldungen",
+    "subtitle": "Status von Meldungen, die du an das Lokal gesendet hast. Das Personal kann eine kurze Notiz hinterlassen, wenn eine Meldung geschlossen wird.",
+    "empty": "Du hast noch keine Meldungen eingereicht.",
+    "statusOpen": "Offen",
+    "statusDismissed": "Vom Personal geschlossen",
+    "staffNote": "Hinweis vom Personal",
+    "loadError": "Meldungen konnten nicht geladen werden.",
+    "refresh": "Aktualisieren",
+    "filedAt": "Eingereicht {{when}}",
+    "reasonLabel": "Deine Meldung"
+  },
   "friends": {
     "title": "Freunde",
     "myFriends": "Meine Freunde",
@@ -486,7 +520,15 @@
     "loadError": "Freunde konnten nicht geladen werden.",
     "accepted": "Ihr seid jetzt Freunde!",
     "shareFriendInviteMessage": "Cafe Social – füge mich hinzu:\n{{url}}\n\nToken:\n{{raw}}",
-    "friendLinkFailed": "Einladungslink fehlgeschlagen."
+    "friendLinkFailed": "Einladungslink fehlgeschlagen.",
+    "blockedTitle": "Blockierte Spieler",
+    "blockedHint": "Blockierte Personen können dich nicht als Freund hinzufügen und erscheinen nicht in deinen sozialen Listen. Du kannst jederzeit entblocken.",
+    "blockedEmpty": "Niemand blockiert.",
+    "block": "Blockieren",
+    "unblock": "Entblocken",
+    "blockTitle": "Diese Person blockieren?",
+    "blockConfirm": "{{username}} kann dir keine Freundschaftsanfragen senden und erscheint nicht in Freundes-Funktionen. Ausstehende Anfragen werden entfernt.",
+    "blockFailed": "Blockliste konnte nicht aktualisiert werden."
   },
   "perk": {
     "title": "Vorteil einlösen",

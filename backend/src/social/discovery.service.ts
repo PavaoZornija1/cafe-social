@@ -12,8 +12,17 @@ import {
   VenueOrderNudgeCopyService,
 } from '../venue/venue-order-nudge-copy.service';
 import { utcDayKey } from '../lib/day-key';
+import { utcDayKeyDaysAgo } from '../lib/engagement-dates';
+import { hiddenOpponentIdsForViewer } from './hidden-opponents.util';
 
 const PRESENCE_TTL_MS = 10 * 60 * 1000;
+
+export type FriendsAtVenueRow = {
+  id: string;
+  username: string;
+  hereNow: boolean;
+  lastVisitDayKey: string | null;
+};
 
 @Injectable()
 export class DiscoveryService {
@@ -196,21 +205,84 @@ export class DiscoveryService {
     venueId: string,
     sinceDayKey: string,
   ): Promise<number> {
+    const hidden = await hiddenOpponentIdsForViewer(this.prisma, viewerId);
     const friends = await this.friendIdsOf(viewerId);
-    if (friends.size === 0) return 0;
+    const friendList = [...friends].filter((id) => !hidden.has(id));
+    if (friendList.length === 0) return 0;
     const grouped = await this.prisma.playerVenueVisitDay.groupBy({
       by: ['playerId'],
       where: {
         venueId,
         dayKey: { gte: sinceDayKey },
-        playerId: { in: [...friends] },
+        playerId: { in: friendList },
       },
     });
     return grouped.length;
   }
 
+  /**
+   * **Accepted friends** with a recent visit day at this venue (30 UTC days) and/or currently
+   * “here” under the same presence TTL as {@link peopleHere}. Excludes friends with `totalPrivacy`.
+   */
+  async friendsAtVenue(
+    viewerId: string,
+    venueId: string,
+  ): Promise<{ friends: FriendsAtVenueRow[] }> {
+    const hidden = await hiddenOpponentIdsForViewer(this.prisma, viewerId);
+    const sinceDayKey = utcDayKeyDaysAgo(30);
+    const sincePresence = new Date(Date.now() - PRESENCE_TTL_MS);
+    const friendIds = await this.friendIdsOf(viewerId);
+    if (friendIds.size === 0) return { friends: [] };
+
+    const visits = await this.prisma.playerVenueVisitDay.findMany({
+      where: {
+        venueId,
+        dayKey: { gte: sinceDayKey },
+        playerId: { in: [...friendIds] },
+      },
+      select: { playerId: true, dayKey: true },
+    });
+    const lastVisitByPlayer = new Map<string, string>();
+    for (const v of visits) {
+      const prev = lastVisitByPlayer.get(v.playerId);
+      if (!prev || v.dayKey > prev) lastVisitByPlayer.set(v.playerId, v.dayKey);
+    }
+
+    const presenceRows = await this.prisma.player.findMany({
+      where: {
+        id: { in: [...friendIds] },
+        lastPresenceVenueId: venueId,
+        lastPresenceAt: { gte: sincePresence },
+        totalPrivacy: false,
+      },
+      select: { id: true },
+    });
+    const hereSet = new Set(presenceRows.map((p) => p.id));
+
+    const candidateIds = new Set<string>([...lastVisitByPlayer.keys(), ...hereSet]);
+    if (candidateIds.size === 0) return { friends: [] };
+
+    const players = await this.prisma.player.findMany({
+      where: { id: { in: [...candidateIds] }, totalPrivacy: false },
+      select: { id: true, username: true },
+      orderBy: { username: 'asc' },
+    });
+
+    return {
+      friends: players
+        .filter((p) => !hidden.has(p.id))
+        .map((p) => ({
+          id: p.id,
+          username: p.username,
+          hereNow: hereSet.has(p.id),
+          lastVisitDayKey: lastVisitByPlayer.get(p.id) ?? null,
+        })),
+    };
+  }
+
   /** Strangers + friends at venue per discoverability rules. */
   async peopleHere(viewerId: string, venueId: string) {
+    const hidden = await hiddenOpponentIdsForViewer(this.prisma, viewerId);
     const since = new Date(Date.now() - PRESENCE_TTL_MS);
     const candidates = await this.prisma.player.findMany({
       where: {
@@ -224,6 +296,7 @@ export class DiscoveryService {
 
     const friends = await this.friendIdsOf(viewerId);
     return candidates
+      .filter((c) => !hidden.has(c.id))
       .filter((c) => {
         if (friends.has(c.id)) return true;
         return c.discoverable;
@@ -242,10 +315,12 @@ export class DiscoveryService {
     if (!viewerSub) {
       throw new ForbiddenException('Subscription required');
     }
+    const hidden = await hiddenOpponentIdsForViewer(this.prisma, viewerId);
+    const hideIds = [...hidden];
     const now = new Date();
     return this.prisma.player.findMany({
       where: {
-        id: { not: viewerId },
+        id: { notIn: [viewerId, ...hideIds] },
         discoverable: true,
         totalPrivacy: false,
         subscriptions: {

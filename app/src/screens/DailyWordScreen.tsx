@@ -179,6 +179,8 @@ export default function DailyWordScreen({ navigation }: Props) {
                 </Pressable>
             </View>
 
+            <Text style={styles.modeBlurb}>{t('dailyWord.wordRoomsHint')}</Text>
+
             {loading ? (
                 <View style={styles.center}>
                     <ActivityIndicator color="#a78bfa" />
@@ -240,7 +242,14 @@ const styles = StyleSheet.create({
     back: { marginBottom: 8 },
     backText: { color: '#94a3b8', fontSize: 16 },
     title: { color: '#f8fafc', fontSize: 22, fontWeight: '700' },
-    scopeRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 16 },
+    scopeRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 8 },
+    modeBlurb: {
+        color: '#64748b',
+        fontSize: 12,
+        lineHeight: 17,
+        paddingHorizontal: 16,
+        marginBottom: 12,
+    },
     scopeBtn: {
         flex: 1,
         paddingVertical: 10,

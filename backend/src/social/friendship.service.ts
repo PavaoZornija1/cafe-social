@@ -7,6 +7,7 @@ import {
 import { FriendshipStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { orderedPlayerPair } from '../common/player-pair';
+import { hiddenOpponentIdsForViewer, isEitherBlocked } from './hidden-opponents.util';
 
 @Injectable()
 export class FriendshipService {
@@ -54,6 +55,9 @@ export class FriendshipService {
     targetId: string,
   ): Promise<boolean> {
     if (requesterId === targetId) throw new BadRequestException('Cannot friend yourself');
+    if (await isEitherBlocked(this.prisma, requesterId, targetId)) {
+      throw new ForbiddenException('You cannot connect with this player');
+    }
     const { low, high } = orderedPlayerPair(requesterId, targetId);
     const existing = await this.prisma.friendship.findUnique({
       where: {
@@ -75,6 +79,9 @@ export class FriendshipService {
   }
 
   async acceptFriendship(playerId: string, otherId: string): Promise<void> {
+    if (await isEitherBlocked(this.prisma, playerId, otherId)) {
+      throw new ForbiddenException('You cannot connect with this player');
+    }
     const { low, high } = orderedPlayerPair(playerId, otherId);
     const row = await this.prisma.friendship.findUnique({
       where: {
@@ -95,15 +102,16 @@ export class FriendshipService {
   }
 
   async listFriends(playerId: string) {
+    const hidden = await hiddenOpponentIdsForViewer(this.prisma, playerId);
     const rows = await this.prisma.friendship.findMany({
       where: {
         OR: [{ playerLowId: playerId }, { playerHighId: playerId }],
         status: FriendshipStatus.ACCEPTED,
       },
     });
-    const ids = rows.map((r) =>
-      r.playerLowId === playerId ? r.playerHighId : r.playerLowId,
-    );
+    const ids = rows
+      .map((r) => (r.playerLowId === playerId ? r.playerHighId : r.playerLowId))
+      .filter((id) => !hidden.has(id));
     if (ids.length === 0) return [];
     return this.prisma.player.findMany({
       where: { id: { in: ids } },
@@ -112,7 +120,8 @@ export class FriendshipService {
   }
 
   async listIncomingPending(playerId: string) {
-    return this.prisma.friendship.findMany({
+    const hidden = await hiddenOpponentIdsForViewer(this.prisma, playerId);
+    const rows = await this.prisma.friendship.findMany({
       where: {
         status: FriendshipStatus.PENDING,
         requestedById: { not: playerId },
@@ -122,6 +131,10 @@ export class FriendshipService {
         playerLow: { select: { id: true, username: true } },
         playerHigh: { select: { id: true, username: true } },
       },
+    });
+    return rows.filter((r) => {
+      const otherId = r.playerLowId === playerId ? r.playerHighId : r.playerLowId;
+      return !hidden.has(otherId);
     });
   }
 

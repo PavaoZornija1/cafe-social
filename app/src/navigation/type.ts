@@ -37,7 +37,8 @@ export type RootStackParamList = {
         reportedPlayerId: string;
         reportedUsername: string;
     };
-    BanAppeal: { venueId: string; venueName?: string };
+    BanAppeal: { venueId: string; venueName?: string; focusAppealId?: string };
+    MyVenueReports: undefined;
     QrScan: { venueId?: string };
     WordLobby: { venueId?: string; challengeId?: string };
     WordMatchJoin: { venueId?: string; challengeId?: string };
@@ -48,6 +49,9 @@ export type RootStackParamList = {
       difficulty: 'easy' | 'normal' | 'hard';
       create?: boolean;
       sessionId?: string;
+      /** Host create only — passed to POST /words/matches */
+      wordCount?: number;
+      wordCategory?: string;
     };
     WordGame: {
       venueId?: string;
@@ -56,6 +60,8 @@ export type RootStackParamList = {
       mode: 'solo' | 'coop' | 'versus';
       matchSessionId?: string;
       sessionWordsCount?: number;
+      /** Solo — filters GET /words/session */
+      wordCategory?: string;
     };
     StaffVenues: undefined;
     StaffRedemptions: {

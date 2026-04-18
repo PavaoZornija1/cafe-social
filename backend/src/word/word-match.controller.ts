@@ -17,7 +17,6 @@ import { WordMatchService } from './word-match.service';
 import { CreateWordMatchDto } from './dto/create-word-match.dto';
 import { JoinWordMatchDto } from './dto/join-word-match.dto';
 import { CoopGuessDto } from './dto/coop-guess.dto';
-import { VersusScoreDto } from './dto/versus-score.dto';
 
 @Controller('words/matches')
 @UseGuards(JwtAuthGuard)
@@ -89,12 +88,28 @@ export class WordMatchController {
     return this.match.coopGuess(this.email(user), sessionId, dto);
   }
 
-  @Post(':sessionId/versus-score')
-  versusScore(
+  @Post(':sessionId/versus-guess')
+  versusGuess(
     @CurrentUser() user: unknown,
     @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
-    @Body() dto: VersusScoreDto,
+    @Body() dto: CoopGuessDto,
   ) {
-    return this.match.versusScore(this.email(user), sessionId, dto);
+    return this.match.versusGuess(this.email(user), sessionId, dto);
+  }
+
+  @Post(':sessionId/leave')
+  leave(
+    @CurrentUser() user: unknown,
+    @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+  ) {
+    return this.match.leave(this.email(user), sessionId);
+  }
+
+  @Post(':sessionId/rematch')
+  rematch(
+    @CurrentUser() user: unknown,
+    @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+  ) {
+    return this.match.rematch(this.email(user), sessionId);
   }
 }

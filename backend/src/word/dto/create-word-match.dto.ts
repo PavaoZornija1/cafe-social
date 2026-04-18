@@ -1,4 +1,5 @@
-import { IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import { WordCategory } from '@prisma/client';
+import { IsEnum, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 export type WordMatchMode = 'coop' | 'versus';
 
@@ -31,4 +32,9 @@ export class CreateWordMatchDto {
   @IsString()
   @IsIn(['coop', 'versus'])
   mode!: WordMatchMode;
+
+  /** When set, all words in the deck share this category. */
+  @IsOptional()
+  @IsEnum(WordCategory)
+  category?: WordCategory;
 }

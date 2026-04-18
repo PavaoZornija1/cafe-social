@@ -648,6 +648,133 @@ export class OwnerAnalyticsService {
     return [header, ...lines].join('\n');
   }
 
+  /**
+   * Geofence enter/exit dwell metrics (approximate venue boundary from OS geofencing).
+   * Pairs enter→exit per player chronologically; unmatched enters count as open at period end.
+   */
+  async getVenueGeofenceDwellSummary(venueId: string, opts: AnalyticsQueryOpts) {
+    const { start, end, startDay, endDay } = resolveAnalyticsPeriod(
+      opts.days,
+      opts.from,
+      opts.to,
+    );
+
+    const events = await this.prisma.playerVenueGeofenceEvent.findMany({
+      where: { venueId, recordedAt: { gte: start, lte: end } },
+      orderBy: [{ recordedAt: 'asc' }],
+      select: { playerId: true, kind: true, recordedAt: true },
+    });
+
+    const byPlayer = new Map<string, typeof events>();
+    for (const e of events) {
+      if (!byPlayer.has(e.playerId)) byPlayer.set(e.playerId, []);
+      byPlayer.get(e.playerId)!.push(e);
+    }
+
+    let geofenceEnterEvents = 0;
+    let geofenceExitEvents = 0;
+    const completedDwellSeconds: number[] = [];
+    let openSessionsAtPeriodEnd = 0;
+    let estimatedDwellSecondsOpenSessions = 0;
+
+    for (const [, list] of byPlayer) {
+      let openAt: Date | null = null;
+      for (const e of list) {
+        if (e.kind === 'enter') {
+          geofenceEnterEvents++;
+          openAt = e.recordedAt;
+        } else if (e.kind === 'exit') {
+          geofenceExitEvents++;
+          if (openAt) {
+            completedDwellSeconds.push(
+              (e.recordedAt.getTime() - openAt.getTime()) / 1000,
+            );
+            openAt = null;
+          }
+        }
+      }
+      if (openAt) {
+        openSessionsAtPeriodEnd++;
+        estimatedDwellSecondsOpenSessions +=
+          (end.getTime() - openAt.getTime()) / 1000;
+      }
+    }
+
+    const completedVisitSessions = completedDwellSeconds.length;
+    const totalDwellSecondsCompleted = completedDwellSeconds.reduce((a, b) => a + b, 0);
+    const avgDwellSecondsCompletedSessions =
+      completedVisitSessions === 0
+        ? 0
+        : Math.round((totalDwellSecondsCompleted / completedVisitSessions) * 10) / 10;
+
+    let medianDwellSecondsCompleted: number | null = null;
+    if (completedDwellSeconds.length > 0) {
+      const sorted = [...completedDwellSeconds].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      medianDwellSecondsCompleted =
+        sorted.length % 2 === 0
+          ? Math.round(((sorted[mid - 1]! + sorted[mid]!) / 2) * 10) / 10
+          : Math.round(sorted[mid]! * 10) / 10;
+    }
+
+    const calendarVisitRows = await this.prisma.playerVenueVisitDay.count({
+      where: {
+        venueId,
+        dayKey: { gte: startDay, lte: endDay },
+      },
+    });
+
+    return {
+      period: { start: start.toISOString(), end: end.toISOString(), startDay, endDay },
+      geofenceEnterEvents,
+      geofenceExitEvents,
+      uniquePlayersWithGeofenceEvent: byPlayer.size,
+      completedVisitSessions,
+      openSessionsAtPeriodEnd,
+      avgDwellSecondsCompletedSessions,
+      medianDwellSecondsCompleted,
+      totalDwellSecondsCompletedSessions: Math.round(totalDwellSecondsCompleted),
+      estimatedDwellSecondsOpenSessions: Math.round(estimatedDwellSecondsOpenSessions),
+      /** Calendar “visit day” rows (presence/engagement proxy) in the same UTC day range. */
+      calendarVisitDayRows: calendarVisitRows,
+    };
+  }
+
+  async buildGeofenceEventsCsv(venueId: string, opts: AnalyticsQueryOpts): Promise<string> {
+    const { start, end } = resolveAnalyticsPeriod(opts.days, opts.from, opts.to);
+    const rows = await this.prisma.playerVenueGeofenceEvent.findMany({
+      where: { venueId, recordedAt: { gte: start, lte: end } },
+      orderBy: [{ recordedAt: 'asc' }],
+      select: {
+        id: true,
+        playerId: true,
+        venueId: true,
+        kind: true,
+        recordedAt: true,
+        clientDedupeKey: true,
+      },
+    });
+    const header = [
+      'event_id',
+      'venue_id',
+      'player_id',
+      'kind',
+      'recorded_at_utc',
+      'client_dedupe_key',
+    ].join(',');
+    const lines = rows.map((r) =>
+      [
+        r.id,
+        r.venueId,
+        r.playerId,
+        r.kind,
+        r.recordedAt.toISOString(),
+        csvEscape(r.clientDedupeKey ?? ''),
+      ].join(','),
+    );
+    return [header, ...lines].join('\n');
+  }
+
   async buildOrganizationFunnelEventsCsv(
     organizationId: string,
     opts: AnalyticsQueryOpts,

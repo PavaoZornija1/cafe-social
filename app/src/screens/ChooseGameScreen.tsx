@@ -31,6 +31,7 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
             </View>
             <View style={styles.container}>
                 <Text style={styles.subtitle}>{t('chooseGame.subtitle')}</Text>
+                <Text style={styles.dailyNote}>{t('chooseGame.dailyWordNote')}</Text>
 
                 <Pressable
                     onPress={onOpenWordGame}
@@ -90,7 +91,8 @@ const styles = StyleSheet.create({
     backText: { color: '#cbd5e1', fontWeight: '600' },
     headerTitle: { color: '#fff', fontSize: 24, fontWeight: '900', flex: 1 },
     container: { flex: 1, paddingHorizontal: 20, paddingTop: 12, gap: 14 },
-    subtitle: { color: '#9ca3af', fontSize: 14, lineHeight: 20, marginBottom: 6 },
+    subtitle: { color: '#9ca3af', fontSize: 14, lineHeight: 20, marginBottom: 4 },
+    dailyNote: { color: '#64748b', fontSize: 12, lineHeight: 17, marginBottom: 6 },
     card: {
         borderRadius: 18,
         padding: 16,

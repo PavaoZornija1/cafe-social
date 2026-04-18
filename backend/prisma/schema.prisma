@@ -129,6 +129,8 @@ model Venue {
   playerReports   VenuePlayerReport[]
   playerBans      VenuePlayerBan[]
   banAppeals      VenueBanAppeal[]
+  geofenceEvents  PlayerVenueGeofenceEvent[]
+  moderationAuditLogs VenueModerationAuditLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -479,11 +481,46 @@ model Player {
   redemptionsAcknowledged VenuePerkRedemption[] @relation("RedemptionStaffAck")
   redemptionsVoided VenuePerkRedemption[] @relation("RedemptionStaffVoid")
   venueBanAppeals    VenueBanAppeal[]
+  banAppealsResolved VenueBanAppeal[]           @relation("BanAppealResolvedBy")
+  geofenceEvents     PlayerVenueGeofenceEvent[]
+  blocksCreated      PlayerBlock[]              @relation("Blocker")
+  blocksReceived     PlayerBlock[]              @relation("Blocked")
+  moderationAudits   VenueModerationAuditLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([email, username])
+}
+
+/// Social safety: blocker hides blocked player from discovery surfaces; friend requests are rejected.
+model PlayerBlock {
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker Player @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked Player @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@id([blockerId, blockedId])
+  @@index([blockedId])
+}
+
+/// Append-only moderation audit (appeals, bans, reports) for venue staff / owners.
+model VenueModerationAuditLog {
+  id            String   @id @default(uuid())
+  venueId       String
+  actorPlayerId String?
+  action        String
+  entityType    String
+  entityId      String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  venue Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  actor Player? @relation(fields: [actorPlayerId], references: [id], onDelete: SetNull)
+
+  @@index([venueId, createdAt])
 }
 
 /// One row per player per venue per UTC calendar day — powers visits / badges / friend aggregates.
@@ -562,6 +599,8 @@ model VenuePlayerReport {
   status           String    @default("open")
   createdAt        DateTime  @default(now())
   dismissedAt      DateTime?
+  /// Optional short message visible to the reporter when status becomes dismissed.
+  dismissalNoteToReporter String?
 
   venue          Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
   reporter       Player @relation("VenueReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
@@ -588,6 +627,7 @@ model VenuePlayerBan {
 }
 
 /// Player-submitted appeal when venue-scoped banned (staff reviews in partner tools).
+/// status: open | dismissed | upheld | lifted
 model VenueBanAppeal {
   id        String   @id @default(uuid())
   venueId   String
@@ -596,11 +636,39 @@ model VenueBanAppeal {
   status    String   @default("open")
   createdAt DateTime @default(now())
 
-  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  /// Internal note for venue staff (not shown to player).
+  staffNote String?
+  /// Optional short message sent to the player if notifyPlayer is used.
+  staffMessageToPlayer String?
+  resolvedAt              DateTime?
+  resolvedByStaffPlayerId String?
+  playerNotifiedAt        DateTime?
+
+  venue      Venue   @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  player     Player  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  resolvedBy Player? @relation("BanAppealResolvedBy", fields: [resolvedByStaffPlayerId], references: [id], onDelete: SetNull)
 
   @@index([venueId, status, createdAt])
   @@index([playerId, createdAt])
+}
+
+/// Background geofence enter/exit (approximate visit boundary). Powers “visit dwell” vs app heartbeat “engaged dwell”.
+model PlayerVenueGeofenceEvent {
+  id              String   @id @default(uuid())
+  playerId        String
+  venueId         String
+  /// enter | exit
+  kind            String
+  recordedAt      DateTime @default(now())
+  /// Idempotency from client (e.g. expo task event id).
+  clientDedupeKey String?
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, clientDedupeKey])
+  @@index([venueId, recordedAt])
+  @@index([playerId, venueId, recordedAt])
 }
 
 /// Idempotent log so we send at most one ~24h perk expiry push per redemption.

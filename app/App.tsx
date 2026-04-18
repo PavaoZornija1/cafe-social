@@ -5,6 +5,7 @@ import type { LinkingOptions } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
+import './src/lib/venueGeofenceTask';
 import AppNavigation from './src/navigation/AppNavigation';
 import type { RootStackParamList } from './src/navigation/type';
 import { initI18n } from './src/i18n';

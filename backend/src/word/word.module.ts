@@ -5,6 +5,7 @@ import { WordRepository } from './word.repository';
 import { WordMatchController } from './word-match.controller';
 import { WordMatchService } from './word-match.service';
 import { WordMatchGateway } from './word-match.gateway';
+import { WordMatchCleanupService } from './word-match-cleanup.service';
 import { DailyWordController } from './daily-word.controller';
 import { DailyWordService } from './daily-word.service';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -17,7 +18,14 @@ import { VenueModule } from '../venue/venue.module';
 @Module({
   imports: [PrismaModule, PlayerModule, AuthModule, PushModule, VenueFeedModule, VenueModule],
   controllers: [WordController, WordMatchController, DailyWordController],
-  providers: [WordService, WordRepository, WordMatchService, WordMatchGateway, DailyWordService],
+  providers: [
+    WordService,
+    WordRepository,
+    WordMatchService,
+    WordMatchGateway,
+    WordMatchCleanupService,
+    DailyWordService,
+  ],
 })
 export class WordModule {}
 

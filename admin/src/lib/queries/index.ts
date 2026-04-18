@@ -791,6 +791,70 @@ export function useOwnerVenueAnalyticsQuery(
   });
 }
 
+export type OwnerVenueGeofenceDwell = {
+  period: { start: string; end: string; startDay: string; endDay: string };
+  geofenceEnterEvents: number;
+  geofenceExitEvents: number;
+  uniquePlayersWithGeofenceEvent: number;
+  completedVisitSessions: number;
+  openSessionsAtPeriodEnd: number;
+  avgDwellSecondsCompletedSessions: number;
+  medianDwellSecondsCompleted: number | null;
+  totalDwellSecondsCompletedSessions: number;
+  estimatedDwellSecondsOpenSessions: number;
+  calendarVisitDayRows: number;
+};
+
+export function useOwnerVenueGeofenceDwellQuery(
+  venueId: string | undefined,
+  days: number,
+  getToken: () => Promise<string | null>,
+  enabled: boolean,
+  fromYmd?: string,
+  toYmd?: string,
+) {
+  return useQuery({
+    queryKey: queryKeys.owner.venueGeofenceDwell(venueId ?? "", days, fromYmd, toYmd),
+    queryFn: () =>
+      ownerJson<OwnerVenueGeofenceDwell>(
+        getToken,
+        `/owner/venues/${venueId}/analytics/geofence-dwell?${ownerAnalyticsQueryString(days, fromYmd, toYmd)}`,
+        { method: "GET" },
+      ),
+    enabled: Boolean(enabled && venueId),
+  });
+}
+
+export type OwnerModerationAuditRow = {
+  id: string;
+  venueId: string;
+  actorPlayerId: string | null;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  metadata: unknown;
+  createdAt: string;
+  actor: { id: string; username: string; email: string } | null;
+};
+
+export function useOwnerVenueModerationAuditQuery(
+  venueId: string | undefined,
+  getToken: () => Promise<string | null>,
+  enabled: boolean,
+  limit = 80,
+) {
+  return useQuery({
+    queryKey: queryKeys.owner.venueModerationAudit(venueId ?? "", limit),
+    queryFn: () =>
+      ownerJson<OwnerModerationAuditRow[]>(
+        getToken,
+        `/owner/venues/${venueId}/moderation/audit-log?limit=${limit}`,
+        { method: "GET" },
+      ),
+    enabled: Boolean(enabled && venueId),
+  });
+}
+
 export type OwnerVenuePlayerReportRow = {
   id: string;
   venueId: string;
@@ -855,12 +919,13 @@ export function useOwnerVenueDismissReportMutation(
 ) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (reportId: string) =>
-      ownerJson<unknown>(
-        getToken,
-        `/owner/venues/${venueId}/moderation/reports/${reportId}/dismiss`,
-        { method: "POST" },
-      ),
+    mutationFn: (args: { reportId: string; dismissalNoteToReporter?: string }) =>
+      ownerJson<unknown>(getToken, `/owner/venues/${venueId}/moderation/reports/${args.reportId}/dismiss`, {
+        method: "POST",
+        body: JSON.stringify({
+          dismissalNoteToReporter: args.dismissalNoteToReporter?.trim() || undefined,
+        }),
+      }),
     onSuccess: () => {
       if (venueId) {
         void qc.invalidateQueries({ queryKey: queryKeys.owner.venueModerationReports(venueId) });
@@ -885,7 +950,7 @@ export function useOwnerVenueBanPlayerMutation(
         void Promise.all([
           qc.invalidateQueries({ queryKey: queryKeys.owner.venueModerationBans(venueId) }),
           qc.invalidateQueries({ queryKey: queryKeys.owner.venueModerationReports(venueId) }),
-          qc.invalidateQueries({ queryKey: queryKeys.owner.venueModerationBanAppeals(venueId) }),
+          invalidateBanAppealQueries(qc, venueId),
         ]);
       }
     },
@@ -908,7 +973,7 @@ export function useOwnerVenueUnbanPlayerMutation(
       if (venueId) {
         void Promise.all([
           qc.invalidateQueries({ queryKey: queryKeys.owner.venueModerationBans(venueId) }),
-          qc.invalidateQueries({ queryKey: queryKeys.owner.venueModerationBanAppeals(venueId) }),
+          invalidateBanAppealQueries(qc, venueId),
         ]);
       }
     },
@@ -922,20 +987,56 @@ export type OwnerVenueBanAppealRow = {
   message: string;
   status: string;
   createdAt: string;
+  staffNote: string | null;
+  staffMessageToPlayer: string | null;
+  resolvedAt: string | null;
+  playerNotifiedAt: string | null;
   player: { id: string; username: string; email: string };
+  resolvedBy: { id: string; username: string; email: string } | null;
+};
+
+function invalidateBanAppealQueries(qc: QueryClient, venueId: string) {
+  void qc.invalidateQueries({
+    predicate: (q) =>
+      Array.isArray(q.queryKey) &&
+      q.queryKey[0] === "owner" &&
+      q.queryKey[1] === "venues" &&
+      q.queryKey[2] === venueId &&
+      q.queryKey[3] === "moderation" &&
+      q.queryKey[4] === "ban-appeals",
+  });
+}
+
+export type OwnerBanAppealsFilter = {
+  includeResolved?: boolean;
+  fromYmd?: string;
+  toYmd?: string;
 };
 
 export function useOwnerVenueBanAppealsQuery(
   venueId: string | undefined,
   getToken: () => Promise<string | null>,
   enabled: boolean,
+  filters: OwnerBanAppealsFilter = {},
 ) {
+  const includeResolved = filters.includeResolved ?? false;
+  const fromYmd = filters.fromYmd?.trim() ?? "";
+  const toYmd = filters.toYmd?.trim() ?? "";
+  const q = new URLSearchParams();
+  if (includeResolved) q.set("includeResolved", "true");
+  if (fromYmd) q.set("from", fromYmd);
+  if (toYmd) q.set("to", toYmd);
+  const qs = q.toString();
   return useQuery({
-    queryKey: queryKeys.owner.venueModerationBanAppeals(venueId ?? ""),
+    queryKey: queryKeys.owner.venueModerationBanAppeals(venueId ?? "", {
+      includeResolved,
+      fromYmd,
+      toYmd,
+    }),
     queryFn: () =>
       ownerJson<OwnerVenueBanAppealRow[]>(
         getToken,
-        `/owner/venues/${venueId}/moderation/ban-appeals`,
+        `/owner/venues/${venueId}/moderation/ban-appeals${qs ? `?${qs}` : ""}`,
         { method: "GET" },
       ),
     enabled: Boolean(enabled && venueId),
@@ -955,8 +1056,34 @@ export function useOwnerVenueDismissBanAppealMutation(
         { method: "POST" },
       ),
     onSuccess: () => {
+      if (venueId) invalidateBanAppealQueries(qc, venueId);
+    },
+  });
+}
+
+export type ResolveBanAppealBody = {
+  outcome: "dismissed" | "upheld" | "lifted";
+  staffNote?: string;
+  staffMessageToPlayer?: string;
+  notifyPlayer?: boolean;
+};
+
+export function useOwnerVenueResolveBanAppealMutation(
+  venueId: string | undefined,
+  getToken: () => Promise<string | null>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ appealId, body }: { appealId: string; body: ResolveBanAppealBody }) =>
+      ownerJson<unknown>(
+        getToken,
+        `/owner/venues/${venueId}/moderation/ban-appeals/${appealId}/resolve`,
+        { method: "POST", body: JSON.stringify(body) },
+      ),
+    onSuccess: () => {
       if (venueId) {
-        void qc.invalidateQueries({ queryKey: queryKeys.owner.venueModerationBanAppeals(venueId) });
+        invalidateBanAppealQueries(qc, venueId);
+        void qc.invalidateQueries({ queryKey: queryKeys.owner.venueModerationBans(venueId) });
       }
     },
   });

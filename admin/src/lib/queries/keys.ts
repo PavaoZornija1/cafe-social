@@ -32,6 +32,8 @@ export const queryKeys = {
       ["owner", "venues", venueId, "meta", contextRev] as const,
     venueAnalytics: (venueId: string, days: number, from?: string, to?: string) =>
       ["owner", "venues", venueId, "analytics", days, from ?? "", to ?? ""] as const,
+    venueGeofenceDwell: (venueId: string, days: number, from?: string, to?: string) =>
+      ["owner", "venues", venueId, "analytics", "geofence-dwell", days, from ?? "", to ?? ""] as const,
     venueRedemptions: (venueId: string, dateYmd: string) =>
       ["owner", "venues", venueId, "redemptions", dateYmd] as const,
     venueCampaigns: (venueId: string) => ["owner", "venues", venueId, "campaigns"] as const,
@@ -44,8 +46,12 @@ export const queryKeys = {
       ["owner", "venues", venueId, "moderation", "reports"] as const,
     venueModerationBans: (venueId: string) =>
       ["owner", "venues", venueId, "moderation", "bans"] as const,
-    venueModerationBanAppeals: (venueId: string) =>
-      ["owner", "venues", venueId, "moderation", "ban-appeals"] as const,
+    venueModerationBanAppeals: (
+      venueId: string,
+      filters: { includeResolved?: boolean; fromYmd?: string; toYmd?: string },
+    ) => ["owner", "venues", venueId, "moderation", "ban-appeals", filters] as const,
+    venueModerationAudit: (venueId: string, limit: number) =>
+      ["owner", "venues", venueId, "moderation", "audit", limit] as const,
     venueStaffModerationSummary: (venueId: string) =>
       ["owner", "venues", venueId, "moderation", "staff-summary"] as const,
     orgAnalytics: (organizationId: string, days: number, from?: string, to?: string) =>

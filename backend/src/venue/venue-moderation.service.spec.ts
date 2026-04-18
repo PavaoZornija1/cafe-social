@@ -11,7 +11,8 @@ describe('VenueModerationService', () => {
     venuePlayerBan: { findUnique: jest.Mock };
     venueBanAppeal: { findFirst: jest.Mock; create: jest.Mock };
   }) {
-    return new VenueModerationService(prisma as never);
+    const push = { sendExpo: jest.fn() };
+    return new VenueModerationService(prisma as never, push as never);
   }
 
   describe('createReport', () => {
@@ -63,7 +64,29 @@ describe('VenueModerationService', () => {
       const prisma = {
         venuePlayerReport: {
           findFirst: jest.fn().mockResolvedValue(null),
-          count: jest.fn().mockResolvedValue(20),
+          count: jest.fn().mockResolvedValueOnce(20).mockResolvedValueOnce(0),
+          create: jest.fn(),
+        },
+        venuePlayerBan: { findUnique: jest.fn() },
+        venueBanAppeal: { findFirst: jest.fn(), create: jest.fn() },
+      };
+      await expect(
+        svc(prisma).createReport({
+          venueId: 'v1',
+          reporterId: 'p1',
+          reportedPlayerId: 'p2',
+          reason: 'x',
+          note: null,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.venuePlayerReport.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects when global daily report cap exceeded', async () => {
+      const prisma = {
+        venuePlayerReport: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          count: jest.fn().mockResolvedValueOnce(2).mockResolvedValueOnce(50),
           create: jest.fn(),
         },
         venuePlayerBan: { findUnique: jest.fn() },

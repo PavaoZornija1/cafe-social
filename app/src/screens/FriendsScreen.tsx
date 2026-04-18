@@ -31,6 +31,12 @@ type IncomingRow = {
 
 type OutgoingRow = { id: string; target: { id: string; username: string } };
 
+type BlockedRow = {
+  blockedId: string;
+  createdAt: string;
+  blocked: { id: string; username: string };
+};
+
 function requesterFromRow(row: IncomingRow): { id: string; username: string } {
   return row.requestedById === row.playerLow.id ? row.playerLow : row.playerHigh;
 }
@@ -45,6 +51,7 @@ export default function FriendsScreen({ navigation }: Props) {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [incoming, setIncoming] = useState<IncomingRow[]>([]);
   const [outgoing, setOutgoing] = useState<OutgoingRow[]>([]);
+  const [blocked, setBlocked] = useState<BlockedRow[]>([]);
   const [sharing, setSharing] = useState(false);
   const [usernameDraft, setUsernameDraft] = useState('');
   const [requestBusy, setRequestBusy] = useState(false);
@@ -60,19 +67,22 @@ export default function FriendsScreen({ navigation }: Props) {
         setOutgoing([]);
         return;
       }
-      const [f, inc, out] = await Promise.all([
+      const [f, inc, out, bl] = await Promise.all([
         apiGet<Friend[]>('/social/friends', token),
         apiGet<IncomingRow[]>('/social/friends/incoming', token),
         apiGet<OutgoingRow[]>('/social/friends/outgoing', token),
+        apiGet<BlockedRow[]>('/players/me/blocks', token),
       ]);
       setFriends(f);
       setIncoming(inc);
       setOutgoing(out);
+      setBlocked(Array.isArray(bl) ? bl : []);
     } catch {
       Alert.alert(t('common.error'), t('friends.loadError'));
       setFriends([]);
       setIncoming([]);
       setOutgoing([]);
+      setBlocked([]);
     } finally {
       setLoading(false);
     }
@@ -148,6 +158,45 @@ export default function FriendsScreen({ navigation }: Props) {
     } catch (e) {
       Alert.alert(t('common.error'), (e as Error).message ?? '');
     }
+  };
+
+  const blockPlayer = (playerId: string, username: string) => {
+    Alert.alert(
+      t('friends.blockTitle'),
+      t('friends.blockConfirm', { username }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('friends.block'),
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              const token = await getTokenRef.current();
+              if (!token) return;
+              try {
+                await apiPost(`/players/me/blocks/${encodeURIComponent(playerId)}`, {}, token);
+                await load();
+              } catch (e) {
+                Alert.alert(t('common.error'), (e as Error).message ?? t('friends.blockFailed'));
+              }
+            })();
+          },
+        },
+      ],
+    );
+  };
+
+  const unblockPlayer = (playerId: string) => {
+    void (async () => {
+      const token = await getTokenRef.current();
+      if (!token) return;
+      try {
+        await apiDelete(`/players/me/blocks/${encodeURIComponent(playerId)}`, token);
+        await load();
+      } catch (e) {
+        Alert.alert(t('common.error'), (e as Error).message ?? t('friends.blockFailed'));
+      }
+    })();
   };
 
   return (
@@ -231,12 +280,20 @@ export default function FriendsScreen({ navigation }: Props) {
                     {r.username}{' '}
                     <Text style={styles.mutedSmall}>{t('friends.wantsToConnect')}</Text>
                   </Text>
-                  <Pressable
-                    style={styles.acceptBtn}
-                    onPress={() => void accept(r.id)}
-                  >
-                    <Text style={styles.acceptBtnText}>{t('friends.accept')}</Text>
-                  </Pressable>
+                  <View style={styles.incomingActions}>
+                    <Pressable
+                      style={styles.acceptBtn}
+                      onPress={() => void accept(r.id)}
+                    >
+                      <Text style={styles.acceptBtnText}>{t('friends.accept')}</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.blockBtn}
+                      onPress={() => blockPlayer(r.id, r.username)}
+                    >
+                      <Text style={styles.blockBtnText}>{t('friends.block')}</Text>
+                    </Pressable>
+                  </View>
                 </View>
               );
             })
@@ -251,6 +308,30 @@ export default function FriendsScreen({ navigation }: Props) {
             friends.map((f) => (
               <View key={f.id} style={styles.friendRow}>
                 <Text style={styles.friendName}>{f.username}</Text>
+                <Pressable
+                  style={styles.blockBtnSmall}
+                  onPress={() => blockPlayer(f.id, f.username)}
+                >
+                  <Text style={styles.blockBtnTextSmall}>{t('friends.block')}</Text>
+                </Pressable>
+              </View>
+            ))
+          )}
+
+          <Text style={[styles.section, styles.sectionSpacer]}>{t('friends.blockedTitle')}</Text>
+          <Text style={styles.hint}>{t('friends.blockedHint')}</Text>
+          {blocked.length === 0 ? (
+            <Text style={styles.muted}>{t('friends.blockedEmpty')}</Text>
+          ) : (
+            blocked.map((b) => (
+              <View key={b.blockedId} style={styles.blockedRow}>
+                <Text style={styles.friendName}>{b.blocked.username}</Text>
+                <Pressable
+                  style={styles.unblockBtn}
+                  onPress={() => unblockPlayer(b.blockedId)}
+                >
+                  <Text style={styles.unblockBtnText}>{t('friends.unblock')}</Text>
+                </Pressable>
               </View>
             ))
           )}
@@ -329,8 +410,52 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1f2937',
     padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
   },
-  friendName: { color: '#e5e7eb', fontWeight: '700' },
+  friendName: { color: '#e5e7eb', fontWeight: '700', flex: 1 },
+  incomingActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
+  blockBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: '#3f1d1d',
+    borderWidth: 1,
+    borderColor: '#7f1d1d',
+  },
+  blockBtnText: { color: '#fca5a5', fontWeight: '800', fontSize: 13 },
+  blockBtnSmall: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#3f1d1d',
+    borderWidth: 1,
+    borderColor: '#7f1d1d',
+  },
+  blockBtnTextSmall: { color: '#fca5a5', fontWeight: '800', fontSize: 12 },
+  blockedRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    backgroundColor: '#0b1220',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#1f2937',
+    padding: 14,
+  },
+  unblockBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  unblockBtnText: { color: '#93c5fd', fontWeight: '800', fontSize: 12 },
   hint: { color: '#6b7280', fontSize: 13, marginTop: 6, lineHeight: 18 },
   addRow: { flexDirection: 'row', gap: 10, marginTop: 12, alignItems: 'center' },
   input: {

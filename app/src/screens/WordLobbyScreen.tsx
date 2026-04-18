@@ -10,11 +10,25 @@ type Props = NativeStackScreenProps<RootStackParamList, 'WordLobby'>;
 type Difficulty = 'easy' | 'normal' | 'hard';
 type PlayKind = 'solo' | 'coop' | 'versus';
 
+const WORD_COUNT_OPTIONS = [3, 5, 7, 10, 12] as const;
+
+const WORD_CATEGORY_KEYS = [
+  'DRINK_FOOD',
+  'PLACE_ATMOSPHERE',
+  'MUSIC_CULTURE',
+  'PEOPLE_ROLES',
+  'MOMENTS_ACTIONS',
+] as const;
+
 export default function WordLobbyScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
   const { venueId, challengeId } = route.params ?? {};
   const [difficulty, setDifficulty] = useState<Difficulty>('easy');
   const [playKind, setPlayKind] = useState<PlayKind>('solo');
+  const [wordCount, setWordCount] = useState<number>(5);
+  const [wordCategory, setWordCategory] = useState<(typeof WORD_CATEGORY_KEYS)[number] | null>(
+    null,
+  );
 
   const difficultyLabel = useMemo(() => {
     if (difficulty === 'easy') return t('wordLobby.easyDesc');
@@ -34,7 +48,8 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
         challengeId,
         difficulty,
         mode: 'solo',
-        sessionWordsCount: 5,
+        sessionWordsCount: wordCount,
+        wordCategory: wordCategory ?? undefined,
       });
       return;
     }
@@ -44,6 +59,8 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
       mode: playKind,
       difficulty,
       create: true,
+      wordCount,
+      wordCategory: wordCategory ?? undefined,
     });
   };
 
@@ -88,6 +105,51 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
               ? t('wordLobby.modeCoopHint')
               : t('wordLobby.modeVersusHint')}
         </Text>
+
+        <Text style={styles.sectionTitle}>{t('wordLobby.deckLengthTitle')}</Text>
+        <View style={styles.chipRow}>
+          {WORD_COUNT_OPTIONS.map((n) => (
+            <Pressable
+              key={n}
+              onPress={() => setWordCount(n)}
+              style={({ pressed }) => [
+                styles.chip,
+                pressed && styles.segmentPressed,
+                wordCount === n && styles.chipActive,
+              ]}
+            >
+              <Text style={styles.chipText}>{n}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <Text style={styles.modeHint}>{t('wordLobby.deckLengthHint')}</Text>
+
+        <Text style={styles.sectionTitle}>{t('wordLobby.categoryTitle')}</Text>
+        <View style={styles.chipRowWrap}>
+          <Pressable
+            onPress={() => setWordCategory(null)}
+            style={({ pressed }) => [
+              styles.chip,
+              pressed && styles.segmentPressed,
+              wordCategory === null && styles.chipActive,
+            ]}
+          >
+            <Text style={styles.chipText}>{t('wordLobby.categoryAll')}</Text>
+          </Pressable>
+          {WORD_CATEGORY_KEYS.map((key) => (
+            <Pressable
+              key={key}
+              onPress={() => setWordCategory(key)}
+              style={({ pressed }) => [
+                styles.chip,
+                pressed && styles.segmentPressed,
+                wordCategory === key && styles.chipActive,
+              ]}
+            >
+              <Text style={styles.chipText}>{t(`categories.${key}`)}</Text>
+            </Pressable>
+          ))}
+        </View>
 
         <Text style={styles.sectionTitle}>{t('wordLobby.difficultyTitle')}</Text>
         <View style={styles.segmentRow}>
@@ -209,4 +271,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#111827',
   },
   secondaryText: { color: '#a5b4fc', fontWeight: '900' },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chipRowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#111827',
+    borderWidth: 1,
+    borderColor: '#1f2937',
+  },
+  chipActive: { borderColor: '#a78bfa', backgroundColor: '#0b1220' },
+  chipText: { color: '#f9fafb', fontWeight: '800', fontSize: 12 },
 });

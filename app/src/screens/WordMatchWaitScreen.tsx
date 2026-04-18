@@ -28,6 +28,7 @@ type MatchState = {
   inviteCode: string | null;
   targetWordCount: number;
   deckLanguage?: string;
+  deckCategory?: string | null;
   participants: { playerId: string | null; username: string; isYou: boolean }[];
 };
 
@@ -40,6 +41,8 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
     difficulty,
     create = false,
     sessionId: initialSessionId,
+    wordCount = 5,
+    wordCategory,
   } = route.params ?? {};
   const { getToken, isLoaded } = useAuth();
   const getTokenRef = useRef(getToken);
@@ -95,22 +98,20 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
           latitude = coords.lat;
           longitude = coords.lng;
         }
+        const body: Record<string, unknown> = {
+          venueId,
+          latitude,
+          longitude,
+          language: toApiWordLanguage(i18n.language),
+          wordCount,
+          difficulty,
+          mode,
+        };
+        if (wordCategory) body.category = wordCategory;
         const res = await apiPost<{
           sessionId: string;
           inviteCode: string | null;
-        }>(
-          '/words/matches',
-          {
-            venueId,
-            latitude,
-            longitude,
-            language: toApiWordLanguage(i18n.language),
-            wordCount: 5,
-            difficulty,
-            mode,
-          },
-          token,
-        );
+        }>('/words/matches', body, token);
         if (cancelled) return;
         setSessionId(res.sessionId);
         setInviteCode(res.inviteCode);
@@ -125,7 +126,18 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [create, initialSessionId, isLoaded, venueId, difficulty, mode, t, i18n.language]);
+  }, [
+    create,
+    initialSessionId,
+    isLoaded,
+    venueId,
+    difficulty,
+    mode,
+    t,
+    i18n.language,
+    wordCount,
+    wordCategory,
+  ]);
 
   const fetchMatchState = useCallback(async () => {
     const sid = sessionId;
@@ -210,11 +222,23 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
   };
 
   const leaveWait = () => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-    } else {
-      navigation.replace('Home');
-    }
+    void (async () => {
+      if (sessionId && (!matchState || matchState.status === 'PENDING')) {
+        try {
+          const token = await getTokenRef.current();
+          if (token) {
+            await apiPost(`/words/matches/${encodeURIComponent(sessionId)}/leave`, {}, token);
+          }
+        } catch {
+          /* still navigate away */
+        }
+      }
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.replace('Home');
+      }
+    })();
   };
 
   if (loading) {
@@ -270,9 +294,17 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
           {mode === 'coop' ? t('wordMatch.waitCoop') : t('wordMatch.waitVersus')}
         </Text>
         {matchState ? (
-          <Text style={styles.deckLang}>
-            {t('wordMatch.deckLanguage', { lang: deckLangLabel })}
-          </Text>
+          <>
+            <Text style={styles.deckLang}>
+              {t('wordMatch.deckLanguage', { lang: deckLangLabel })}
+            </Text>
+            <Text style={styles.deckMeta}>
+              {t('wordMatch.deckWords', { n: matchState.targetWordCount })}
+              {matchState.deckCategory
+                ? ` · ${t(`categories.${matchState.deckCategory}`, { defaultValue: matchState.deckCategory })}`
+                : ` · ${t('wordLobby.categoryAll')}`}
+            </Text>
+          </>
         ) : null}
         {sessionId && (socketStatus === 'reconnecting' || socketStatus === 'connecting') ? (
           <Text style={styles.socketBanner}>{t('wordMatch.socketReconnecting')}</Text>
@@ -309,7 +341,7 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
           </Text>
         )}
 
-        <Pressable style={styles.link} onPress={() => navigation.replace('Home')}>
+        <Pressable style={styles.link} onPress={() => leaveWait()}>
           <Text style={styles.linkText}>{t('wordMatch.cancelToHome')}</Text>
         </Pressable>
       </View>
@@ -338,6 +370,7 @@ const styles = StyleSheet.create({
   title: { color: '#fff', fontSize: 22, fontWeight: '900' },
   sub: { color: '#9ca3af', marginTop: 8, fontSize: 14, lineHeight: 20 },
   deckLang: { color: '#6b7280', marginTop: 6, fontSize: 12, fontWeight: '700' },
+  deckMeta: { color: '#6b7280', marginTop: 4, fontSize: 12 },
   socketBanner: {
     marginTop: 10,
     paddingVertical: 8,
