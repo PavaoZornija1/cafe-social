@@ -446,6 +446,9 @@ model Player {
   /// Staff-only intro completed.
   onboardingStaffCompletedAt  DateTime?
 
+  /// XP from global / off-venue wins (tier uses venue XP sum + this). Venue leaderboards stay venue-only.
+  bonusXp Int @default(0)
+
   lastPresenceVenueId String?
   lastPresenceAt      DateTime?
 
@@ -466,6 +469,10 @@ model Player {
   partiesCreated    Party[]       @relation("PartyCreator")
   partiesLed        Party[]       @relation("PartyLeader")
   partyMemberships  PartyMember[]
+  partyInvitesReceived PartyPlayerInvite[] @relation("PartyInvitesReceived")
+  partyInvitesSent     PartyPlayerInvite[] @relation("PartyInvitesSent")
+  inboxReceived        PlayerInboxItem[]     @relation("InboxRecipient")
+  inboxActor           PlayerInboxItem[]     @relation("InboxActor")
 
   friendshipsAsLow  Friendship[] @relation("FriendshipLow")
   friendshipsAsHigh Friendship[] @relation("FriendshipHigh")
@@ -811,6 +818,23 @@ enum FriendshipStatus {
   ACCEPTED
 }
 
+/// Extensible inbox kinds; only some have FKs on `PlayerInboxItem` today.
+enum InboxKind {
+  FRIEND_REQUEST
+  PARTY_INVITE
+  WORD_MATCH_INVITE
+  STAFF_INVITE
+  PERK_OR_OFFER
+}
+
+enum InboxStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  EXPIRED
+}
+
 /// Canonical friendship edge: playerLowId < playerHighId lexicographically.
 model Friendship {
   id           String            @id @default(uuid())
@@ -822,6 +846,7 @@ model Friendship {
 
   playerLow  Player @relation("FriendshipLow", fields: [playerLowId], references: [id], onDelete: Cascade)
   playerHigh Player @relation("FriendshipHigh", fields: [playerHighId], references: [id], onDelete: Cascade)
+  inboxItem  PlayerInboxItem?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -829,6 +854,32 @@ model Friendship {
   @@unique([playerLowId, playerHighId])
   @@index([playerLowId])
   @@index([playerHighId])
+}
+
+/// Unified notification inbox (friend + party today; more kinds via `externalRefId` + `metadata`).
+model PlayerInboxItem {
+  id            String      @id @default(uuid())
+  recipientId   String
+  actorId       String?
+  kind          InboxKind
+  status        InboxStatus @default(PENDING)
+  /// For kinds without a first-class FK (future word-match, staff, perks).
+  externalRefId String?
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  resolvedAt    DateTime?
+
+  friendshipId  String? @unique
+  partyInviteId String? @unique
+
+  recipient   Player @relation("InboxRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor       Player? @relation("InboxActor", fields: [actorId], references: [id], onDelete: SetNull)
+  friendship  Friendship? @relation(fields: [friendshipId], references: [id], onDelete: Cascade)
+  partyInvite PartyPlayerInvite? @relation(fields: [partyInviteId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, status])
+  @@index([kind, status])
 }
 
 model Party {
@@ -844,6 +895,7 @@ model Party {
 
   members     PartyMember[]
   inviteLinks InviteLink[]
+  playerInvites PartyPlayerInvite[]
   gameSessions GameSession[]
 
   createdAt DateTime @default(now())
@@ -851,6 +903,32 @@ model Party {
 
   @@index([leaderId])
   @@index([creatorId])
+}
+
+enum PartyInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+/// In-app party invite (friend must accept). Removed when party is deleted.
+model PartyPlayerInvite {
+  id              String            @id @default(uuid())
+  partyId         String
+  invitedPlayerId String
+  invitedById     String
+  status          PartyInviteStatus @default(PENDING)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  party         Party  @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  invitedPlayer Player @relation("PartyInvitesReceived", fields: [invitedPlayerId], references: [id], onDelete: Cascade)
+  invitedBy     Player @relation("PartyInvitesSent", fields: [invitedById], references: [id], onDelete: Cascade)
+  inboxItem     PlayerInboxItem?
+
+  @@unique([partyId, invitedPlayerId])
+  @@index([invitedPlayerId, status])
+  @@index([partyId])
 }
 
 model PartyMember {
@@ -936,6 +1014,8 @@ model SoloWordSession {
   createdAt  DateTime      @default(now())
   expiresAt  DateTime
   finishedAt DateTime?
+  /// Set once when deck-complete XP has been granted.
+  winXpAwarded Boolean @default(false)
 
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
@@ -951,6 +1031,8 @@ model PlayerDailyWord {
   scopeKey  String
   attempts  Int       @default(0)
   solvedAt  DateTime?
+  /// Set once when first-solve XP has been granted.
+  winXpAwarded Boolean @default(false)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -1096,6 +1178,8 @@ model GameSession {
   config        Json?
   startedAt   DateTime?
   endedAt     DateTime?
+  /// Set once when win XP has been granted for this finished session (idempotency).
+  winXpAwardedAt DateTime?
   /// Winner stored at participant level (supports bots + non-player entities).
   winnerParticipantId String?
   createdAt   DateTime          @default(now())

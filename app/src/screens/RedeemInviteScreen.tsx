@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,6 +15,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiPost } from '../lib/api';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RedeemInvite'>;
 
@@ -35,6 +37,8 @@ function parseTokenFromUrl(url: string): string | null {
 }
 
 export default function RedeemInviteScreen({ navigation, route }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
@@ -97,7 +101,7 @@ export default function RedeemInviteScreen({ navigation, route }: Props) {
   if (!isLoaded) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ActivityIndicator color="#a78bfa" style={{ marginTop: 48 }} />
+        <ActivityIndicator color={colors.honey} style={{ marginTop: 48 }} />
       </SafeAreaView>
     );
   }
@@ -116,7 +120,7 @@ export default function RedeemInviteScreen({ navigation, route }: Props) {
         value={token}
         onChangeText={setToken}
         placeholder={t('redeem.tokenPlaceholder')}
-        placeholderTextColor="#6b7280"
+        placeholderTextColor={colors.textMuted}
         autoCapitalize="none"
         autoCorrect={false}
         multiline
@@ -129,7 +133,7 @@ export default function RedeemInviteScreen({ navigation, route }: Props) {
         onPress={() => void redeem()}
       >
         {busy ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.text} />
         ) : (
           <Text style={styles.btnText}>{t('redeem.submit')}</Text>
         )}
@@ -138,8 +142,11 @@ export default function RedeemInviteScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816', paddingHorizontal: 24 },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+
+  safe: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 24 },
   header: {
     paddingTop: 16,
     flexDirection: 'row',
@@ -151,17 +158,17 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 10,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
   },
-  backText: { color: '#cbd5e1', fontWeight: '600' },
-  title: { color: '#fff', fontSize: 22, fontWeight: '800', flex: 1 },
-  hint: { color: '#9ca3af', fontSize: 14, lineHeight: 20, marginBottom: 12 },
+  backText: { color: colors.textSecondary, fontWeight: '600' },
+  title: { color: colors.text, fontSize: 22, fontWeight: '800', flex: 1 },
+  hint: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginBottom: 12 },
   input: {
     minHeight: 100,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     padding: 14,
     color: '#f9fafb',
     fontSize: 14,
@@ -169,11 +176,14 @@ const styles = StyleSheet.create({
   },
   btn: {
     marginTop: 20,
-    backgroundColor: '#7c3aed',
+    backgroundColor: colors.primary,
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',
   },
   btnDisabled: { opacity: 0.7 },
-  btnText: { color: '#fff', fontWeight: '900', fontSize: 16 },
-});
+  btnText: { color: colors.text, fontWeight: '900', fontSize: 16 },
+
+    });
+}
+

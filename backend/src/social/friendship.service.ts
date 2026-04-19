@@ -4,14 +4,19 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { FriendshipStatus } from '@prisma/client';
+import { FriendshipStatus, InboxStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { orderedPlayerPair } from '../common/player-pair';
 import { hiddenOpponentIdsForViewer, isEitherBlocked } from './hidden-opponents.util';
-
+import { PlayerInboxService } from './player-inbox.service';
+import { EmailService } from '../email/email.service';
 @Injectable()
 export class FriendshipService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly inbox: PlayerInboxService,
+    private readonly email: EmailService,
+  ) {}
 
   async upsertAcceptedFriendship(
     aId: string,
@@ -49,11 +54,11 @@ export class FriendshipService {
     return row?.status === FriendshipStatus.ACCEPTED;
   }
 
-  /** Returns true if a new pending request was created. */
+  /** Returns whether a new pending request was created and its friendship id when true. */
   async requestFriendship(
     requesterId: string,
     targetId: string,
-  ): Promise<boolean> {
+  ): Promise<{ created: boolean; friendshipId?: string }> {
     if (requesterId === targetId) throw new BadRequestException('Cannot friend yourself');
     if (await isEitherBlocked(this.prisma, requesterId, targetId)) {
       throw new ForbiddenException('You cannot connect with this player');
@@ -64,10 +69,10 @@ export class FriendshipService {
         playerLowId_playerHighId: { playerLowId: low, playerHighId: high },
       },
     });
-    if (existing?.status === FriendshipStatus.ACCEPTED) return false;
-    if (existing?.status === FriendshipStatus.PENDING) return false;
-    if (existing) return false;
-    await this.prisma.friendship.create({
+    if (existing?.status === FriendshipStatus.ACCEPTED) return { created: false };
+    if (existing?.status === FriendshipStatus.PENDING) return { created: false };
+    if (existing) return { created: false };
+    const row = await this.prisma.friendship.create({
       data: {
         playerLowId: low,
         playerHighId: high,
@@ -75,7 +80,49 @@ export class FriendshipService {
         requestedById: requesterId,
       },
     });
-    return true;
+    await this.inbox.upsertFriendRequestInbox({
+      friendshipId: row.id,
+      recipientId: targetId,
+      actorId: requesterId,
+    });
+    const [actor, target] = await Promise.all([
+      this.prisma.player.findUnique({
+        where: { id: requesterId },
+        select: { username: true },
+      }),
+      this.prisma.player.findUnique({
+        where: { id: targetId },
+        select: { email: true },
+      }),
+    ]);
+    if (target?.email && actor) {
+      void this.email.notifyFriendRequest({
+        toEmail: target.email,
+        actorUsername: actor.username,
+      });
+    }
+    return { created: true, friendshipId: row.id };
+  }
+
+  /** Decline or cancel an incoming pending request (recipient only). */
+  async rejectIncomingRequest(playerId: string, otherId: string): Promise<void> {
+    if (await isEitherBlocked(this.prisma, playerId, otherId)) {
+      throw new ForbiddenException('You cannot connect with this player');
+    }
+    const { low, high } = orderedPlayerPair(playerId, otherId);
+    const row = await this.prisma.friendship.findUnique({
+      where: {
+        playerLowId_playerHighId: { playerLowId: low, playerHighId: high },
+      },
+    });
+    if (!row) throw new NotFoundException('No pending request');
+    if (row.status !== FriendshipStatus.PENDING) {
+      throw new BadRequestException('Not pending');
+    }
+    if (row.requestedById === playerId) {
+      throw new BadRequestException('Use cancel for outgoing requests');
+    }
+    await this.prisma.friendship.delete({ where: { id: row.id } });
   }
 
   async acceptFriendship(playerId: string, otherId: string): Promise<void> {
@@ -99,6 +146,7 @@ export class FriendshipService {
       where: { id: row.id },
       data: { status: FriendshipStatus.ACCEPTED },
     });
+    await this.inbox.resolveFriendRequestInbox(row.id, InboxStatus.ACCEPTED);
   }
 
   async listFriends(playerId: string) {

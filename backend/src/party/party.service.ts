@@ -4,12 +4,15 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InviteLinkKind } from '@prisma/client';
+import { InboxStatus, InviteLinkKind, PartyInviteStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlayerService } from '../player/player.service';
 import { SubscriptionRepository } from '../venue/subscription.repository';
 import { FriendshipService } from '../social/friendship.service';
 import { InviteService } from '../invites/invite.service';
+import { PushService } from '../push/push.service';
+import { PlayerInboxService } from '../social/player-inbox.service';
+import { EmailService } from '../email/email.service';
 import { newInviteToken, hashInviteToken } from '../invites/invite-token.util';
 import {
   FREE_MAX_PARTIES_CREATED,
@@ -26,6 +29,9 @@ export class PartyService {
     private readonly subs: SubscriptionRepository,
     private readonly friendships: FriendshipService,
     private readonly invites: InviteService,
+    private readonly push: PushService,
+    private readonly playerInbox: PlayerInboxService,
+    private readonly email: EmailService,
   ) {}
 
   async createParty(email: string, name?: string | null) {
@@ -256,10 +262,124 @@ export class PartyService {
     if (party.members.length >= party.maxMembers) {
       throw new BadRequestException('Party is full');
     }
-    await this.prisma.partyMember.create({
-      data: { partyId, playerId: friendPlayerId },
+
+    const existingInv = await this.prisma.partyPlayerInvite.findUnique({
+      where: {
+        partyId_invitedPlayerId: { partyId, invitedPlayerId: friendPlayerId },
+      },
     });
+    if (existingInv?.status === PartyInviteStatus.PENDING) {
+      return { alreadyPending: true as const };
+    }
+    if (existingInv?.status === PartyInviteStatus.ACCEPTED) {
+      return { alreadyMember: true as const };
+    }
+
+    if (existingInv) {
+      await this.prisma.partyPlayerInvite.update({
+        where: { id: existingInv.id },
+        data: { status: PartyInviteStatus.PENDING, invitedById: inviter.id },
+      });
+    } else {
+      await this.prisma.partyPlayerInvite.create({
+        data: {
+          partyId,
+          invitedPlayerId: friendPlayerId,
+          invitedById: inviter.id,
+        },
+      });
+    }
+
+    const inviteRow = await this.prisma.partyPlayerInvite.findUniqueOrThrow({
+      where: {
+        partyId_invitedPlayerId: { partyId, invitedPlayerId: friendPlayerId },
+      },
+      include: { party: { select: { name: true } } },
+    });
+
+    await this.playerInbox.upsertPartyInviteInbox({
+      partyInviteId: inviteRow.id,
+      recipientId: friendPlayerId,
+      actorId: inviter.id,
+    });
+
+    const guest = await this.prisma.player.findUnique({
+      where: { id: friendPlayerId },
+      select: { email: true },
+    });
+    if (guest?.email) {
+      void this.email.notifyPartyInvite({
+        toEmail: guest.email,
+        actorUsername: inviter.username,
+        partyName: inviteRow.party.name,
+      });
+    }
+
+    void this.push.sendToPlayers(
+      [friendPlayerId],
+      undefined,
+      {
+        title: 'Party invite',
+        body: `${inviter.username} invited you to their party`,
+        data: { kind: 'party_invite', partyId },
+      },
+    );
+
+    return { pendingInvite: true as const };
+  }
+
+  async acceptPartyInvite(partyId: string, email: string) {
+    const player = await this.players.findOrCreateByEmail(email);
+    const invite = await this.prisma.partyPlayerInvite.findUnique({
+      where: {
+        partyId_invitedPlayerId: { partyId, invitedPlayerId: player.id },
+      },
+      include: { party: { include: { members: true } } },
+    });
+    if (!invite || invite.status !== PartyInviteStatus.PENDING) {
+      throw new NotFoundException('No pending invite');
+    }
+    const { party } = invite;
+    if (party.members.some((m) => m.playerId === player.id)) {
+      await this.prisma.partyPlayerInvite.update({
+        where: { id: invite.id },
+        data: { status: PartyInviteStatus.ACCEPTED },
+      });
+      await this.playerInbox.resolvePartyInviteInbox(invite.id, InboxStatus.ACCEPTED);
+      return { joined: true as const };
+    }
+    if (party.members.length >= party.maxMembers) {
+      throw new BadRequestException('Party is full');
+    }
+    await this.prisma.$transaction([
+      this.prisma.partyMember.create({
+        data: { partyId, playerId: player.id },
+      }),
+      this.prisma.partyPlayerInvite.update({
+        where: { id: invite.id },
+        data: { status: PartyInviteStatus.ACCEPTED },
+      }),
+    ]);
+    await this.playerInbox.resolvePartyInviteInbox(invite.id, InboxStatus.ACCEPTED);
     return { joined: true as const };
+  }
+
+  async declinePartyInvite(partyId: string, email: string) {
+    const player = await this.players.findOrCreateByEmail(email);
+    const invite = await this.prisma.partyPlayerInvite.findUnique({
+      where: {
+        partyId_invitedPlayerId: { partyId, invitedPlayerId: player.id },
+      },
+    });
+    if (!invite || invite.status !== PartyInviteStatus.PENDING) {
+      throw new NotFoundException('No pending invite');
+    }
+    await this.prisma.partyPlayerInvite.update({
+      where: { id: invite.id },
+      data: { status: PartyInviteStatus.DECLINED },
+    });
+    await this.playerInbox.resolvePartyInviteInbox(invite.id, InboxStatus.DECLINED);
+    return { declined: true as const };
   }
 
   async meshFriendRequests(partyId: string, email: string) {
@@ -275,7 +395,7 @@ export class PartyService {
     let sent = 0;
     for (const m of party.members) {
       if (m.playerId === player.id) continue;
-      const created = await this.friendships.requestFriendship(
+      const { created } = await this.friendships.requestFriendship(
         player.id,
         m.playerId,
       );

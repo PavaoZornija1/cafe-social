@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,6 +17,8 @@ import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiDelete, apiGet, apiPost } from '../lib/api';
 import { createAndShareFriendInviteLink } from '../lib/friendInviteShare';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Friends'>;
 
@@ -42,6 +44,8 @@ function requesterFromRow(row: IncomingRow): { id: string; username: string } {
 }
 
 export default function FriendsScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
@@ -232,7 +236,7 @@ export default function FriendsScreen({ navigation }: Props) {
             <TextInput
               style={styles.input}
               placeholder={t('friends.usernamePlaceholder')}
-              placeholderTextColor="#6b7280"
+              placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
               autoCorrect={false}
               value={usernameDraft}
@@ -341,8 +345,10 @@ export default function FriendsScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   header: {
     paddingHorizontal: 24,
     paddingTop: 16,
@@ -355,14 +361,14 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 10,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
   },
-  backText: { color: '#cbd5e1', fontWeight: '600' },
-  title: { color: '#fff', fontSize: 22, fontWeight: '800', flex: 1 },
+  backText: { color: colors.textSecondary, fontWeight: '600' },
+  title: { color: colors.text, fontSize: 22, fontWeight: '800', flex: 1 },
   toolbar: { paddingHorizontal: 24, marginBottom: 12 },
   toolbarBtn: {
     alignSelf: 'flex-start',
-    backgroundColor: '#1e1b4b',
+    backgroundColor: colors.primaryMuted,
     borderWidth: 1,
     borderColor: '#4c1d95',
     paddingVertical: 10,
@@ -370,52 +376,52 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   toolbarBtnDisabled: { opacity: 0.6 },
-  toolbarBtnText: { color: '#c4b5fd', fontWeight: '800' },
+  toolbarBtnText: { color: colors.honey, fontWeight: '800' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { paddingHorizontal: 24, paddingBottom: 32 },
-  section: { color: '#fff', fontSize: 16, fontWeight: '900' },
+  section: { color: colors.text, fontSize: 16, fontWeight: '900' },
   sectionSpacer: { marginTop: 28 },
-  muted: { color: '#6b7280', marginTop: 10, fontSize: 14 },
-  mutedSmall: { color: '#9ca3af', fontWeight: '500', fontSize: 13 },
+  muted: { color: colors.textMuted, marginTop: 10, fontSize: 14 },
+  mutedSmall: { color: colors.textMuted, fontWeight: '500', fontSize: 13 },
   card: {
     marginTop: 12,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     padding: 14,
     gap: 12,
   },
   cardMuted: {
     marginTop: 12,
-    backgroundColor: '#0b1220',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     padding: 14,
   },
-  name: { color: '#f9fafb', fontWeight: '700', fontSize: 15 },
+  name: { color: colors.text, fontWeight: '700', fontSize: 15 },
   acceptBtn: {
     alignSelf: 'flex-start',
-    backgroundColor: '#7c3aed',
+    backgroundColor: colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 12,
   },
-  acceptBtnText: { color: '#fff', fontWeight: '800' },
+  acceptBtnText: { color: colors.textInverse, fontWeight: '800' },
   friendRow: {
     marginTop: 10,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
   },
-  friendName: { color: '#e5e7eb', fontWeight: '700', flex: 1 },
+  friendName: { color: colors.textSecondary, fontWeight: '700', flex: 1 },
   incomingActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
   blockBtn: {
     paddingVertical: 10,
@@ -423,69 +429,69 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#3f1d1d',
     borderWidth: 1,
-    borderColor: '#7f1d1d',
+    borderColor: colors.error,
   },
-  blockBtnText: { color: '#fca5a5', fontWeight: '800', fontSize: 13 },
+  blockBtnText: { color: colors.error, fontWeight: '800', fontSize: 13 },
   blockBtnSmall: {
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 10,
     backgroundColor: '#3f1d1d',
     borderWidth: 1,
-    borderColor: '#7f1d1d',
+    borderColor: colors.error,
   },
-  blockBtnTextSmall: { color: '#fca5a5', fontWeight: '800', fontSize: 12 },
+  blockBtnTextSmall: { color: colors.error, fontWeight: '800', fontSize: 12 },
   blockedRow: {
     marginTop: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    backgroundColor: '#0b1220',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     padding: 14,
   },
   unblockBtn: {
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 10,
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.bgElevated,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.borderStrong,
   },
   unblockBtnText: { color: '#93c5fd', fontWeight: '800', fontSize: 12 },
-  hint: { color: '#6b7280', fontSize: 13, marginTop: 6, lineHeight: 18 },
+  hint: { color: colors.textMuted, fontSize: 13, marginTop: 6, lineHeight: 18 },
   addRow: { flexDirection: 'row', gap: 10, marginTop: 12, alignItems: 'center' },
   input: {
     flex: 1,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1f2937',
-    backgroundColor: '#0b1220',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: '#fff',
+    color: colors.text,
     fontSize: 16,
   },
   sendBtn: {
-    backgroundColor: '#7c3aed',
+    backgroundColor: colors.primary,
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 12,
   },
-  sendBtnText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+  sendBtnText: { color: colors.textInverse, fontWeight: '800', fontSize: 13 },
   outRow: {
     marginTop: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    backgroundColor: '#0b1220',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     padding: 14,
   },
   outMain: { flex: 1 },
@@ -495,7 +501,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#3f1d1d',
     borderWidth: 1,
-    borderColor: '#7f1d1d',
+    borderColor: colors.error,
   },
-  cancelBtnText: { color: '#fca5a5', fontWeight: '800', fontSize: 12 },
-});
+  cancelBtnText: { color: colors.error, fontWeight: '800', fontSize: 12 },
+
+    });
+}

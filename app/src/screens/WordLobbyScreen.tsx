@@ -4,6 +4,8 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { toApiWordLanguage } from '../lib/wordDeckLanguage';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WordLobby'>;
 
@@ -21,6 +23,8 @@ const WORD_CATEGORY_KEYS = [
 ] as const;
 
 export default function WordLobbyScreen({ navigation, route }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t, i18n } = useTranslation();
   const { venueId, challengeId } = route.params ?? {};
   const [difficulty, setDifficulty] = useState<Difficulty>('easy');
@@ -207,8 +211,10 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   topHeader: {
     paddingHorizontal: 24,
     paddingTop: 16,
@@ -221,66 +227,68 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 10,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
   },
-  backText: { color: '#cbd5e1', fontWeight: '600' },
-  topHeaderTitle: { color: '#fff', fontSize: 22, fontWeight: '900', flex: 1 },
+  backText: { color: colors.textSecondary, fontWeight: '600' },
+  topHeaderTitle: { color: colors.text, fontSize: 22, fontWeight: '900', flex: 1 },
   scroll: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 40 },
-  subtitle: { color: '#9ca3af', marginTop: 8, fontSize: 13 },
-  languageHint: { color: '#6b7280', marginTop: 6, fontSize: 11, fontWeight: '700' },
-  sectionTitle: { color: '#fff', fontWeight: '900', marginTop: 22, marginBottom: 10, fontSize: 14 },
+  subtitle: { color: colors.textMuted, marginTop: 8, fontSize: 13 },
+  languageHint: { color: colors.textMuted, marginTop: 6, fontSize: 11, fontWeight: '700' },
+  sectionTitle: { color: colors.text, fontWeight: '900', marginTop: 22, marginBottom: 10, fontSize: 14 },
   segmentRow: { flexDirection: 'row', gap: 10 },
   segment: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 14,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     alignItems: 'center',
   },
   segmentPressed: { opacity: 0.9 },
-  segmentActive: { borderColor: '#a78bfa', backgroundColor: '#0b1220' },
-  segmentText: { color: '#f9fafb', fontWeight: '900', fontSize: 12, textAlign: 'center' },
-  modeHint: { color: '#6b7280', fontSize: 12, marginTop: 10, lineHeight: 17 },
+  segmentActive: { borderColor: colors.honey, backgroundColor: colors.surface },
+  segmentText: { color: colors.text, fontWeight: '900', fontSize: 12, textAlign: 'center' },
+  modeHint: { color: colors.textMuted, fontSize: 12, marginTop: 10, lineHeight: 17 },
   card: {
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     borderRadius: 18,
     padding: 16,
     marginTop: 16,
   },
-  cardTitle: { color: '#fff', fontWeight: '900' },
-  cardSub: { color: '#9ca3af', marginTop: 8, lineHeight: 18, fontSize: 13 },
+  cardTitle: { color: colors.text, fontWeight: '900' },
+  cardSub: { color: colors.textMuted, marginTop: 8, lineHeight: 18, fontSize: 13 },
   playBtn: {
     marginTop: 24,
-    backgroundColor: '#7c3aed',
+    backgroundColor: colors.primary,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  playBtnText: { color: '#fff', fontWeight: '900', fontSize: 16 },
+  playBtnText: { color: colors.textInverse, fontWeight: '900', fontSize: 16 },
   secondary: {
     marginTop: 14,
     paddingVertical: 12,
     alignItems: 'center',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#374151',
-    backgroundColor: '#111827',
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
   },
-  secondaryText: { color: '#a5b4fc', fontWeight: '900' },
+  secondaryText: { color: colors.honeyDark, fontWeight: '900' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chipRowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 12,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
   },
-  chipActive: { borderColor: '#a78bfa', backgroundColor: '#0b1220' },
-  chipText: { color: '#f9fafb', fontWeight: '800', fontSize: 12 },
-});
+  chipActive: { borderColor: colors.honey, backgroundColor: colors.surface },
+  chipText: { color: colors.text, fontWeight: '800', fontSize: 12 },
+
+    });
+}

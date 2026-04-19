@@ -1,6 +1,6 @@
 import { useAuth } from '@clerk/expo';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import {
     ActivityIndicator,
     Pressable,
@@ -15,6 +15,8 @@ import type { RootStackParamList } from '../navigation/type';
 import { apiGet, apiPost } from '../lib/api';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
 import { toApiWordLanguage } from '../lib/wordDeckLanguage';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DailyWord'>;
 
@@ -41,6 +43,8 @@ type DailyState = {
 };
 
 export default function DailyWordScreen({ navigation }: Props) {
+    const { colors } = useAppTheme();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const { t, i18n } = useTranslation();
     const { getToken } = useAuth();
     const [scope, setScope] = useState<'global' | 'venue'>('global');
@@ -179,14 +183,18 @@ export default function DailyWordScreen({ navigation }: Props) {
                     disabled={!canGlobalDaily}
                     onPress={() => setScope('global')}
                 >
-                    <Text style={styles.scopeText}>{t('dailyWord.scopeGlobal')}</Text>
+                    <Text style={[styles.scopeText, scope === 'global' && styles.scopeTextOn]}>
+                        {t('dailyWord.scopeGlobal')}
+                    </Text>
                 </Pressable>
                 <Pressable
                     style={[styles.scopeBtn, scope === 'venue' && styles.scopeBtnOn, !canVenue && styles.scopeDisabled]}
                     disabled={!canVenue}
                     onPress={() => setScope('venue')}
                 >
-                    <Text style={styles.scopeText}>{t('dailyWord.scopeVenue')}</Text>
+                    <Text style={[styles.scopeText, scope === 'venue' && styles.scopeTextOn]}>
+                        {t('dailyWord.scopeVenue')}
+                    </Text>
                 </Pressable>
             </View>
 
@@ -266,15 +274,17 @@ export default function DailyWordScreen({ navigation }: Props) {
     );
 }
 
-const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#0f172a' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.surfaceMuted },
     header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
     back: { marginBottom: 8 },
-    backText: { color: '#94a3b8', fontSize: 16 },
-    title: { color: '#f8fafc', fontSize: 22, fontWeight: '700' },
+    backText: { color: colors.textSecondary, fontSize: 16 },
+    title: { color: colors.text, fontSize: 22, fontWeight: '700' },
     scopeRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 8 },
     modeBlurb: {
-        color: '#64748b',
+        color: colors.textMuted,
         fontSize: 12,
         lineHeight: 17,
         paddingHorizontal: 16,
@@ -284,44 +294,47 @@ const styles = StyleSheet.create({
         flex: 1,
         paddingVertical: 10,
         borderRadius: 10,
-        backgroundColor: '#1e293b',
+        backgroundColor: colors.bgElevated,
         alignItems: 'center',
     },
-    scopeBtnOn: { backgroundColor: '#5b21b6' },
+    scopeBtnOn: { backgroundColor: colors.primary },
     scopeDisabled: { opacity: 0.4 },
-    scopeText: { color: '#e2e8f0', fontWeight: '600' },
+    scopeText: { color: colors.text, fontWeight: '600' },
+    scopeTextOn: { color: colors.textInverse },
     center: { padding: 32, alignItems: 'center' },
     body: { paddingHorizontal: 16, gap: 12 },
-    meta: { color: '#94a3b8', fontSize: 14 },
-    hint: { color: '#cbd5e1', fontSize: 16 },
+    meta: { color: colors.textSecondary, fontSize: 14 },
+    hint: { color: colors.textSecondary, fontSize: 16 },
     hardModeBlurb: {
-        color: '#64748b',
+        color: colors.textMuted,
         fontSize: 12,
         lineHeight: 17,
         paddingHorizontal: 16,
         marginBottom: 8,
         fontStyle: 'italic',
     },
-    progressiveHint: { color: '#e2e8f0', fontSize: 14, lineHeight: 20 },
-    hintLabel: { color: '#a78bfa', fontWeight: '700', marginRight: 6 },
-    attempts: { color: '#a78bfa', fontSize: 14 },
+    progressiveHint: { color: colors.text, fontSize: 14, lineHeight: 20 },
+    hintLabel: { color: colors.honey, fontWeight: '700', marginRight: 6 },
+    attempts: { color: colors.honey, fontSize: 14 },
     input: {
-        backgroundColor: '#1e293b',
+        backgroundColor: colors.bgElevated,
         borderRadius: 12,
         paddingHorizontal: 14,
         paddingVertical: 12,
-        color: '#f8fafc',
+        color: colors.text,
         fontSize: 18,
     },
     submit: {
-        backgroundColor: '#7c3aed',
+        backgroundColor: colors.primary,
         paddingVertical: 14,
         borderRadius: 12,
         alignItems: 'center',
     },
     submitDisabled: { opacity: 0.5 },
-    submitText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+    submitText: { color: colors.textInverse, fontWeight: '700', fontSize: 16 },
     win: { color: '#4ade80', fontSize: 18, fontWeight: '600' },
-    lose: { color: '#f87171', fontSize: 16 },
-    error: { color: '#f87171', paddingHorizontal: 16, marginTop: 8 },
-});
+    lose: { color: colors.error, fontSize: 16 },
+    error: { color: colors.error, paddingHorizontal: 16, marginTop: 8 },
+
+    });
+}

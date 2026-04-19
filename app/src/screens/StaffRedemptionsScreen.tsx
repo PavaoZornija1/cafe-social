@@ -24,10 +24,14 @@ import {
   type StaffRedemptionRow,
   type StaffRedemptionsResponse,
 } from '../lib/ownerStaffApi';
+import type { AppColors } from '../theme/colors';
+import { useAppTheme } from '../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'StaffRedemptions'>;
 
 export default function StaffRedemptionsScreen({ navigation, route }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
   const { venueId, venueName, highlightCode: routeHighlight } = route.params;
   const { getToken, isLoaded } = useAuth();
@@ -148,7 +152,7 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
           value={filter}
           onChangeText={setFilter}
           placeholder={t('staff.filterPlaceholder')}
-          placeholderTextColor="#6b7280"
+          placeholderTextColor={colors.textMuted}
           autoCapitalize="characters"
           style={styles.input}
         />
@@ -207,8 +211,10 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -216,9 +222,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 16,
   },
-  backBtn: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#111827' },
-  backText: { color: '#cbd5e1', fontWeight: '600' },
-  title: { color: '#fff', fontSize: 18, fontWeight: '800', flex: 1 },
+  backBtn: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, backgroundColor: colors.surface },
+  backText: { color: colors.textSecondary, fontWeight: '600' },
+  title: { color: colors.text, fontSize: 18, fontWeight: '800', flex: 1 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -230,16 +236,16 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
   },
-  dayBtnText: { color: '#e5e7eb', fontSize: 22, fontWeight: '700' },
+  dayBtnText: { color: colors.textSecondary, fontSize: 22, fontWeight: '700' },
   dayCenter: { flex: 1, alignItems: 'center' },
-  dayLabel: { color: '#6b7280', fontSize: 11, fontWeight: '700' },
-  dayValue: { color: '#f3f4f6', fontSize: 16, fontWeight: '800', marginTop: 2 },
+  dayLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '700' },
+  dayValue: { color: colors.text, fontSize: 16, fontWeight: '800', marginTop: 2 },
   todayBtn: {
     paddingHorizontal: 12,
     height: 44,
@@ -247,17 +253,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#4c1d95',
   },
-  todayBtnText: { color: '#e9d5ff', fontWeight: '800', fontSize: 12 },
+  todayBtnText: { color: colors.honeyDark, fontWeight: '800', fontSize: 12 },
   actions: { flexDirection: 'row', gap: 10, marginHorizontal: 24, marginTop: 14 },
   input: {
     flex: 1,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: '#f9fafb',
+    color: colors.text,
     fontSize: 14,
   },
   scanBtn: {
@@ -266,52 +272,54 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#1f2937',
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: colors.borderStrong,
   },
-  scanBtnText: { color: '#c4b5fd', fontWeight: '800', fontSize: 12 },
+  scanBtnText: { color: colors.honey, fontWeight: '800', fontSize: 12 },
   list: { padding: 24, paddingTop: 12, paddingBottom: 40, gap: 10 },
   rowCard: {
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     borderRadius: 14,
     padding: 14,
   },
   rowCardHighlight: {
-    borderColor: '#a78bfa',
-    backgroundColor: '#0b1220',
+    borderColor: colors.honey,
+    backgroundColor: colors.surface,
   },
   rowCardVoided: {
     opacity: 0.55,
     borderColor: '#450a0a',
   },
-  code: { color: '#fcd34d', fontWeight: '900', fontSize: 20, letterSpacing: 1 },
-  perkTitle: { color: '#f9fafb', fontWeight: '700', marginTop: 8 },
-  perkMeta: { color: '#6b7280', fontSize: 12, marginTop: 4 },
+  code: { color: colors.honeyDark, fontWeight: '900', fontSize: 20, letterSpacing: 1 },
+  perkTitle: { color: colors.text, fontWeight: '700', marginTop: 8 },
+  perkMeta: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  empty: { color: '#6b7280', textAlign: 'center', marginTop: 24 },
+  empty: { color: colors.textMuted, textAlign: 'center', marginTop: 24 },
   warnBanner: {
     marginHorizontal: 24,
     marginTop: 8,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#422006',
+    backgroundColor: colors.warningBg,
     borderWidth: 1,
     borderColor: '#78350f',
   },
-  warnText: { color: '#fde68a', fontSize: 13, lineHeight: 18 },
+  warnText: { color: colors.honeyDark, fontSize: 13, lineHeight: 18 },
   modPanel: {
     marginHorizontal: 24,
     marginTop: 14,
     padding: 14,
     borderRadius: 14,
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.borderStrong,
   },
-  modPanelTitle: { color: '#e2e8f0', fontWeight: '800', fontSize: 13 },
-  modPanelLine: { color: '#94a3b8', fontSize: 12, marginTop: 8, lineHeight: 18 },
+  modPanelTitle: { color: colors.text, fontWeight: '800', fontSize: 13 },
+  modPanelLine: { color: colors.textSecondary, fontSize: 12, marginTop: 8, lineHeight: 18 },
   modReportList: { marginTop: 10, gap: 6 },
-  modReportItem: { color: '#cbd5e1', fontSize: 11, lineHeight: 16 },
-  modPanelHint: { color: '#64748b', fontSize: 11, marginTop: 10, lineHeight: 15 },
-});
+  modReportItem: { color: colors.textSecondary, fontSize: 11, lineHeight: 16 },
+  modPanelHint: { color: colors.textMuted, fontSize: 11, marginTop: 10, lineHeight: 15 },
+
+    });
+}

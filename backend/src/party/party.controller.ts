@@ -90,6 +90,22 @@ export class PartyController {
     );
   }
 
+  @Post(':partyId/accept-invite')
+  acceptPartyInvite(
+    @CurrentUser() user: unknown,
+    @Param('partyId', new ParseUUIDPipe()) partyId: string,
+  ) {
+    return this.parties.acceptPartyInvite(partyId, this.email(user));
+  }
+
+  @Post(':partyId/decline-invite')
+  declinePartyInvite(
+    @CurrentUser() user: unknown,
+    @Param('partyId', new ParseUUIDPipe()) partyId: string,
+  ) {
+    return this.parties.declinePartyInvite(partyId, this.email(user));
+  }
+
   @Post(':partyId/invite-link')
   createInviteLink(
     @CurrentUser() user: unknown,

@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,10 +15,14 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { fetchOwnerVenues, type OwnerVenueRow } from '../lib/ownerStaffApi';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'StaffVenues'>;
 
 export default function StaffVenuesScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
   const { getToken, isLoaded } = useAuth();
   const [rows, setRows] = useState<OwnerVenueRow[] | null>(null);
@@ -94,33 +98,37 @@ export default function StaffVenuesScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 24, paddingTop: 16 },
-  backBtn: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#111827' },
-  backText: { color: '#cbd5e1', fontWeight: '600' },
-  title: { color: '#fff', fontSize: 22, fontWeight: '800', flex: 1 },
-  hint: { color: '#6b7280', fontSize: 12, marginHorizontal: 24, marginTop: 10, lineHeight: 18 },
+  backBtn: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, backgroundColor: colors.surface },
+  backText: { color: colors.textSecondary, fontWeight: '600' },
+  title: { color: colors.text, fontSize: 22, fontWeight: '800', flex: 1 },
+  hint: { color: colors.textMuted, fontSize: 12, marginHorizontal: 24, marginTop: 10, lineHeight: 18 },
   list: { padding: 24, paddingTop: 16, gap: 12 },
   card: {
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     borderRadius: 14,
     padding: 16,
   },
   cardPressed: { opacity: 0.92 },
-  venueName: { color: '#f9fafb', fontWeight: '800', fontSize: 17 },
-  meta: { color: '#6b7280', fontSize: 13, marginTop: 6 },
+  venueName: { color: colors.text, fontWeight: '800', fontSize: 17 },
+  meta: { color: colors.textMuted, fontSize: 13, marginTop: 6 },
   role: {
     marginTop: 10,
     alignSelf: 'flex-start',
-    color: '#c4b5fd',
+    color: colors.honey,
     fontWeight: '800',
     fontSize: 11,
     letterSpacing: 0.6,
   },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   empty: { padding: 24 },
-  emptyText: { color: '#9ca3af', fontSize: 14, lineHeight: 22 },
-});
+  emptyText: { color: colors.textMuted, fontSize: 14, lineHeight: 22 },
+
+    });
+}

@@ -15,6 +15,8 @@ import { apiGet, apiPost } from '../lib/api';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
 import { useWordMatchSocket } from '../lib/useWordMatchSocket';
 import { toApiWordLanguage } from '../lib/wordDeckLanguage';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WordMatchWait'>;
 
@@ -33,6 +35,8 @@ type MatchState = {
 };
 
 export default function WordMatchWaitScreen({ navigation, route }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t, i18n } = useTranslation();
   const {
     venueId,
@@ -328,7 +332,7 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
             disabled={starting}
           >
             {starting ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.textInverse} />
             ) : (
               <Text style={styles.btnPrimaryText}>{t('wordMatch.startMatch')}</Text>
             )}
@@ -349,8 +353,10 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   navHeader: {
     paddingHorizontal: 24,
     paddingTop: 16,
@@ -362,22 +368,22 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 10,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
   },
-  navBackText: { color: '#cbd5e1', fontWeight: '600' },
+  navBackText: { color: colors.textSecondary, fontWeight: '600' },
   container: { flex: 1, paddingHorizontal: 24, paddingTop: 8 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  title: { color: '#fff', fontSize: 22, fontWeight: '900' },
-  sub: { color: '#9ca3af', marginTop: 8, fontSize: 14, lineHeight: 20 },
-  deckLang: { color: '#6b7280', marginTop: 6, fontSize: 12, fontWeight: '700' },
-  deckMeta: { color: '#6b7280', marginTop: 4, fontSize: 12 },
+  title: { color: colors.text, fontSize: 22, fontWeight: '900' },
+  sub: { color: colors.textMuted, marginTop: 8, fontSize: 14, lineHeight: 20 },
+  deckLang: { color: colors.textMuted, marginTop: 6, fontSize: 12, fontWeight: '700' },
+  deckMeta: { color: colors.textMuted, marginTop: 4, fontSize: 12 },
   socketBanner: {
     marginTop: 10,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 10,
-    backgroundColor: '#422006',
-    color: '#fcd34d',
+    backgroundColor: colors.warningBg,
+    color: colors.honeyDark,
     fontSize: 12,
     fontWeight: '800',
     textAlign: 'center',
@@ -387,41 +393,43 @@ const styles = StyleSheet.create({
     marginTop: 24,
     padding: 20,
     borderRadius: 16,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     alignItems: 'center',
   },
-  codeLabel: { color: '#9ca3af', fontWeight: '700', fontSize: 12 },
+  codeLabel: { color: colors.textMuted, fontWeight: '700', fontSize: 12 },
   code: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 28,
     fontWeight: '900',
     letterSpacing: 6,
     marginTop: 8,
   },
-  players: { color: '#e5e7eb', marginTop: 16, fontWeight: '800' },
-  hint: { color: '#a5b4fc', marginTop: 20, fontSize: 13, lineHeight: 18 },
-  error: { color: '#f87171', marginTop: 12, fontWeight: '700' },
+  players: { color: colors.textSecondary, marginTop: 16, fontWeight: '800' },
+  hint: { color: colors.honeyDark, marginTop: 20, fontSize: 13, lineHeight: 18 },
+  error: { color: colors.error, marginTop: 12, fontWeight: '700' },
   btn: {
     marginTop: 16,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: colors.borderStrong,
   },
-  btnText: { color: '#fff', fontWeight: '800' },
+  btnText: { color: colors.text, fontWeight: '800' },
   btnPrimary: {
     marginTop: 20,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#7c3aed',
+    backgroundColor: colors.primary,
     alignItems: 'center',
   },
-  btnPrimaryText: { color: '#fff', fontWeight: '900', fontSize: 16 },
+  btnPrimaryText: { color: colors.textInverse, fontWeight: '900', fontSize: 16 },
   btnDisabled: { opacity: 0.7 },
   link: { marginTop: 24, alignItems: 'center' },
-  linkText: { color: '#6b7280', fontWeight: '700' },
-});
+  linkText: { color: colors.textMuted, fontWeight: '700' },
+
+    });
+}

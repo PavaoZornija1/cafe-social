@@ -13,6 +13,7 @@ export type RootStackParamList = {
     Onboarding: undefined;
     Home: undefined;
     VenueHub: { venueId: string; venueName?: string };
+    DiscoverHub: undefined;
     PartnerVenuesMap: undefined;
     DailyWord: undefined;
     ChooseGame: { venueId?: string; challengeId?: string } | undefined;

@@ -5,6 +5,7 @@ import { PlayerModule } from '../player/player.module';
 import { VenueModule } from '../venue/venue.module';
 import { SocialModule } from '../social/social.module';
 import { InvitesModule } from '../invites/invites.module';
+import { PushModule } from '../push/push.module';
 import { PartyService } from './party.service';
 import { PartyController } from './party.controller';
 
@@ -16,6 +17,7 @@ import { PartyController } from './party.controller';
     VenueModule,
     SocialModule,
     InvitesModule,
+    PushModule,
   ],
   controllers: [PartyController],
   providers: [PartyService],

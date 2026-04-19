@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,6 +17,8 @@ import type { RootStackParamList } from '../navigation/type';
 import { apiPost } from '../lib/api';
 import { fetchVenuePerkTeasers, type VenuePerkPublicTeaser } from '../lib/venuePerksApi';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RedeemPerk'>;
 
@@ -29,6 +31,8 @@ type RedeemOk = {
 };
 
 export default function RedeemPerkScreen({ navigation, route }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
@@ -178,7 +182,7 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
           disabled={busy}
         >
           {busy ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.textInverse} />
           ) : (
             <Text style={styles.primaryBtnText}>{t('perk.redeem')}</Text>
           )}
@@ -199,52 +203,54 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   scroll: { paddingHorizontal: 24, paddingBottom: 32, paddingTop: 16 },
   backBtn: {
     alignSelf: 'flex-start',
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 10,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     marginBottom: 16,
   },
-  backText: { color: '#cbd5e1', fontWeight: '600' },
-  title: { color: '#fff', fontSize: 22, fontWeight: '800' },
-  hint: { color: '#64748b', fontSize: 13, marginTop: 8, lineHeight: 18 },
+  backText: { color: colors.textSecondary, fontWeight: '600' },
+  title: { color: colors.text, fontSize: 22, fontWeight: '800' },
+  hint: { color: colors.textMuted, fontSize: 13, marginTop: 8, lineHeight: 18 },
   input: {
     marginTop: 20,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    color: '#f4f4f5',
+    color: colors.text,
     fontSize: 18,
     fontWeight: '800',
     letterSpacing: 1,
   },
   primaryBtn: {
     marginTop: 16,
-    backgroundColor: '#7c3aed',
+    backgroundColor: colors.primary,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
   },
-  primaryBtnText: { color: '#fff', fontWeight: '900', fontSize: 16 },
+  primaryBtnText: { color: colors.textInverse, fontWeight: '900', fontSize: 16 },
   pressed: { opacity: 0.9 },
   disabled: { opacity: 0.6 },
   resultCard: {
     marginTop: 28,
-    backgroundColor: '#0b1220',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#312e81',
+    borderColor: colors.honeyMuted,
     borderRadius: 16,
     padding: 18,
   },
-  verifyLabel: { color: '#94a3b8', fontSize: 12, fontWeight: '700' },
+  verifyLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
   verifyCode: {
     color: '#fef08a',
     fontSize: 28,
@@ -253,23 +259,25 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 14,
   },
-  resultTitle: { color: '#fff', fontSize: 18, fontWeight: '900' },
-  resultSub: { color: '#a5b4fc', marginTop: 8, fontWeight: '700' },
-  resultBody: { color: '#e2e8f0', marginTop: 10, lineHeight: 20 },
-  resultMeta: { color: '#64748b', marginTop: 14, fontSize: 12, fontWeight: '600' },
+  resultTitle: { color: colors.text, fontSize: 18, fontWeight: '900' },
+  resultSub: { color: colors.honeyDark, marginTop: 8, fontWeight: '700' },
+  resultBody: { color: colors.text, marginTop: 10, lineHeight: 20 },
+  resultMeta: { color: colors.textMuted, marginTop: 14, fontSize: 12, fontWeight: '600' },
   teaserSection: { marginTop: 20, gap: 10 },
-  teaserSectionTitle: { color: '#9ca3af', fontSize: 12, fontWeight: '800' },
+  teaserSectionTitle: { color: colors.textMuted, fontSize: 12, fontWeight: '800' },
   teaserCard: {
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     borderRadius: 14,
     padding: 14,
   },
-  teaserTitle: { color: '#f9fafb', fontSize: 15, fontWeight: '900' },
-  teaserSub: { color: '#a5b4fc', marginTop: 6, fontSize: 13, fontWeight: '700' },
-  teaserBody: { color: '#9ca3af', marginTop: 8, fontSize: 13, lineHeight: 18 },
+  teaserTitle: { color: colors.text, fontSize: 15, fontWeight: '900' },
+  teaserSub: { color: colors.honeyDark, marginTop: 6, fontSize: 13, fontWeight: '700' },
+  teaserBody: { color: colors.textMuted, marginTop: 8, fontSize: 13, lineHeight: 18 },
   teaserMeta: { color: '#fbbf24', marginTop: 8, fontSize: 12, fontWeight: '700' },
   teaserBadge: { color: '#4ade80', marginTop: 8, fontSize: 12, fontWeight: '800' },
-  teaserBadgeMuted: { color: '#6b7280', marginTop: 8, fontSize: 12, fontWeight: '700' },
-});
+  teaserBadgeMuted: { color: colors.textMuted, marginTop: 8, fontSize: 12, fontWeight: '700' },
+
+    });
+}

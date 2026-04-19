@@ -25,6 +25,7 @@ import { SubscriptionRepository } from '../venue/subscription.repository';
 import { VenuePlayLimitService } from '../venue/venue-play-limit.service';
 import { VenueService } from '../venue/venue.service';
 import { normalizeGuess } from './word-match.util';
+import { GameXpAwardService } from '../stats/game-xp-award.service';
 
 export type WordMatchConfig = {
   wordGameMode: 'coop' | 'versus';
@@ -50,6 +51,7 @@ export class WordMatchService {
     private readonly subscriptions: SubscriptionRepository,
     private readonly venues: VenueService,
     private readonly venuePlayLimit: VenuePlayLimitService,
+    private readonly gameXp: GameXpAwardService,
   ) {}
 
   /** When `sessionVenueId` is set, `latitude`/`longitude` must place the user in that venue’s geofence. */
@@ -499,6 +501,9 @@ export class WordMatchService {
     if (result.correct) {
       this.pushSessionRefresh(sessionId, { reason: 'coop_guess' });
     }
+    if (result.done && result.correct) {
+      void this.gameXp.tryAwardSessionWinXp(sessionId);
+    }
     return result;
   }
 
@@ -613,6 +618,9 @@ export class WordMatchService {
         score: result.yourScore,
       });
     }
+    if (result.finished) {
+      void this.gameXp.tryAwardSessionWinXp(sessionId);
+    }
     return result;
   }
 
@@ -691,6 +699,7 @@ export class WordMatchService {
             where: { id: sole.id },
             data: { result: GameParticipantResult.WIN, placement: 1 },
           });
+          void this.gameXp.tryAwardSessionWinXp(sessionId);
         } else if (stillActive.length === 0) {
           await this.prisma.gameSession.update({
             where: { id: sessionId },

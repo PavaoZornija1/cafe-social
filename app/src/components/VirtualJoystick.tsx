@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';
 
+import type { AppColors } from '../theme/colors';
+import { useAppTheme } from '../theme/ThemeContext';
+
 const DEFAULT_SIZE = 120;
 /** Normalized stick magnitude below this snaps to 0 */
 const DEADZONE = 0.14;
@@ -24,6 +27,8 @@ export function VirtualJoystick({
   size = DEFAULT_SIZE,
   enabled = true,
 }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [knob, setKnob] = useState({ x: 0, y: 0 });
   const layoutRef = useRef({ w: size, h: size });
   const knobRadius = Math.max(11, Math.min(24, size * 0.19));
@@ -147,70 +152,72 @@ export function VirtualJoystick({
   );
 }
 
-const styles = StyleSheet.create({
-  outer: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: 'rgba(148, 163, 184, 0.20)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 10,
-  },
-  outerDisabled: {
-    opacity: 0.45,
-  },
-  outerHighlight: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-  },
-  ring: {
-    position: 'absolute',
-    borderWidth: 1,
-    borderColor: 'rgba(226, 232, 240, 0.18)',
-    backgroundColor: 'transparent',
-  },
-  ringInner: {
-    position: 'absolute',
-    borderWidth: 1,
-    borderColor: 'rgba(148, 163, 184, 0.12)',
-    backgroundColor: 'transparent',
-  },
-  knob: {
-    position: 'absolute',
-    backgroundColor: '#7c3aed',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
-    shadowColor: '#000',
-    shadowOpacity: 0.45,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  knobHighlight: {
-    position: 'absolute',
-    left: 3,
-    top: 3,
-    width: 10,
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
-  },
-  knobCore: {
-    width: 10,
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: 'rgba(2, 6, 23, 0.28)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-  },
-});
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    outer: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: 'rgba(148, 163, 184, 0.20)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: colors.text,
+      shadowOpacity: 0.35,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 10,
+    },
+    outerDisabled: {
+      opacity: 0.45,
+    },
+    outerHighlight: {
+      position: 'absolute',
+      left: 0,
+      top: 0,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.10)',
+      backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    },
+    ring: {
+      position: 'absolute',
+      borderWidth: 1,
+      borderColor: 'rgba(226, 232, 240, 0.18)',
+      backgroundColor: 'transparent',
+    },
+    ringInner: {
+      position: 'absolute',
+      borderWidth: 1,
+      borderColor: 'rgba(148, 163, 184, 0.12)',
+      backgroundColor: 'transparent',
+    },
+    knob: {
+      position: 'absolute',
+      backgroundColor: colors.primary,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.22)',
+      shadowColor: colors.text,
+      shadowOpacity: 0.45,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    knobHighlight: {
+      position: 'absolute',
+      left: 3,
+      top: 3,
+      width: 10,
+      height: 10,
+      borderRadius: 999,
+      backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    },
+    knobCore: {
+      width: 10,
+      height: 10,
+      borderRadius: 999,
+      backgroundColor: 'rgba(2, 6, 23, 0.28)',
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.10)',
+    },
+  });
+}

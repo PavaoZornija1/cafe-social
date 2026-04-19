@@ -2,7 +2,7 @@ import { useAuth } from '@clerk/expo';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
     ActivityIndicator,
     Linking,
@@ -19,6 +19,8 @@ import { apiGet } from '../lib/api';
 import { openOrderingOrMenu } from '../lib/openOrderingLinks';
 import { fetchVenuePerkTeasers, type VenuePerkPublicTeaser } from '../lib/venuePerksApi';
 import { isLikelyNetworkFailure } from '../lib/isNetworkError';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VenueHub'>;
 
@@ -77,6 +79,8 @@ type Engagement = {
 };
 
 export default function VenueHubScreen({ navigation, route }: Props) {
+    const { colors } = useAppTheme();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const { t } = useTranslation();
     const { venueId, venueName } = route.params;
     const { isLoaded, getToken } = useAuth();
@@ -189,7 +193,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                     accessibilityRole="button"
                     accessibilityLabel={t('venueHub.backA11y')}
                 >
-                    <Ionicons name="chevron-back" size={26} color="#fff" />
+                    <Ionicons name="chevron-back" size={26} color={colors.text} />
                 </Pressable>
                 <Text style={styles.topTitle} numberOfLines={1}>
                     {t('venueHub.title', { name: title })}
@@ -207,7 +211,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                 ) : null}
 
                 {loadingCard && !publicCard ? (
-                    <ActivityIndicator color="#a78bfa" style={{ marginVertical: 24 }} />
+                    <ActivityIndicator color={colors.honey} style={{ marginVertical: 24 }} />
                 ) : null}
 
                 {publicCard ? (
@@ -294,7 +298,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                     <View style={styles.card}>
                         <Text style={styles.cardTitle}>{t('home.friendsAtVenueTitle')}</Text>
                         {loadingSocial ? (
-                            <ActivityIndicator color="#a78bfa" style={{ marginTop: 8 }} />
+                            <ActivityIndicator color={colors.honey} style={{ marginTop: 8 }} />
                         ) : (
                             friendsAtVenue.map((f) => (
                                 <View key={f.id} style={styles.friendRow}>
@@ -349,7 +353,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                 <View style={styles.card}>
                     <Text style={styles.cardTitle}>{t('home.venuePerksTitle')}</Text>
                     {loadingSocial && venuePerks.length === 0 ? (
-                        <ActivityIndicator color="#a78bfa" style={{ marginTop: 8 }} />
+                        <ActivityIndicator color={colors.honey} style={{ marginTop: 8 }} />
                     ) : venuePerks.length === 0 ? (
                         <Text style={styles.muted}>{t('home.venuePerksEmpty')}</Text>
                     ) : (
@@ -406,21 +410,24 @@ export default function VenueHubScreen({ navigation, route }: Props) {
     );
 }
 
-const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+
+    safe: { flex: 1, backgroundColor: colors.bg },
     topBar: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 8,
         paddingVertical: 8,
         borderBottomWidth: 1,
-        borderBottomColor: '#1e293b',
+        borderBottomColor: colors.border,
     },
     backBtn: { padding: 8, borderRadius: 12 },
     backBtnPressed: { opacity: 0.8 },
     topTitle: {
         flex: 1,
-        color: '#fff',
+        color: colors.text,
         fontSize: 17,
         fontWeight: '900',
         textAlign: 'center',
@@ -429,62 +436,62 @@ const styles = StyleSheet.create({
     scroll: { flex: 1 },
     scrollContent: { padding: 20, paddingBottom: 32 },
     errorBanner: {
-        color: '#f87171',
+        color: colors.error,
         fontSize: 13,
         marginBottom: 12,
         lineHeight: 18,
     },
     card: {
-        backgroundColor: '#0b1220',
+        backgroundColor: colors.surface,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#1e293b',
+        borderColor: colors.border,
         padding: 14,
         marginBottom: 14,
     },
-    cardTitle: { color: '#fff', fontSize: 14, fontWeight: '900', marginBottom: 10 },
+    cardTitle: { color: colors.text, fontSize: 14, fontWeight: '900', marginBottom: 10 },
     featuredBox: {
-        backgroundColor: '#111827',
+        backgroundColor: colors.surface,
         borderRadius: 12,
         padding: 12,
         borderWidth: 1,
         borderColor: '#4c1d95',
     },
     featuredLabel: { color: '#c4b5fd', fontSize: 11, fontWeight: '800', marginBottom: 6 },
-    featuredTitle: { color: '#fff', fontSize: 16, fontWeight: '900' },
-    featuredBody: { color: '#cbd5e1', fontSize: 13, marginTop: 8, lineHeight: 18 },
+    featuredTitle: { color: colors.text, fontSize: 16, fontWeight: '900' },
+    featuredBody: { color: colors.textSecondary, fontSize: 13, marginTop: 8, lineHeight: 18 },
     cta: {
         alignSelf: 'flex-start',
         marginTop: 12,
-        backgroundColor: '#312e81',
+        backgroundColor: colors.honeyMuted,
         paddingVertical: 8,
         paddingHorizontal: 12,
         borderRadius: 10,
     },
     ctaPressed: { opacity: 0.88 },
-    ctaText: { color: '#e9d5ff', fontWeight: '800', fontSize: 12 },
+    ctaText: { color: colors.honeyDark, fontWeight: '800', fontSize: 12 },
     moreOffers: { marginTop: 12, gap: 10 },
     offerRow: {
-        backgroundColor: '#111827',
+        backgroundColor: colors.surface,
         borderRadius: 12,
         padding: 12,
         borderWidth: 1,
-        borderColor: '#1f2937',
+        borderColor: colors.border,
     },
-    offerTitle: { color: '#fff', fontSize: 14, fontWeight: '800' },
-    offerBody: { color: '#94a3b8', fontSize: 12, marginTop: 6, lineHeight: 17 },
-    exhausted: { color: '#fca5a5', fontSize: 12, marginTop: 8, fontWeight: '700' },
+    offerTitle: { color: colors.text, fontSize: 14, fontWeight: '800' },
+    offerBody: { color: colors.textSecondary, fontSize: 12, marginTop: 6, lineHeight: 17 },
+    exhausted: { color: colors.error, fontSize: 12, marginTop: 8, fontWeight: '700' },
     link: { alignSelf: 'flex-start', marginTop: 8 },
-    linkText: { color: '#a78bfa', fontWeight: '800', fontSize: 12 },
+    linkText: { color: colors.honey, fontWeight: '800', fontSize: 12 },
     partnerLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
     pillBtn: {
-        backgroundColor: '#312e81',
+        backgroundColor: colors.honeyMuted,
         paddingVertical: 10,
         paddingHorizontal: 14,
         borderRadius: 12,
     },
-    pillBtnText: { color: '#e9d5ff', fontWeight: '800', fontSize: 13 },
-    friendsLine: { color: '#93c5fd', fontSize: 12, fontWeight: '700', marginBottom: 12 },
+    pillBtnText: { color: colors.honeyDark, fontWeight: '800', fontSize: 13 },
+    friendsLine: { color: colors.honey, fontSize: 12, fontWeight: '700', marginBottom: 12 },
     friendRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -492,41 +499,41 @@ const styles = StyleSheet.create({
         gap: 10,
         paddingVertical: 10,
         borderBottomWidth: 1,
-        borderBottomColor: '#1e293b',
+        borderBottomColor: colors.border,
     },
     friendMain: { flex: 1, minWidth: 0 },
-    friendName: { color: '#fff', fontSize: 13, fontWeight: '800' },
+    friendName: { color: colors.text, fontSize: 13, fontWeight: '800' },
     friendMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
     herePill: {
-        color: '#bbf7d0',
+        color: colors.success,
         fontSize: 10,
         fontWeight: '800',
-        backgroundColor: '#14532d',
+        backgroundColor: colors.successMuted,
         paddingHorizontal: 8,
         paddingVertical: 3,
         borderRadius: 8,
         overflow: 'hidden',
         alignSelf: 'flex-start',
     },
-    friendMetaText: { color: '#64748b', fontSize: 11, fontWeight: '600' },
+    friendMetaText: { color: colors.textMuted, fontSize: 11, fontWeight: '600' },
     reportBtn: {
         paddingVertical: 6,
         paddingHorizontal: 10,
         borderRadius: 10,
-        backgroundColor: '#1e293b',
+        backgroundColor: colors.bgElevated,
         borderWidth: 1,
-        borderColor: '#334155',
+        borderColor: colors.borderStrong,
     },
-    reportText: { color: '#fca5a5', fontSize: 11, fontWeight: '800' },
-    metaLine: { color: '#94a3b8', fontSize: 12, fontWeight: '600' },
+    reportText: { color: colors.error, fontSize: 11, fontWeight: '800' },
+    metaLine: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
     badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
     badge: {
-        backgroundColor: '#14532d',
+        backgroundColor: colors.successMuted,
         paddingHorizontal: 10,
         paddingVertical: 4,
         borderRadius: 999,
     },
-    badgeText: { color: '#bbf7d0', fontSize: 11, fontWeight: '800' },
+    badgeText: { color: colors.success, fontSize: 11, fontWeight: '800' },
     perkRow: {
         marginTop: 10,
         flexDirection: 'row',
@@ -534,32 +541,35 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         gap: 8,
     },
-    perkTitle: { color: '#cbd5e1', fontSize: 13, fontWeight: '700', flex: 1 },
+    perkTitle: { color: colors.textSecondary, fontSize: 13, fontWeight: '700', flex: 1 },
     perkPill: {
-        color: '#86efac',
+        color: colors.success,
         fontSize: 11,
         fontWeight: '800',
-        backgroundColor: '#14532d',
+        backgroundColor: colors.successMuted,
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 8,
         overflow: 'hidden',
     },
-    muted: { color: '#64748b', fontSize: 12, marginTop: 4, lineHeight: 17 },
-    mutedSmall: { color: '#64748b', fontSize: 12, fontWeight: '700' },
-    feedRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#1e293b' },
-    feedLine: { color: '#e2e8f0', fontSize: 12, fontWeight: '700' },
-    feedSub: { color: '#64748b', fontSize: 11, marginTop: 2 },
+    muted: { color: colors.textMuted, fontSize: 12, marginTop: 4, lineHeight: 17 },
+    mutedSmall: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
+    feedRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
+    feedLine: { color: colors.text, fontSize: 12, fontWeight: '700' },
+    feedSub: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
     appealBtn: {
         alignSelf: 'stretch',
         marginTop: 8,
         paddingVertical: 12,
         paddingHorizontal: 14,
         borderRadius: 12,
-        backgroundColor: '#422006',
+        backgroundColor: colors.warningBg,
         borderWidth: 1,
         borderColor: '#ca8a04',
         alignItems: 'center',
     },
-    appealText: { color: '#fde68a', fontWeight: '800', fontSize: 13 },
-});
+    appealText: { color: colors.honeyDark, fontWeight: '800', fontSize: 13 },
+
+    });
+}
+

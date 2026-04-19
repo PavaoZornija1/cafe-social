@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -17,10 +17,14 @@ import type { RootStackParamList } from '../navigation/type';
 import { apiPost } from '../lib/api';
 import { getCoordinatesForVenueDetect } from '../lib/locationForDetect';
 import { parseVenueIdFromQr } from '../lib/parseVenueQr';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'QrScan'>;
 
 export default function QrScanScreen({ navigation, route }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
   const { getToken, isLoaded } = useAuth();
   const [permission, requestPermission] = useCameraPermissions();
@@ -149,7 +153,7 @@ export default function QrScanScreen({ navigation, route }: Props) {
         <TextInput
           style={styles.input}
           placeholder={t('qr.venuePlaceholder')}
-          placeholderTextColor="#6b7280"
+          placeholderTextColor={colors.textMuted}
           value={qrVenueId}
           onChangeText={setQrVenueId}
           autoCapitalize="none"
@@ -163,7 +167,7 @@ export default function QrScanScreen({ navigation, route }: Props) {
           onPress={() => void handleRegister()}
           disabled={loading || !isLoaded}
         >
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{t('qr.unlock')}</Text>}
+          {loading ? <ActivityIndicator color={colors.textInverse} /> : <Text style={styles.buttonText}>{t('qr.unlock')}</Text>}
         </Pressable>
 
       </View>
@@ -171,8 +175,10 @@ export default function QrScanScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   header: {
     paddingHorizontal: 24,
     paddingTop: 16,
@@ -185,20 +191,20 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 10,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
   },
-  backText: { color: '#cbd5e1', fontWeight: '600' },
-  headerTitle: { color: '#fff', fontSize: 22, fontWeight: '800', flex: 1 },
+  backText: { color: colors.textSecondary, fontWeight: '600' },
+  headerTitle: { color: colors.text, fontSize: 22, fontWeight: '800', flex: 1 },
   container: { flex: 1, paddingHorizontal: 24, paddingTop: 8 },
-  screenLead: { color: '#9ca3af', fontSize: 14, marginBottom: 8, lineHeight: 20 },
-  label: { color: '#d1d5db', fontSize: 14, fontWeight: '600', marginTop: 18, marginBottom: 6 },
+  screenLead: { color: colors.textMuted, fontSize: 14, marginBottom: 8, lineHeight: 20 },
+  label: { color: colors.textSecondary, fontSize: 14, fontWeight: '600', marginTop: 18, marginBottom: 6 },
   scannerWrap: {
     marginTop: 16,
     borderRadius: 18,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#1f2937',
-    backgroundColor: '#0b1220',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     height: 260,
   },
   camera: { flex: 1, width: '100%' },
@@ -209,7 +215,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   scannerText: {
-    color: '#9ca3af',
+    color: colors.textMuted,
     fontWeight: '700',
     fontSize: 13,
     textAlign: 'center',
@@ -220,29 +226,31 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 12,
-    backgroundColor: '#7c3aed',
+    backgroundColor: colors.primary,
   },
-  permBtnText: { color: '#fff', fontWeight: '800' },
+  permBtnText: { color: colors.textInverse, fontWeight: '800' },
   secondarySmall: { marginTop: 8, alignSelf: 'center' },
-  secondarySmallText: { color: '#a5b4fc', fontWeight: '700', fontSize: 13 },
+  secondarySmallText: { color: colors.honeyDark, fontWeight: '700', fontSize: 13 },
   input: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: colors.borderStrong,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 14,
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 16,
   },
-  error: { color: '#f87171', fontSize: 13, marginTop: 10 },
+  error: { color: colors.error, fontSize: 13, marginTop: 10 },
   button: {
-    backgroundColor: '#7c3aed',
+    backgroundColor: colors.primary,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 18,
   },
   buttonDisabled: { opacity: 0.7 },
-  buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
-});
+  buttonText: { color: colors.textInverse, fontSize: 16, fontWeight: '600' },
+
+    });
+}

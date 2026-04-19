@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -13,6 +13,8 @@ import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiGet, apiPost } from '../lib/api';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Challenges'>;
 
@@ -31,6 +33,8 @@ type VenueChallenge = {
 };
 
 export default function ChallengesScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
@@ -172,8 +176,10 @@ export default function ChallengesScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   header: {
     paddingHorizontal: 24,
     paddingTop: 16,
@@ -186,29 +192,29 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 10,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
   },
-  backText: { color: '#cbd5e1', fontWeight: '600' },
-  headerTitle: { color: '#fff', fontSize: 22, fontWeight: '800', flex: 1 },
+  backText: { color: colors.textSecondary, fontWeight: '600' },
+  headerTitle: { color: colors.text, fontSize: 22, fontWeight: '800', flex: 1 },
   container: { flex: 1, paddingHorizontal: 24, paddingTop: 12 },
-  venueName: { color: '#9ca3af', marginTop: 8, fontSize: 14, fontWeight: '600' },
-  placeholder: { color: '#9ca3af', marginTop: 10, fontSize: 14, lineHeight: 20, textAlign: 'center' },
-  error: { color: '#f87171', marginTop: 10, fontSize: 14, lineHeight: 20 },
+  venueName: { color: colors.textMuted, marginTop: 8, fontSize: 14, fontWeight: '600' },
+  placeholder: { color: colors.textMuted, marginTop: 10, fontSize: 14, lineHeight: 20, textAlign: 'center' },
+  error: { color: colors.error, marginTop: 10, fontSize: 14, lineHeight: 20 },
   center: { alignItems: 'center', marginTop: 16, gap: 10 },
   card: {
     marginTop: 14,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     borderRadius: 18,
     padding: 16,
   },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  cardTitle: { color: '#fff', fontSize: 15, fontWeight: '900', flex: 1, paddingRight: 10 },
+  cardTitle: { color: colors.text, fontSize: 15, fontWeight: '900', flex: 1, paddingRight: 10 },
   cardBadge: {
-    color: '#a78bfa',
+    color: colors.honey,
     fontWeight: '900',
-    backgroundColor: '#0b1220',
+    backgroundColor: colors.surface,
     borderColor: '#182238',
     borderWidth: 1,
     paddingVertical: 6,
@@ -217,13 +223,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
-  cardDesc: { color: '#9ca3af', marginTop: 8, fontSize: 13, lineHeight: 18 },
-  cardProgress: { color: '#e5e7eb', marginTop: 10, fontSize: 14, fontWeight: '800' },
-  cardHint: { color: '#a5b4fc', marginTop: 6, fontSize: 13, fontWeight: '700' },
+  cardDesc: { color: colors.textMuted, marginTop: 8, fontSize: 13, lineHeight: 18 },
+  cardProgress: { color: colors.textSecondary, marginTop: 10, fontSize: 14, fontWeight: '800' },
+  cardHint: { color: colors.honeyDark, marginTop: 6, fontSize: 13, fontWeight: '700' },
   cardWeekly: { color: '#fbbf24', marginTop: 6, fontSize: 12, fontWeight: '700' },
   actionBtn: {
     marginTop: 14,
-    backgroundColor: '#0b1220',
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: '#182238',
     paddingVertical: 12,
@@ -231,6 +237,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionBtnPressed: { opacity: 0.9 },
-  actionText: { color: '#9ca3af', fontWeight: '900' },
-});
+  actionText: { color: colors.textMuted, fontWeight: '900' },
 
+    });
+}

@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,6 +17,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiGet, apiPost } from '../lib/api';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PartyDetail'>;
 
@@ -35,6 +37,8 @@ type Party = {
 };
 
 export default function PartyDetailScreen({ navigation, route }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { partyId } = route.params;
   const { t } = useTranslation();
   const { isLoaded, getToken } = useAuth();
@@ -368,8 +372,10 @@ export default function PartyDetailScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   header: {
     paddingHorizontal: 24,
     paddingTop: 16,
@@ -382,28 +388,28 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 10,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
   },
-  backText: { color: '#cbd5e1', fontWeight: '600' },
-  title: { color: '#fff', fontSize: 20, fontWeight: '800', flex: 1 },
-  meta: { color: '#9ca3af', paddingHorizontal: 24, marginBottom: 6 },
-  badge: { color: '#a78bfa', paddingHorizontal: 24, fontWeight: '700', fontSize: 12 },
-  section: { color: '#fff', fontWeight: '800', marginBottom: 8, marginTop: 12 },
+  backText: { color: colors.textSecondary, fontWeight: '600' },
+  title: { color: colors.text, fontSize: 20, fontWeight: '800', flex: 1 },
+  meta: { color: colors.textMuted, paddingHorizontal: 24, marginBottom: 6 },
+  badge: { color: colors.honey, paddingHorizontal: 24, fontWeight: '700', fontSize: 12 },
+  section: { color: colors.text, fontWeight: '800', marginBottom: 8, marginTop: 12 },
   list: { flex: 1, paddingHorizontal: 24 },
   memberRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 14,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     gap: 12,
   },
   memberMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  memberName: { color: '#f9fafb', fontWeight: '700' },
+  memberName: { color: colors.text, fontWeight: '700' },
   leaderTag: { color: '#fbbf24', fontWeight: '800', fontSize: 12 },
   kickBtn: {
     paddingVertical: 8,
@@ -411,38 +417,38 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#3f1d1d',
     borderWidth: 1,
-    borderColor: '#7f1d1d',
+    borderColor: colors.error,
   },
-  kickBtnText: { color: '#fca5a5', fontWeight: '800', fontSize: 12 },
+  kickBtnText: { color: colors.error, fontWeight: '800', fontSize: 12 },
   actions: { padding: 24, gap: 10, paddingBottom: 32 },
   primaryBtn: {
-    backgroundColor: '#7c3aed',
+    backgroundColor: colors.primary,
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
   },
-  primaryBtnText: { color: '#fff', fontWeight: '800' },
+  primaryBtnText: { color: colors.textInverse, fontWeight: '800' },
   secondaryBtn: {
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: '#4c1d95',
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
   },
-  secondaryBtnText: { color: '#c4b5fd', fontWeight: '800' },
+  secondaryBtnText: { color: colors.honey, fontWeight: '800' },
   dangerBtn: {
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#7f1d1d',
+    borderColor: colors.error,
     paddingVertical: 14,
     borderRadius: 14,
     alignItems: 'center',
     marginTop: 8,
   },
-  dangerBtnText: { color: '#fca5a5', fontWeight: '800' },
+  dangerBtnText: { color: colors.error, fontWeight: '800' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  err: { color: '#f87171', padding: 24 },
+  err: { color: colors.error, padding: 24 },
   modalWrap: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -450,21 +456,23 @@ const styles = StyleSheet.create({
   },
   modalDim: { ...StyleSheet.absoluteFillObject },
   modalSheet: {
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
     paddingBottom: 36,
     borderWidth: 1,
-    borderColor: '#27272a',
+    borderColor: colors.border,
   },
-  modalTitle: { color: '#fff', fontSize: 18, fontWeight: '900', marginBottom: 16 },
+  modalTitle: { color: colors.text, fontSize: 18, fontWeight: '900', marginBottom: 16 },
   modalRow: {
     paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#1f2937',
   },
-  modalRowText: { color: '#e5e7eb', fontSize: 16, fontWeight: '700' },
+  modalRowText: { color: colors.textSecondary, fontSize: 16, fontWeight: '700' },
   modalCancel: { marginTop: 16, alignItems: 'center', paddingVertical: 12 },
-  modalCancelText: { color: '#9ca3af', fontWeight: '700' },
-});
+  modalCancelText: { color: colors.textMuted, fontWeight: '700' },
+
+    });
+}

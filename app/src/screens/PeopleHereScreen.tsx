@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -15,6 +15,8 @@ import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiGet } from '../lib/api';
 import type { MeSummaryDto } from '../lib/meSummary';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PeopleHere'>;
 
@@ -26,6 +28,8 @@ type Person = {
 };
 
 export default function PeopleHereScreen({ navigation, route }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { venueId, venueName } = route.params;
   const { t } = useTranslation();
   const { isLoaded, getToken } = useAuth();
@@ -130,8 +134,10 @@ export default function PeopleHereScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   header: {
     paddingHorizontal: 24,
     paddingTop: 16,
@@ -143,37 +149,39 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 10,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
   },
-  backText: { color: '#cbd5e1', fontWeight: '600' },
-  title: { color: '#fff', fontSize: 22, fontWeight: '800', flex: 1 },
-  sub: { color: '#6b7280', paddingHorizontal: 24, marginTop: 8, marginBottom: 16 },
+  backText: { color: colors.textSecondary, fontWeight: '600' },
+  title: { color: colors.text, fontSize: 22, fontWeight: '800', flex: 1 },
+  sub: { color: colors.textMuted, paddingHorizontal: 24, marginTop: 8, marginBottom: 16 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   list: { paddingHorizontal: 24, paddingBottom: 24 },
-  empty: { color: '#6b7280', textAlign: 'center', marginTop: 24 },
+  empty: { color: colors.textMuted, textAlign: 'center', marginTop: 24 },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 16,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
   },
   rowMain: { flex: 1, minWidth: 0 },
-  name: { color: '#f9fafb', fontWeight: '700' },
-  tag: { color: '#a78bfa', fontSize: 12, fontWeight: '800', marginTop: 4 },
+  name: { color: colors.text, fontWeight: '700' },
+  tag: { color: colors.honey, fontSize: 12, fontWeight: '800', marginTop: 4 },
   reportBtn: {
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 10,
-    backgroundColor: '#422006',
+    backgroundColor: colors.warningBg,
     borderWidth: 1,
     borderColor: '#78350f',
   },
   reportBtnPressed: { opacity: 0.88 },
   reportBtnText: { color: '#fdba74', fontSize: 12, fontWeight: '800' },
-});
+
+    });
+}

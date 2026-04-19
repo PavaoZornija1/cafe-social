@@ -21,6 +21,8 @@ import {
   type DiscoveryMapFilters,
   type DiscoveryVenuePin,
 } from '../lib/venueDiscoveryClient';
+import type { AppColors } from '../theme/colors';
+import { useAppTheme } from '../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PartnerVenuesMap'>;
 
@@ -117,6 +119,8 @@ const MapView = Maps?.default;
 const Marker = Maps?.Marker;
 
 export default function PartnerVenuesMapScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
   const mapRef = useRef<InstanceType<NonNullable<typeof MapView>> | null>(null);
   const [venues, setVenues] = useState<DiscoveryVenuePin[]>([]);
@@ -330,8 +334,10 @@ export default function PartnerVenuesMapScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   header: {
     paddingHorizontal: 24,
     paddingTop: 16,
@@ -343,12 +349,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 10,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
   },
-  backText: { color: '#cbd5e1', fontWeight: '600' },
-  title: { color: '#fff', fontSize: 22, fontWeight: '800', flex: 1 },
+  backText: { color: colors.textSecondary, fontWeight: '600' },
+  title: { color: colors.text, fontSize: 22, fontWeight: '800', flex: 1 },
   subtitle: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     paddingHorizontal: 24,
     marginTop: 8,
     marginBottom: 8,
@@ -359,21 +365,21 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 12,
     padding: 12,
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.border,
     gap: 10,
   },
-  filtersTitle: { color: '#e2e8f0', fontWeight: '700', fontSize: 13 },
+  filtersTitle: { color: colors.text, fontWeight: '700', fontSize: 13 },
   filterInput: {
-    backgroundColor: '#020617',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.borderStrong,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: '#f1f5f9',
+    color: colors.text,
     fontSize: 14,
   },
   filterRow: {
@@ -382,44 +388,44 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
-  filterLabel: { color: '#94a3b8', fontSize: 14, flex: 1 },
+  filterLabel: { color: colors.textSecondary, fontSize: 14, flex: 1 },
   applyBtn: {
-    backgroundColor: '#4f46e5',
+    backgroundColor: colors.primary,
     paddingVertical: 11,
     borderRadius: 10,
     alignItems: 'center',
   },
-  applyBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  applyBtnText: { color: colors.textInverse, fontWeight: '700', fontSize: 14 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 12 },
-  muted: { color: '#64748b', textAlign: 'center' },
-  errorText: { color: '#fca5a5', textAlign: 'center' },
+  muted: { color: colors.textMuted, textAlign: 'center' },
+  errorText: { color: colors.error, textAlign: 'center' },
   retryBtn: {
     marginTop: 8,
-    backgroundColor: '#1e1b4b',
+    backgroundColor: colors.primaryMuted,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,
   },
-  retryBtnText: { color: '#e0e7ff', fontWeight: '700' },
+  retryBtnText: { color: colors.primaryDark, fontWeight: '700' },
   mapWrap: { flex: 1, borderRadius: 16, overflow: 'hidden', marginHorizontal: 16 },
   sheet: {
     marginHorizontal: 16,
     marginTop: 12,
     marginBottom: 16,
     padding: 16,
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.border,
   },
-  sheetTitle: { color: '#fff', fontSize: 18, fontWeight: '800' },
-  sheetAddr: { color: '#94a3b8', marginTop: 6, fontSize: 14 },
-  sheetHint: { color: '#64748b', marginTop: 10, fontSize: 13, lineHeight: 18 },
+  sheetTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
+  sheetAddr: { color: colors.textSecondary, marginTop: 6, fontSize: 14 },
+  sheetHint: { color: colors.textMuted, marginTop: 10, fontSize: 13, lineHeight: 18 },
   sheetActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
   sheetBtn: {
     flex: 1,
     minWidth: 120,
-    backgroundColor: '#4f46e5',
+    backgroundColor: colors.primary,
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 12,
@@ -428,29 +434,31 @@ const styles = StyleSheet.create({
   sheetBtnSecondary: {
     flex: 1,
     minWidth: 120,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.borderStrong,
   },
   sheetBtnPressed: { opacity: 0.85 },
-  sheetBtnText: { color: '#fff', fontWeight: '700' },
-  sheetBtnSecondaryText: { color: '#cbd5e1', fontWeight: '700' },
+  sheetBtnText: { color: colors.textInverse, fontWeight: '700' },
+  sheetBtnSecondaryText: { color: colors.textSecondary, fontWeight: '700' },
   listFlex: { flex: 1 },
   list: { paddingHorizontal: 16, paddingBottom: 32 },
-  webHint: { color: '#64748b', marginBottom: 12, fontSize: 13 },
+  webHint: { color: colors.textMuted, marginBottom: 12, fontSize: 13 },
   webRow: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.border,
   },
   webRowPressed: { opacity: 0.9 },
-  webRowTitle: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  webRowSub: { color: '#94a3b8', marginTop: 4, fontSize: 14 },
-});
+  webRowTitle: { color: colors.text, fontWeight: '700', fontSize: 16 },
+  webRowSub: { color: colors.textSecondary, marginTop: 4, fontSize: 14 },
+
+    });
+}

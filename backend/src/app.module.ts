@@ -21,6 +21,7 @@ import { RevenueCatModule } from './revenuecat/revenuecat.module';
 import { StripeModule } from './stripe/stripe.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
+import { EmailModule } from './email/email.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    EmailModule,
     PrismaModule,
     AuthModule,
     VenueModule,

@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,6 +17,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { reportPlayerAtVenue } from '../lib/venueReportPlayer';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReportPlayer'>;
 
@@ -25,6 +27,8 @@ const REASON_MAX = 256;
 const NOTE_MAX = 2000;
 
 export default function ReportPlayerScreen({ navigation, route }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { venueId, venueName, reportedPlayerId, reportedUsername } = route.params;
   const { t } = useTranslation();
   const { getToken } = useAuth();
@@ -121,7 +125,7 @@ export default function ReportPlayerScreen({ navigation, route }: Props) {
             disabled={!canSubmit}
           >
             {submitting ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.textInverse} />
             ) : (
               <Text style={styles.submitText}>{t('reportPlayer.submit')}</Text>
             )}
@@ -134,8 +138,10 @@ export default function ReportPlayerScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
   header: {
     paddingHorizontal: 24,
@@ -148,27 +154,27 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 10,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
   },
-  backText: { color: '#cbd5e1', fontWeight: '600' },
-  title: { color: '#fff', fontSize: 20, fontWeight: '800', flex: 1 },
+  backText: { color: colors.textSecondary, fontWeight: '600' },
+  title: { color: colors.text, fontSize: 20, fontWeight: '800', flex: 1 },
   scroll: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 40 },
-  sub: { color: '#94a3b8', fontSize: 14, lineHeight: 20, marginBottom: 20 },
-  label: { color: '#e2e8f0', fontWeight: '700', fontSize: 14 },
+  sub: { color: colors.textSecondary, fontSize: 14, lineHeight: 20, marginBottom: 20 },
+  label: { color: colors.text, fontWeight: '700', fontSize: 14 },
   labelSpaced: { marginTop: 18 },
   input: {
     marginTop: 8,
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.borderStrong,
     borderRadius: 12,
     padding: 14,
-    color: '#f8fafc',
+    color: colors.text,
     fontSize: 15,
     minHeight: 88,
   },
   noteInput: { minHeight: 120 },
-  hint: { color: '#64748b', fontSize: 12, marginTop: 6 },
+  hint: { color: colors.textMuted, fontSize: 12, marginTop: 6 },
   submit: {
     marginTop: 28,
     backgroundColor: '#b45309',
@@ -176,9 +182,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#92400e',
+    borderColor: colors.honeyDark,
   },
   submitDisabled: { opacity: 0.45 },
-  submitText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  submitText: { color: colors.textInverse, fontWeight: '800', fontSize: 16 },
   footer: { color: '#475569', fontSize: 12, marginTop: 20, lineHeight: 18 },
-});
+
+    });
+}

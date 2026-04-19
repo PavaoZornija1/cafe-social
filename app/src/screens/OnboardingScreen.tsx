@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
 import * as Location from 'expo-location';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -29,12 +29,16 @@ import {
   syncOnboardingFromServerSummary,
 } from '../lib/onboardingStorage';
 import type { RootStackParamList } from '../navigation/type';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Onboarding'>;
 
 const PLAYER_PAGE_COUNT = 5;
 
 export default function OnboardingScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t, i18n } = useTranslation();
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
@@ -169,7 +173,7 @@ export default function OnboardingScreen({ navigation }: Props) {
   if (phase === 'loading' || !isLoaded) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#7c3aed" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -296,11 +300,13 @@ export default function OnboardingScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   centered: {
     flex: 1,
-    backgroundColor: '#050816',
+    backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -312,7 +318,7 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
     minHeight: 40,
   },
-  skipText: { color: '#a78bfa', fontSize: 16, fontWeight: '600' },
+  skipText: { color: colors.honey, fontSize: 16, fontWeight: '600' },
   skipPlaceholder: { width: 48 },
   pager: { flex: 1 },
   page: {
@@ -323,19 +329,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   slideTitle: {
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 26,
     fontWeight: '800',
     marginBottom: 14,
     lineHeight: 32,
   },
   slideBody: {
-    color: '#9ca3af',
+    color: colors.textMuted,
     fontSize: 16,
     lineHeight: 24,
   },
   slideSub: {
-    color: '#6b7280',
+    color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 16,
@@ -345,17 +351,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 16,
   },
-  langRowActive: { borderColor: '#a78bfa', backgroundColor: '#0b1220' },
+  langRowActive: { borderColor: colors.honey, backgroundColor: colors.surface },
   langRowPressed: { opacity: 0.92 },
-  langName: { color: '#f9fafb', fontWeight: '700', fontSize: 16 },
-  check: { color: '#a78bfa', fontSize: 18, fontWeight: '800' },
+  langName: { color: colors.text, fontWeight: '700', fontSize: 16 },
+  check: { color: colors.honey, fontSize: 18, fontWeight: '800' },
   footer: {
     paddingHorizontal: 24,
     paddingBottom: 28,
@@ -367,24 +373,24 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#374151',
+    backgroundColor: colors.borderStrong,
   },
-  dotActive: { backgroundColor: '#a78bfa', width: 22 },
+  dotActive: { backgroundColor: colors.primary, width: 22 },
   primaryBtn: {
-    backgroundColor: '#7c3aed',
+    backgroundColor: colors.primary,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
   },
   primaryBtnPressed: { opacity: 0.9 },
-  primaryBtnText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
+  primaryBtnText: { color: colors.textInverse, fontSize: 16, fontWeight: '600' },
   secondaryBtn: {
     marginTop: 12,
     paddingVertical: 12,
     alignItems: 'center',
   },
   secondaryBtnPressed: { opacity: 0.85 },
-  secondaryBtnText: { color: '#a78bfa', fontSize: 15, fontWeight: '600' },
+  secondaryBtnText: { color: colors.honey, fontSize: 15, fontWeight: '600' },
   staffContent: {
     flex: 1,
     paddingHorizontal: 28,
@@ -393,7 +399,7 @@ const styles = StyleSheet.create({
   },
   staffBadge: {
     alignSelf: 'flex-start',
-    color: '#c4b5fd',
+    color: colors.honey,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1.2,
@@ -401,22 +407,24 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   staffTitle: {
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 28,
     fontWeight: '800',
     marginBottom: 16,
     lineHeight: 34,
   },
   staffBody: {
-    color: '#9ca3af',
+    color: colors.textMuted,
     fontSize: 16,
     lineHeight: 24,
     marginBottom: 12,
   },
   staffHint: {
-    color: '#6b7280',
+    color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 28,
   },
-});
+
+    });
+}

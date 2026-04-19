@@ -18,6 +18,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiGet, apiPost } from '../lib/api';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BanAppeal'>;
 
@@ -35,6 +37,8 @@ type MyAppealRow = {
 };
 
 export default function BanAppealScreen({ navigation, route }: Props) {
+    const { colors } = useAppTheme();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const { venueId, venueName, focusAppealId } = route.params;
     const { t } = useTranslation();
     const { getToken } = useAuth();
@@ -205,7 +209,7 @@ export default function BanAppealScreen({ navigation, route }: Props) {
                             <TextInput
                                 style={styles.inputMultiline}
                                 placeholder={t('banAppeal.messagePlaceholder')}
-                                placeholderTextColor="#6b7280"
+                                placeholderTextColor={colors.textMuted}
                                 multiline
                                 value={message}
                                 onChangeText={setMessage}
@@ -218,7 +222,7 @@ export default function BanAppealScreen({ navigation, route }: Props) {
                                 onPress={() => void onSubmit()}
                             >
                                 {submitting ? (
-                                    <ActivityIndicator color="#fff" />
+                                    <ActivityIndicator color={colors.textInverse} />
                                 ) : (
                                     <Text style={styles.submitText}>{t('banAppeal.submit')}</Text>
                                 )}
@@ -231,8 +235,10 @@ export default function BanAppealScreen({ navigation, route }: Props) {
     );
 }
 
-const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.bg },
     flex: { flex: 1 },
     header: {
         paddingHorizontal: 24,
@@ -246,67 +252,69 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         paddingHorizontal: 10,
         borderRadius: 10,
-        backgroundColor: '#111827',
+        backgroundColor: colors.surface,
     },
-    backText: { color: '#cbd5e1', fontWeight: '600' },
-    title: { color: '#fff', fontSize: 20, fontWeight: '800', flex: 1 },
+    backText: { color: colors.textSecondary, fontWeight: '600' },
+    title: { color: colors.text, fontSize: 20, fontWeight: '800', flex: 1 },
     scroll: { paddingHorizontal: 24, paddingBottom: 40 },
-    sub: { color: '#9ca3af', fontSize: 14, lineHeight: 20, marginBottom: 20 },
+    sub: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginBottom: 20 },
     centerRow: { marginVertical: 16, alignItems: 'center' },
     outcomeCard: {
-        backgroundColor: '#111827',
+        backgroundColor: colors.surface,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: '#312e81',
+        borderColor: colors.honeyMuted,
         padding: 16,
         marginBottom: 20,
     },
-    outcomeTitle: { color: '#e9d5ff', fontSize: 17, fontWeight: '800', marginBottom: 8 },
-    outcomeBody: { color: '#cbd5e1', fontSize: 14, lineHeight: 20 },
-    staffMsg: { color: '#fde68a', fontSize: 14, marginTop: 14, lineHeight: 20 },
-    staffMsgLabel: { fontWeight: '800', color: '#fcd34d' },
-    resolvedAt: { color: '#6b7280', fontSize: 12, marginTop: 12 },
+    outcomeTitle: { color: colors.honeyDark, fontSize: 17, fontWeight: '800', marginBottom: 8 },
+    outcomeBody: { color: colors.textSecondary, fontSize: 14, lineHeight: 20 },
+    staffMsg: { color: colors.honeyDark, fontSize: 14, marginTop: 14, lineHeight: 20 },
+    staffMsgLabel: { fontWeight: '800', color: colors.honeyDark },
+    resolvedAt: { color: colors.textMuted, fontSize: 12, marginTop: 12 },
     pendingCard: {
-        backgroundColor: '#111827',
+        backgroundColor: colors.surface,
         borderRadius: 14,
         borderWidth: 1,
         borderColor: '#422006',
         padding: 16,
         marginBottom: 20,
     },
-    pendingTitle: { color: '#fde68a', fontSize: 16, fontWeight: '800', marginBottom: 8 },
-    pendingBody: { color: '#9ca3af', fontSize: 13, lineHeight: 18 },
-    pendingQuote: { color: '#e5e7eb', fontSize: 13, marginTop: 10, fontStyle: 'italic' },
+    pendingTitle: { color: colors.honeyDark, fontSize: 16, fontWeight: '800', marginBottom: 8 },
+    pendingBody: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
+    pendingQuote: { color: colors.textSecondary, fontSize: 13, marginTop: 10, fontStyle: 'italic' },
     secondaryBtn: {
         alignSelf: 'flex-start',
         marginTop: 14,
         paddingVertical: 10,
         paddingHorizontal: 14,
         borderRadius: 10,
-        backgroundColor: '#1e293b',
+        backgroundColor: colors.bgElevated,
         borderWidth: 1,
-        borderColor: '#334155',
+        borderColor: colors.borderStrong,
     },
     secondaryBtnText: { color: '#93c5fd', fontWeight: '700', fontSize: 13 },
-    label: { color: '#e5e7eb', fontWeight: '700', marginBottom: 8 },
+    label: { color: colors.textSecondary, fontWeight: '700', marginBottom: 8 },
     inputMultiline: {
         minHeight: 140,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#1f2937',
-        backgroundColor: '#0b1220',
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
         padding: 14,
-        color: '#fff',
+        color: colors.text,
         fontSize: 16,
     },
-    hint: { color: '#6b7280', fontSize: 12, marginTop: 8 },
+    hint: { color: colors.textMuted, fontSize: 12, marginTop: 8 },
     submit: {
         marginTop: 24,
-        backgroundColor: '#7c3aed',
+        backgroundColor: colors.primary,
         paddingVertical: 14,
         borderRadius: 12,
         alignItems: 'center',
     },
     submitDisabled: { opacity: 0.5 },
-    submitText: { color: '#fff', fontWeight: '800', fontSize: 16 },
-});
+    submitText: { color: colors.textInverse, fontWeight: '800', fontSize: 16 },
+
+    });
+}

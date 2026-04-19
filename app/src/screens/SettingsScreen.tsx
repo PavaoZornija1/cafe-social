@@ -2,7 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth, useClerk } from '@clerk/expo';
 import { useFocusEffect } from '@react-navigation/native';
 import Constants from 'expo-constants';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -30,6 +30,8 @@ import {
   pickPrimaryPackage,
 } from '../lib/revenuecat';
 import { SUBSCRIPTION_MANAGE_URL } from '../lib/subscriptionUrl';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
@@ -42,6 +44,8 @@ type MeSummary = {
 };
 
 export default function SettingsScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t, i18n } = useTranslation();
   const { signOut } = useClerk();
   const { isLoaded, getToken } = useAuth();
@@ -574,39 +578,41 @@ export default function SettingsScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   scroll: { paddingHorizontal: 24, paddingBottom: 32 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20, paddingTop: 16 },
-  backBtn: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#111827' },
-  backText: { color: '#cbd5e1', fontWeight: '600' },
-  title: { color: '#fff', fontSize: 22, fontWeight: '800' },
-  sectionLabel: { color: '#fff', fontSize: 14, fontWeight: '900', marginTop: 8 },
+  backBtn: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, backgroundColor: colors.surface },
+  backText: { color: colors.textSecondary, fontWeight: '600' },
+  title: { color: colors.text, fontSize: 22, fontWeight: '800' },
+  sectionLabel: { color: colors.text, fontSize: 14, fontWeight: '900', marginTop: 8 },
   sectionSpacer: { marginTop: 22 },
-  hint: { color: '#6b7280', fontSize: 12, marginTop: 6, lineHeight: 18 },
+  hint: { color: colors.textMuted, fontSize: 12, marginTop: 6, lineHeight: 18 },
   langList: { marginTop: 12, gap: 8 },
   langRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 16,
   },
-  langRowActive: { borderColor: '#a78bfa', backgroundColor: '#0b1220' },
+  langRowActive: { borderColor: colors.honey, backgroundColor: colors.surface },
   langRowPressed: { opacity: 0.92 },
-  langName: { color: '#f9fafb', fontWeight: '700', fontSize: 16 },
-  check: { color: '#a78bfa', fontWeight: '900', fontSize: 18 },
+  langName: { color: colors.text, fontWeight: '700', fontSize: 16 },
+  check: { color: colors.honey, fontWeight: '900', fontSize: 18 },
   privacyLoading: { marginTop: 16, alignItems: 'center' },
   toggleCard: {
     marginTop: 12,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     paddingVertical: 4,
   },
   toggleRow: {
@@ -616,10 +622,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
   },
-  toggleRowBorder: { borderTopWidth: 1, borderTopColor: '#1f2937' },
-  toggleLabel: { color: '#e5e7eb', fontWeight: '700', fontSize: 15, flex: 1, paddingRight: 12 },
+  toggleRowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
+  toggleLabel: { color: colors.textSecondary, fontWeight: '700', fontSize: 15, flex: 1, paddingRight: 12 },
   pushFootnote: {
-    color: '#6b7280',
+    color: colors.textMuted,
     fontSize: 11,
     lineHeight: 16,
     paddingHorizontal: 16,
@@ -628,53 +634,53 @@ const styles = StyleSheet.create({
   },
   card: {
     marginTop: 10,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     padding: 16,
   },
-  cardText: { color: '#9ca3af', fontSize: 14, lineHeight: 20 },
-  cardTextMuted: { color: '#6b7280', fontSize: 13, fontWeight: '600' },
+  cardText: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
+  cardTextMuted: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
   logoutBtn: {
     marginTop: 28,
-    backgroundColor: '#111827',
-    borderColor: '#7f1d1d',
+    backgroundColor: colors.surface,
+    borderColor: colors.error,
     borderWidth: 1,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
   },
   logoutBtnDisabled: { opacity: 0.6 },
-  logoutText: { color: '#fca5a5', fontWeight: '800' },
+  logoutText: { color: colors.error, fontWeight: '800' },
   actionRow: {
     marginTop: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     paddingVertical: 14,
     paddingHorizontal: 16,
   },
   actionRowPressed: { opacity: 0.9 },
   actionRowDisabled: { opacity: 0.55 },
-  actionRowText: { color: '#e5e7eb', fontWeight: '800', fontSize: 15 },
-  actionRowChev: { color: '#6b7280', fontSize: 20, fontWeight: '300' },
+  actionRowText: { color: colors.textSecondary, fontWeight: '800', fontSize: 15 },
+  actionRowChev: { color: colors.textMuted, fontSize: 20, fontWeight: '300' },
   linkRow: {
     marginTop: 12,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#312e81',
+    borderColor: colors.honeyMuted,
   },
-  linkText: { color: '#a5b4fc', fontWeight: '800', fontSize: 14 },
+  linkText: { color: colors.honeyDark, fontWeight: '800', fontSize: 14 },
   paywallLead: {
-    color: '#a1a1aa',
+    color: colors.textMuted,
     fontSize: 13,
     lineHeight: 19,
     marginTop: 8,
@@ -683,40 +689,42 @@ const styles = StyleSheet.create({
     marginTop: 12,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#1c1917',
+    backgroundColor: colors.warningBg,
     borderWidth: 1,
-    borderColor: '#b45309',
+    borderColor: colors.warningBorder,
   },
-  pendingStripText: { color: '#fde68a', fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  pendingStripText: { color: colors.honeyDark, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   followUpStrip: {
     marginTop: 12,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#0c1729',
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.border,
   },
-  followUpStripText: { color: '#94a3b8', fontSize: 13, lineHeight: 18 },
+  followUpStripText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
   refreshStatusBtn: {
     marginTop: 10,
     alignSelf: 'flex-start',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 10,
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.bgElevated,
     borderWidth: 1,
-    borderColor: '#475569',
+    borderColor: colors.borderStrong,
   },
-  refreshStatusBtnText: { color: '#e2e8f0', fontWeight: '800', fontSize: 13 },
+  refreshStatusBtnText: { color: colors.text, fontWeight: '800', fontSize: 13 },
   offeringsIssueStrip: {
     marginTop: 12,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#1a1025',
+    backgroundColor: colors.honeyMuted,
     borderWidth: 1,
-    borderColor: '#6b21a8',
+    borderColor: colors.honey,
   },
-  offeringsIssueTitle: { color: '#e9d5ff', fontWeight: '900', fontSize: 13, marginBottom: 6 },
-  offeringsIssueBody: { color: '#c4b5fd', fontSize: 12, lineHeight: 17 },
-  packageHint: { color: '#64748b', fontSize: 11, lineHeight: 16, marginTop: 10, fontStyle: 'italic' },
-});
+  offeringsIssueTitle: { color: colors.honeyDark, fontWeight: '900', fontSize: 13, marginBottom: 6 },
+  offeringsIssueBody: { color: colors.honey, fontSize: 12, lineHeight: 17 },
+  packageHint: { color: colors.textMuted, fontSize: 11, lineHeight: 16, marginTop: 10, fontStyle: 'italic' },
+
+    });
+}

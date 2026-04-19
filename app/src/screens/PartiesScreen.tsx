@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,6 +16,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiGet, apiPost } from '../lib/api';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Parties'>;
 
@@ -34,6 +36,8 @@ type PartyListItem = {
 };
 
 export default function PartiesScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
@@ -102,7 +106,7 @@ export default function PartiesScreen({ navigation }: Props) {
           value={newName}
           onChangeText={setNewName}
           placeholder={t('parties.namePlaceholder')}
-          placeholderTextColor="#6b7280"
+          placeholderTextColor={colors.textMuted}
           style={styles.input}
         />
         <Pressable
@@ -159,8 +163,10 @@ export default function PartiesScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   header: {
     paddingHorizontal: 24,
     paddingTop: 16,
@@ -173,10 +179,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 10,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
   },
-  backText: { color: '#cbd5e1', fontWeight: '600' },
-  title: { color: '#fff', fontSize: 22, fontWeight: '800', flex: 1 },
+  backText: { color: colors.textSecondary, fontWeight: '600' },
+  title: { color: colors.text, fontSize: 22, fontWeight: '800', flex: 1 },
   createRow: {
     flexDirection: 'row',
     gap: 10,
@@ -186,36 +192,38 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: '#f9fafb',
+    color: colors.text,
     fontSize: 15,
   },
   createBtn: {
-    backgroundColor: '#7c3aed',
+    backgroundColor: colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
   },
   btnDisabled: { opacity: 0.6 },
-  createBtnText: { color: '#fff', fontWeight: '800' },
+  createBtnText: { color: colors.textInverse, fontWeight: '800' },
   redeemLink: { paddingHorizontal: 24, marginBottom: 8 },
-  redeemLinkText: { color: '#a78bfa', fontWeight: '700', fontSize: 14 },
+  redeemLinkText: { color: colors.honey, fontWeight: '700', fontSize: 14 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   list: { paddingHorizontal: 24, paddingBottom: 24 },
-  empty: { color: '#6b7280', textAlign: 'center', marginTop: 24 },
+  empty: { color: colors.textMuted, textAlign: 'center', marginTop: 24 },
   card: {
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     padding: 16,
     marginBottom: 10,
   },
-  cardTitle: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  cardMeta: { color: '#9ca3af', marginTop: 6, fontSize: 13 },
-});
+  cardTitle: { color: colors.text, fontSize: 16, fontWeight: '800' },
+  cardMeta: { color: colors.textMuted, marginTop: 6, fontSize: 13 },
+
+    });
+}

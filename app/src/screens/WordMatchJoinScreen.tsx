@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -14,10 +14,14 @@ import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiPost } from '../lib/api';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WordMatchJoin'>;
 
 export default function WordMatchJoinScreen({ navigation, route }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
   const { venueId, challengeId } = route.params ?? {};
   const { getToken, isLoaded } = useAuth();
@@ -75,7 +79,7 @@ export default function WordMatchJoinScreen({ navigation, route }: Props) {
         <TextInput
           style={styles.input}
           placeholder={t('wordMatch.codePlaceholder')}
-          placeholderTextColor="#6b7280"
+          placeholderTextColor={colors.textMuted}
           value={code}
           onChangeText={(v) => setCode(v.toUpperCase())}
           autoCapitalize="characters"
@@ -89,7 +93,7 @@ export default function WordMatchJoinScreen({ navigation, route }: Props) {
           disabled={loading || !isLoaded}
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.textInverse} />
           ) : (
             <Text style={styles.btnText}>{t('wordMatch.joinCta')}</Text>
           )}
@@ -99,8 +103,10 @@ export default function WordMatchJoinScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   header: {
     paddingHorizontal: 24,
     paddingTop: 16,
@@ -113,34 +119,36 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 10,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
   },
-  backText: { color: '#cbd5e1', fontWeight: '600' },
-  headerTitle: { color: '#fff', fontSize: 22, fontWeight: '900', flex: 1 },
+  backText: { color: colors.textSecondary, fontWeight: '600' },
+  headerTitle: { color: colors.text, fontSize: 22, fontWeight: '900', flex: 1 },
   container: { flex: 1, paddingHorizontal: 24, paddingTop: 8 },
-  sub: { color: '#9ca3af', fontSize: 14, lineHeight: 20 },
+  sub: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
   input: {
     marginTop: 20,
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: colors.borderStrong,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 14,
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 20,
     fontWeight: '900',
     letterSpacing: 4,
     textAlign: 'center',
   },
-  error: { color: '#f87171', marginTop: 10, fontWeight: '700' },
+  error: { color: colors.error, marginTop: 10, fontWeight: '700' },
   btn: {
     marginTop: 20,
-    backgroundColor: '#7c3aed',
+    backgroundColor: colors.primary,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
   },
   btnDisabled: { opacity: 0.7 },
-  btnText: { color: '#fff', fontWeight: '900', fontSize: 16 },
-});
+  btnText: { color: colors.textInverse, fontWeight: '900', fontSize: 16 },
+
+    });
+}

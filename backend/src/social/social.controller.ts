@@ -26,6 +26,8 @@ import { UpdatePresenceDto } from '../player/dto/update-presence.dto';
 import { GeofenceEventDto } from './dto/geofence-event.dto';
 import { GeofenceService } from './geofence.service';
 import { utcDayKeyDaysAgo } from '../lib/engagement-dates';
+import { PushService } from '../push/push.service';
+import { SocialInboxService } from './social-inbox.service';
 
 @Controller('social')
 @UseGuards(JwtAuthGuard)
@@ -36,6 +38,8 @@ export class SocialController {
     private readonly discovery: DiscoveryService,
     private readonly geofence: GeofenceService,
     private readonly venueFeedService: VenueFeedService,
+    private readonly push: PushService,
+    private readonly inbox: SocialInboxService,
   ) {}
 
   private email(user: unknown): string {
@@ -131,6 +135,12 @@ export class SocialController {
     return this.discovery.listSubscriberDiscoverable(p.id);
   }
 
+  @Get('inbox')
+  async socialInbox(@CurrentUser() user: unknown) {
+    const p = await this.players.findOrCreateByEmail(this.email(user));
+    return this.inbox.getInbox(p.id);
+  }
+
   @Get('friends')
   async friends(@CurrentUser() user: unknown) {
     const p = await this.players.findOrCreateByEmail(this.email(user));
@@ -165,11 +175,22 @@ export class SocialController {
     @Body() dto: FriendRequestDto,
   ) {
     const p = await this.players.findOrCreateByEmail(this.email(user));
-    const created = await this.friendships.requestFriendship(
+    const result = await this.friendships.requestFriendship(
       p.id,
       dto.targetPlayerId,
     );
-    return { created };
+    if (result.created) {
+      void this.push.sendToPlayers(
+        [dto.targetPlayerId],
+        undefined,
+        {
+          title: 'Friend request',
+          body: `${p.username} wants to connect on Cafe Social`,
+          data: { kind: 'friend_request', fromPlayerId: p.id },
+        },
+      );
+    }
+    return { created: result.created };
   }
 
   @Post('friends/request-by-username')
@@ -185,8 +206,23 @@ export class SocialController {
     if (target.id === p.id) {
       throw new BadRequestException('Cannot friend yourself');
     }
-    const created = await this.friendships.requestFriendship(p.id, target.id);
-    return { created, targetPlayerId: target.id, targetUsername: target.username };
+    const result = await this.friendships.requestFriendship(p.id, target.id);
+    if (result.created) {
+      void this.push.sendToPlayers(
+        [target.id],
+        undefined,
+        {
+          title: 'Friend request',
+          body: `${p.username} wants to connect on Cafe Social`,
+          data: { kind: 'friend_request', fromPlayerId: p.id },
+        },
+      );
+    }
+    return {
+      created: result.created,
+      targetPlayerId: target.id,
+      targetUsername: target.username,
+    };
   }
 
   @Post('friends/accept')
@@ -196,6 +232,16 @@ export class SocialController {
   ) {
     const p = await this.players.findOrCreateByEmail(this.email(user));
     await this.friendships.acceptFriendship(p.id, dto.otherPlayerId);
+    return { ok: true as const };
+  }
+
+  @Post('friends/reject')
+  async reject(
+    @CurrentUser() user: unknown,
+    @Body() dto: FriendAcceptDto,
+  ) {
+    const p = await this.players.findOrCreateByEmail(this.email(user));
+    await this.friendships.rejectIncomingRequest(p.id, dto.otherPlayerId);
     return { ok: true as const };
   }
 }

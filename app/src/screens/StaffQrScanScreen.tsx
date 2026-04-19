@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import {
   Platform,
   Pressable,
@@ -14,10 +14,14 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { parseStaffVerificationFromQr } from '../lib/staffQr';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'StaffQrScan'>;
 
 export default function StaffQrScanScreen({ navigation, route }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
   const { isLoaded } = useAuth();
   const { venueId, venueName } = route.params;
@@ -122,7 +126,7 @@ export default function StaffQrScanScreen({ navigation, route }: Props) {
           onChangeText={setManual}
           autoCapitalize="characters"
           placeholder={t('staff.manualPlaceholder')}
-          placeholderTextColor="#6b7280"
+          placeholderTextColor={colors.textMuted}
           style={styles.input}
           editable={isLoaded}
         />
@@ -134,8 +138,10 @@ export default function StaffQrScanScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -143,17 +149,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 16,
   },
-  backBtn: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#111827' },
-  backText: { color: '#cbd5e1', fontWeight: '600' },
-  title: { color: '#fff', fontSize: 20, fontWeight: '800', flex: 1 },
-  sub: { color: '#6b7280', fontSize: 13, marginHorizontal: 24, marginTop: 10, lineHeight: 18 },
+  backBtn: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, backgroundColor: colors.surface },
+  backText: { color: colors.textSecondary, fontWeight: '600' },
+  title: { color: colors.text, fontSize: 20, fontWeight: '800', flex: 1 },
+  sub: { color: colors.textMuted, fontSize: 13, marginHorizontal: 24, marginTop: 10, lineHeight: 18 },
   scannerWrap: {
     marginHorizontal: 24,
     marginTop: 16,
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#27272a',
+    borderColor: colors.border,
     height: 240,
     backgroundColor: '#000',
   },
@@ -163,9 +169,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
   },
-  fallbackText: { color: '#9ca3af', textAlign: 'center' },
+  fallbackText: { color: colors.textMuted, textAlign: 'center' },
   permBtn: {
     marginTop: 12,
     backgroundColor: '#6d28d9',
@@ -173,20 +179,20 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
   },
-  permBtnText: { color: '#fff', fontWeight: '800' },
+  permBtnText: { color: colors.textInverse, fontWeight: '800' },
   secondarySmall: { alignSelf: 'center', marginTop: 10 },
-  secondarySmallText: { color: '#a78bfa', fontWeight: '700', fontSize: 13 },
-  error: { color: '#f87171', marginHorizontal: 24, marginTop: 10, fontSize: 13 },
+  secondarySmallText: { color: colors.honey, fontWeight: '700', fontSize: 13 },
+  error: { color: colors.error, marginHorizontal: 24, marginTop: 10, fontSize: 13 },
   manual: { marginHorizontal: 24, marginTop: 20 },
-  manualLabel: { color: '#9ca3af', fontSize: 12, fontWeight: '700', marginBottom: 8 },
+  manualLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '700', marginBottom: 8 },
   input: {
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: '#f9fafb',
+    color: colors.text,
     fontSize: 16,
     letterSpacing: 1,
   },
@@ -197,5 +203,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
   },
-  applyBtnText: { color: '#e9d5ff', fontWeight: '800' },
-});
+  applyBtnText: { color: colors.honeyDark, fontWeight: '800' },
+
+    });
+}

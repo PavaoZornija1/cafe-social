@@ -28,6 +28,8 @@ import {
   type PlatformWorld,
 } from '../brawler/arenaPlatforms';
 import type { BrawlerArenaHeroStats, RootStackParamList } from '../navigation/type';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Dummy = {
   id: number;
@@ -219,10 +221,12 @@ function ArenaPlatformArt({
   platforms,
   worldW,
   worldH,
+  styles,
 }: {
   platforms: PlatformWorld[];
   worldW: number;
   worldH: number;
+  styles: { platformArtClip: object; platformArtImage: object };
 }) {
   if (worldW < 2 || worldH < 2) return null;
   return (
@@ -257,6 +261,8 @@ function ArenaPlatformArt({
 }
 
 export default function BrawlerArenaScreen({ navigation, route }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { heroId, heroStats: heroStatsParam } = route.params;
   const insets = useSafeAreaInsets();
 
@@ -1438,7 +1444,12 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
             ]}
           >
             <View style={styles.platformBg}>
-              <ArenaPlatformArt platforms={platformsWorld} worldW={worldW} worldH={worldH} />
+              <ArenaPlatformArt
+                platforms={platformsWorld}
+                worldW={worldW}
+                worldH={worldH}
+                styles={styles}
+              />
             </View>
 
             <View
@@ -1746,10 +1757,13 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+
   root: {
     flex: 1,
-    backgroundColor: '#0c1222',
+    backgroundColor: colors.bg,
   },
   hud: {
     flexDirection: 'row',
@@ -1774,7 +1788,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   hudPhase: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 10,
     fontWeight: '800',
     textTransform: 'uppercase',
@@ -1782,7 +1796,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   hudClock: {
-    color: '#f8fafc',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '900',
     fontVariant: ['tabular-nums'],
@@ -1792,9 +1806,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 8,
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.bgElevated,
   },
-  backText: { color: '#e2e8f0', fontWeight: '800', fontSize: 12 },
+  backText: { color: colors.text, fontWeight: '800', fontSize: 12 },
   hudHpWrap: {
     marginTop: 4,
     width: 120,
@@ -1803,9 +1817,9 @@ const styles = StyleSheet.create({
     height: 8,
     width: '100%',
     borderRadius: 999,
-    backgroundColor: '#0b1220',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.borderStrong,
     overflow: 'hidden',
   },
   hudHpFill: {
@@ -1814,12 +1828,12 @@ const styles = StyleSheet.create({
   },
   hudHpText: {
     marginTop: 2,
-    color: '#cbd5e1',
+    color: colors.textSecondary,
     fontSize: 10,
     fontWeight: '800',
   },
   hudTitle: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 15,
     fontWeight: '900',
     textAlign: 'right',
@@ -1838,7 +1852,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
   resetBtnText: {
-    color: '#e2e8f0',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '900',
     letterSpacing: 0.4,
@@ -1898,7 +1912,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   preMatchLabel: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 1.2,
@@ -1906,7 +1920,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   preMatchDigit: {
-    color: '#f8fafc',
+    color: colors.text,
     fontSize: 96,
     fontWeight: '900',
     fontVariant: ['tabular-nums'],
@@ -1925,19 +1939,19 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 22,
     paddingHorizontal: 20,
-    backgroundColor: '#151b2e',
+    backgroundColor: colors.surface,
     borderWidth: 2,
-    borderColor: '#334155',
+    borderColor: colors.borderStrong,
   },
   gameOverTitle: {
-    color: '#f8fafc',
+    color: colors.text,
     fontSize: 22,
     fontWeight: '900',
     textAlign: 'center',
     marginBottom: 8,
   },
   gameOverHint: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
@@ -1954,25 +1968,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   gameOverBtnPrimary: {
-    backgroundColor: '#7c3aed',
+    backgroundColor: colors.primary,
     borderWidth: 2,
     borderColor: '#a78bfa',
   },
   gameOverBtnSecondary: {
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.bgElevated,
     borderWidth: 2,
-    borderColor: '#475569',
+    borderColor: colors.borderStrong,
   },
   gameOverBtnPressed: {
     opacity: 0.88,
   },
   gameOverBtnPrimaryText: {
-    color: '#f8fafc',
+    color: colors.text,
     fontSize: 16,
     fontWeight: '900',
   },
   gameOverBtnSecondaryText: {
-    color: '#e2e8f0',
+    color: colors.text,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -2012,7 +2026,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.22)',
     backgroundColor: 'rgba(154, 52, 18, 0.72)',
-    shadowColor: '#000',
+    shadowColor: colors.text,
     shadowOpacity: 0.4,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 6 },
@@ -2027,7 +2041,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.22)',
     backgroundColor: 'rgba(14, 116, 144, 0.72)',
-    shadowColor: '#000',
+    shadowColor: colors.text,
     shadowOpacity: 0.4,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 6 },
@@ -2042,7 +2056,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.22)',
     backgroundColor: 'rgba(91, 33, 182, 0.72)',
-    shadowColor: '#000',
+    shadowColor: colors.text,
     shadowOpacity: 0.4,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 6 },
@@ -2053,16 +2067,19 @@ const styles = StyleSheet.create({
   },
   ctrlPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
   ctrlCircleLabel: {
-    color: '#f8fafc',
+    color: colors.text,
     fontSize: 12,
     fontWeight: '900',
     letterSpacing: 0.3,
     textTransform: 'uppercase',
   },
   ctrlCircleSub: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 9,
     fontWeight: '900',
     marginTop: 0,
   },
-});
+
+    });
+}
+

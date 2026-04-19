@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,6 +18,8 @@ import { apiGet } from '../lib/api';
 import { createAndShareFriendInviteLink } from '../lib/friendInviteShare';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { syncOnboardingFromServerSummary } from '../lib/onboardingStorage';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 
@@ -43,6 +45,8 @@ type PerkRedemptionsPayload = {
 };
 
 export default function ProfileScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
@@ -259,8 +263,10 @@ export default function ProfileScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   header: {
     paddingHorizontal: 24,
     paddingTop: 16,
@@ -273,35 +279,35 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 10,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
   },
-  backText: { color: '#cbd5e1', fontWeight: '600' },
-  headerTitle: { color: '#fff', fontSize: 22, fontWeight: '800', flex: 1 },
+  backText: { color: colors.textSecondary, fontWeight: '600' },
+  headerTitle: { color: colors.text, fontSize: 22, fontWeight: '800', flex: 1 },
   scroll: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 32 },
-  subtitle: { color: '#9ca3af', marginTop: 8, fontSize: 14, lineHeight: 20 },
+  subtitle: { color: colors.textMuted, marginTop: 8, fontSize: 14, lineHeight: 20 },
   linkRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
   linkBtn: {
     flexGrow: 1,
     minWidth: '45%',
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.border,
     alignItems: 'center',
   },
   linkBtnPressed: { opacity: 0.88 },
-  linkBtnText: { color: '#e5e7eb', fontWeight: '700', fontSize: 14 },
+  linkBtnText: { color: colors.textSecondary, fontWeight: '700', fontSize: 14 },
   center: { paddingVertical: 24, alignItems: 'center' },
-  error: { color: '#fca5a5', marginTop: 12 },
+  error: { color: colors.error, marginTop: 12 },
   card: {
     marginTop: 20,
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.border,
   },
   walletCard: { marginTop: 16 },
   row: {
@@ -309,47 +315,47 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b',
+    borderBottomColor: colors.border,
   },
-  label: { color: '#94a3b8', fontSize: 14 },
-  value: { color: '#f8fafc', fontSize: 15, fontWeight: '600' },
-  sectionTitle: { color: '#e5e7eb', fontSize: 16, fontWeight: '700', marginTop: 24 },
-  sectionHint: { color: '#64748b', fontSize: 13, marginTop: 6, lineHeight: 18 },
-  walletStat: { color: '#a5b4fc', fontSize: 15, fontWeight: '600', marginTop: 8 },
+  label: { color: colors.textSecondary, fontSize: 14 },
+  value: { color: colors.text, fontSize: 15, fontWeight: '600' },
+  sectionTitle: { color: colors.textSecondary, fontSize: 16, fontWeight: '700', marginTop: 24 },
+  sectionHint: { color: colors.textMuted, fontSize: 13, marginTop: 6, lineHeight: 18 },
+  walletStat: { color: colors.honeyDark, fontSize: 15, fontWeight: '600', marginTop: 8 },
   list: { marginTop: 12, gap: 4 },
   listItem: {
-    backgroundColor: '#0f172a',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.border,
   },
-  listTitle: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  listSub: { color: '#94a3b8', marginTop: 4, fontSize: 14 },
+  listTitle: { color: colors.text, fontWeight: '700', fontSize: 16 },
+  listSub: { color: colors.textSecondary, marginTop: 4, fontSize: 14 },
   venueLine: { color: '#818cf8', marginTop: 6, fontSize: 13, fontWeight: '600' },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
   badgeExpiring: {
     color: '#fbbf24',
     fontSize: 12,
     fontWeight: '700',
-    backgroundColor: '#422006',
+    backgroundColor: colors.warningBg,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
     overflow: 'hidden',
   },
   badgeExpired: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '600',
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.bgElevated,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
   },
   badgeVoid: {
-    color: '#fca5a5',
+    color: colors.error,
     fontSize: 12,
     fontWeight: '600',
     backgroundColor: '#450a0a',
@@ -357,6 +363,8 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 8,
   },
-  listMeta: { color: '#64748b', marginTop: 8, fontSize: 12 },
-  muted: { color: '#64748b', marginTop: 8 },
-});
+  listMeta: { color: colors.textMuted, marginTop: 8, fontSize: 12 },
+  muted: { color: colors.textMuted, marginTop: 8 },
+
+    });
+}

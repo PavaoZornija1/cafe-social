@@ -23,7 +23,8 @@ import type { MeSummaryDto } from '../lib/meSummary';
 import { syncOnboardingFromServerSummary } from '../lib/onboardingStorage';
 import { buildVenueAccessQuery, fetchDetectedVenue } from '../lib/venueDetectClient';
 import { isLikelyNetworkFailure } from '../lib/isNetworkError';
-
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -88,6 +89,8 @@ type VenuePublicCard = {
 };
 
 export default function HomeScreen({ navigation }: Props) {
+    const { colors } = useAppTheme();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const { t } = useTranslation();
     const { user } = useUser();
     const { isLoaded, getToken } = useAuth();
@@ -464,7 +467,7 @@ export default function HomeScreen({ navigation }: Props) {
                             accessibilityRole="button"
                             accessibilityLabel={t('home.navSettings')}
                         >
-                            <Ionicons name="settings-outline" size={22} color="#fff" />
+                            <Ionicons name="settings-outline" size={22} color={colors.text} />
                         </Pressable>
                     </View>
 
@@ -489,11 +492,11 @@ export default function HomeScreen({ navigation }: Props) {
                         }
                     >
                         <View style={styles.venueRow}>
-                            <Ionicons name="location-sharp" size={20} color="#a78bfa" />
+                            <Ionicons name="location-sharp" size={20} color={colors.honey} />
                             <View style={styles.venueRowMain}>
                                 {loadingVenue ? (
                                     <View style={styles.venueRowLoading}>
-                                        <ActivityIndicator color="#a78bfa" size="small" />
+                                        <ActivityIndicator color={colors.primary} size="small" />
                                         <Text style={styles.venueRowMeta}>{t('home.detectingVenue')}</Text>
                                     </View>
                                 ) : venueError ? (
@@ -523,7 +526,7 @@ export default function HomeScreen({ navigation }: Props) {
                                 )}
                             </View>
                             {venueHubOpenable ? (
-                                <Ionicons name="chevron-forward" size={18} color="#64748b" />
+                                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                             ) : null}
                         </View>
                     </Pressable>
@@ -532,8 +535,21 @@ export default function HomeScreen({ navigation }: Props) {
                         <View style={styles.statHighlightCard}>
                             <Text style={styles.statHighlightLabel}>{t('home.statXp')}</Text>
                             <Text style={styles.statHighlightValue}>
-                                {loadingSummary ? '…' : meSummary?.xp ?? '—'}
+                                {loadingSummary
+                                    ? '…'
+                                    : meSummary == null
+                                      ? '—'
+                                      : meSummary.nextTierXpThreshold != null
+                                        ? `${meSummary.xp} / ${meSummary.nextTierXpThreshold}`
+                                        : String(meSummary.xp)}
                             </Text>
+                            {!loadingSummary && meSummary ? (
+                                <Text style={styles.statHighlightSub} numberOfLines={1}>
+                                    {meSummary.nextTierName
+                                        ? t('home.xpTowardNext', { nextTier: meSummary.nextTierName })
+                                        : t('home.xpMaxTier')}
+                                </Text>
+                            ) : null}
                         </View>
                         <View style={styles.statHighlightCard}>
                             <Text style={styles.statHighlightLabel}>{t('home.statTier')}</Text>
@@ -543,20 +559,20 @@ export default function HomeScreen({ navigation }: Props) {
                         </View>
                     </View>
 
-                    {detectedVenue && !loadingVenue && !venueError ? (
+                    {detectedVenue && !loadingVenue && !venueError && (locked || access?.bannedFromVenue) ? (
                         <View style={styles.venueStatusBlock}>
-                            <Text
-                                style={
-                                    locked
-                                        ? venueAdminLocked
+                            {locked ? (
+                                <Text
+                                    style={
+                                        venueAdminLocked
                                             ? styles.venueStatusPaused
                                             : styles.venueStatusLocked
-                                        : styles.venueStatusOk
-                                }
-                                numberOfLines={2}
-                            >
-                                {locked ? venueGamesLockedExplanation : t('home.unlockedHint')}
-                            </Text>
+                                    }
+                                    numberOfLines={2}
+                                >
+                                    {venueGamesLockedExplanation}
+                                </Text>
+                            ) : null}
                             {access?.bannedFromVenue ? (
                                 <Pressable
                                     style={({ pressed }) => [
@@ -682,7 +698,7 @@ export default function HomeScreen({ navigation }: Props) {
                                 accessibilityRole="button"
                                 accessibilityLabel={t('home.linkDailyWord')}
                             >
-                                <Ionicons name="calendar-outline" size={18} color="#a78bfa" />
+                                <Ionicons name="calendar-outline" size={18} color={colors.honey} />
                                 <Text style={styles.shortcutLabel} numberOfLines={1}>
                                     {t('home.linkDailyWord')}
                                 </Text>
@@ -705,7 +721,7 @@ export default function HomeScreen({ navigation }: Props) {
                                 accessibilityLabel={t('home.linkWordRooms')}
                                 accessibilityState={{ disabled: !gamesPlayable }}
                             >
-                                <Ionicons name="chatbubbles-outline" size={18} color="#a78bfa" />
+                                <Ionicons name="chatbubbles-outline" size={18} color={colors.honey} />
                                 <Text style={styles.shortcutLabel} numberOfLines={1}>
                                     {t('home.linkWordRooms')}
                                 </Text>
@@ -723,7 +739,7 @@ export default function HomeScreen({ navigation }: Props) {
                                 accessibilityRole="button"
                                 accessibilityLabel={t('home.linkFriends')}
                             >
-                                <Ionicons name="people-outline" size={18} color="#a78bfa" />
+                                <Ionicons name="people-outline" size={18} color={colors.honey} />
                                 <Text style={styles.shortcutLabel} numberOfLines={1}>
                                     {t('home.linkFriends')}
                                 </Text>
@@ -738,7 +754,7 @@ export default function HomeScreen({ navigation }: Props) {
                                 accessibilityRole="button"
                                 accessibilityLabel={t('home.linkParties')}
                             >
-                                <Ionicons name="balloon-outline" size={18} color="#a78bfa" />
+                                <Ionicons name="balloon-outline" size={18} color={colors.honey} />
                                 <Text style={styles.shortcutLabel} numberOfLines={1}>
                                     {t('home.linkParties')}
                                 </Text>
@@ -751,11 +767,11 @@ export default function HomeScreen({ navigation }: Props) {
                                 ]}
                                 onPress={() => navigation.navigate('RedeemInvite', {})}
                                 accessibilityRole="button"
-                                accessibilityLabel={t('home.linkRedeemInvite')}
+                                accessibilityLabel={t('home.linkInbox')}
                             >
-                                <Ionicons name="mail-open-outline" size={18} color="#a78bfa" />
-                                <Text style={styles.shortcutLabel} numberOfLines={1}>
-                                    {t('home.linkRedeemInvite')}
+                                <Ionicons name="notifications-outline" size={18} color={colors.honey} />
+                                <Text style={styles.shortcutLabel} numberOfLines={2}>
+                                    {t('home.linkInbox')}
                                 </Text>
                             </Pressable>
                             <Pressable
@@ -768,7 +784,7 @@ export default function HomeScreen({ navigation }: Props) {
                                 accessibilityRole="button"
                                 accessibilityLabel={t('home.linkPartnerMap')}
                             >
-                                <Ionicons name="map-outline" size={18} color="#a78bfa" />
+                                <Ionicons name="map-outline" size={18} color={colors.honey} />
                                 <Text style={styles.shortcutLabel} numberOfLines={1}>
                                     {t('home.linkPartnerMap')}
                                 </Text>
@@ -791,7 +807,7 @@ export default function HomeScreen({ navigation }: Props) {
                                 accessibilityLabel={t('home.linkPeopleHere')}
                                 accessibilityState={{ disabled: !detectedVenue }}
                             >
-                                <Ionicons name="navigate-outline" size={18} color="#a78bfa" />
+                                <Ionicons name="navigate-outline" size={18} color={colors.honey} />
                                 <Text style={styles.shortcutLabel} numberOfLines={1}>
                                     {t('home.linkPeopleHere')}
                                 </Text>
@@ -811,7 +827,7 @@ export default function HomeScreen({ navigation }: Props) {
                                 accessibilityLabel={t('home.linkRedeemPerk')}
                                 accessibilityState={{ disabled: !detectedVenue }}
                             >
-                                <Ionicons name="pricetag-outline" size={18} color="#a78bfa" />
+                                <Ionicons name="pricetag-outline" size={18} color={colors.honey} />
                                 <Text style={styles.shortcutLabel} numberOfLines={1}>
                                     {t('home.linkRedeemPerk')}
                                 </Text>
@@ -833,7 +849,7 @@ export default function HomeScreen({ navigation }: Props) {
                                 accessibilityLabel={t('home.linkReceipt')}
                                 accessibilityState={{ disabled: !detectedVenue }}
                             >
-                                <Ionicons name="receipt-outline" size={18} color="#a78bfa" />
+                                <Ionicons name="receipt-outline" size={18} color={colors.honey} />
                                 <Text style={styles.shortcutLabel} numberOfLines={1}>
                                     {t('home.linkReceipt')}
                                 </Text>
@@ -850,7 +866,7 @@ export default function HomeScreen({ navigation }: Props) {
                         accessibilityLabel={t('home.navChallenges')}
                     >
                         <Text style={styles.navIcon} accessibilityElementsHidden>
-                            <Ionicons name="trophy-outline" size={22} color="#fff" />
+                            <Ionicons name="trophy-outline" size={22} color={colors.primary} />
                         </Text>
                     </Pressable>
                     <Pressable
@@ -860,7 +876,7 @@ export default function HomeScreen({ navigation }: Props) {
                         accessibilityLabel={t('home.navLeaderboard')}
                     >
                         <Text style={styles.navIcon} accessibilityElementsHidden>
-                            <Ionicons name="bar-chart-outline" size={22} color="#fff" />
+                            <Ionicons name="bar-chart-outline" size={22} color={colors.primary} />
                         </Text>
                     </Pressable>
                     <Pressable
@@ -870,19 +886,17 @@ export default function HomeScreen({ navigation }: Props) {
                         accessibilityLabel={t('home.navProfile')}
                     >
                         <Text style={styles.navIcon} accessibilityElementsHidden>
-                            <Ionicons name="person-outline" size={22} color="#fff" />
+                            <Ionicons name="person-outline" size={22} color={colors.primary} />
                         </Text>
                     </Pressable>
                     <Pressable
                         style={({ pressed }) => [styles.navItem, pressed && styles.navItemPressed]}
-                        onPress={() =>
-                            navigation.navigate('QrScan', { venueId: detectedVenue?.id })
-                        }
+                        onPress={() => navigation.navigate('DiscoverHub')}
                         accessibilityRole="button"
-                        accessibilityLabel={t('home.navQrScan')}
+                        accessibilityLabel={t('home.navDiscoverHub')}
                     >
                         <Text style={styles.navIcon} accessibilityElementsHidden>
-                            <Ionicons name="qr-code-outline" size={22} color="#fff" />
+                            <Ionicons name="compass-outline" size={22} color={colors.primary} />
                         </Text>
                     </Pressable>
                 </View>
@@ -891,11 +905,12 @@ export default function HomeScreen({ navigation }: Props) {
     );
 }
 
-const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#050816' },
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.bg },
     screen: {
         flex: 1,
-        backgroundColor: '#050816',
+        backgroundColor: colors.bg,
         paddingHorizontal: 24,
     },
     headerBlock: {
@@ -910,31 +925,31 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     leftHeader: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-    avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#111827' },
+    avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.bgElevated },
     avatarFallback: {
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: '#111827',
+        backgroundColor: colors.bgElevated,
         alignItems: 'center',
         justifyContent: 'center',
     },
     avatarFallbackText: { fontSize: 18 },
     headerText: { flexDirection: 'column' },
-    appTitle: { color: '#fff', fontSize: 18, fontWeight: '900' },
-    welcome: { color: '#d4d4d8', fontSize: 13, marginTop: 2 },
+    appTitle: { color: colors.text, fontSize: 18, fontWeight: '900' },
+    welcome: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
     settingsBtn: {
         padding: 10,
         borderRadius: 14,
-        backgroundColor: '#111827',
+        backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: '#1f2937',
+        borderColor: colors.border,
     },
     venueCapsule: {
-        backgroundColor: '#111827',
+        backgroundColor: colors.surface,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#1f2937',
+        borderColor: colors.border,
         paddingVertical: 8,
         paddingHorizontal: 11,
         marginBottom: 8,
@@ -947,58 +962,63 @@ const styles = StyleSheet.create({
     },
     venueRowMain: { flex: 1, minWidth: 0 },
     venueRowLoading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    venueRowMeta: { color: '#9ca3af', fontSize: 12, fontWeight: '600' },
-    venueRowError: { color: '#f87171', fontSize: 12, fontWeight: '600' },
-    venueRowName: { color: '#fff', fontSize: 16, fontWeight: '800' },
+    venueRowMeta: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+    venueRowError: { color: colors.error, fontSize: 12, fontWeight: '600' },
+    venueRowName: { color: colors.text, fontSize: 16, fontWeight: '800' },
     venueRowNoVenue: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
     mapChip: {
-        backgroundColor: '#312e81',
+        backgroundColor: colors.honeyMuted,
         paddingVertical: 5,
         paddingHorizontal: 10,
         borderRadius: 8,
     },
     mapChipPressed: { opacity: 0.88 },
-    mapChipText: { color: '#e9d5ff', fontWeight: '800', fontSize: 11 },
+    mapChipText: { color: colors.honeyDark, fontWeight: '800', fontSize: 11 },
     statsHighlightRow: { flexDirection: 'row', gap: 8, marginBottom: 6 },
     statHighlightCard: {
         flex: 1,
-        backgroundColor: '#111827',
+        backgroundColor: colors.surface,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#334155',
+        borderColor: colors.border,
         paddingVertical: 10,
         paddingHorizontal: 12,
     },
     statHighlightLabel: {
-        color: '#9ca3af',
+        color: colors.textMuted,
         fontSize: 10,
         fontWeight: '700',
         letterSpacing: 0.3,
         textTransform: 'uppercase',
     },
     statHighlightValue: {
-        color: '#f5f3ff',
+        color: colors.primary,
         fontSize: 18,
         fontWeight: '900',
         marginTop: 2,
     },
+    statHighlightSub: {
+        color: colors.textSecondary,
+        fontSize: 11,
+        fontWeight: '600',
+        marginTop: 4,
+    },
     venueStatusBlock: { marginTop: 2 },
-    venueStatusOk: { color: '#a78bfa', fontSize: 11, fontWeight: '700', lineHeight: 15 },
-    venueStatusLocked: { color: '#fca5a5', fontSize: 11, fontWeight: '700', lineHeight: 15 },
-    venueStatusPaused: { color: '#fcd34d', fontSize: 11, fontWeight: '600', lineHeight: 15 },
-    noVenueHint: { color: '#64748b', fontSize: 11, lineHeight: 15, marginTop: 4 },
+    venueStatusLocked: { color: colors.error, fontSize: 11, fontWeight: '700', lineHeight: 15 },
+    venueStatusPaused: { color: colors.honeyDark, fontSize: 11, fontWeight: '600', lineHeight: 15 },
+    noVenueHint: { color: colors.textMuted, fontSize: 11, lineHeight: 15, marginTop: 4 },
     banAppealBtnCompact: {
         alignSelf: 'flex-start',
         marginTop: 8,
         paddingVertical: 8,
         paddingHorizontal: 12,
         borderRadius: 10,
-        backgroundColor: '#422006',
+        backgroundColor: colors.warningBg,
         borderWidth: 1,
-        borderColor: '#ca8a04',
+        borderColor: colors.warningBorder,
     },
     banAppealBtnPressed: { opacity: 0.9 },
-    banAppealBtnText: { color: '#fde68a', fontWeight: '800', fontSize: 12 },
+    banAppealBtnText: { color: colors.warning, fontWeight: '800', fontSize: 12 },
     body: {
         flex: 1,
         minHeight: 0,
@@ -1007,15 +1027,15 @@ const styles = StyleSheet.create({
     },
     challengeStrip: {
         flexShrink: 0,
-        backgroundColor: '#0b1220',
+        backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: '#1e293b',
+        borderColor: colors.border,
         borderRadius: 12,
         paddingVertical: 7,
         paddingHorizontal: 10,
     },
-    challengeStripTitle: { color: '#fff', fontSize: 12, fontWeight: '900' },
-    challengeStripText: { color: '#9ca3af', fontSize: 11, marginTop: 4, lineHeight: 15 },
+    challengeStripTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
+    challengeStripText: { color: colors.textSecondary, fontSize: 11, marginTop: 4, lineHeight: 15 },
     playAreaWrap: {
         flex: 1,
         minHeight: 0,
@@ -1026,7 +1046,7 @@ const styles = StyleSheet.create({
     playColumn: { alignItems: 'center', maxWidth: '100%' },
     playLockedBlock: { marginTop: 14, paddingHorizontal: 12, alignItems: 'center' },
     playLockedHint: {
-        color: '#94a3b8',
+        color: colors.textSecondary,
         fontSize: 11,
         fontWeight: '600',
         textAlign: 'center',
@@ -1042,17 +1062,17 @@ const styles = StyleSheet.create({
     },
     playLockedLink: { paddingVertical: 4, paddingHorizontal: 6 },
     playLockedLinkPressed: { opacity: 0.85 },
-    playLockedLinkText: { color: '#a78bfa', fontSize: 12, fontWeight: '800' },
-    playLockedSep: { color: '#475569', fontSize: 12, fontWeight: '700' },
+    playLockedLinkText: { color: colors.link, fontSize: 12, fontWeight: '800' },
+    playLockedSep: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
     playButton: {
         width: 120,
         height: 120,
         borderRadius: 72,
-        backgroundColor: '#7c3aed',
+        backgroundColor: colors.primary,
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#7c3aed',
-        shadowOpacity: 0.32,
+        shadowColor: colors.primary,
+        shadowOpacity: 0.35,
         shadowRadius: 14,
         shadowOffset: { width: 0, height: 6 },
         elevation: 8,
@@ -1060,7 +1080,7 @@ const styles = StyleSheet.create({
     },
     playButtonDisabled: { opacity: 0.55 },
     playText: {
-        color: '#ffffff',
+        color: colors.textInverse,
         fontSize: 24,
         fontWeight: '900',
         letterSpacing: 1,
@@ -1081,14 +1101,14 @@ const styles = StyleSheet.create({
     shortcutBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
         gap: 8,
-        backgroundColor: '#111827',
+        backgroundColor: colors.surface,
         borderRadius: 10,
         borderWidth: 1,
-        borderColor: '#312e81',
+        borderColor: colors.borderStrong,
         paddingVertical: 9,
-        paddingHorizontal: 10,
+        paddingHorizontal: 12,
         minHeight: 40,
     },
     shortcutBtnFlex: { flex: 1 },
@@ -1096,10 +1116,11 @@ const styles = StyleSheet.create({
     shortcutBtnPressed: { opacity: 0.92 },
     shortcutBtnDisabled: { opacity: 0.45 },
     shortcutLabel: {
-        color: '#e2e8f0',
+        color: colors.text,
         fontSize: 12,
         fontWeight: '800',
-        flexShrink: 1,
+        flex: 1,
+        textAlign: 'left',
     },
     bottomNav: {
         flexShrink: 0,
@@ -1110,15 +1131,15 @@ const styles = StyleSheet.create({
         marginHorizontal: -24,
         paddingHorizontal: 24,
         borderTopWidth: 1,
-        borderTopColor: '#1e293b',
-        backgroundColor: '#050816',
+        borderTopColor: colors.border,
+        backgroundColor: colors.bg,
     },
     navItem: {
         flex: 1,
         borderRadius: 16,
-        backgroundColor: '#111827',
+        backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: '#1f2937',
+        borderColor: colors.border,
         paddingVertical: 14,
         alignItems: 'center',
         justifyContent: 'center',
@@ -1127,4 +1148,5 @@ const styles = StyleSheet.create({
     navIcon: {
         fontSize: 18,
     },
-});
+    });
+}

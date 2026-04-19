@@ -1,11 +1,11 @@
 import { useAuth } from '@clerk/expo';
 import {
-  DarkTheme,
+  DefaultTheme,
   NavigationContainer,
   type LinkingOptions,
   type NavigationState,
 } from '@react-navigation/native';
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 
 import { StatusBar } from 'expo-status-bar';
 
@@ -14,6 +14,7 @@ import { ExpoPushRegistrar } from '../components/ExpoPushRegistrar';
 import RevenueCatIdentitySync from '../components/RevenueCatIdentitySync';
 import { NotificationNavigationEffect } from '../components/NotificationNavigationEffect';
 import { VenuePresenceHeartbeat } from '../components/VenuePresenceHeartbeat';
+import { useAppTheme } from '../theme/ThemeContext';
 import { navigationRef } from './navigationRef';
 import { resolvePostAuthTarget } from './resolvePostAuthTarget';
 import RootStack from './RootStack';
@@ -21,26 +22,28 @@ import type { RootStackParamList } from './type';
 
 const EXEMPT_FROM_ONBOARDING_GUARD = new Set(['Login', 'SignUp', 'Onboarding']);
 
-const navigationTheme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    background: '#050816',
-    card: '#18181b',
-    text: '#f4f4f5',
-    border: '#27272a',
-    notification: '#f4f4f5',
-    primary: '#f4f4f5',
-    secondary: '#e4e4e7',
-    tertiary: '#d4d4d8',
-  },
-};
-
 type Props = {
   linking: LinkingOptions<RootStackParamList>;
 };
 
 export default function AppNavigation({ linking }: Props) {
+  const { colors } = useAppTheme();
+  const navigationTheme = useMemo(
+    () => ({
+      ...DefaultTheme,
+      colors: {
+        ...DefaultTheme.colors,
+        primary: colors.primary,
+        background: colors.bg,
+        card: colors.surface,
+        text: colors.text,
+        border: colors.border,
+        notification: colors.primary,
+      },
+    }),
+    [colors],
+  );
+
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
@@ -86,7 +89,7 @@ export default function AppNavigation({ linking }: Props) {
       <RevenueCatIdentitySync />
       <VenuePresenceHeartbeat />
       <ExpoPushRegistrar />
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <RootStack />
     </NavigationContainer>
   );

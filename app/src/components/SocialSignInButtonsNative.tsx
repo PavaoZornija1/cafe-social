@@ -4,7 +4,7 @@
  */
 import { useSignInWithApple } from '@clerk/expo/apple';
 import { useSSO } from '@clerk/expo';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     Alert,
@@ -15,18 +15,23 @@ import {
     View,
 } from 'react-native';
 
+import type { AppColors } from '../theme/colors';
+import { useAppTheme } from '../theme/ThemeContext';
+
 export type SocialSignInButtonsNativeProps = {
     onSuccess?: () => void;
     showDivider?: boolean;
 };
 
+type ThemedStyles = ReturnType<typeof createStyles>;
+
 export function SocialSignInButtonsNative({
     onSuccess,
     showDivider = true,
 }: SocialSignInButtonsNativeProps) {
+    const { colors } = useAppTheme();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const { t } = useTranslation();
-    // Personal iOS dev teams cannot provision the "Sign in with Apple" capability.
-    // Until we have a proper Apple developer team + signing, we hide the Apple button.
     const ENABLE_APPLE_SIGN_IN = false;
     const [loading, setLoading] = useState<'google' | 'apple' | null>(null);
 
@@ -34,6 +39,7 @@ export function SocialSignInButtonsNative({
         <View style={styles.container}>
             {(Platform.OS === 'ios' || Platform.OS === 'android') && (
                 <GoogleSignInButton
+                    styles={styles}
                     onSuccess={onSuccess}
                     loading={loading === 'google'}
                     onLoadingChange={(v) => setLoading(v ? 'google' : null)}
@@ -41,6 +47,7 @@ export function SocialSignInButtonsNative({
             )}
             {Platform.OS === 'ios' && ENABLE_APPLE_SIGN_IN && (
                 <AppleSignInButton
+                    styles={styles}
                     onSuccess={onSuccess}
                     loading={loading === 'apple'}
                     onLoadingChange={(v) => setLoading(v ? 'apple' : null)}
@@ -58,10 +65,12 @@ export function SocialSignInButtonsNative({
 }
 
 function GoogleSignInButton({
+    styles,
     onSuccess,
     loading,
     onLoadingChange,
 }: {
+    styles: ThemedStyles;
     onSuccess?: () => void;
     loading: boolean;
     onLoadingChange: (loading: boolean) => void;
@@ -84,7 +93,7 @@ function GoogleSignInButton({
             if (code === 'SIGN_IN_CANCELLED' || code === '-5') return;
             Alert.alert(
                 t('common.error'),
-                (err as { message?: string })?.message || t('social.googleSignInFailed')
+                (err as { message?: string })?.message || t('social.googleSignInFailed'),
             );
         } finally {
             onLoadingChange(false);
@@ -105,10 +114,12 @@ function GoogleSignInButton({
 }
 
 function AppleSignInButton({
+    styles,
     onSuccess,
     loading,
     onLoadingChange,
 }: {
+    styles: ThemedStyles;
     onSuccess?: () => void;
     loading: boolean;
     onLoadingChange: (loading: boolean) => void;
@@ -128,7 +139,7 @@ function AppleSignInButton({
             if (code === 'ERR_REQUEST_CANCELED') return;
             Alert.alert(
                 'Error',
-                (err as { message?: string })?.message || 'Apple sign-in failed'
+                (err as { message?: string })?.message || 'Apple sign-in failed',
             );
         } finally {
             onLoadingChange(false);
@@ -148,49 +159,51 @@ function AppleSignInButton({
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        width: '100%',
-        gap: 12,
-    },
-    googleButton: {
-        backgroundColor: '#4285F4',
-        paddingVertical: 14,
-        borderRadius: 12,
-        alignItems: 'center',
-    },
-    appleButton: {
-        backgroundColor: '#000',
-        paddingVertical: 14,
-        borderRadius: 12,
-        alignItems: 'center',
-    },
-    googleButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    appleButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    buttonDisabled: {
-        opacity: 0.7,
-    },
-    divider: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginVertical: 8,
-    },
-    dividerLine: {
-        flex: 1,
-        height: 1,
-        backgroundColor: '#374151',
-    },
-    dividerText: {
-        marginHorizontal: 12,
-        color: '#9ca3af',
-        fontSize: 13,
-    },
-});
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+        container: {
+            width: '100%',
+            gap: 12,
+        },
+        googleButton: {
+            backgroundColor: '#4285F4',
+            paddingVertical: 14,
+            borderRadius: 12,
+            alignItems: 'center',
+        },
+        appleButton: {
+            backgroundColor: '#000',
+            paddingVertical: 14,
+            borderRadius: 12,
+            alignItems: 'center',
+        },
+        googleButtonText: {
+            color: colors.textInverse,
+            fontSize: 16,
+            fontWeight: '600',
+        },
+        appleButtonText: {
+            color: colors.textInverse,
+            fontSize: 16,
+            fontWeight: '600',
+        },
+        buttonDisabled: {
+            opacity: 0.7,
+        },
+        divider: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginVertical: 8,
+        },
+        dividerLine: {
+            flex: 1,
+            height: 1,
+            backgroundColor: colors.borderStrong,
+        },
+        dividerText: {
+            marginHorizontal: 12,
+            color: colors.textMuted,
+            fontSize: 13,
+        },
+    });
+}

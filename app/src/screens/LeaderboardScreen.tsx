@@ -1,7 +1,7 @@
 import { useAuth } from '@clerk/expo';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -15,6 +15,8 @@ import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiGet } from '../lib/api';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Leaderboard'>;
 
@@ -26,6 +28,8 @@ type Row = {
 type Scope = 'venue' | 'city' | 'country' | 'global';
 
 export default function LeaderboardScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
@@ -235,8 +239,10 @@ export default function LeaderboardScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   header: {
     paddingHorizontal: 24,
     paddingTop: 16,
@@ -249,12 +255,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 10,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
   },
-  backText: { color: '#cbd5e1', fontWeight: '600' },
-  title: { color: '#fff', fontSize: 22, fontWeight: '800', flex: 1 },
+  backText: { color: colors.textSecondary, fontWeight: '600' },
+  title: { color: colors.text, fontSize: 22, fontWeight: '800', flex: 1 },
   subtitle: {
-    color: '#9ca3af',
+    color: colors.textMuted,
     paddingHorizontal: 24,
     marginBottom: 10,
     fontSize: 14,
@@ -271,24 +277,24 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 10,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
   },
   tabActive: {
-    borderColor: '#7c3aed',
-    backgroundColor: '#1e1b4b',
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryMuted,
   },
-  tabText: { color: '#9ca3af', fontWeight: '700', fontSize: 12 },
-  tabTextActive: { color: '#e9d5ff' },
+  tabText: { color: colors.textMuted, fontWeight: '700', fontSize: 12 },
+  tabTextActive: { color: colors.honeyDark },
   venueLine: {
-    color: '#a78bfa',
+    color: colors.honey,
     fontWeight: '800',
     paddingHorizontal: 24,
     marginBottom: 12,
   },
   placeholder: {
-    color: '#9ca3af',
+    color: colors.textMuted,
     marginTop: 4,
     paddingHorizontal: 24,
     fontSize: 14,
@@ -299,19 +305,21 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 14,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
   },
-  rowMe: { borderColor: '#6d28d9' },
-  rank: { color: '#6b7280', fontWeight: '800', width: 36 },
+  rowMe: { borderColor: colors.primary },
+  rank: { color: colors.textMuted, fontWeight: '800', width: 36 },
   rowMid: { flex: 1 },
-  name: { color: '#f9fafb', fontWeight: '700' },
+  name: { color: colors.text, fontWeight: '700' },
   rowRight: { alignItems: 'flex-end', gap: 6, maxWidth: '42%' },
-  xp: { color: '#e9d5ff', fontWeight: '800', textAlign: 'right' },
+  xp: { color: colors.honeyDark, fontWeight: '800', textAlign: 'right' },
   reportTap: { paddingVertical: 4, paddingHorizontal: 8 },
   reportTapText: { color: '#fdba74', fontWeight: '800', fontSize: 11 },
-});
+
+    });
+}

@@ -15,6 +15,7 @@ import { wordToPublicHints, type WordPublicHint } from './word-hint.util';
 import { normalizeGuess } from './word-match.util';
 import type { CreateSoloWordSessionDto } from './dto/create-solo-word-session.dto';
 import type { CoopGuessDto } from './dto/coop-guess.dto';
+import { GameXpAwardService } from '../stats/game-xp-award.service';
 
 const SOLO_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 
@@ -27,6 +28,7 @@ export class WordService {
     private readonly subscriptions: SubscriptionRepository,
     private readonly venues: VenueService,
     private readonly venuePlayLimit: VenuePlayLimitService,
+    private readonly gameXp: GameXpAwardService,
   ) {}
 
   private async assertSoloPlayAllowed(params: {
@@ -227,6 +229,7 @@ export class WordService {
         where: { id: sessionId },
         data: { wordIndex: nextIdx, finishedAt: new Date() },
       });
+      void this.gameXp.tryAwardSoloWordDeckComplete(sessionId);
       return {
         correct: true,
         finished: true,

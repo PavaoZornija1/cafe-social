@@ -47,7 +47,7 @@ export default {
     },
     android: {
       adaptiveIcon: {
-        backgroundColor: '#ffffff',
+        backgroundColor: '#FAF7F2',
       },
       edgeToEdgeEnabled: true,
       package: 'com.cafesocial.app',

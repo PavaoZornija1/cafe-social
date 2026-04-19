@@ -3,6 +3,9 @@ export type MeSummaryDto = {
   playerId?: string;
   xp: number;
   tier: string;
+  /** Absolute XP threshold for the next tier (e.g. 800 → Silver, 2000 → Gold); omitted at Gold. */
+  nextTierXpThreshold?: number | null;
+  nextTierName?: string | null;
   completedChallenges: number;
   venuesUnlocked: number;
   discoverable?: boolean;

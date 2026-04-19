@@ -14,6 +14,7 @@ import { VenueFeedService } from '../venue-feed/venue-feed.service';
 import { VenueService } from '../venue/venue.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { DailyWordGuessDto, DailyWordScope } from './dto/daily-word-guess.dto';
+import { GameXpAwardService } from '../stats/game-xp-award.service';
 
 const MAX_ATTEMPTS = 6;
 
@@ -33,6 +34,7 @@ export class DailyWordService {
     private readonly prisma: PrismaService,
     private readonly subscriptions: SubscriptionRepository,
     private readonly venues: VenueService,
+    private readonly gameXp: GameXpAwardService,
   ) {}
 
   private scopeKey(scope: DailyWordScope, venueId?: string): string {
@@ -286,6 +288,13 @@ export class DailyWordService {
       });
 
       const streak = await this.bumpStreak(player.id, sk, dayKey);
+
+      void this.gameXp.tryAwardDailyWordFirstSolve({
+        playerId: player.id,
+        dayKey,
+        scopeKey: sk,
+        venueId: dto.scope === 'venue' ? (dto.venueId ?? null) : null,
+      });
 
       if (dto.scope === 'venue' && dto.venueId) {
         void this.feed.recordDailyWordSolved(dto.venueId, player.username);

@@ -1,6 +1,6 @@
 import { useAuth, useSignIn } from '@clerk/expo';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
     ActivityIndicator,
     KeyboardAvoidingView,
@@ -16,10 +16,14 @@ import { useTranslation } from 'react-i18next';
 import { SocialSignInButtons } from '../components/SocialSignInButtons';
 import { replaceAfterAuth } from '../navigation/afterAuth';
 import { RootStackParamList } from '../navigation/type';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation }: Props) {
+    const { colors } = useAppTheme();
+    const styles = useMemo(() => createStyles(colors), [colors]);
     const { t } = useTranslation();
     const { isLoaded, isSignedIn, getToken } = useAuth();
     const getTokenRef = useRef(getToken);
@@ -99,7 +103,7 @@ export default function LoginScreen({ navigation }: Props) {
     if (!isLoaded) {
         return (
             <View style={styles.centered}>
-                <ActivityIndicator size="large" color="#7c3aed" />
+                <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
     }
@@ -120,7 +124,7 @@ export default function LoginScreen({ navigation }: Props) {
                         <TextInput
                             style={styles.input}
                             placeholder={t('login.verificationCode')}
-                            placeholderTextColor="#6b7280"
+                            placeholderTextColor={colors.textMuted}
                             value={verificationCode}
                             onChangeText={setVerificationCode}
                             keyboardType="number-pad"
@@ -138,7 +142,7 @@ export default function LoginScreen({ navigation }: Props) {
                             disabled={!isMfaFormValid || isLoading}
                         >
                             {isLoading ? (
-                                <ActivityIndicator color="#fff" />
+                                <ActivityIndicator color={colors.textInverse} />
                             ) : (
                                 <Text style={styles.buttonText}>{t('login.verify')}</Text>
                             )}
@@ -180,7 +184,7 @@ export default function LoginScreen({ navigation }: Props) {
                     <TextInput
                         style={styles.input}
                         placeholder={t('login.emailPlaceholder')}
-                        placeholderTextColor="#6b7280"
+                        placeholderTextColor={colors.textMuted}
                         value={emailAddress}
                         onChangeText={setEmailAddress}
                         keyboardType="email-address"
@@ -192,7 +196,7 @@ export default function LoginScreen({ navigation }: Props) {
                     <TextInput
                         style={styles.input}
                         placeholder="••••••••"
-                        placeholderTextColor="#6b7280"
+                        placeholderTextColor={colors.textMuted}
                         value={password}
                         onChangeText={setPassword}
                         secureTextEntry
@@ -212,7 +216,7 @@ export default function LoginScreen({ navigation }: Props) {
                         disabled={!isPasswordFormValid || isLoading}
                     >
                         {isLoading ? (
-                            <ActivityIndicator color="#fff" />
+                            <ActivityIndicator color={colors.textInverse} />
                         ) : (
                             <Text style={styles.buttonText}>{t('login.signIn')}</Text>
                         )}
@@ -230,14 +234,16 @@ export default function LoginScreen({ navigation }: Props) {
     );
 }
 
-const styles = StyleSheet.create({
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
     screen: {
         flex: 1,
-        backgroundColor: '#050816',
+        backgroundColor: colors.bg,
     },
     centered: {
         flex: 1,
-        backgroundColor: '#050816',
+        backgroundColor: colors.bg,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -248,49 +254,49 @@ const styles = StyleSheet.create({
         paddingVertical: 32,
     },
     card: {
-        backgroundColor: '#111827',
+        backgroundColor: colors.surface,
         borderRadius: 20,
         padding: 24,
         borderWidth: 1,
-        borderColor: '#1f2937',
+        borderColor: colors.border,
     },
     title: {
-        color: '#ffffff',
+        color: colors.text,
         fontSize: 28,
         fontWeight: '700',
         textAlign: 'center',
     },
     subtitle: {
-        color: '#9ca3af',
+        color: colors.textMuted,
         fontSize: 14,
         textAlign: 'center',
         marginTop: 8,
         marginBottom: 24,
     },
     label: {
-        color: '#d1d5db',
+        color: colors.textSecondary,
         fontSize: 14,
         fontWeight: '600',
         marginBottom: 6,
     },
     input: {
-        backgroundColor: '#0f172a',
+        backgroundColor: colors.surfaceMuted,
         borderWidth: 1,
-        borderColor: '#374151',
+        borderColor: colors.borderStrong,
         borderRadius: 12,
         paddingHorizontal: 14,
         paddingVertical: 14,
-        color: '#ffffff',
+        color: colors.text,
         fontSize: 16,
         marginBottom: 14,
     },
     error: {
-        color: '#f87171',
+        color: colors.error,
         fontSize: 13,
         marginBottom: 12,
     },
     button: {
-        backgroundColor: '#7c3aed',
+        backgroundColor: colors.primary,
         paddingVertical: 14,
         borderRadius: 12,
         alignItems: 'center',
@@ -300,7 +306,7 @@ const styles = StyleSheet.create({
         opacity: 0.5,
     },
     buttonText: {
-        color: '#ffffff',
+        color: colors.textInverse,
         fontSize: 16,
         fontWeight: '600',
     },
@@ -309,7 +315,7 @@ const styles = StyleSheet.create({
         marginTop: 16,
     },
     linkText: {
-        color: '#a5b4fc',
+        color: colors.honeyDark,
         fontSize: 14,
     },
     footer: {
@@ -319,12 +325,14 @@ const styles = StyleSheet.create({
         marginTop: 24,
     },
     footerText: {
-        color: '#9ca3af',
+        color: colors.textMuted,
         fontSize: 14,
     },
     footerLink: {
-        color: '#a78bfa',
+        color: colors.link,
         fontSize: 14,
         fontWeight: '600',
     },
-});
+
+    });
+}

@@ -2,13 +2,14 @@ import { ClerkProvider } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
 import * as WebBrowser from 'expo-web-browser';
 import type { LinkingOptions } from '@react-navigation/native';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import './src/lib/venueGeofenceTask';
 import AppNavigation from './src/navigation/AppNavigation';
 import type { RootStackParamList } from './src/navigation/type';
 import { initI18n } from './src/i18n';
+import { ThemeProvider, useAppTheme } from './src/theme/ThemeContext';
 
 // Required so OAuth redirect (e.g. Google SSO) can close the browser and return to the app
 WebBrowser.maybeCompleteAuthSession();
@@ -33,7 +34,16 @@ const linking: LinkingOptions<RootStackParamList> = {
 };
 
 export default function App() {
+  return (
+    <ThemeProvider>
+      <AppBoot linking={linking} />
+    </ThemeProvider>
+  );
+}
+
+function AppBoot({ linking }: { linking: LinkingOptions<RootStackParamList> }) {
   const [i18nReady, setI18nReady] = useState(false);
+  const { colors } = useAppTheme();
 
   useEffect(() => {
     let cancelled = false;
@@ -45,17 +55,20 @@ export default function App() {
     };
   }, []);
 
+  const loadingStyle = useMemo(
+    () => ({
+      flex: 1,
+      backgroundColor: colors.bg,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    }),
+    [colors.bg],
+  );
+
   if (!i18nReady) {
     return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: '#050816',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <ActivityIndicator color="#7c3aed" size="large" />
+      <View style={loadingStyle}>
+        <ActivityIndicator color={colors.primary} size="large" />
       </View>
     );
   }

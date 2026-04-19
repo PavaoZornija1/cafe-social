@@ -11,6 +11,7 @@ import { UpdateMeSettingsDto } from './dto/update-me-settings.dto';
 import { PlayerRepository } from './player.repository';
 import { PlayerVenueStatsRepository } from '../stats/player-venue-stats.repository';
 import { PrismaService } from '../prisma/prisma.service';
+import { computeTierProgress } from '../lib/xp-tier.util';
 import { utcDayKeyDaysAgo, utcWeekDayKeyRange } from '../lib/engagement-dates';
 import { orderedPlayerPair } from '../common/player-pair';
 
@@ -78,6 +79,8 @@ export class PlayerService {
     playerId: string;
     xp: number;
     tier: string;
+    nextTierXpThreshold: number | null;
+    nextTierName: string | null;
     completedChallenges: number;
     venuesUnlocked: number;
     discoverable: boolean;
@@ -93,7 +96,9 @@ export class PlayerService {
       await this.players.getSummary(player.id);
 
     const venueXpSum = await this.venueStats.sumVenueXpForPlayer(player.id);
-    const tier = this.tierFromXp(venueXpSum);
+    const totalXp = venueXpSum + player.bonusXp;
+    const { tierLabel, nextTierXpThreshold, nextTierName } =
+      computeTierProgress(totalXp);
 
     const subscription = await this.prisma.subscription.findUnique({
       where: { playerId: player.id },
@@ -102,8 +107,10 @@ export class PlayerService {
 
     return {
       playerId: player.id,
-      xp: venueXpSum,
-      tier,
+      xp: totalXp,
+      tier: tierLabel,
+      nextTierXpThreshold,
+      nextTierName,
       completedChallenges,
       venuesUnlocked,
       discoverable: player.discoverable,
@@ -325,10 +332,5 @@ export class PlayerService {
     });
   }
 
-  private tierFromXp(xp: number): string {
-    if (xp >= 2000) return 'Gold';
-    if (xp >= 800) return 'Silver';
-    return 'Bronze';
-  }
 }
 

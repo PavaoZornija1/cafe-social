@@ -7,6 +7,7 @@ import { GameSessionStatus, type GameEventType, type Prisma } from '@prisma/clie
 import { PlayerService } from '../player/player.service';
 import { VenuePlayLimitService } from '../venue/venue-play-limit.service';
 import { BrawlerRepository } from './brawler.repository';
+import { GameXpAwardService } from '../stats/game-xp-award.service';
 import {
   CreateBrawlerSessionDto,
   type CreateBrawlerParticipantDto,
@@ -20,6 +21,7 @@ export class BrawlerService {
     private readonly brawlerRepo: BrawlerRepository,
     private readonly players: PlayerService,
     private readonly venuePlayLimit: VenuePlayLimitService,
+    private readonly gameXp: GameXpAwardService,
   ) {}
 
   listHeroes() {
@@ -148,13 +150,13 @@ export class BrawlerService {
   }
 
   async finalizeSession(sessionId: string, dto: FinalizeBrawlerSessionDto) {
-    const session = await this.brawlerRepo.findSessionById(sessionId);
-    if (!session) throw new NotFoundException('session not found');
-    if (session.status === GameSessionStatus.FINISHED) {
+    const existingSession = await this.brawlerRepo.findSessionById(sessionId);
+    if (!existingSession) throw new NotFoundException('session not found');
+    if (existingSession.status === GameSessionStatus.FINISHED) {
       throw new BadRequestException('session already finished');
     }
 
-    const participantIds = new Set(session.participants.map((p) => p.id));
+    const participantIds = new Set(existingSession.participants.map((p) => p.id));
     for (const p of dto.participants) {
       if (!participantIds.has(p.participantId)) {
         throw new BadRequestException('participantId is not in this session');
@@ -164,11 +166,13 @@ export class BrawlerService {
       throw new BadRequestException('winnerParticipantId is not in this session');
     }
 
-    return this.brawlerRepo.finalizeSession({
+    const session = await this.brawlerRepo.finalizeSession({
       sessionId,
       winnerParticipantId: dto.winnerParticipantId,
       participants: dto.participants,
     });
+    void this.gameXp.tryAwardSessionWinXp(sessionId);
+    return session;
   }
 
   private validateParticipants(participants: CreateBrawlerParticipantDto[]) {

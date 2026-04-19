@@ -14,6 +14,8 @@ import {
 import { apiGet, apiPost } from '../lib/api';
 import { BRUISER_ARENA_HERO_ID } from '../brawler/bruiserSpritesheet';
 import type { BrawlerArenaHeroStats, RootStackParamList } from '../navigation/type';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BrawlerLobby'>;
 
@@ -34,6 +36,8 @@ type CreateSessionResponse = {
 };
 
 export default function BrawlerLobbyScreen({ route, navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const venueId = route.params?.venueId;
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
@@ -203,59 +207,62 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   container: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28, gap: 12 },
   backBtn: {
     alignSelf: 'flex-start',
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 8,
-    backgroundColor: '#1e293b',
+    backgroundColor: colors.bgElevated,
     marginBottom: 2,
   },
-  backText: { color: '#e2e8f0', fontWeight: '800', fontSize: 12 },
-  title: { color: '#fff', fontSize: 28, fontWeight: '900' },
-  subtitle: { color: '#9ca3af', fontSize: 14, lineHeight: 20 },
+  backText: { color: colors.text, fontWeight: '800', fontSize: 12 },
+  title: { color: colors.text, fontSize: 28, fontWeight: '900' },
+  subtitle: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
   meta: { color: '#93c5fd', fontSize: 12, fontWeight: '700', marginBottom: 6 },
   loadingWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
-  loadingText: { color: '#cbd5e1', fontSize: 13 },
+  loadingText: { color: colors.textSecondary, fontSize: 13 },
   heroList: { gap: 8, marginTop: 4 },
   heroCard: {
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: colors.borderStrong,
     borderRadius: 14,
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
   heroCardSelected: {
-    borderColor: '#a78bfa',
+    borderColor: colors.honey,
     backgroundColor: '#1f1638',
   },
   heroCardPressed: { opacity: 0.88 },
-  heroName: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  heroName: { color: colors.text, fontSize: 16, fontWeight: '800' },
   heroArchetype: { color: '#93c5fd', fontSize: 12, marginTop: 4 },
   statsCard: {
     marginTop: 6,
-    backgroundColor: '#0b1220',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: colors.border,
     borderRadius: 14,
     padding: 12,
     gap: 4,
   },
-  statsTitle: { color: '#fff', fontSize: 14, fontWeight: '900', marginBottom: 4 },
-  statsText: { color: '#cbd5e1', fontSize: 13 },
+  statsTitle: { color: colors.text, fontSize: 14, fontWeight: '900', marginBottom: 4 },
+  statsText: { color: colors.textSecondary, fontSize: 13 },
   startButton: {
     marginTop: 10,
-    backgroundColor: '#7c3aed',
+    backgroundColor: colors.primary,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
   },
   startButtonPressed: { opacity: 0.9 },
   startButtonDisabled: { opacity: 0.5 },
-  startButtonText: { color: '#fff', fontSize: 15, fontWeight: '900' },
-});
+  startButtonText: { color: colors.textInverse, fontSize: 15, fontWeight: '900' },
 
+    });
+}

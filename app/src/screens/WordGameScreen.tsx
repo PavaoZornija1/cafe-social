@@ -16,6 +16,8 @@ import { apiGet, apiPost } from '../lib/api';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
 import { useWordMatchSocket } from '../lib/useWordMatchSocket';
 import { toApiWordLanguage } from '../lib/wordDeckLanguage';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WordGame'>;
 
@@ -61,6 +63,8 @@ type MatchState = {
 };
 
 export default function WordGameScreen({ navigation, route }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t, i18n } = useTranslation();
   const {
     venueId,
@@ -720,7 +724,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
           <TextInput
             style={styles.input}
             placeholder={t('wordGame.guessPlaceholder')}
-            placeholderTextColor="#6b7280"
+            placeholderTextColor={colors.textMuted}
             value={guess}
             onChangeText={(text) => {
               setWrongFeedback(null);
@@ -777,8 +781,10 @@ export default function WordGameScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   navHeader: {
     paddingHorizontal: 24,
     paddingTop: 16,
@@ -790,63 +796,63 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 10,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
   },
-  navBackText: { color: '#cbd5e1', fontWeight: '600' },
+  navBackText: { color: colors.textSecondary, fontWeight: '600' },
   container: { flex: 1, paddingHorizontal: 24, paddingTop: 8 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
-  title: { color: '#fff', fontSize: 22, fontWeight: '900' },
-  sub: { color: '#9ca3af', marginTop: 8, fontSize: 13, textAlign: 'center' },
-  deckLang: { color: '#6b7280', marginTop: 4, fontSize: 11, fontWeight: '700', textAlign: 'center' },
+  title: { color: colors.text, fontSize: 22, fontWeight: '900' },
+  sub: { color: colors.textMuted, marginTop: 8, fontSize: 13, textAlign: 'center' },
+  deckLang: { color: colors.textMuted, marginTop: 4, fontSize: 11, fontWeight: '700', textAlign: 'center' },
   socketBanner: {
     marginTop: 8,
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 10,
-    backgroundColor: '#422006',
-    color: '#fcd34d',
+    backgroundColor: colors.warningBg,
+    color: colors.honeyDark,
     fontSize: 12,
     fontWeight: '800',
     textAlign: 'center',
     overflow: 'hidden',
   },
-  error: { color: '#f87171', fontWeight: '800', textAlign: 'center' },
-  coopHint: { color: '#a5b4fc', fontSize: 12, marginTop: 6, fontWeight: '700' },
+  error: { color: colors.error, fontWeight: '800', textAlign: 'center' },
+  coopHint: { color: colors.honeyDark, fontSize: 12, marginTop: 6, fontWeight: '700' },
   versusBar: {
     marginTop: 10,
     padding: 10,
     borderRadius: 12,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
   },
-  versusRow: { color: '#e5e7eb', fontSize: 12, fontWeight: '700', marginVertical: 2 },
+  versusRow: { color: colors.textSecondary, fontSize: 12, fontWeight: '700', marginVertical: 2 },
   scoresBox: { marginTop: 12, alignSelf: 'stretch', gap: 6 },
-  scoreRow: { color: '#d1d5db', fontSize: 14, fontWeight: '700' },
+  scoreRow: { color: colors.textSecondary, fontSize: 14, fontWeight: '700' },
   wordCard: {
     marginTop: 18,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     padding: 16,
   },
-  wordTitle: { color: '#fff', fontWeight: '900', fontSize: 16 },
-  categoryText: { color: '#a5b4fc', marginTop: 6, fontWeight: '800', fontSize: 12 },
-  clueLabel: { color: '#9ca3af', marginTop: 14, fontWeight: '800', fontSize: 11, textTransform: 'uppercase' },
-  clueBody: { color: '#e5e7eb', marginTop: 6, fontSize: 15, lineHeight: 22, fontWeight: '600' },
-  easyHintNote: { color: '#6b7280', marginTop: 8, fontSize: 12 },
-  hint: { color: '#c4b5fd', marginTop: 12, fontSize: 13, lineHeight: 18, fontWeight: '700' },
+  wordTitle: { color: colors.text, fontWeight: '900', fontSize: 16 },
+  categoryText: { color: colors.honeyDark, marginTop: 6, fontWeight: '800', fontSize: 12 },
+  clueLabel: { color: colors.textMuted, marginTop: 14, fontWeight: '800', fontSize: 11, textTransform: 'uppercase' },
+  clueBody: { color: colors.textSecondary, marginTop: 6, fontSize: 15, lineHeight: 22, fontWeight: '600' },
+  easyHintNote: { color: colors.textMuted, marginTop: 8, fontSize: 12 },
+  hint: { color: colors.honey, marginTop: 12, fontSize: 13, lineHeight: 18, fontWeight: '700' },
   wrongHint: { color: '#fbbf24', marginTop: 8, fontSize: 13, fontWeight: '700' },
   input: {
     marginTop: 14,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#1f2937',
-    backgroundColor: '#0b1220',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: '#fff',
+    color: colors.text,
     fontSize: 16,
   },
   row: { flexDirection: 'row', gap: 12, marginTop: 14 },
@@ -854,25 +860,25 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 14,
     paddingVertical: 12,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     alignItems: 'center',
   },
-  btnText: { color: '#a5b4fc', fontWeight: '900' },
+  btnText: { color: colors.honeyDark, fontWeight: '900' },
   btnPrimary: {
     flex: 1,
     borderRadius: 14,
     paddingVertical: 12,
-    backgroundColor: '#7c3aed',
+    backgroundColor: colors.primary,
     alignItems: 'center',
   },
-  btnPrimaryText: { color: '#fff', fontWeight: '900' },
+  btnPrimaryText: { color: colors.textInverse, fontWeight: '900' },
   btnPrimaryFull: {
     marginTop: 14,
     borderRadius: 14,
     paddingVertical: 12,
-    backgroundColor: '#7c3aed',
+    backgroundColor: colors.primary,
     alignItems: 'center',
   },
   footer: {
@@ -881,29 +887,31 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  score: { color: '#fff', fontWeight: '900' },
+  score: { color: colors.text, fontWeight: '900' },
   secondaryBtn: {
     borderRadius: 14,
     paddingVertical: 10,
     paddingHorizontal: 14,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
   },
-  secondaryBtnText: { color: '#9ca3af', fontWeight: '900' },
+  secondaryBtnText: { color: colors.textMuted, fontWeight: '900' },
   playBtn: {
     marginTop: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 14,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
   },
-  playBtnText: { color: '#fff', fontWeight: '900' },
+  playBtnText: { color: colors.text, fontWeight: '900' },
   playBtnSecondary: {
-    backgroundColor: '#312e81',
-    borderColor: '#4c1d95',
+    backgroundColor: colors.honeyMuted,
+    borderColor: colors.primary,
   },
   playBtnDisabled: { opacity: 0.6 },
-});
+
+    });
+}

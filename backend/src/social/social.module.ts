@@ -9,11 +9,25 @@ import { FriendshipService } from './friendship.service';
 import { DiscoveryService } from './discovery.service';
 import { GeofenceService } from './geofence.service';
 import { SocialController } from './social.controller';
+import { SocialInboxService } from './social-inbox.service';
+import { PlayerInboxService } from './player-inbox.service';
 
 @Module({
   imports: [AuthModule, PrismaModule, VenueModule, PlayerModule, VenueFeedModule, PushModule],
   controllers: [SocialController],
-  providers: [FriendshipService, DiscoveryService, GeofenceService],
-  exports: [FriendshipService, DiscoveryService, GeofenceService],
+  providers: [
+    PlayerInboxService,
+    FriendshipService,
+    DiscoveryService,
+    GeofenceService,
+    SocialInboxService,
+  ],
+  exports: [
+    FriendshipService,
+    DiscoveryService,
+    GeofenceService,
+    SocialInboxService,
+    PlayerInboxService,
+  ],
 })
 export class SocialModule {}

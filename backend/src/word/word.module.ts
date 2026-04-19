@@ -14,9 +14,18 @@ import { AuthModule } from '../auth/auth.module';
 import { PushModule } from '../push/push.module';
 import { VenueFeedModule } from '../venue-feed/venue-feed.module';
 import { VenueModule } from '../venue/venue.module';
+import { StatsModule } from '../stats/stats.module';
 
 @Module({
-  imports: [PrismaModule, PlayerModule, AuthModule, PushModule, VenueFeedModule, VenueModule],
+  imports: [
+    PrismaModule,
+    PlayerModule,
+    AuthModule,
+    PushModule,
+    VenueFeedModule,
+    VenueModule,
+    StatsModule,
+  ],
   controllers: [WordController, WordMatchController, DailyWordController],
   providers: [
     WordService,

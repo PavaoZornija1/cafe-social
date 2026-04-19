@@ -34,6 +34,7 @@ import StaffRedemptionsScreen from "../screens/StaffRedemptionsScreen";
 import StaffQrScanScreen from "../screens/StaffQrScanScreen";
 import SubmitReceiptScreen from "../screens/SubmitReceiptScreen";
 import PartnerVenuesMapScreen from "../screens/PartnerVenuesMapScreen";
+import DiscoverHubScreen from "../screens/DiscoverHubScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -55,6 +56,7 @@ export default function RootStack() {
             />
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="VenueHub" component={VenueHubScreen} />
+            <Stack.Screen name="DiscoverHub" component={DiscoverHubScreen} />
             <Stack.Screen name="PartnerVenuesMap" component={PartnerVenuesMapScreen} />
             <Stack.Screen name="DailyWord" component={DailyWordScreen} />
             <Stack.Screen name="ChooseGame" component={ChooseGameScreen} />

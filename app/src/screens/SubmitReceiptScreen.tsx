@@ -2,7 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,10 +18,14 @@ import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiPost } from '../lib/api';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
+import { useAppTheme } from '../theme/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SubmitReceipt'>;
 
 export default function SubmitReceiptScreen({ navigation, route }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
   const { venueId } = route.params;
   const { getToken, isLoaded } = useAuth();
@@ -107,7 +111,7 @@ export default function SubmitReceiptScreen({ navigation, route }: Props) {
         value={note}
         onChangeText={setNote}
         placeholder={t('receiptSubmit.notePlaceholder')}
-        placeholderTextColor="#6b7280"
+        placeholderTextColor={colors.textMuted}
         style={styles.input}
         multiline
       />
@@ -118,7 +122,7 @@ export default function SubmitReceiptScreen({ navigation, route }: Props) {
         disabled={busy}
       >
         {busy ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.textInverse} />
         ) : (
           <Text style={styles.submitText}>{t('receiptSubmit.submit')}</Text>
         )}
@@ -127,13 +131,15 @@ export default function SubmitReceiptScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#050816' },
+
+function createStyles(colors: AppColors) {
+    return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 24, paddingTop: 16 },
-  backBtn: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#111827' },
-  backText: { color: '#cbd5e1', fontWeight: '600' },
-  title: { color: '#fff', fontSize: 20, fontWeight: '800', flex: 1 },
-  hint: { color: '#6b7280', fontSize: 13, marginHorizontal: 24, marginTop: 12, lineHeight: 18 },
+  backBtn: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, backgroundColor: colors.surface },
+  backText: { color: colors.textSecondary, fontWeight: '600' },
+  title: { color: colors.text, fontSize: 20, fontWeight: '800', flex: 1 },
+  hint: { color: colors.textMuted, fontSize: 13, marginHorizontal: 24, marginTop: 12, lineHeight: 18 },
   pickBtn: {
     marginHorizontal: 24,
     marginTop: 16,
@@ -142,7 +148,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
   },
-  pickBtnText: { color: '#c4b5fd', fontWeight: '800' },
+  pickBtnText: { color: colors.honey, fontWeight: '800' },
   preview: {
     marginHorizontal: 24,
     marginTop: 16,
@@ -154,12 +160,12 @@ const styles = StyleSheet.create({
     marginHorizontal: 24,
     marginTop: 16,
     minHeight: 72,
-    backgroundColor: '#111827',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1f2937',
+    borderColor: colors.border,
     borderRadius: 12,
     padding: 12,
-    color: '#f9fafb',
+    color: colors.text,
   },
   submitBtn: {
     marginHorizontal: 24,
@@ -170,5 +176,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   submitDisabled: { opacity: 0.7 },
-  submitText: { color: '#fff', fontWeight: '800' },
-});
+  submitText: { color: colors.textInverse, fontWeight: '800' },
+
+    });
+}
