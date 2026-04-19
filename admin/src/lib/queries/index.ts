@@ -88,6 +88,8 @@ export type AdminVenueDetail = {
   organization?: { id: string; name: string } | null;
   locked: boolean;
   lockReason: string | null;
+  /** When true, players must complete a GPS-backed QR check-in before venue features unlock. */
+  requiresExplicitCheckIn?: boolean;
   venueTypes?: AdminVenueTypeRow[];
   guestPlayDailyGamesLimit?: number | null;
 };

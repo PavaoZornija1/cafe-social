@@ -178,6 +178,9 @@
     "statTier": "Razina",
     "detectingVenue": "Prepoznavanje…",
     "currentVenue": "Trenutačni lokal",
+    "noVenueShort": "Nema partnerskog lokala u blizini",
+    "findVenuesCta": "Karta partnera",
+    "modesTitle": "Više",
     "noVenueYet": "Nema prepoznatog partnerskog lokala. Lojalnost, prijatelji i pozivnice i dalje rade. Igre na lokalu — ili od kuće s pretplatom.",
     "lockedHintStandard": "Igre na lokalu trebaju lokaciju da potvrdimo da si na mjestu. Ostatak appa ostaje dostupan.",
     "lockedHintPremium": "Igre na lokalu trebaju lokaciju ovdje, ili pretplatu za globalno igranje.",
@@ -198,6 +201,16 @@
     "navLeaderboard": "Ljestvica",
     "navProfile": "Profil",
     "navSettings": "Postavke",
+    "navQrScan": "Skeniraj QR",
+    "venueHubA11y": "Centar lokala, {{name}}",
+    "venueErrorNetwork": "Nije moguće doći do poslužitelja. Provjeri vezu i da aplikacija pokazuje na ispravan API (npr. IP tvog računala na uređaju).",
+    "playLockedHint": "Uključi lokaciju u partnerskom kafiću ili koristi pretplatu za igranje odakle god.",
+    "playLockedSettings": "Postavke",
+    "playLockedFindVenues": "Karta partnera",
+    "explicitCheckInRequired": "Ovo mjesto traži prijavu QR-om. Skeniraj kod na lokaciji (s uključenom lokacijom) da otključaš igre i pogodnosti.",
+    "explicitCheckInChallengeLine": "Prijavi se QR-om na ovom lokalu da nastaviš.",
+    "playLockedExplicitCheckIn": "Ovaj lokal traži jednokratnu QR prijavu dok si na mjestu. Uključi lokaciju pa skeniraj.",
+    "explicitCheckInCta": "Skeniraj QR za prijavu",
     "loadVenueError": "Učitavanje konteksta lokala nije uspjelo",
     "premiumSuffix": " • Premium",
     "linkFriends": "Prijatelji",
@@ -230,7 +243,15 @@
     "badgeVenueExplorer": "Istraživač lokala",
     "linkRedeemPerk": "Iskoristi pogodnost",
     "linkReceipt": "Račun",
-    "linkPartnerMap": "Karta partnera"
+    "linkPartnerMap": "Karta partnera",
+    "venuePerksTitle": "Pogodnosti lokala",
+    "venuePerksEmpty": "Još nema javnih pogodnosti — osoblje ti može dati kod.",
+    "venuePerksRedeemed": "Iskorišteno"
+  },
+  "venueHub": {
+    "title": "{{name}}",
+    "loadError": "Nije moguće učitati ovaj lokal.",
+    "backA11y": "Natrag"
   },
   "partnerMap": {
     "title": "Partnerski lokali",
@@ -280,7 +301,11 @@
     "needVenue": "Detektiraj lokal za dnevnu riječ lokala.",
     "notSignedIn": "Nisi prijavljen",
     "globalRequiresSub": "Globalna dnevna riječ treba aktivnu pretplatu.",
-    "wordRoomsHint": "Za više rundi s nagovještajima (solo ili sobe) koristi „Sobe za riječi“ na Početku — ovaj ekran je samo dnevna zagonetka."
+    "wordRoomsHint": "Za više rundi s nagovještajima (solo ili sobe) koristi „Sobe za riječi“ na Početku — ovaj ekran je samo dnevna zagonetka.",
+    "hardModeBlurb": "Dnevna riječ strožija je: dodatni nagovještaji tek nakon više pokušaja.",
+    "hintSentence": "Nagovještaj: ",
+    "hintWords": "Ključne riječi: ",
+    "hintEmoji": "Emoji nagovještaji: "
   },
   "challenges": {
     "title": "Izazovi",
@@ -387,7 +412,8 @@
     "coopHint": "Bilo tko u sobi može poslati sljedeći pokušaj.",
     "back": "Natrag",
     "rematch": "Igraj opet (nova soba)",
-    "rematchBusy": "Stvaram…"
+    "rematchBusy": "Stvaram…",
+    "soloNotReady": "Sesija nije spremna — pričekaj trenutak i pokušaj ponovno."
   },
   "qr": {
     "title": "Prijava na lokalu",
@@ -404,7 +430,8 @@
     "unlock": "Otključaj",
     "emptyCode": "Kod je prazan. Zalijepi valjani venueId.",
     "unlockError": "Otključavanje nije uspjelo",
-    "notAuthenticated": "Nisi prijavljen"
+    "notAuthenticated": "Nisi prijavljen",
+    "needLocationForCheckIn": "Uključi lokaciju i pokušaj ponovno — ovo mjesto potvrđuje da si na lokaciji prilikom prijave."
   },
   "profile": {
     "title": "Profil",

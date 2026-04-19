@@ -17,7 +17,8 @@ import { PlayerService } from '../player/player.service';
 import { WordRepository } from './word.repository';
 import type { CreateWordMatchDto } from './dto/create-word-match.dto';
 import type { CoopGuessDto } from './dto/coop-guess.dto';
-import { WORD_MATCH_REFRESH_EVENT } from './word-match.gateway';
+import { WORD_MATCH_REFRESH_EVENT, type WordMatchRefreshPayload } from './word-match.gateway';
+import { wordToPublicHints, type WordPublicHint } from './word-hint.util';
 import { PushService } from '../push/push.service';
 import { VenueFeedService } from '../venue-feed/venue-feed.service';
 import { SubscriptionRepository } from '../venue/subscription.repository';
@@ -73,8 +74,8 @@ export class WordMatchService {
     );
   }
 
-  private pushSessionRefresh(sessionId: string) {
-    this.events.emit(WORD_MATCH_REFRESH_EVENT, sessionId);
+  private pushSessionRefresh(sessionId: string, meta?: Partial<WordMatchRefreshPayload>) {
+    this.events.emit(WORD_MATCH_REFRESH_EVENT, { sessionId, ...meta });
   }
 
   private async newInviteCode(): Promise<string> {
@@ -107,6 +108,7 @@ export class WordMatchService {
       language: dto.language,
       category: dto.category,
       count: dto.wordCount,
+      difficulty: dto.difficulty,
     });
     if (deck.length === 0) {
       throw new BadRequestException('no words for this language/category');
@@ -196,7 +198,7 @@ export class WordMatchService {
         where: { id: rejoin.id },
         data: { leftAt: null },
       });
-      this.pushSessionRefresh(session.id);
+      this.pushSessionRefresh(session.id, { reason: 'join' });
       return this.getStateForViewer(player.id, session.id);
     }
 
@@ -211,7 +213,7 @@ export class WordMatchService {
       },
     });
 
-    this.pushSessionRefresh(session.id);
+    this.pushSessionRefresh(session.id, { reason: 'join' });
 
     void this.pushNotifications.sendToPlayers(
       alreadyThere,
@@ -267,7 +269,7 @@ export class WordMatchService {
       void this.venueFeed.recordWordMatchStarted(session.venueId, name, config.wordGameMode);
     }
 
-    this.pushSessionRefresh(sessionId);
+    this.pushSessionRefresh(sessionId, { reason: 'start' });
 
     const participantIds = activeHumans.map((p) => p.playerId!).filter(Boolean);
     void this.pushNotifications.sendToPlayers(
@@ -358,11 +360,16 @@ export class WordMatchService {
     sessionId: string,
     latitude?: number,
     longitude?: number,
-  ) {
+  ): Promise<{
+    mode: 'coop' | 'versus';
+    wordIndex: number;
+    targetWordCount: number;
+    currentWord: WordPublicHint | null;
+  }> {
     const player = await this.players.findOrCreateByEmail(email);
     const session = await this.prisma.gameSession.findUnique({
       where: { id: sessionId },
-      include: { wordSession: true },
+      include: { wordSession: true, participants: true },
     });
     if (!session || session.gameType !== GameType.WORD_GAME) {
       throw new NotFoundException('session not found');
@@ -378,25 +385,34 @@ export class WordMatchService {
     }
 
     const config = session.config as unknown as WordMatchConfig;
-    const words = await this.prisma.word.findMany({
-      where: { id: { in: config.wordIds } },
-    });
-    const byId = new Map(words.map((w) => [w.id, w]));
-    const ordered = config.wordIds.map((id) => byId.get(id)).filter(Boolean);
-    if (ordered.length !== config.wordIds.length) {
-      throw new BadRequestException('word deck corrupted');
+    const ws = session.wordSession;
+    if (!ws) throw new BadRequestException('invalid session');
+
+    const mode = config.wordGameMode;
+    const wordIndex =
+      mode === 'coop'
+        ? ws.sharedWordIndex
+        : (session.participants.find((p) => p.playerId === player.id && !p.leftAt)?.score ?? 0);
+
+    if (wordIndex >= config.wordIds.length) {
+      return {
+        mode,
+        wordIndex,
+        targetWordCount: config.wordIds.length,
+        currentWord: null,
+      };
     }
 
+    const w = await this.prisma.word.findUnique({
+      where: { id: config.wordIds[wordIndex]! },
+    });
+    if (!w) throw new BadRequestException('word missing');
+
     return {
-      words: ordered.map((w) => ({
-        id: w!.id,
-        text: w!.text,
-        language: w!.language,
-        category: w!.category,
-        sentenceHint: w!.sentenceHint,
-        wordHints: w!.wordHints,
-        emojiHints: w!.emojiHints,
-      })),
+      mode,
+      wordIndex,
+      targetWordCount: config.wordIds.length,
+      currentWord: wordToPublicHints(w),
     };
   }
 
@@ -425,7 +441,7 @@ export class WordMatchService {
       const idx = session.wordSession.sharedWordIndex;
       const wordIds = config.wordIds;
       if (idx >= wordIds.length) {
-        return { done: true, correct: false, newIndex: idx };
+        return { done: true, correct: false, newIndex: idx, currentWord: null as WordPublicHint | null };
       }
       const word = await tx.word.findUnique({ where: { id: wordIds[idx] } });
       if (!word) throw new BadRequestException('word missing');
@@ -438,7 +454,7 @@ export class WordMatchService {
           create: { participantId: part.id, wrongAnswers: 1 },
           update: { wrongAnswers: { increment: 1 } },
         });
-        return { done: false, correct: false, newIndex: idx };
+        return { done: false, correct: false, newIndex: idx, currentWord: wordToPublicHints(word) };
       }
 
       await tx.wordParticipantStats.upsert({
@@ -468,14 +484,20 @@ export class WordMatchService {
             data: { result: GameParticipantResult.WIN },
           });
         }
-        return { done: true, correct: true, newIndex: nextIdx };
+        return { done: true, correct: true, newIndex: nextIdx, currentWord: null };
       }
 
-      return { done: false, correct: true, newIndex: nextIdx };
+      const nextW = await tx.word.findUnique({ where: { id: wordIds[nextIdx]! } });
+      return {
+        done: false,
+        correct: true,
+        newIndex: nextIdx,
+        currentWord: nextW ? wordToPublicHints(nextW) : null,
+      };
     });
 
     if (result.correct) {
-      this.pushSessionRefresh(sessionId);
+      this.pushSessionRefresh(sessionId, { reason: 'coop_guess' });
     }
     return result;
   }
@@ -526,7 +548,13 @@ export class WordMatchService {
           create: { participantId: part.id, wrongAnswers: 1 },
           update: { wrongAnswers: { increment: 1 } },
         });
-        return { correct: false, finished: false, yourScore: partRow.score, winner: false };
+        return {
+          correct: false,
+          finished: false,
+          yourScore: partRow.score,
+          winner: false,
+          currentWord: wordToPublicHints(word),
+        };
       }
 
       const updated = await tx.gameParticipant.update({
@@ -559,14 +587,31 @@ export class WordMatchService {
             },
           });
         }
-        return { correct: true, finished: true, yourScore: updated.score, winner: true };
+        return {
+          correct: true,
+          finished: true,
+          yourScore: updated.score,
+          winner: true,
+          currentWord: null as WordPublicHint | null,
+        };
       }
 
-      return { correct: true, finished: false, yourScore: updated.score, winner: false };
+      const nextW = await tx.word.findUnique({ where: { id: config.wordIds[updated.score]! } });
+      return {
+        correct: true,
+        finished: false,
+        yourScore: updated.score,
+        winner: false,
+        currentWord: nextW ? wordToPublicHints(nextW) : null,
+      };
     });
 
     if (result.correct) {
-      this.pushSessionRefresh(sessionId);
+      this.pushSessionRefresh(sessionId, {
+        reason: 'versus_guess',
+        participantId: part.id,
+        score: result.yourScore,
+      });
     }
     return result;
   }
@@ -616,7 +661,7 @@ export class WordMatchService {
           },
         });
       }
-      this.pushSessionRefresh(sessionId);
+      this.pushSessionRefresh(sessionId, { reason: 'leave' });
       return { ok: true as const };
     }
 
@@ -625,7 +670,36 @@ export class WordMatchService {
         where: { id: part.id },
         data: { leftAt: new Date(), result: GameParticipantResult.LOSS },
       });
-      this.pushSessionRefresh(sessionId);
+
+      const fresh = await this.prisma.gameSession.findUnique({
+        where: { id: sessionId },
+        include: { participants: true },
+      });
+      if (
+        fresh &&
+        fresh.status === GameSessionStatus.ACTIVE &&
+        config.wordGameMode === 'versus'
+      ) {
+        const stillActive = fresh.participants.filter(isParticipantActive);
+        if (stillActive.length === 1) {
+          const sole = stillActive[0]!;
+          await this.prisma.gameSession.update({
+            where: { id: sessionId },
+            data: { status: GameSessionStatus.FINISHED, endedAt: new Date() },
+          });
+          await this.prisma.gameParticipant.update({
+            where: { id: sole.id },
+            data: { result: GameParticipantResult.WIN, placement: 1 },
+          });
+        } else if (stillActive.length === 0) {
+          await this.prisma.gameSession.update({
+            where: { id: sessionId },
+            data: { status: GameSessionStatus.CANCELLED, endedAt: new Date() },
+          });
+        }
+      }
+
+      this.pushSessionRefresh(sessionId, { reason: 'leave' });
       return { ok: true as const };
     }
 
@@ -655,6 +729,7 @@ export class WordMatchService {
       language: ws.language,
       category: config.category ?? undefined,
       count: config.wordIds.length,
+      difficulty: config.difficulty,
     });
     if (deck.length === 0) {
       throw new BadRequestException('no words for this language/category');

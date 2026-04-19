@@ -48,6 +48,11 @@ export class CreateVenueDto {
   @IsOptional()
   isPremium?: boolean;
 
+  /** When true, players need a GPS-backed QR check-in before venue-gated features unlock. */
+  @IsBoolean()
+  @IsOptional()
+  requiresExplicitCheckIn?: boolean;
+
   @IsString()
   @IsOptional()
   menuUrl?: string;

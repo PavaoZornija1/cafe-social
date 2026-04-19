@@ -518,6 +518,7 @@ export class VenueService {
         locked: true,
         latitude: true,
         longitude: true,
+        requiresExplicitCheckIn: true,
       },
     });
     if (!v) throw new NotFoundException(`Venue ${id} not found`);
@@ -536,6 +537,7 @@ export class VenueService {
         offers: [],
         featuredOffer: null,
         geofence: geofenceForClient,
+        requiresExplicitCheckIn: v.requiresExplicitCheckIn,
       };
     }
     const { offers, featuredOffer } = await loadPublicVenueOffersForVenue(this.prisma, id);
@@ -547,6 +549,7 @@ export class VenueService {
       offers,
       featuredOffer,
       geofence: geofenceForClient,
+      requiresExplicitCheckIn: v.requiresExplicitCheckIn,
     };
   }
 

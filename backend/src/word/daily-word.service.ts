@@ -17,6 +17,13 @@ import type { DailyWordGuessDto, DailyWordScope } from './dto/daily-word-guess.d
 
 const MAX_ATTEMPTS = 6;
 
+type DailyWordRow = {
+  text: string;
+  sentenceHint: string;
+  wordHints: string[];
+  emojiHints: string[];
+};
+
 @Injectable()
 export class DailyWordService {
   constructor(
@@ -75,6 +82,35 @@ export class DailyWordService {
     }
   }
 
+  /** Progressive reveal: stricter than word rooms — clues unlock as you use attempts. */
+  private progressiveDailyHints(
+    attemptsSoFar: number,
+    solved: boolean,
+    word: DailyWordRow | null,
+  ): {
+    answerLength: number;
+    sentenceHint?: string;
+    wordHints?: string[];
+    emojiHints?: string[];
+  } {
+    if (!word) return { answerLength: 0 };
+    const answerLength = word.text.length;
+    if (solved) {
+      return {
+        answerLength,
+        sentenceHint: word.sentenceHint,
+        wordHints: word.wordHints,
+        emojiHints: word.emojiHints,
+      };
+    }
+    return {
+      answerLength,
+      ...(attemptsSoFar >= 2 ? { sentenceHint: word.sentenceHint } : {}),
+      ...(attemptsSoFar >= 4 ? { wordHints: word.wordHints } : {}),
+      ...(attemptsSoFar >= 5 ? { emojiHints: word.emojiHints } : {}),
+    };
+  }
+
   async getState(params: {
     email: string;
     scope: DailyWordScope;
@@ -110,25 +146,37 @@ export class DailyWordService {
       },
     });
 
-    const w = await this.words.getWordTextById(wordId);
-    const answerLength = w?.text.length ?? 0;
+    const w = await this.prisma.word.findUnique({
+      where: { id: wordId },
+      select: {
+        text: true,
+        sentenceHint: true,
+        wordHints: true,
+        emojiHints: true,
+      },
+    });
 
     const streakRow = await this.prisma.playerDailyStreak.findUnique({
       where: { playerId_scopeKey: { playerId: player.id, scopeKey: sk } },
     });
+
+    const attempts = row?.attempts ?? 0;
+    const solved = !!row?.solvedAt;
+    const hints = this.progressiveDailyHints(attempts, solved, w);
 
     return {
       dayKey,
       scope: params.scope,
       venueId: params.scope === 'venue' ? params.venueId : undefined,
       language,
-      solved: !!row?.solvedAt,
-      attempts: row?.attempts ?? 0,
+      solved,
+      attempts,
       maxAttempts: MAX_ATTEMPTS,
-      answerLength,
+      answerLength: hints.answerLength,
       streak: streakRow?.currentStreak ?? 0,
       lastSolvedDayKey: streakRow?.lastSolvedDayKey ?? null,
-      word: row?.solvedAt && w ? w.text : undefined,
+      word: solved && w ? w.text : undefined,
+      hints,
     };
   }
 
@@ -155,7 +203,15 @@ export class DailyWordService {
     const wordId = await this.words.pickWordIdForDaily(language, dayKey, sk);
     if (!wordId) throw new NotFoundException('No words for this language');
 
-    const word = await this.words.getWordTextById(wordId);
+    const word = await this.prisma.word.findUnique({
+      where: { id: wordId },
+      select: {
+        text: true,
+        sentenceHint: true,
+        wordHints: true,
+        emojiHints: true,
+      },
+    });
     if (!word) throw new NotFoundException('Word not found');
 
     const existing = await this.prisma.playerDailyWord.findUnique({
@@ -165,13 +221,16 @@ export class DailyWordService {
     });
 
     if (existing?.solvedAt) {
+      const hints = this.progressiveDailyHints(existing.attempts, true, word);
       return {
         correct: true,
         solved: true,
         attempts: existing.attempts,
         maxAttempts: MAX_ATTEMPTS,
+        answerLength: hints.answerLength,
         word: word.text,
         streak: (await this.streakSnapshot(player.id, sk)).currentStreak,
+        hints,
       };
     }
 
@@ -198,12 +257,15 @@ export class DailyWordService {
         },
         update: { attempts: nextAttempts },
       });
+      const hints = this.progressiveDailyHints(nextAttempts, false, word);
       return {
         correct: false,
         solved: false,
         attempts: nextAttempts,
         maxAttempts: MAX_ATTEMPTS,
+        answerLength: hints.answerLength,
         streak: (await this.streakSnapshot(player.id, sk)).currentStreak,
+        hints,
       };
     }
 
@@ -229,13 +291,16 @@ export class DailyWordService {
         void this.feed.recordDailyWordSolved(dto.venueId, player.username);
       }
 
+      const hintsSolved = this.progressiveDailyHints(nextAttempts, true, word);
       return {
         correct: true,
         solved: true,
         attempts: nextAttempts,
         maxAttempts: MAX_ATTEMPTS,
+        answerLength: hintsSolved.answerLength,
         word: word.text,
         streak: streak.currentStreak,
+        hints: hintsSolved,
       };
     }
 
@@ -252,12 +317,15 @@ export class DailyWordService {
       update: { attempts: nextAttempts },
     });
 
+    const hintsWrong = this.progressiveDailyHints(nextAttempts, false, word);
     return {
       correct: false,
       solved: false,
       attempts: nextAttempts,
       maxAttempts: MAX_ATTEMPTS,
+      answerLength: hintsWrong.answerLength,
       streak: (await this.streakSnapshot(player.id, sk)).currentStreak,
+      hints: hintsWrong,
     };
   }
 

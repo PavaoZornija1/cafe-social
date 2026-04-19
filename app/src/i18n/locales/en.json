@@ -178,6 +178,9 @@
     "statTier": "Tier",
     "detectingVenue": "Detecting…",
     "currentVenue": "Current venue",
+    "noVenueShort": "No partner venue nearby",
+    "findVenuesCta": "Partner map",
+    "modesTitle": "More",
     "noVenueYet": "No partner venue detected. Loyalty, friends, and invites still work. Games open when you’re at a café — or from home if you have a subscription.",
     "lockedHintStandard": "Venue games need location to confirm you’re on site. Loyalty and browsing stay available.",
     "lockedHintPremium": "Venue games need location here, or use a subscription for global play from anywhere.",
@@ -198,6 +201,16 @@
     "navLeaderboard": "Leaderboard",
     "navProfile": "Profile",
     "navSettings": "Settings",
+    "navQrScan": "Scan QR",
+    "venueHubA11y": "Venue hub, {{name}}",
+    "venueErrorNetwork": "Could not reach the server. Check your connection and that the app points at the right API (for example your computer’s IP on a physical device).",
+    "playLockedHint": "Turn on location at a partner café, or use a subscription to play from anywhere.",
+    "playLockedSettings": "Settings",
+    "playLockedFindVenues": "Partner map",
+    "explicitCheckInRequired": "This café asks for a QR check-in. Scan the code at the venue (with location on) to unlock games and venue perks.",
+    "explicitCheckInChallengeLine": "Check in with QR at this venue to continue.",
+    "playLockedExplicitCheckIn": "This venue needs a one-time QR check-in while you’re on site. Allow location, then scan.",
+    "explicitCheckInCta": "Scan QR to check in",
     "loadVenueError": "Failed to load venue context",
     "premiumSuffix": " • Premium",
     "linkFriends": "Friends",
@@ -234,6 +247,11 @@
     "venuePerksTitle": "Venue perks",
     "venuePerksEmpty": "No public perk teasers yet — staff can still give you a code to enter below in Redeem.",
     "venuePerksRedeemed": "Redeemed"
+  },
+  "venueHub": {
+    "title": "{{name}}",
+    "loadError": "Could not load this venue.",
+    "backA11y": "Go back"
   },
   "partnerMap": {
     "title": "Partner venues",
@@ -283,7 +301,11 @@
     "needVenue": "Detect a venue to play the venue daily.",
     "notSignedIn": "Not signed in",
     "globalRequiresSub": "The global daily word needs an active subscription.",
-    "wordRoomsHint": "For multi-round games with clues (solo or rooms), use Word rooms on Home — this screen is only the daily puzzle."
+    "wordRoomsHint": "For multi-round games with clues (solo or rooms), use Word rooms on Home — this screen is only the daily puzzle.",
+    "hardModeBlurb": "The daily is the tougher puzzle: you only get extra clues after more attempts.",
+    "hintSentence": "Clue: ",
+    "hintWords": "Keywords: ",
+    "hintEmoji": "Emoji hints: "
   },
   "challenges": {
     "title": "Challenges",
@@ -390,7 +412,8 @@
     "coopHint": "Anyone in the room can submit the next guess.",
     "back": "Back",
     "rematch": "Play again (new room)",
-    "rematchBusy": "Creating…"
+    "rematchBusy": "Creating…",
+    "soloNotReady": "Session not ready — wait a moment and try again."
   },
   "qr": {
     "title": "Check in at venue",
@@ -407,7 +430,8 @@
     "unlock": "Unlock",
     "emptyCode": "Code is empty. Paste a valid venue id.",
     "unlockError": "Failed to unlock venue",
-    "notAuthenticated": "Not authenticated"
+    "notAuthenticated": "Not authenticated",
+    "needLocationForCheckIn": "Turn on location and try again — this venue confirms you’re on site when you check in."
   },
   "profile": {
     "title": "Profile",

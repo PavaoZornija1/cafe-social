@@ -17,6 +17,14 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export const WORD_MATCH_REFRESH_EVENT = 'word-match.refresh' as const;
 
+export type WordMatchRefreshPayload = {
+  sessionId: string;
+  reason?: string;
+  /** `GameParticipant.id` for versus progress events */
+  participantId?: string;
+  score?: number;
+};
+
 @WebSocketGateway({
   namespace: '/word-match',
   cors: { origin: true, credentials: true },
@@ -98,8 +106,13 @@ export class WordMatchGateway implements OnGatewayConnection {
   }
 
   @OnEvent(WORD_MATCH_REFRESH_EVENT)
-  handleSessionRefresh(sessionId: string) {
+  handleSessionRefresh(payload: string | WordMatchRefreshPayload) {
     if (!this.server) return;
-    this.server.to(`match:${sessionId}`).emit('refresh', { sessionId });
+    const body: WordMatchRefreshPayload =
+      typeof payload === 'string' ? { sessionId: payload } : payload;
+    if (!body.sessionId) return;
+    const room = `match:${body.sessionId}`;
+    this.server.to(room).emit('refresh', body);
+    this.server.to(room).emit('matchUpdate', body);
   }
 }

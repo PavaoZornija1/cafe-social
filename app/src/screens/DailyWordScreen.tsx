@@ -18,6 +18,13 @@ import { toApiWordLanguage } from '../lib/wordDeckLanguage';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DailyWord'>;
 
+type DailyHints = {
+    answerLength: number;
+    sentenceHint?: string;
+    wordHints?: string[];
+    emojiHints?: string[];
+};
+
 type DailyState = {
     dayKey: string;
     scope: 'global' | 'venue';
@@ -30,6 +37,7 @@ type DailyState = {
     streak: number;
     lastSolvedDayKey: string | null;
     word?: string;
+    hints?: DailyHints;
 };
 
 export default function DailyWordScreen({ navigation }: Props) {
@@ -126,6 +134,7 @@ export default function DailyWordScreen({ navigation }: Props) {
                 maxAttempts: number;
                 word?: string;
                 streak: number;
+                hints?: DailyHints;
             }>('/words/daily/guess', body, token);
             setState((prev) =>
                 prev
@@ -135,6 +144,8 @@ export default function DailyWordScreen({ navigation }: Props) {
                           attempts: res.attempts,
                           word: res.word ?? prev.word,
                           streak: res.streak,
+                          hints: res.hints ?? prev.hints,
+                          answerLength: res.hints?.answerLength ?? prev.answerLength,
                       }
                     : prev,
             );
@@ -180,6 +191,7 @@ export default function DailyWordScreen({ navigation }: Props) {
             </View>
 
             <Text style={styles.modeBlurb}>{t('dailyWord.wordRoomsHint')}</Text>
+            <Text style={styles.hardModeBlurb}>{t('dailyWord.hardModeBlurb')}</Text>
 
             {loading ? (
                 <View style={styles.center}>
@@ -193,8 +205,26 @@ export default function DailyWordScreen({ navigation }: Props) {
                         {t('dailyWord.day', { day: state.dayKey })} · {t('dailyWord.streak', { n: state.streak })}
                     </Text>
                     <Text style={styles.hint}>
-                        {t('dailyWord.answerLength', { n: state.answerLength })}
+                        {t('dailyWord.answerLength', { n: state.hints?.answerLength ?? state.answerLength })}
                     </Text>
+                    {state.hints?.sentenceHint ? (
+                        <Text style={styles.progressiveHint}>
+                            <Text style={styles.hintLabel}>{t('dailyWord.hintSentence')}</Text>
+                            {state.hints.sentenceHint}
+                        </Text>
+                    ) : null}
+                    {state.hints?.wordHints?.length ? (
+                        <Text style={styles.progressiveHint}>
+                            <Text style={styles.hintLabel}>{t('dailyWord.hintWords')}</Text>
+                            {state.hints.wordHints.join(', ')}
+                        </Text>
+                    ) : null}
+                    {state.hints?.emojiHints?.length ? (
+                        <Text style={styles.progressiveHint}>
+                            <Text style={styles.hintLabel}>{t('dailyWord.hintEmoji')}</Text>
+                            {state.hints.emojiHints.join(' ')}
+                        </Text>
+                    ) : null}
                     <Text style={styles.attempts}>
                         {t('dailyWord.attempts', { current: state.attempts, max: state.maxAttempts })}
                     </Text>
@@ -264,6 +294,16 @@ const styles = StyleSheet.create({
     body: { paddingHorizontal: 16, gap: 12 },
     meta: { color: '#94a3b8', fontSize: 14 },
     hint: { color: '#cbd5e1', fontSize: 16 },
+    hardModeBlurb: {
+        color: '#64748b',
+        fontSize: 12,
+        lineHeight: 17,
+        paddingHorizontal: 16,
+        marginBottom: 8,
+        fontStyle: 'italic',
+    },
+    progressiveHint: { color: '#e2e8f0', fontSize: 14, lineHeight: 20 },
+    hintLabel: { color: '#a78bfa', fontWeight: '700', marginRight: 6 },
     attempts: { color: '#a78bfa', fontSize: 14 },
     input: {
         backgroundColor: '#1e293b',

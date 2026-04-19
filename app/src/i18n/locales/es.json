@@ -178,6 +178,9 @@
     "statTier": "Nivel",
     "detectingVenue": "Detectando…",
     "currentVenue": "Local actual",
+    "noVenueShort": "Sin local socio cerca",
+    "findVenuesCta": "Mapa",
+    "modesTitle": "Más",
     "noVenueYet": "No hay local socio detectado. Fidelización, amigos e invitaciones siguen. Los juegos van en el café — o desde casa con suscripción.",
     "lockedHintStandard": "Los juegos del local necesitan ubicación para confirmar que estás ahí. El resto de la app sigue abierto.",
     "lockedHintPremium": "Los juegos del local necesitan ubicación aquí, o suscripción para jugar en global.",
@@ -198,6 +201,16 @@
     "navLeaderboard": "Clasificación",
     "navProfile": "Perfil",
     "navSettings": "Ajustes",
+    "navQrScan": "Escanear QR",
+    "venueHubA11y": "Centro del local, {{name}}",
+    "venueErrorNetwork": "No se pudo conectar al servidor. Revisa la conexión y que la app apunte a la API correcta (por ejemplo la IP de tu ordenador en un dispositivo físico).",
+    "playLockedHint": "Activa la ubicación en un local socio o usa una suscripción para jugar desde cualquier sitio.",
+    "playLockedSettings": "Ajustes",
+    "playLockedFindVenues": "Mapa de socios",
+    "explicitCheckInRequired": "Este local pide check-in con QR. Escanea el código en el local (con ubicación activada) para desbloquear juegos y ventajas.",
+    "explicitCheckInChallengeLine": "Haz check-in con QR en este local para continuar.",
+    "playLockedExplicitCheckIn": "Este local pide un check-in con QR estando dentro. Activa la ubicación y escanea.",
+    "explicitCheckInCta": "Escanear QR para entrar",
     "loadVenueError": "Error al cargar el contexto del local",
     "premiumSuffix": " • Premium",
     "linkFriends": "Amigos",
@@ -230,7 +243,15 @@
     "badgeVenueExplorer": "Explorador de locales",
     "linkRedeemPerk": "Canjear beneficio",
     "linkReceipt": "Ticket",
-    "linkPartnerMap": "Mapa de socios"
+    "linkPartnerMap": "Mapa de socios",
+    "venuePerksTitle": "Ventajas del local",
+    "venuePerksEmpty": "Aún no hay ventajas públicas — el personal puede darte un código para canjear.",
+    "venuePerksRedeemed": "Canjeado"
+  },
+  "venueHub": {
+    "title": "{{name}}",
+    "loadError": "No se pudo cargar este local.",
+    "backA11y": "Volver"
   },
   "partnerMap": {
     "title": "Locales asociados",
@@ -280,7 +301,11 @@
     "needVenue": "Detecta un local para la palabra del local.",
     "notSignedIn": "No has iniciado sesión",
     "globalRequiresSub": "La palabra global requiere suscripción activa.",
-    "wordRoomsHint": "Para varias rondas con pistas (solo o salas), usa «Salas de palabras» en Inicio — esta pantalla es solo el puzzle diario."
+    "wordRoomsHint": "Para varias rondas con pistas (solo o salas), usa «Salas de palabras» en Inicio — esta pantalla es solo el puzzle diario.",
+    "hardModeBlurb": "La palabra del día es más dura: pistas extra solo tras más intentos.",
+    "hintSentence": "Pista: ",
+    "hintWords": "Palabras clave: ",
+    "hintEmoji": "Pistas emoji: "
   },
   "challenges": {
     "title": "Retos",
@@ -387,7 +412,8 @@
     "coopHint": "Cualquiera en la sala puede enviar el intento.",
     "back": "Atrás",
     "rematch": "Jugar otra vez (nueva sala)",
-    "rematchBusy": "Creando…"
+    "rematchBusy": "Creando…",
+    "soloNotReady": "Sesión no lista — espera un momento e inténtalo de nuevo."
   },
   "qr": {
     "title": "Check-in en el local",
@@ -404,7 +430,8 @@
     "unlock": "Desbloquear",
     "emptyCode": "Código vacío. Pega un id válido.",
     "unlockError": "No se pudo desbloquear",
-    "notAuthenticated": "No autenticado"
+    "notAuthenticated": "No autenticado",
+    "needLocationForCheckIn": "Activa la ubicación e inténtalo de nuevo: este local confirma que estás dentro al hacer check-in."
   },
   "profile": {
     "title": "Perfil",

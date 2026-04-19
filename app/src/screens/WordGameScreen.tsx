@@ -19,14 +19,21 @@ import { toApiWordLanguage } from '../lib/wordDeckLanguage';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WordGame'>;
 
+/** Hint payload from API (no answer `text`). */
 type WordRow = {
   id: string;
-  text: string;
   language: string;
   category: string;
   sentenceHint: string;
   wordHints: string[];
   emojiHints: string[];
+};
+
+type MpDeckResponse = {
+  mode: 'coop' | 'versus';
+  wordIndex: number;
+  targetWordCount: number;
+  currentWord: WordRow | null;
 };
 
 type MatchParticipant = {
@@ -52,16 +59,6 @@ type MatchState = {
   deckCategory?: string | null;
   participants: MatchParticipant[];
 };
-
-function normalizeGuess(s: string): string {
-  return s
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
-    .replace(/[^a-z0-9\s]/g, '')
-    .replace(/\s+/g, ' ');
-}
 
 export default function WordGameScreen({ navigation, route }: Props) {
   const { t, i18n } = useTranslation();
@@ -92,8 +89,11 @@ export default function WordGameScreen({ navigation, route }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [wrongFeedback, setWrongFeedback] = useState<string | null>(null);
   const [matchState, setMatchState] = useState<MatchState | null>(null);
+  const [soloSessionId, setSoloSessionId] = useState<string | null>(null);
+  const [soloTargetCount, setSoloTargetCount] = useState(sessionWordsCount);
 
-  const deckLoadedRef = useRef(false);
+  const soloStartedRef = useRef(false);
+  const mpBootDoneRef = useRef(false);
 
   const matchMode = matchSessionId ? mode : 'solo';
   const leaveGame = useCallback(() => {
@@ -127,8 +127,8 @@ export default function WordGameScreen({ navigation, route }: Props) {
   const coopIdx = matchState?.sharedWordIndex ?? 0;
   const versusOrSoloIdx = idx;
 
-  const currentWord =
-    matchMode === 'coop' ? deck[coopIdx] : deck[versusOrSoloIdx];
+  /** Server sends one hint card at a time for solo / multiplayer. */
+  const currentWord = deck[0];
 
   /** Always shown — the main written clue (not just a broad category). */
   const primaryClue = useMemo(() => {
@@ -163,9 +163,16 @@ export default function WordGameScreen({ navigation, route }: Props) {
     return t('wordLobby.hard');
   }, [difficulty, t]);
 
+  const progressTotal = Math.max(
+    matchSessionId
+      ? matchState?.targetWordCount ?? 1
+      : soloTargetCount || sessionWordsCount || 1,
+    1,
+  );
   const progressCurrent =
-    matchMode === 'coop' ? Math.min(coopIdx + 1, Math.max(deck.length, 1)) : idx + 1;
-  const progressTotal = Math.max(deck.length, 1);
+    matchMode === 'coop'
+      ? Math.min(coopIdx + 1, progressTotal)
+      : Math.min(idx + 1, progressTotal);
 
   useEffect(() => {
     if (matchMode === 'coop') setExtraHintRevealed(false);
@@ -196,6 +203,10 @@ export default function WordGameScreen({ navigation, route }: Props) {
     void fetchMatchState();
   }, [matchSessionId, isLoaded, fetchMatchState]);
 
+  useEffect(() => {
+    mpBootDoneRef.current = false;
+  }, [matchSessionId]);
+
   const { socketStatus } = useWordMatchSocket({
     sessionId: matchSessionId ?? null,
     enabled: !!matchSessionId && isLoaded,
@@ -204,15 +215,15 @@ export default function WordGameScreen({ navigation, route }: Props) {
     fallbackPollMs: 30000,
   });
 
-  /** Solo deck */
+  /** Solo — server session; answers validated on guess */
   useEffect(() => {
     if (matchSessionId) return;
     let cancelled = false;
 
     async function run() {
       if (!isLoaded) return;
-      if (deckLoadedRef.current) return;
-      deckLoadedRef.current = true;
+      if (soloStartedRef.current) return;
+      soloStartedRef.current = true;
 
       try {
         setLoading(true);
@@ -222,7 +233,8 @@ export default function WordGameScreen({ navigation, route }: Props) {
         if (!token) throw new Error('Not authenticated');
 
         const primary = toApiWordLanguage(i18n.language);
-        let venueQs = '';
+        let lat: number | undefined;
+        let lng: number | undefined;
         if (!globalSolo) {
           if (!venueId) throw new Error(t('wordGame.needVenuePresence'));
           const { venue, coords } = await fetchDetectedVenue({ locationAccuracy: 'high' });
@@ -230,33 +242,53 @@ export default function WordGameScreen({ navigation, route }: Props) {
             throw new Error(t('wordGame.needVenuePresence'));
           }
           presenceCoordsRef.current = coords;
-          venueQs = `&venueId=${encodeURIComponent(venueId)}&lat=${encodeURIComponent(String(coords.lat))}&lng=${encodeURIComponent(String(coords.lng))}`;
+          lat = coords.lat;
+          lng = coords.lng;
         } else {
           presenceCoordsRef.current = null;
         }
-        const globalQs = globalSolo ? '&globalPlay=1' : '';
-        const catQs = wordCategory ? `&category=${encodeURIComponent(wordCategory)}` : '';
-        let res = await apiGet<{ words: WordRow[] }>(
-          `/words/session?language=${encodeURIComponent(primary)}&count=${encodeURIComponent(String(sessionWordsCount))}${globalQs}${venueQs}${catQs}`,
-          token,
-        );
-        if (cancelled) return;
-        if (!res.words?.length && primary !== 'en') {
-          res = await apiGet<{ words: WordRow[] }>(
-            `/words/session?language=en&count=${encodeURIComponent(String(sessionWordsCount))}${globalQs}${venueQs}${catQs}`,
-            token,
-          );
+
+        const baseBody = {
+          wordCount: sessionWordsCount,
+          difficulty: difficulty ?? 'normal',
+          globalPlay: globalSolo,
+          venueId: venueId ?? undefined,
+          latitude: lat,
+          longitude: lng,
+          category: wordCategory,
+        };
+
+        const tryStart = (lang: string) =>
+          apiPost<{
+            sessionId: string;
+            targetWordCount: number;
+            wordIndex: number;
+            currentWord: WordRow | null;
+          }>('/words/session/start', { ...baseBody, language: lang }, token);
+
+        let start: Awaited<ReturnType<typeof tryStart>>;
+        try {
+          start = await tryStart(primary);
+        } catch {
+          if (primary !== 'en') {
+            start = await tryStart('en');
+          } else {
+            throw new Error(t('wordGame.loadError'));
+          }
         }
         if (cancelled) return;
-        if (!res.words?.length) {
+        if (!start.currentWord) {
           setError(t('wordGame.emptyDeck'));
           setDeck([]);
           return;
         }
-        setDeck(res.words);
+        setSoloSessionId(start.sessionId);
+        setSoloTargetCount(start.targetWordCount);
+        setIdx(start.wordIndex);
+        setDeck([start.currentWord]);
       } catch (e) {
         if (cancelled) return;
-        deckLoadedRef.current = false;
+        soloStartedRef.current = false;
         setError((e as Error).message || t('wordGame.loadError'));
       } finally {
         if (!cancelled) setLoading(false);
@@ -270,6 +302,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
   }, [
     isLoaded,
     sessionWordsCount,
+    difficulty,
     t,
     matchSessionId,
     i18n.language,
@@ -278,24 +311,34 @@ export default function WordGameScreen({ navigation, route }: Props) {
     wordCategory,
   ]);
 
-  /** Multiplayer deck (match must be ACTIVE) */
+  /** Multiplayer: state + one hint card; refetch when co-op index or your versus score changes */
   useEffect(() => {
-    const sid = matchSessionId;
-    if (!sid || !isLoaded) return;
+    if (!matchSessionId || !isLoaded) return;
+    if (matchMode !== 'coop' && matchMode !== 'versus') return;
+    const sessionKey = matchSessionId;
+
     let cancelled = false;
+    const showSpinner = !mpBootDoneRef.current;
 
     async function run() {
       try {
-        setLoading(true);
+        if (showSpinner) {
+          setLoading(true);
+          mpBootDoneRef.current = true;
+        }
         setError(null);
-        const token = await getTokenRef.current();
-        if (!token) throw new Error('Not authenticated');
+        const auth = await getTokenRef.current();
+        if (!auth) throw new Error('Not authenticated');
         const s = await apiGet<MatchState>(
-          `/words/matches/${encodeURIComponent(sid as string)}/state`,
-          token,
+          `/words/matches/${encodeURIComponent(sessionKey)}/state`,
+          auth,
         );
         if (cancelled) return;
         setMatchState(s);
+        if (s.status !== 'ACTIVE') {
+          setDeck([]);
+          return;
+        }
         let deckQs = '';
         if (s.venueId) {
           const { venue, coords } = await fetchDetectedVenue({ locationAccuracy: 'high' });
@@ -310,22 +353,22 @@ export default function WordGameScreen({ navigation, route }: Props) {
         } else {
           presenceCoordsRef.current = null;
         }
-        const res = await apiGet<{ words: WordRow[] }>(
-          `/words/matches/${encodeURIComponent(sid as string)}/deck${deckQs}`,
-          token,
+        const res = await apiGet<MpDeckResponse>(
+          `/words/matches/${encodeURIComponent(sessionKey)}/deck${deckQs}`,
+          auth,
         );
         if (cancelled) return;
-        if (!res.words?.length) {
-          setError(t('wordGame.matchDeckError'));
+        if (!res.currentWord) {
           setDeck([]);
           return;
         }
-        setDeck(res.words);
+        setDeck([res.currentWord]);
+        if (matchMode === 'versus') setIdx(res.wordIndex);
       } catch (e) {
         if (cancelled) return;
         setError((e as Error).message || t('wordGame.loadError'));
       } finally {
-        if (!cancelled) setLoading(false);
+        if (showSpinner && !cancelled) setLoading(false);
       }
     }
 
@@ -333,7 +376,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [matchSessionId, isLoaded, t]);
+  }, [matchSessionId, isLoaded, matchMode, coopIdx, myVersusScore, t]);
 
   const finishSession = async (opts: { claimChallenge: boolean }) => {
     if (!opts.claimChallenge || !challengeId || !venueId) {
@@ -374,6 +417,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
           done: boolean;
           correct: boolean;
           newIndex: number;
+          currentWord: WordRow | null;
         }>(
           `/words/matches/${encodeURIComponent(matchSessionId)}/coop-guess`,
           {
@@ -390,16 +434,15 @@ export default function WordGameScreen({ navigation, route }: Props) {
         setWrongFeedback(null);
         setExtraHintRevealed(false);
         setGuess('');
-        if (res.done && token) {
-          try {
-            const s = await apiGet<MatchState>(
-              `/words/matches/${encodeURIComponent(matchSessionId)}/state`,
-              token,
-            );
-            setMatchState(s);
-          } catch {
-            /* socket refresh will catch up */
-          }
+        if (res.currentWord) setDeck([res.currentWord]);
+        try {
+          const s = await apiGet<MatchState>(
+            `/words/matches/${encodeURIComponent(matchSessionId)}/state`,
+            token,
+          );
+          setMatchState(s);
+        } catch {
+          /* socket refresh will catch up */
         }
         return;
       }
@@ -411,6 +454,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
           correct: boolean;
           finished: boolean;
           yourScore: number;
+          currentWord: WordRow | null;
         }>(
           `/words/matches/${encodeURIComponent(matchSessionId)}/versus-guess`,
           {
@@ -427,6 +471,8 @@ export default function WordGameScreen({ navigation, route }: Props) {
         setWrongFeedback(null);
         setExtraHintRevealed(false);
         setGuess('');
+        if (res.currentWord) setDeck([res.currentWord]);
+        setIdx(res.yourScore);
         if (res.finished) {
           try {
             const s = await apiGet<MatchState>(
@@ -439,27 +485,54 @@ export default function WordGameScreen({ navigation, route }: Props) {
           }
           return;
         }
-        setIdx(res.yourScore);
+        try {
+          const s = await apiGet<MatchState>(
+            `/words/matches/${encodeURIComponent(matchSessionId)}/state`,
+            token,
+          );
+          setMatchState(s);
+        } catch {
+          /* non-fatal */
+        }
         return;
       }
 
-      const isCorrect = normalizeGuess(guess) === normalizeGuess(currentWord.text);
-      if (!isCorrect) {
+      if (!soloSessionId) {
+        setWrongFeedback(t('wordGame.soloNotReady'));
+        return;
+      }
+      const token = await getTokenRef.current();
+      if (!token) throw new Error('Not authenticated');
+      const res = await apiPost<{
+        correct: boolean;
+        finished: boolean;
+        wordIndex: number;
+        targetWordCount: number;
+        currentWord: WordRow | null;
+      }>(
+        `/words/session/${encodeURIComponent(soloSessionId)}/guess`,
+        {
+          guess,
+          latitude: presenceCoordsRef.current?.lat,
+          longitude: presenceCoordsRef.current?.lng,
+        },
+        token,
+      );
+      if (!res.correct) {
         setWrongFeedback(t('wordGame.wrongGuess'));
         return;
       }
-
       setWrongFeedback(null);
       setCorrectCount((c) => c + 1);
       setExtraHintRevealed(false);
       setGuess('');
-
-      const nextIdx = idx + 1;
-      if (nextIdx >= deck.length) {
+      setSoloTargetCount(res.targetWordCount);
+      if (res.currentWord) setDeck([res.currentWord]);
+      setIdx(res.wordIndex);
+      if (res.finished) {
         await finishSession({ claimChallenge: true });
         return;
       }
-      setIdx(nextIdx);
     } finally {
       setSubmitting(false);
     }

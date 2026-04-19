@@ -6,6 +6,7 @@ import LoginScreen from "../screens/LoginScreen";
 import SignUpScreen from "../screens/SignUpScreen";
 import OnboardingScreen from "../screens/OnboardingScreen";
 import HomeScreen from "../screens/HomeScreen";
+import VenueHubScreen from "../screens/VenueHubScreen";
 import DailyWordScreen from "../screens/DailyWordScreen";
 import ChallengesScreen from "../screens/ChallengesScreen";
 import LeaderboardScreen from "../screens/LeaderboardScreen";
@@ -53,6 +54,7 @@ export default function RootStack() {
                 options={{ gestureEnabled: false }}
             />
             <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="VenueHub" component={VenueHubScreen} />
             <Stack.Screen name="PartnerVenuesMap" component={PartnerVenuesMapScreen} />
             <Stack.Screen name="DailyWord" component={DailyWordScreen} />
             <Stack.Screen name="ChooseGame" component={ChooseGameScreen} />

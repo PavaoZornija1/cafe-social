@@ -22,7 +22,7 @@ async function bootstrap() {
   } else {
     app.useWebSocketAdapter(new IoAdapter(app));
   }
-  const port = configService.get<number>('PORT') ?? 3001;
+  const port = configService.get<number>('PORT') ?? 3005;
 
   app.setGlobalPrefix('api');
   app.enableCors({

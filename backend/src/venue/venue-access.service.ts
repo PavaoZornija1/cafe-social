@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -13,6 +14,7 @@ import type { PublicVenueDetectResult } from './public-detect.types';
 import { VenueService } from './venue.service';
 import { VenueFunnelService } from './venue-funnel.service';
 import { VenueModerationService } from './venue-moderation.service';
+import { PlayerVenueCheckInRepository } from './player-venue-check-in.repository';
 
 export type VenueAccessResult = {
   venueId: string;
@@ -29,6 +31,12 @@ export type VenueAccessResult = {
   canEnterVenueContext: boolean;
   /** Venue staff / moderation ban at this location. */
   bannedFromVenue: boolean;
+  /** Venue requests QR check-in before unlocking venue features (see `hasExplicitCheckIn`). */
+  requiresExplicitCheckIn: boolean;
+  /** GPS places the player inside this venue’s geofence. */
+  isPhysicallyAtVenue: boolean;
+  /** Recent `POST …/register` with GPS at this venue (default validity: 24h). */
+  hasExplicitCheckIn: boolean;
 };
 
 @Injectable()
@@ -42,6 +50,7 @@ export class VenueAccessService {
     private readonly subscriptions: SubscriptionRepository,
     private readonly funnel: VenueFunnelService,
     private readonly moderation: VenueModerationService,
+    private readonly explicitCheckIns: PlayerVenueCheckInRepository,
   ) {}
 
   /**
@@ -84,7 +93,11 @@ export class VenueAccessService {
     return true;
   }
 
-  async registerVenueWithQr(venueId: string, email: string): Promise<void> {
+  async registerVenueWithQr(
+    venueId: string,
+    email: string,
+    coords?: { latitude?: number; longitude?: number },
+  ): Promise<void> {
     const player = await this.players.findOrCreateByEmail(email);
     const venue = await this.venues.findOne(venueId).catch(() => null);
     if (!venue) throw new NotFoundException(`Venue ${venueId} not found`);
@@ -93,6 +106,23 @@ export class VenueAccessService {
     }
 
     await this.moderation.assertNotBanned(venueId, player.id);
+
+    if (venue.requiresExplicitCheckIn) {
+      const lat = coords?.latitude;
+      const lng = coords?.longitude;
+      if (
+        typeof lat !== 'number' ||
+        typeof lng !== 'number' ||
+        !Number.isFinite(lat) ||
+        !Number.isFinite(lng)
+      ) {
+        throw new BadRequestException(
+          'This venue requires check-in at the location — allow location and try again after scanning.',
+        );
+      }
+      await this.venues.assertCoordinatesAllowedForGuestVenue(venueId, lat, lng);
+      await this.explicitCheckIns.upsertCheckIn(player.id, venueId);
+    }
 
     const existing = await this.playerVenues.findByPlayerAndVenue(player.id, venueId);
     if (existing) return;
@@ -136,8 +166,16 @@ export class VenueAccessService {
       isPhysicallyAtVenue = at?.id === venueId;
     }
 
+    const requiresExplicitCheckIn = venue.requiresExplicitCheckIn;
+    const hasExplicitCheckIn = requiresExplicitCheckIn
+      ? await this.explicitCheckIns.hasRecentCheckIn(player.id, venueId)
+      : true;
+
     const canEnterVenueContext =
-      !venue.locked && !bannedFromVenue && isPhysicallyAtVenue;
+      !venue.locked &&
+      !bannedFromVenue &&
+      isPhysicallyAtVenue &&
+      hasExplicitCheckIn;
 
     if (canEnterVenueContext) {
       this.funnel.safeLog({ venueId, playerId: player.id, kind: 'enter' });
@@ -161,6 +199,9 @@ export class VenueAccessService {
       subscriptionActive,
       canEnterVenueContext,
       bannedFromVenue,
+      requiresExplicitCheckIn,
+      isPhysicallyAtVenue,
+      hasExplicitCheckIn,
     };
   }
 }

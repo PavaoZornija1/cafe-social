@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Prisma, Word, WordCategory } from '@prisma/client';
+import { Prisma, type Word, type WordCategory } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { deterministicIndex } from '../lib/deterministic-index';
 
@@ -7,30 +7,51 @@ export type WordQuery = {
   language: string;
   category?: WordCategory;
   count: number;
+  /** easy: shorter answers; hard: longer; normal: no length filter */
+  difficulty?: string;
 };
 
 @Injectable()
 export class WordRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  private async randomDeckIds(params: WordQuery, limit: number): Promise<string[]> {
+    const diff = params.difficulty ?? 'normal';
+    const lenClause =
+      diff === 'easy'
+        ? Prisma.sql`AND char_length(text) <= 8`
+        : diff === 'hard'
+          ? Prisma.sql`AND char_length(text) >= 10`
+          : Prisma.empty;
+    const catClause =
+      params.category != null
+        ? Prisma.sql`AND category = ${params.category}::"WordCategory"`
+        : Prisma.empty;
+
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT id FROM "Word"
+      WHERE language = ${params.language}
+      ${catClause}
+      ${lenClause}
+      ORDER BY random()
+      LIMIT ${limit}
+    `;
+    return rows.map((r) => r.id);
+  }
+
   async findRandomSessionDeck(params: WordQuery): Promise<Word[]> {
-    const where: Prisma.WordWhereInput = {
-      language: params.language,
-      ...(params.category ? { category: params.category } : {}),
-    };
+    const take = Math.max(1, params.count);
+    let ids = await this.randomDeckIds(params, take);
+    if (ids.length < take && params.difficulty && params.difficulty !== 'normal') {
+      ids = await this.randomDeckIds({ ...params, difficulty: 'normal' }, take);
+    }
+    if (ids.length === 0) return [];
 
-    const total = await this.prisma.word.count({ where });
-    if (total <= 0) return [];
-
-    const take = Math.min(params.count, total);
-    const maxSkip = Math.max(0, total - take);
-    const skip = Math.floor(Math.random() * (maxSkip + 1));
-
-    return this.prisma.word.findMany({
-      where,
-      skip,
-      take,
+    const words = await this.prisma.word.findMany({
+      where: { id: { in: ids } },
     });
+    const byId = new Map(words.map((w) => [w.id, w]));
+    return ids.map((id) => byId.get(id)).filter(Boolean) as Word[];
   }
 
   /** Deterministic word for a calendar day + scope (global or venue). */
@@ -55,5 +76,8 @@ export class WordRepository {
       select: { text: true },
     });
   }
-}
 
+  async findWordById(id: string): Promise<Word | null> {
+    return this.prisma.word.findUnique({ where: { id } });
+  }
+}

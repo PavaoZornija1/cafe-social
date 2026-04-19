@@ -59,6 +59,7 @@ type VenueEditForm = {
   lockReason: string;
   /** Empty string = inherit from organization / platform default */
   guestPlayDailyGamesLimit: string;
+  requiresExplicitCheckIn: boolean;
 };
 
 const staffColHelper = createColumnHelper<AdminVenueStaffRow>();
@@ -82,6 +83,7 @@ function venueToForm(v: AdminVenueDetail): VenueEditForm {
     lockReason: v.lockReason ?? "",
     guestPlayDailyGamesLimit:
       v.guestPlayDailyGamesLimit != null ? String(v.guestPlayDailyGamesLimit) : "",
+    requiresExplicitCheckIn: v.requiresExplicitCheckIn ?? false,
   };
 }
 
@@ -128,6 +130,7 @@ export default function EditVenuePage() {
       locked: false,
       lockReason: "",
       guestPlayDailyGamesLimit: "",
+      requiresExplicitCheckIn: false,
     } as VenueEditForm,
     onSubmit: async ({ value }) => {
       setPageErr(null);
@@ -161,6 +164,7 @@ export default function EditVenuePage() {
           locked: value.locked,
           lockReason: value.lockReason?.trim() || null,
           guestPlayDailyGamesLimit,
+          requiresExplicitCheckIn: value.requiresExplicitCheckIn,
         };
         if (geoDirty) {
           body.latitude = geoPin.lat;
@@ -424,6 +428,27 @@ export default function EditVenuePage() {
                       className="h-4 w-4 rounded border-slate-300 text-brand focus:ring-brand/30"
                     />
                     Locked (suspend play &amp; map)
+                  </label>
+                )}
+              </venueForm.Field>
+
+              <venueForm.Field name="requiresExplicitCheckIn">
+                {(field) => (
+                  <label className="inline-flex cursor-pointer items-start gap-2.5 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100/90">
+                    <input
+                      type="checkbox"
+                      checked={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-brand focus:ring-brand/30"
+                    />
+                    <span className="min-w-0 leading-snug">
+                      Require QR check-in at location
+                      <span className="mt-1 block text-xs font-normal text-slate-500">
+                        Geofence still detects the venue, but games and venue-gated perks stay locked until the
+                        player scans the venue QR with location on (GPS must be inside the geofence). Leave off
+                        for automatic unlock when detected inside the fence.
+                      </span>
+                    </span>
                   </label>
                 )}
               </venueForm.Field>

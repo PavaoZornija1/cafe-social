@@ -15,6 +15,7 @@ import { useAuth } from '@clerk/expo';
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiPost } from '../lib/api';
+import { getCoordinatesForVenueDetect } from '../lib/locationForDetect';
 import { parseVenueIdFromQr } from '../lib/parseVenueQr';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'QrScan'>;
@@ -49,7 +50,26 @@ export default function QrScanScreen({ navigation, route }: Props) {
       const token = await getToken();
       if (!token) throw new Error(t('qr.notAuthenticated'));
 
-      await apiPost(`/venue-context/${encodeURIComponent(qrVenueId.trim())}/register`, undefined, token);
+      const coords = await getCoordinatesForVenueDetect('high');
+      const body =
+        coords != null
+          ? { latitude: coords.lat, longitude: coords.lng }
+          : {};
+
+      try {
+        await apiPost(
+          `/venue-context/${encodeURIComponent(qrVenueId.trim())}/register`,
+          body,
+          token,
+        );
+      } catch (e) {
+        const msg = (e as Error).message ?? '';
+        if (!coords && /check-in at the location/i.test(msg)) {
+          throw new Error(t('qr.needLocationForCheckIn'));
+        }
+        throw e;
+      }
+
       navigation.replace('Home');
     } catch (e) {
       setError((e as Error).message || t('qr.unlockError'));

@@ -11,6 +11,7 @@ import {
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { VenueAccessService } from './venue-access.service';
+import { RegisterVenueQrDto } from './dto/register-venue-qr.dto';
 
 @Controller('venue-context')
 export class VenueAccessController {
@@ -67,11 +68,16 @@ export class VenueAccessController {
   @Post(':venueId/register')
   registerWithQr(
     @Param('venueId') venueId: string,
+    @Body() body: RegisterVenueQrDto | undefined,
     @CurrentUser() user: any,
   ) {
     const email = this.normalizeEmail(user);
     if (!email) throw new UnauthorizedException('Missing user email');
-    return this.access.registerVenueWithQr(venueId, email);
+    const coords = body ?? {};
+    return this.access.registerVenueWithQr(venueId, email, {
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+    });
   }
 }
 

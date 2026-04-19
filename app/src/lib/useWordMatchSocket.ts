@@ -91,6 +91,10 @@ export function useWordMatchSocket(options: {
         runRefresh();
       });
 
+      socket.on('matchUpdate', () => {
+        runRefresh();
+      });
+
       if (fallbackMs > 0) {
         slowPoll = setInterval(() => {
           if (cancelled) return;

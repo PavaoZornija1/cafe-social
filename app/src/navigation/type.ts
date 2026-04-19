@@ -12,6 +12,7 @@ export type RootStackParamList = {
     SignUp: undefined;
     Onboarding: undefined;
     Home: undefined;
+    VenueHub: { venueId: string; venueName?: string };
     PartnerVenuesMap: undefined;
     DailyWord: undefined;
     ChooseGame: { venueId?: string; challengeId?: string } | undefined;
@@ -60,7 +61,7 @@ export type RootStackParamList = {
       mode: 'solo' | 'coop' | 'versus';
       matchSessionId?: string;
       sessionWordsCount?: number;
-      /** Solo — filters GET /words/session */
+      /** Solo — filters POST /words/session/start */
       wordCategory?: string;
     };
     StaffVenues: undefined;

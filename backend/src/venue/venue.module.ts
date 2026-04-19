@@ -6,6 +6,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { VenueAccessController } from './venue-access.controller';
 import { VenueAccessService } from './venue-access.service';
 import { PlayerVenueRepository } from './player-venue.repository';
+import { PlayerVenueCheckInRepository } from './player-venue-check-in.repository';
 import { SubscriptionRepository } from './subscription.repository';
 import { PlayerModule } from '../player/player.module';
 import { AuthModule } from '../auth/auth.module';
@@ -38,6 +39,7 @@ import { PushModule } from '../push/push.module';
     VenueRepository,
     VenueAccessService,
     PlayerVenueRepository,
+    PlayerVenueCheckInRepository,
     SubscriptionRepository,
   ],
   exports: [

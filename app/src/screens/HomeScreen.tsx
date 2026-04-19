@@ -7,7 +7,6 @@ import {
     ActivityIndicator,
     Animated,
     Image,
-    Linking,
     Platform,
     Pressable,
     SafeAreaView,
@@ -22,9 +21,8 @@ import { setBackgroundApiToken } from '../lib/backgroundApiToken';
 import { syncVenueGeofenceMonitoring } from '../lib/venueGeofenceTask';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { syncOnboardingFromServerSummary } from '../lib/onboardingStorage';
-import { openOrderingOrMenu } from '../lib/openOrderingLinks';
-import { fetchVenuePerkTeasers, type VenuePerkPublicTeaser } from '../lib/venuePerksApi';
 import { buildVenueAccessQuery, fetchDetectedVenue } from '../lib/venueDetectClient';
+import { isLikelyNetworkFailure } from '../lib/isNetworkError';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -40,6 +38,9 @@ type VenueAccess = {
     canEnterVenueContext: boolean;
     /** Staff moderation ban at this venue — blocks venue play and redemptions. */
     bannedFromVenue?: boolean;
+    requiresExplicitCheckIn?: boolean;
+    isPhysicallyAtVenue?: boolean;
+    hasExplicitCheckIn?: boolean;
 };
 
 type VenueChallenge = {
@@ -52,15 +53,6 @@ type VenueChallenge = {
     progressCount: number;
     isCompleted: boolean;
     resetsWeekly?: boolean;
-};
-
-type VenueFeedItem = {
-    id: string;
-    kind: string;
-    title: string;
-    subtitle: string | null;
-    actorUsername: string | null;
-    createdAt: string;
 };
 
 type VenuePublicOffer = {
@@ -92,24 +84,7 @@ type VenuePublicCard = {
         longitude: number;
         radiusMeters: number;
     };
-};
-
-type FriendAtVenueRow = {
-    id: string;
-    username: string;
-    hereNow: boolean;
-    lastVisitDayKey: string | null;
-};
-
-type FriendsVisitSummary = {
-    friendsWithVisitsLast30Days: number;
-    sinceDayKey: string;
-};
-
-type Engagement = {
-    visitsThisWeek: number;
-    distinctVenuesVisitedLast30Days: number;
-    badges: string[];
+    requiresExplicitCheckIn?: boolean;
 };
 
 export default function HomeScreen({ navigation }: Props) {
@@ -132,20 +107,13 @@ export default function HomeScreen({ navigation }: Props) {
     const [loadingChallenges, setLoadingChallenges] = useState(false);
     const [meSummary, setMeSummary] = useState<MeSummaryDto | null>(null);
     const [loadingSummary, setLoadingSummary] = useState(false);
-    const [venueFeed, setVenueFeed] = useState<VenueFeedItem[]>([]);
-    const [loadingFeed, setLoadingFeed] = useState(false);
     const [publicCard, setPublicCard] = useState<VenuePublicCard | null>(null);
-    const [loadingPublicCard, setLoadingPublicCard] = useState(false);
-    const [friendsVisit, setFriendsVisit] = useState<FriendsVisitSummary | null>(null);
-    const [loadingFriendsVisit, setLoadingFriendsVisit] = useState(false);
-    const [friendsAtVenue, setFriendsAtVenue] = useState<FriendAtVenueRow[]>([]);
-    const [loadingFriendsAtVenue, setLoadingFriendsAtVenue] = useState(false);
-    const [engagement, setEngagement] = useState<Engagement | null>(null);
-    const [loadingEngagement, setLoadingEngagement] = useState(false);
-    const [venuePerkTeasers, setVenuePerkTeasers] = useState<VenuePerkPublicTeaser[]>([]);
-    const [loadingVenuePerks, setLoadingVenuePerks] = useState(false);
 
     const scale = useRef(new Animated.Value(1)).current;
+    const unlockPulse = useRef(new Animated.Value(1)).current;
+    const playScale = Animated.multiply(scale, unlockPulse);
+    const prevLockedRef = useRef<boolean | null>(null);
+
     const animateIn = () => {
         Animated.spring(scale, {
             toValue: 0.96,
@@ -168,6 +136,29 @@ export default function HomeScreen({ navigation }: Props) {
         return !access.canEnterVenueContext;
     }, [access]);
 
+    useEffect(() => {
+        if (loadingVenue) return;
+        const was = prevLockedRef.current;
+        if (was === true && !locked) {
+            unlockPulse.setValue(1);
+            Animated.sequence([
+                Animated.spring(unlockPulse, {
+                    toValue: 1.07,
+                    useNativeDriver: true,
+                    friction: 6,
+                    tension: 140,
+                }),
+                Animated.spring(unlockPulse, {
+                    toValue: 1,
+                    useNativeDriver: true,
+                    friction: 7,
+                    tension: 120,
+                }),
+            ]).start();
+        }
+        prevLockedRef.current = locked;
+    }, [locked, loadingVenue, unlockPulse]);
+
     const venueAdminLocked = useMemo(
         () => Boolean(access?.locked || detectedVenue?.locked),
         [access?.locked, detectedVenue?.locked],
@@ -177,14 +168,28 @@ export default function HomeScreen({ navigation }: Props) {
     const canPlayGlobal = Boolean(meSummary?.subscriptionActive);
     const gamesPlayable = canPlayVenueContext || canPlayGlobal;
 
+    const needsExplicitCheckIn = Boolean(
+        access?.requiresExplicitCheckIn &&
+            access?.isPhysicallyAtVenue &&
+            !access?.hasExplicitCheckIn,
+    );
+
     const venueGamesLockedExplanation = useMemo(() => {
         if (!locked || !detectedVenue) return '';
         if (access?.bannedFromVenue) return t('home.bannedFromVenue');
         if (venueAdminLocked) return t('home.venueTemporarilyUnavailable');
+        if (needsExplicitCheckIn) return t('home.explicitCheckInRequired');
         return detectedVenue.isPremium
             ? t('home.lockedHintPremium')
             : t('home.lockedHintStandard');
-    }, [locked, detectedVenue, venueAdminLocked, access?.bannedFromVenue, t]);
+    }, [
+        locked,
+        detectedVenue,
+        venueAdminLocked,
+        access?.bannedFromVenue,
+        needsExplicitCheckIn,
+        t,
+    ]);
 
     const loadMeSummary = useCallback(async () => {
         if (!isLoaded) return;
@@ -207,29 +212,10 @@ export default function HomeScreen({ navigation }: Props) {
         }
     }, [isLoaded]);
 
-    const loadEngagement = useCallback(async () => {
-        if (!isLoaded) return;
-        setLoadingEngagement(true);
-        try {
-            const token = await getTokenRef.current();
-            if (!token) {
-                setEngagement(null);
-                return;
-            }
-            const e = await apiGet<Engagement>('/players/me/engagement', token);
-            setEngagement(e);
-        } catch {
-            setEngagement(null);
-        } finally {
-            setLoadingEngagement(false);
-        }
-    }, [isLoaded]);
-
     useFocusEffect(
         useCallback(() => {
             void loadMeSummary();
-            void loadEngagement();
-        }, [loadMeSummary, loadEngagement]),
+        }, [loadMeSummary]),
     );
 
     useEffect(() => {
@@ -263,7 +249,11 @@ export default function HomeScreen({ navigation }: Props) {
                 setAccess(a);
             } catch (e) {
                 if (cancelled) return;
-                setVenueError((e as Error).message || t('home.loadVenueError'));
+                setVenueError(
+                    isLikelyNetworkFailure(e)
+                        ? t('home.venueErrorNetwork')
+                        : (e as Error).message || t('home.loadVenueError'),
+                );
             } finally {
                 if (!cancelled) setLoadingVenue(false);
             }
@@ -282,7 +272,6 @@ export default function HomeScreen({ navigation }: Props) {
                 setPublicCard(null);
                 return;
             }
-            setLoadingPublicCard(true);
             try {
                 const card = await apiGet<VenuePublicCard>(
                     `/venues/${encodeURIComponent(detectedVenue.id)}/public-card`,
@@ -295,8 +284,6 @@ export default function HomeScreen({ navigation }: Props) {
                 }
             } catch {
                 if (!cancelled) setPublicCard(null);
-            } finally {
-                if (!cancelled) setLoadingPublicCard(false);
             }
         }
         void run();
@@ -304,68 +291,6 @@ export default function HomeScreen({ navigation }: Props) {
             cancelled = true;
         };
     }, [detectedVenue?.id]);
-
-    useEffect(() => {
-        let cancelled = false;
-        async function run() {
-            if (!detectedVenue || !isLoaded) {
-                setFriendsVisit(null);
-                return;
-            }
-            setLoadingFriendsVisit(true);
-            try {
-                const token = await getTokenRef.current();
-                if (!token) {
-                    setFriendsVisit(null);
-                    return;
-                }
-                const s = await apiGet<FriendsVisitSummary>(
-                    `/social/venues/${encodeURIComponent(detectedVenue.id)}/friends-visit-summary`,
-                    token,
-                );
-                if (!cancelled) setFriendsVisit(s);
-            } catch {
-                if (!cancelled) setFriendsVisit(null);
-            } finally {
-                if (!cancelled) setLoadingFriendsVisit(false);
-            }
-        }
-        void run();
-        return () => {
-            cancelled = true;
-        };
-    }, [detectedVenue?.id, isLoaded]);
-
-    useEffect(() => {
-        let cancelled = false;
-        async function run() {
-            if (!detectedVenue || !isLoaded) {
-                setFriendsAtVenue([]);
-                return;
-            }
-            setLoadingFriendsAtVenue(true);
-            try {
-                const token = await getTokenRef.current();
-                if (!token) {
-                    setFriendsAtVenue([]);
-                    return;
-                }
-                const res = await apiGet<{ friends: FriendAtVenueRow[] }>(
-                    `/social/venues/${encodeURIComponent(detectedVenue.id)}/friends-at-venue`,
-                    token,
-                );
-                if (!cancelled) setFriendsAtVenue(Array.isArray(res.friends) ? res.friends : []);
-            } catch {
-                if (!cancelled) setFriendsAtVenue([]);
-            } finally {
-                if (!cancelled) setLoadingFriendsAtVenue(false);
-            }
-        }
-        void run();
-        return () => {
-            cancelled = true;
-        };
-    }, [detectedVenue?.id, isLoaded]);
 
     useEffect(() => {
         if (Platform.OS === 'web') return;
@@ -451,63 +376,6 @@ export default function HomeScreen({ navigation }: Props) {
 
     useEffect(() => {
         let cancelled = false;
-        async function run() {
-            if (!detectedVenue || !access?.canEnterVenueContext || !isLoaded) {
-                setVenueFeed([]);
-                return;
-            }
-            try {
-                setLoadingFeed(true);
-                const token = await getTokenRef.current();
-                if (!token) return;
-                const list = await apiGet<VenueFeedItem[]>(
-                    `/social/venues/${encodeURIComponent(detectedVenue.id)}/feed?limit=15`,
-                    token,
-                );
-                if (!cancelled) setVenueFeed(list);
-            } catch {
-                if (!cancelled) setVenueFeed([]);
-            } finally {
-                if (!cancelled) setLoadingFeed(false);
-            }
-        }
-        void run();
-        return () => {
-            cancelled = true;
-        };
-    }, [access?.canEnterVenueContext, detectedVenue?.id, isLoaded]);
-
-    useEffect(() => {
-        let cancelled = false;
-        async function run() {
-            if (!detectedVenue) {
-                setVenuePerkTeasers([]);
-                return;
-            }
-            if (!isLoaded) return;
-            try {
-                setLoadingVenuePerks(true);
-                const token = await getTokenRef.current();
-                if (!token) {
-                    setVenuePerkTeasers([]);
-                    return;
-                }
-                const list = await fetchVenuePerkTeasers(detectedVenue.id, token);
-                if (!cancelled) setVenuePerkTeasers(list);
-            } catch {
-                if (!cancelled) setVenuePerkTeasers([]);
-            } finally {
-                if (!cancelled) setLoadingVenuePerks(false);
-            }
-        }
-        void run();
-        return () => {
-            cancelled = true;
-        };
-    }, [detectedVenue?.id, isLoaded]);
-
-    useEffect(() => {
-        let cancelled = false;
         async function presence() {
             if (!isLoaded) return;
             try {
@@ -544,482 +412,434 @@ export default function HomeScreen({ navigation }: Props) {
         }
     };
 
-    const badgeLabel = (key: string): string => {
-        if (key === 'regular_this_week') return t('home.badgeRegularWeek');
-        if (key === 'venue_explorer') return t('home.badgeVenueExplorer');
-        return key;
-    };
+    const challengeLine =
+        locked
+            ? venueAdminLocked
+                ? t('home.venueTemporarilyUnavailableShort')
+                : needsExplicitCheckIn
+                  ? t('home.explicitCheckInChallengeLine')
+                  : t('home.unlockToStart')
+            : loadingChallenges
+                ? t('home.loadingChallenge')
+                : venueChallenges[0]
+                    ? venueChallenges[0].resetsWeekly
+                        ? t('home.challengeProgressWeekly', {
+                            title: venueChallenges[0].title,
+                            current: venueChallenges[0].progressCount,
+                            target: venueChallenges[0].targetCount,
+                        })
+                        : t('home.challengeProgress', {
+                            title: venueChallenges[0].title,
+                            current: venueChallenges[0].progressCount,
+                            target: venueChallenges[0].targetCount,
+                        })
+                    : t('home.noChallenges');
+
+    const venueHubOpenable = Boolean(detectedVenue && !loadingVenue && !venueError);
 
     return (
         <SafeAreaView style={styles.safe}>
             <View style={styles.screen}>
-                <View style={styles.header}>
-                    <View style={styles.leftHeader}>
-                        {user?.imageUrl ? (
-                            <Image source={{ uri: user.imageUrl }} style={styles.avatar} />
-                        ) : (
-                            <View style={styles.avatarFallback}>
-                                <Text style={styles.avatarFallbackText}>👤</Text>
+                <View style={styles.headerBlock}>
+                    <View style={styles.header}>
+                        <View style={styles.leftHeader}>
+                            {user?.imageUrl ? (
+                                <Image source={{ uri: user.imageUrl }} style={styles.avatar} />
+                            ) : (
+                                <View style={styles.avatarFallback}>
+                                    <Text style={styles.avatarFallbackText}>👤</Text>
+                                </View>
+                            )}
+                            <View style={styles.headerText}>
+                                <Text style={styles.appTitle}>{t('home.appTitle')}</Text>
+                                <Text style={styles.welcome}>
+                                    {t('home.welcome', { name: displayName })}
+                                </Text>
                             </View>
-                        )}
-                        <View style={styles.headerText}>
-                            <Text style={styles.appTitle}>{t('home.appTitle')}</Text>
-                            <Text style={styles.welcome}>
-                                {t('home.welcome', { name: displayName })}
-                            </Text>
                         </View>
+
+                        <Pressable
+                            onPress={() => navigation.navigate('Settings')}
+                            style={styles.settingsBtn}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('home.navSettings')}
+                        >
+                            <Ionicons name="settings-outline" size={22} color="#fff" />
+                        </Pressable>
                     </View>
 
                     <Pressable
-                        onPress={() => navigation.navigate('Settings')}
-                        style={styles.settingsBtn}
+                        disabled={!venueHubOpenable}
+                        onPress={() =>
+                            detectedVenue &&
+                            navigation.navigate('VenueHub', {
+                                venueId: detectedVenue.id,
+                                venueName: detectedVenue.name,
+                            })
+                        }
+                        style={({ pressed }) => [
+                            styles.venueCapsule,
+                            venueHubOpenable && pressed && styles.venueCapsulePressed,
+                        ]}
+                        accessibilityRole={venueHubOpenable ? 'button' : 'none'}
+                        accessibilityLabel={
+                            venueHubOpenable
+                                ? t('home.venueHubA11y', { name: detectedVenue?.name ?? '' })
+                                : undefined
+                        }
                     >
-                        <Ionicons name="settings-outline" size={24} color="#fff" />
-                    </Pressable>
-                </View>
-
-                <View style={styles.statsRow}>
-                    <View style={styles.statCard}>
-                        <Text style={styles.statLabel}>{t('home.statXp')}</Text>
-                        <Text style={styles.statValue}>
-                            {loadingSummary ? '…' : meSummary?.xp ?? '—'}
-                        </Text>
-                    </View>
-                    <View style={styles.statCard}>
-                        <Text style={styles.statLabel}>{t('home.statTier')}</Text>
-                        <Text style={styles.statValue}>
-                            {loadingSummary ? '…' : meSummary?.tier ?? '—'}
-                        </Text>
-                    </View>
-                </View>
-
-                <View style={styles.contextCard}>
-                    <Text style={styles.cardTitle}>{t('home.currentVenue')}</Text>
-                    {loadingVenue ? (
-                        <View style={styles.contextLoading}>
-                            <ActivityIndicator color="#a78bfa" />
-                            <Text style={styles.cardSub}>{t('home.detectingVenue')}</Text>
-                        </View>
-                    ) : venueError ? (
-                        <Text style={styles.cardSubError}>{venueError}</Text>
-                    ) : detectedVenue ? (
-                        <View>
-                            <Text style={styles.contextName}>
-                                {detectedVenue.name}
-                                {detectedVenue.isPremium ? t('home.premiumSuffix') : ''}
-                            </Text>
-                            {locked ? (
-                                <View>
-                                    <Text
-                                        style={
-                                            venueAdminLocked
-                                                ? styles.venuePausedHint
-                                                : styles.lockedHint
-                                        }
-                                    >
-                                        {venueGamesLockedExplanation}
-                                    </Text>
-                                    {access?.bannedFromVenue ? (
-                                        <Pressable
-                                            style={({ pressed }) => [
-                                                styles.banAppealBtn,
-                                                pressed && styles.banAppealBtnPressed,
-                                            ]}
-                                            onPress={() =>
-                                                navigation.navigate('BanAppeal', {
-                                                    venueId: detectedVenue.id,
-                                                    venueName: detectedVenue.name,
-                                                })
-                                            }
-                                        >
-                                            <Text style={styles.banAppealBtnText}>
-                                                {t('home.banAppealCta')}
-                                            </Text>
-                                        </Pressable>
-                                    ) : null}
-                                </View>
-                            ) : (
-                                <Text style={styles.unlockedHint}>{t('home.unlockedHint')}</Text>
-                            )}
-                        </View>
-                    ) : (
-                        <Text style={styles.cardSub}>{t('home.noVenueYet')}</Text>
-                    )}
-                </View>
-
-                {detectedVenue ? (
-                    <View style={styles.partnerCard}>
-                        <Text style={styles.partnerTitle}>
-                            {t('home.partnerOffers', { name: detectedVenue.name })}
-                        </Text>
-                        {loadingPublicCard && !publicCard ? (
-                            <ActivityIndicator color="#a78bfa" style={{ marginVertical: 10 }} />
-                        ) : null}
-                        {publicCard?.featuredOffer?.title ? (
-                            <View style={styles.featuredBox}>
-                                <Text style={styles.featuredLabel}>{t('home.featuredOffer')}</Text>
-                                <Text style={styles.featuredTitle}>{publicCard.featuredOffer.title}</Text>
-                                {publicCard.featuredOffer.body ? (
-                                    <Text style={styles.featuredBody}>{publicCard.featuredOffer.body}</Text>
-                                ) : null}
-                                {(() => {
-                                    const hero = (publicCard.offers ?? []).find(
-                                        (o) => o.id === publicCard.featuredOffer?.id,
-                                    );
-                                    const url = hero?.ctaUrl?.trim();
-                                    if (!url || hero?.globallyExhausted) return null;
-                                    return (
-                                        <Pressable
-                                            style={({ pressed }) => [
-                                                styles.offerCta,
-                                                pressed && styles.quickLinkPressed,
-                                            ]}
-                                            onPress={() => void Linking.openURL(url)}
-                                        >
-                                            <Text style={styles.offerCtaText}>{t('home.offerCta')}</Text>
-                                        </Pressable>
-                                    );
-                                })()}
-                            </View>
-                        ) : null}
-                        {(publicCard?.offers ?? []).filter(
-                            (o) => o.id !== publicCard?.featuredOffer?.id && o.title?.trim(),
-                        ).length ? (
-                            <View style={styles.moreOffers}>
-                                {(publicCard?.offers ?? []).filter(
-                                    (o) => o.id !== publicCard?.featuredOffer?.id && o.title?.trim(),
-                                ).map((o) => (
-                                    <View key={o.id} style={styles.offerRow}>
-                                        <Text style={styles.offerRowTitle}>{o.title}</Text>
-                                        {o.body ? (
-                                            <Text style={styles.offerRowBody}>{o.body}</Text>
-                                        ) : null}
-                                        {o.globallyExhausted ? (
-                                            <Text style={styles.offerExhausted}>
-                                                {t('home.offerExhausted')}
-                                            </Text>
-                                        ) : o.ctaUrl?.trim() ? (
-                                            <Pressable
-                                                onPress={() => void Linking.openURL(o.ctaUrl!.trim())}
-                                                style={({ pressed }) => [
-                                                    styles.offerRowLink,
-                                                    pressed && styles.quickLinkPressed,
-                                                ]}
-                                            >
-                                                <Text style={styles.offerRowLinkText}>
-                                                    {t('home.offerCta')}
-                                                </Text>
-                                            </Pressable>
-                                        ) : null}
+                        <View style={styles.venueRow}>
+                            <Ionicons name="location-sharp" size={20} color="#a78bfa" />
+                            <View style={styles.venueRowMain}>
+                                {loadingVenue ? (
+                                    <View style={styles.venueRowLoading}>
+                                        <ActivityIndicator color="#a78bfa" size="small" />
+                                        <Text style={styles.venueRowMeta}>{t('home.detectingVenue')}</Text>
                                     </View>
-                                ))}
-                            </View>
-                        ) : null}
-                        {publicCard ? (
-                            <View style={styles.partnerLinks}>
-                                {publicCard.orderingUrl?.trim() ? (
-                                    <Pressable
-                                        style={({ pressed }) => [
-                                            styles.partnerLinkBtn,
-                                            pressed && styles.quickLinkPressed,
-                                        ]}
-                                        onPress={() =>
-                                            void openOrderingOrMenu(publicCard.orderingUrl, null)
-                                        }
-                                    >
-                                        <Text style={styles.partnerLinkText}>{t('home.openOrdering')}</Text>
-                                    </Pressable>
-                                ) : null}
-                                {publicCard.menuUrl?.trim() ? (
-                                    <Pressable
-                                        style={({ pressed }) => [
-                                            styles.partnerLinkBtn,
-                                            pressed && styles.quickLinkPressed,
-                                        ]}
-                                        onPress={() =>
-                                            void openOrderingOrMenu(null, publicCard.menuUrl)
-                                        }
-                                    >
-                                        <Text style={styles.partnerLinkText}>{t('home.openMenu')}</Text>
-                                    </Pressable>
-                                ) : null}
-                            </View>
-                        ) : null}
-                        {friendsVisit && friendsVisit.friendsWithVisitsLast30Days > 0 ? (
-                            <Text style={styles.friendsVenueLine}>
-                                {loadingFriendsVisit
-                                    ? '…'
-                                    : t('home.friendsVisitedVenue', {
-                                        count: friendsVisit.friendsWithVisitsLast30Days,
-                                    })}
-                            </Text>
-                        ) : null}
-                        {detectedVenue && friendsAtVenue.length > 0 ? (
-                            <View style={styles.friendsAtVenueBlock}>
-                                <Text style={styles.friendsAtVenueTitle}>
-                                    {t('home.friendsAtVenueTitle')}
-                                </Text>
-                                {loadingFriendsAtVenue ? (
-                                    <ActivityIndicator color="#a78bfa" style={{ marginTop: 8 }} />
+                                ) : venueError ? (
+                                    <Text style={styles.venueRowError} numberOfLines={2}>
+                                        {venueError}
+                                    </Text>
+                                ) : detectedVenue ? (
+                                    <Text style={styles.venueRowName} numberOfLines={1}>
+                                        {detectedVenue.name}
+                                        {detectedVenue.isPremium ? t('home.premiumSuffix') : ''}
+                                    </Text>
                                 ) : (
-                                    friendsAtVenue.map((f) => (
-                                        <View key={f.id} style={styles.friendsAtVenueRow}>
-                                            <View style={styles.friendsAtVenueMain}>
-                                                <Text style={styles.friendsAtVenueName}>
-                                                    {f.username}
-                                                </Text>
-                                                <View style={styles.friendsAtVenueMeta}>
-                                                    {f.hereNow ? (
-                                                        <Text style={styles.friendsHerePill}>
-                                                            {t('home.friendHereNow')}
-                                                        </Text>
-                                                    ) : f.lastVisitDayKey ? (
-                                                        <Text style={styles.friendsVisitMeta}>
-                                                            {t('home.friendLastVisitDay', {
-                                                                day: f.lastVisitDayKey,
-                                                            })}
-                                                        </Text>
-                                                    ) : null}
-                                                </View>
-                                            </View>
-                                            <Pressable
-                                                style={({ pressed }) => [
-                                                    styles.friendsAtVenueReport,
-                                                    pressed && styles.quickLinkPressed,
-                                                ]}
-                                                onPress={() =>
-                                                    navigation.navigate('ReportPlayer', {
-                                                        venueId: detectedVenue.id,
-                                                        venueName: detectedVenue.name,
-                                                        reportedPlayerId: f.id,
-                                                        reportedUsername: f.username,
-                                                    })
-                                                }
-                                            >
-                                                <Text style={styles.friendsAtVenueReportText}>
-                                                    {t('home.reportAtVenue')}
-                                                </Text>
-                                            </Pressable>
-                                        </View>
-                                    ))
+                                    <View style={styles.venueRowNoVenue}>
+                                        <Text style={styles.venueRowMeta} numberOfLines={1}>
+                                            {t('home.noVenueShort')}
+                                        </Text>
+                                        <Pressable
+                                            onPress={() => navigation.navigate('PartnerVenuesMap')}
+                                            style={({ pressed }) => [
+                                                styles.mapChip,
+                                                pressed && styles.mapChipPressed,
+                                            ]}
+                                        >
+                                            <Text style={styles.mapChipText}>{t('home.findVenuesCta')}</Text>
+                                        </Pressable>
+                                    </View>
                                 )}
                             </View>
-                        ) : null}
-                        {engagement && !loadingEngagement ? (
-                            <View style={styles.engagementRow}>
-                                <Text style={styles.engagementMeta}>
-                                    {t('home.visitsThisWeek', { n: engagement.visitsThisWeek })}
-                                </Text>
-                                <View style={styles.badgeRow}>
-                                    {engagement.badges.map((b) => (
-                                        <View key={b} style={styles.badgeChip}>
-                                            <Text style={styles.badgeChipText}>{badgeLabel(b)}</Text>
-                                        </View>
-                                    ))}
-                                </View>
-                            </View>
-                        ) : null}
+                            {venueHubOpenable ? (
+                                <Ionicons name="chevron-forward" size={18} color="#64748b" />
+                            ) : null}
+                        </View>
+                    </Pressable>
 
-                        <View style={styles.venuePerksBlock}>
-                            <Text style={styles.venuePerksHeading}>{t('home.venuePerksTitle')}</Text>
-                            {loadingVenuePerks ? (
-                                <ActivityIndicator color="#a78bfa" style={{ marginTop: 8 }} />
-                            ) : venuePerkTeasers.length === 0 ? (
-                                <Text style={styles.venuePerksEmpty}>{t('home.venuePerksEmpty')}</Text>
-                            ) : (
-                                venuePerkTeasers.slice(0, 6).map((p) => (
-                                    <View key={p.id} style={styles.venuePerkRow}>
-                                        <Text style={styles.venuePerkRowTitle} numberOfLines={2}>
-                                            {p.title}
-                                        </Text>
-                                        {p.redeemedByYou ? (
-                                            <Text style={styles.venuePerkPill}>
-                                                {t('home.venuePerksRedeemed')}
-                                            </Text>
-                                        ) : p.fullyRedeemed ? (
-                                            <Text style={styles.venuePerkPillMuted}>—</Text>
-                                        ) : null}
-                                    </View>
-                                ))
-                            )}
+                    <View style={styles.statsHighlightRow}>
+                        <View style={styles.statHighlightCard}>
+                            <Text style={styles.statHighlightLabel}>{t('home.statXp')}</Text>
+                            <Text style={styles.statHighlightValue}>
+                                {loadingSummary ? '…' : meSummary?.xp ?? '—'}
+                            </Text>
+                        </View>
+                        <View style={styles.statHighlightCard}>
+                            <Text style={styles.statHighlightLabel}>{t('home.statTier')}</Text>
+                            <Text style={styles.statHighlightValue}>
+                                {loadingSummary ? '…' : meSummary?.tier ?? '—'}
+                            </Text>
                         </View>
                     </View>
-                ) : null}
 
-                <View style={styles.wordGamesCard}>
-                    <Text style={styles.wordGamesCardTitle}>{t('home.wordGamesCardTitle')}</Text>
-                    <Text style={styles.wordGamesCardBody}>{t('home.wordGamesCardBody')}</Text>
-                    <Pressable
-                        style={({ pressed }) => [
-                            styles.wordGamesRow,
-                            pressed && styles.quickLinkPressed,
-                        ]}
-                        onPress={() => navigation.navigate('DailyWord')}
-                    >
-                        <View>
-                            <Text style={styles.wordGamesRowTitle}>{t('home.linkDailyWord')}</Text>
-                            <Text style={styles.wordGamesRowSub}>{t('home.linkDailyWordSub')}</Text>
-                        </View>
-                    </Pressable>
-                    <Pressable
-                        style={({ pressed }) => [
-                            styles.wordGamesRow,
-                            pressed && styles.quickLinkPressed,
-                            !gamesPlayable && styles.quickLinkDisabled,
-                        ]}
-                        disabled={!gamesPlayable}
-                        onPress={() =>
-                            navigation.navigate('WordLobby', {
-                                venueId: detectedVenue?.id,
-                                challengeId: venueChallenges.find((c) => !c.isCompleted)?.id,
-                            })
-                        }
-                    >
-                        <View>
-                            <Text style={styles.wordGamesRowTitle}>{t('home.linkWordRooms')}</Text>
-                            <Text style={styles.wordGamesRowSub}>{t('home.linkWordRoomsSub')}</Text>
-                        </View>
-                    </Pressable>
-                </View>
-
-                <View style={styles.quickLinks}>
-                    <Pressable
-                        style={({ pressed }) => [styles.quickLink, pressed && styles.quickLinkPressed]}
-                        onPress={() => navigation.navigate('Friends')}
-                    >
-                        <Text style={styles.quickLinkText}>{t('home.linkFriends')}</Text>
-                    </Pressable>
-                    <Pressable
-                        style={({ pressed }) => [styles.quickLink, pressed && styles.quickLinkPressed]}
-                        onPress={() => navigation.navigate('PartnerVenuesMap')}
-                    >
-                        <Text style={styles.quickLinkText}>{t('home.linkPartnerMap')}</Text>
-                    </Pressable>
-                    <Pressable
-                        style={({ pressed }) => [styles.quickLink, pressed && styles.quickLinkPressed]}
-                        onPress={() => navigation.navigate('Parties')}
-                    >
-                        <Text style={styles.quickLinkText}>{t('home.linkParties')}</Text>
-                    </Pressable>
-                    <Pressable
-                        style={({ pressed }) => [
-                            styles.quickLink,
-                            pressed && styles.quickLinkPressed,
-                            !detectedVenue && styles.quickLinkDisabled,
-                        ]}
-                        disabled={!detectedVenue}
-                        onPress={() =>
-                            navigation.navigate('PeopleHere', {
-                                venueId: detectedVenue!.id,
-                                venueName: detectedVenue!.name,
-                            })
-                        }
-                    >
-                        <Text style={styles.quickLinkText}>{t('home.linkPeopleHere')}</Text>
-                    </Pressable>
-                    <Pressable
-                        style={({ pressed }) => [styles.quickLink, pressed && styles.quickLinkPressed]}
-                        onPress={() => navigation.navigate('RedeemInvite', {})}
-                    >
-                        <Text style={styles.quickLinkText}>{t('home.linkRedeemInvite')}</Text>
-                    </Pressable>
-                    <Pressable
-                        style={({ pressed }) => [
-                            styles.quickLink,
-                            pressed && styles.quickLinkPressed,
-                            !detectedVenue && styles.quickLinkDisabled,
-                        ]}
-                        disabled={!detectedVenue}
-                        onPress={() =>
-                            navigation.navigate('RedeemPerk', { venueId: detectedVenue!.id })
-                        }
-                    >
-                        <Text style={styles.quickLinkText}>{t('home.linkRedeemPerk')}</Text>
-                    </Pressable>
-                    <Pressable
-                        style={({ pressed }) => [
-                            styles.quickLink,
-                            pressed && styles.quickLinkPressed,
-                            !detectedVenue && styles.quickLinkDisabled,
-                        ]}
-                        disabled={!detectedVenue}
-                        onPress={() =>
-                            navigation.navigate('SubmitReceipt', {
-                                venueId: detectedVenue!.id,
-                            })
-                        }
-                    >
-                        <Text style={styles.quickLinkText}>{t('home.linkReceipt')}</Text>
-                    </Pressable>
-                </View>
-
-                {detectedVenue && access?.canEnterVenueContext ? (
-                    <View style={styles.feedCard}>
-                        <Text style={styles.feedTitle}>{t('home.venueFeedTitle')}</Text>
-                        {loadingFeed ? (
-                            <ActivityIndicator color="#a78bfa" style={{ marginVertical: 8 }} />
-                        ) : venueFeed.length === 0 ? (
-                            <Text style={styles.feedEmpty}>{t('home.venueFeedEmpty')}</Text>
-                        ) : (
-                            venueFeed.map((ev) => (
-                                <View key={ev.id} style={styles.feedRow}>
-                                    <Text style={styles.feedLine}>
-                                        {ev.actorUsername
-                                            ? t('home.venueFeedActor', {
-                                                user: ev.actorUsername,
-                                                action: ev.subtitle ?? ev.title,
-                                            })
-                                            : ev.title}
-                                    </Text>
-                                    <Text style={styles.feedSub}>{ev.title}</Text>
-                                </View>
-                            ))
-                        )}
-                    </View>
-                ) : null}
-
-                <View style={styles.challengeBar}>
-                    <Text style={styles.challengeTitle}>{t('home.challengeTitle')}</Text>
-                    <Text style={styles.challengeText}>
-                        {locked
-                            ? venueAdminLocked
-                                ? t('home.venueTemporarilyUnavailableShort')
-                                : t('home.unlockToStart')
-                            : loadingChallenges
-                                ? t('home.loadingChallenge')
-                                : venueChallenges[0]
-                                    ? venueChallenges[0].resetsWeekly
-                                        ? t('home.challengeProgressWeekly', {
-                                            title: venueChallenges[0].title,
-                                            current: venueChallenges[0].progressCount,
-                                            target: venueChallenges[0].targetCount,
+                    {detectedVenue && !loadingVenue && !venueError ? (
+                        <View style={styles.venueStatusBlock}>
+                            <Text
+                                style={
+                                    locked
+                                        ? venueAdminLocked
+                                            ? styles.venueStatusPaused
+                                            : styles.venueStatusLocked
+                                        : styles.venueStatusOk
+                                }
+                                numberOfLines={2}
+                            >
+                                {locked ? venueGamesLockedExplanation : t('home.unlockedHint')}
+                            </Text>
+                            {access?.bannedFromVenue ? (
+                                <Pressable
+                                    style={({ pressed }) => [
+                                        styles.banAppealBtnCompact,
+                                        pressed && styles.banAppealBtnPressed,
+                                    ]}
+                                    onPress={() =>
+                                        navigation.navigate('BanAppeal', {
+                                            venueId: detectedVenue.id,
+                                            venueName: detectedVenue.name,
                                         })
-                                        : t('home.challengeProgress', {
-                                            title: venueChallenges[0].title,
-                                            current: venueChallenges[0].progressCount,
-                                            target: venueChallenges[0].targetCount,
-                                        })
-                                    : t('home.noChallenges')}
-                    </Text>
-                </View>
-
-                <View style={styles.playArea}>
-                    <AnimatedPressable
-                        onPress={handlePlay}
-                        onPressIn={animateIn}
-                        onPressOut={animateOut}
-                        disabled={loadingVenue || !gamesPlayable}
-                        style={[
-                            styles.playButton,
-                            { transform: [{ scale }] },
-                            (loadingVenue || !gamesPlayable) && styles.playButtonDisabled,
-                        ]}
-                    >
-                        <Text style={styles.playText}>
-                            {t('home.play')}
+                                    }
+                                >
+                                    <Text style={styles.banAppealBtnText}>{t('home.banAppealCta')}</Text>
+                                </Pressable>
+                            ) : null}
+                        </View>
+                    ) : !detectedVenue && !loadingVenue && !venueError ? (
+                        <Text style={styles.noVenueHint} numberOfLines={2}>
+                            {t('home.noVenueYet')}
                         </Text>
-                    </AnimatedPressable>
+                    ) : null}
+                </View>
 
+                <View style={styles.body}>
+                    <View style={styles.challengeStrip}>
+                        <Text style={styles.challengeStripTitle}>{t('home.challengeTitle')}</Text>
+                        <Text style={styles.challengeStripText} numberOfLines={2}>
+                            {challengeLine}
+                        </Text>
+                    </View>
+
+                    <View style={styles.playAreaWrap}>
+                        <View style={styles.playColumn}>
+                            <AnimatedPressable
+                                onPress={handlePlay}
+                                onPressIn={animateIn}
+                                onPressOut={animateOut}
+                                disabled={loadingVenue || !gamesPlayable}
+                                style={[
+                                    styles.playButton,
+                                    { transform: [{ scale: playScale }] },
+                                    (loadingVenue || !gamesPlayable) && styles.playButtonDisabled,
+                                ]}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('home.play')}
+                                accessibilityState={{ disabled: loadingVenue || !gamesPlayable }}
+                            >
+                                <Text style={styles.playText}>{t('home.play')}</Text>
+                            </AnimatedPressable>
+                            {!loadingVenue && !gamesPlayable ? (
+                                <View style={styles.playLockedBlock}>
+                                    <Text style={styles.playLockedHint}>
+                                        {needsExplicitCheckIn
+                                            ? t('home.playLockedExplicitCheckIn')
+                                            : t('home.playLockedHint')}
+                                    </Text>
+                                    <View style={styles.playLockedLinks}>
+                                        {needsExplicitCheckIn ? (
+                                            <Pressable
+                                                onPress={() =>
+                                                    navigation.navigate('QrScan', {
+                                                        venueId: detectedVenue?.id,
+                                                    })
+                                                }
+                                                style={({ pressed }) => [
+                                                    styles.playLockedLink,
+                                                    pressed && styles.playLockedLinkPressed,
+                                                ]}
+                                                accessibilityRole="button"
+                                                accessibilityLabel={t('home.explicitCheckInCta')}
+                                            >
+                                                <Text style={styles.playLockedLinkText}>
+                                                    {t('home.explicitCheckInCta')}
+                                                </Text>
+                                            </Pressable>
+                                        ) : null}
+                                        {needsExplicitCheckIn ? (
+                                            <Text style={styles.playLockedSep}>·</Text>
+                                        ) : null}
+                                        <Pressable
+                                            onPress={() => navigation.navigate('Settings')}
+                                            style={({ pressed }) => [
+                                                styles.playLockedLink,
+                                                pressed && styles.playLockedLinkPressed,
+                                            ]}
+                                            accessibilityRole="button"
+                                            accessibilityLabel={t('home.playLockedSettings')}
+                                        >
+                                            <Text style={styles.playLockedLinkText}>
+                                                {t('home.playLockedSettings')}
+                                            </Text>
+                                        </Pressable>
+                                        <Text style={styles.playLockedSep}>·</Text>
+                                        <Pressable
+                                            onPress={() => navigation.navigate('PartnerVenuesMap')}
+                                            style={({ pressed }) => [
+                                                styles.playLockedLink,
+                                                pressed && styles.playLockedLinkPressed,
+                                            ]}
+                                            accessibilityRole="button"
+                                            accessibilityLabel={t('home.playLockedFindVenues')}
+                                        >
+                                            <Text style={styles.playLockedLinkText}>
+                                                {t('home.playLockedFindVenues')}
+                                            </Text>
+                                        </Pressable>
+                                    </View>
+                                </View>
+                            ) : null}
+                        </View>
+                    </View>
+
+                    <View style={styles.shortcutsArea}>
+                        <View style={styles.shortcutsTopRow}>
+                            <Pressable
+                                style={({ pressed }) => [
+                                    styles.shortcutBtn,
+                                    styles.shortcutBtnFlex,
+                                    pressed && styles.shortcutBtnPressed,
+                                ]}
+                                onPress={() => navigation.navigate('DailyWord')}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('home.linkDailyWord')}
+                            >
+                                <Ionicons name="calendar-outline" size={18} color="#a78bfa" />
+                                <Text style={styles.shortcutLabel} numberOfLines={1}>
+                                    {t('home.linkDailyWord')}
+                                </Text>
+                            </Pressable>
+                            <Pressable
+                                style={({ pressed }) => [
+                                    styles.shortcutBtn,
+                                    styles.shortcutBtnFlex,
+                                    pressed && styles.shortcutBtnPressed,
+                                    !gamesPlayable && styles.shortcutBtnDisabled,
+                                ]}
+                                disabled={!gamesPlayable}
+                                onPress={() =>
+                                    navigation.navigate('WordLobby', {
+                                        venueId: detectedVenue?.id,
+                                        challengeId: venueChallenges.find((c) => !c.isCompleted)?.id,
+                                    })
+                                }
+                                accessibilityRole="button"
+                                accessibilityLabel={t('home.linkWordRooms')}
+                                accessibilityState={{ disabled: !gamesPlayable }}
+                            >
+                                <Ionicons name="chatbubbles-outline" size={18} color="#a78bfa" />
+                                <Text style={styles.shortcutLabel} numberOfLines={1}>
+                                    {t('home.linkWordRooms')}
+                                </Text>
+                            </Pressable>
+                        </View>
+
+                        <View style={styles.shortcutsGrid}>
+                            <Pressable
+                                style={({ pressed }) => [
+                                    styles.shortcutBtn,
+                                    styles.shortcutBtnGrid,
+                                    pressed && styles.shortcutBtnPressed,
+                                ]}
+                                onPress={() => navigation.navigate('Friends')}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('home.linkFriends')}
+                            >
+                                <Ionicons name="people-outline" size={18} color="#a78bfa" />
+                                <Text style={styles.shortcutLabel} numberOfLines={1}>
+                                    {t('home.linkFriends')}
+                                </Text>
+                            </Pressable>
+                            <Pressable
+                                style={({ pressed }) => [
+                                    styles.shortcutBtn,
+                                    styles.shortcutBtnGrid,
+                                    pressed && styles.shortcutBtnPressed,
+                                ]}
+                                onPress={() => navigation.navigate('Parties')}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('home.linkParties')}
+                            >
+                                <Ionicons name="balloon-outline" size={18} color="#a78bfa" />
+                                <Text style={styles.shortcutLabel} numberOfLines={1}>
+                                    {t('home.linkParties')}
+                                </Text>
+                            </Pressable>
+                            <Pressable
+                                style={({ pressed }) => [
+                                    styles.shortcutBtn,
+                                    styles.shortcutBtnGrid,
+                                    pressed && styles.shortcutBtnPressed,
+                                ]}
+                                onPress={() => navigation.navigate('RedeemInvite', {})}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('home.linkRedeemInvite')}
+                            >
+                                <Ionicons name="mail-open-outline" size={18} color="#a78bfa" />
+                                <Text style={styles.shortcutLabel} numberOfLines={1}>
+                                    {t('home.linkRedeemInvite')}
+                                </Text>
+                            </Pressable>
+                            <Pressable
+                                style={({ pressed }) => [
+                                    styles.shortcutBtn,
+                                    styles.shortcutBtnGrid,
+                                    pressed && styles.shortcutBtnPressed,
+                                ]}
+                                onPress={() => navigation.navigate('PartnerVenuesMap')}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('home.linkPartnerMap')}
+                            >
+                                <Ionicons name="map-outline" size={18} color="#a78bfa" />
+                                <Text style={styles.shortcutLabel} numberOfLines={1}>
+                                    {t('home.linkPartnerMap')}
+                                </Text>
+                            </Pressable>
+                            <Pressable
+                                style={({ pressed }) => [
+                                    styles.shortcutBtn,
+                                    styles.shortcutBtnGrid,
+                                    pressed && styles.shortcutBtnPressed,
+                                    !detectedVenue && styles.shortcutBtnDisabled,
+                                ]}
+                                disabled={!detectedVenue}
+                                onPress={() =>
+                                    navigation.navigate('PeopleHere', {
+                                        venueId: detectedVenue!.id,
+                                        venueName: detectedVenue!.name,
+                                    })
+                                }
+                                accessibilityRole="button"
+                                accessibilityLabel={t('home.linkPeopleHere')}
+                                accessibilityState={{ disabled: !detectedVenue }}
+                            >
+                                <Ionicons name="navigate-outline" size={18} color="#a78bfa" />
+                                <Text style={styles.shortcutLabel} numberOfLines={1}>
+                                    {t('home.linkPeopleHere')}
+                                </Text>
+                            </Pressable>
+                            <Pressable
+                                style={({ pressed }) => [
+                                    styles.shortcutBtn,
+                                    styles.shortcutBtnGrid,
+                                    pressed && styles.shortcutBtnPressed,
+                                    !detectedVenue && styles.shortcutBtnDisabled,
+                                ]}
+                                disabled={!detectedVenue}
+                                onPress={() =>
+                                    navigation.navigate('RedeemPerk', { venueId: detectedVenue!.id })
+                                }
+                                accessibilityRole="button"
+                                accessibilityLabel={t('home.linkRedeemPerk')}
+                                accessibilityState={{ disabled: !detectedVenue }}
+                            >
+                                <Ionicons name="pricetag-outline" size={18} color="#a78bfa" />
+                                <Text style={styles.shortcutLabel} numberOfLines={1}>
+                                    {t('home.linkRedeemPerk')}
+                                </Text>
+                            </Pressable>
+                            <Pressable
+                                style={({ pressed }) => [
+                                    styles.shortcutBtn,
+                                    styles.shortcutBtnGrid,
+                                    pressed && styles.shortcutBtnPressed,
+                                    !detectedVenue && styles.shortcutBtnDisabled,
+                                ]}
+                                disabled={!detectedVenue}
+                                onPress={() =>
+                                    navigation.navigate('SubmitReceipt', {
+                                        venueId: detectedVenue!.id,
+                                    })
+                                }
+                                accessibilityRole="button"
+                                accessibilityLabel={t('home.linkReceipt')}
+                                accessibilityState={{ disabled: !detectedVenue }}
+                            >
+                                <Ionicons name="receipt-outline" size={18} color="#a78bfa" />
+                                <Text style={styles.shortcutLabel} numberOfLines={1}>
+                                    {t('home.linkReceipt')}
+                                </Text>
+                            </Pressable>
+                        </View>
+                    </View>
                 </View>
 
                 <View style={styles.bottomNav}>
@@ -1030,9 +850,8 @@ export default function HomeScreen({ navigation }: Props) {
                         accessibilityLabel={t('home.navChallenges')}
                     >
                         <Text style={styles.navIcon} accessibilityElementsHidden>
-                            <Ionicons name="trophy-outline" size={24} color="#fff" />
+                            <Ionicons name="trophy-outline" size={22} color="#fff" />
                         </Text>
-                        {/*<Text style={styles.navText}>{t('home.navChallenges')}</Text>*/}
                     </Pressable>
                     <Pressable
                         style={({ pressed }) => [styles.navItem, pressed && styles.navItemPressed]}
@@ -1041,9 +860,8 @@ export default function HomeScreen({ navigation }: Props) {
                         accessibilityLabel={t('home.navLeaderboard')}
                     >
                         <Text style={styles.navIcon} accessibilityElementsHidden>
-                            <Ionicons name="bar-chart-outline" size={24} color="#fff" />
+                            <Ionicons name="bar-chart-outline" size={22} color="#fff" />
                         </Text>
-                        {/*<Text style={styles.navText}>{t('home.navLeaderboard')}</Text>*/}
                     </Pressable>
                     <Pressable
                         style={({ pressed }) => [styles.navItem, pressed && styles.navItemPressed]}
@@ -1052,20 +870,20 @@ export default function HomeScreen({ navigation }: Props) {
                         accessibilityLabel={t('home.navProfile')}
                     >
                         <Text style={styles.navIcon} accessibilityElementsHidden>
-                            <Ionicons name="person-outline" size={24} color="#fff" />
+                            <Ionicons name="person-outline" size={22} color="#fff" />
                         </Text>
-                        {/*<Text style={styles.navText}>{t('home.navProfile')}</Text>*/}
                     </Pressable>
                     <Pressable
                         style={({ pressed }) => [styles.navItem, pressed && styles.navItemPressed]}
-                        onPress={() => navigation.navigate('Settings')}
+                        onPress={() =>
+                            navigation.navigate('QrScan', { venueId: detectedVenue?.id })
+                        }
                         accessibilityRole="button"
-                        accessibilityLabel={t('home.navSettings')}
+                        accessibilityLabel={t('home.navQrScan')}
                     >
                         <Text style={styles.navIcon} accessibilityElementsHidden>
-                            <Ionicons name="settings-outline" size={24} color="#fff" />
+                            <Ionicons name="qr-code-outline" size={22} color="#fff" />
                         </Text>
-                        {/*<Text style={styles.navText}>{t('home.navSettings')}</Text>*/}
                     </Pressable>
                 </View>
             </View>
@@ -1080,12 +898,16 @@ const styles = StyleSheet.create({
         backgroundColor: '#050816',
         paddingHorizontal: 24,
     },
+    headerBlock: {
+        flexShrink: 0,
+        paddingBottom: 6,
+    },
     header: {
-        paddingTop: 18,
+        paddingTop: 10,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 14,
+        marginBottom: 10,
     },
     leftHeader: { flexDirection: 'row', gap: 12, alignItems: 'center' },
     avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#111827' },
@@ -1108,276 +930,188 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#1f2937',
     },
-    settingsIcon: { fontSize: 16 },
-    statsRow: { flexDirection: 'row', gap: 12, marginBottom: 14 },
-    statCard: {
+    venueCapsule: {
+        backgroundColor: '#111827',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#1f2937',
+        paddingVertical: 8,
+        paddingHorizontal: 11,
+        marginBottom: 8,
+    },
+    venueCapsulePressed: { opacity: 0.92 },
+    venueRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    venueRowMain: { flex: 1, minWidth: 0 },
+    venueRowLoading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    venueRowMeta: { color: '#9ca3af', fontSize: 12, fontWeight: '600' },
+    venueRowError: { color: '#f87171', fontSize: 12, fontWeight: '600' },
+    venueRowName: { color: '#fff', fontSize: 16, fontWeight: '800' },
+    venueRowNoVenue: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+    mapChip: {
+        backgroundColor: '#312e81',
+        paddingVertical: 5,
+        paddingHorizontal: 10,
+        borderRadius: 8,
+    },
+    mapChipPressed: { opacity: 0.88 },
+    mapChipText: { color: '#e9d5ff', fontWeight: '800', fontSize: 11 },
+    statsHighlightRow: { flexDirection: 'row', gap: 8, marginBottom: 6 },
+    statHighlightCard: {
         flex: 1,
         backgroundColor: '#111827',
-        borderWidth: 1,
-        borderColor: '#1f2937',
-        borderRadius: 16,
-        padding: 14,
-    },
-    statLabel: { color: '#9ca3af', fontSize: 12, fontWeight: '600' },
-    statValue: { color: '#fff', fontSize: 20, fontWeight: '900', marginTop: 6 },
-    contextCard: {
-        backgroundColor: '#111827',
-        borderWidth: 1,
-        borderColor: '#1f2937',
-        borderRadius: 18,
-        padding: 16,
-        marginBottom: 14,
-    },
-    cardTitle: { color: '#fff', fontSize: 14, fontWeight: '900' },
-    contextLoading: { flexDirection: 'row', gap: 10, alignItems: 'center', marginTop: 8 },
-    cardSub: { marginTop: 8, color: '#9ca3af', fontSize: 13 },
-    cardSubError: { marginTop: 8, color: '#f87171', fontSize: 13 },
-    contextName: { color: '#fff', fontSize: 18, fontWeight: '900', marginTop: 10 },
-    lockedHint: { marginTop: 8, color: '#fca5a5', fontSize: 13, fontWeight: '700' },
-    banAppealBtn: {
-        alignSelf: 'flex-start',
-        marginTop: 12,
-        paddingVertical: 10,
-        paddingHorizontal: 14,
         borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#334155',
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+    },
+    statHighlightLabel: {
+        color: '#9ca3af',
+        fontSize: 10,
+        fontWeight: '700',
+        letterSpacing: 0.3,
+        textTransform: 'uppercase',
+    },
+    statHighlightValue: {
+        color: '#f5f3ff',
+        fontSize: 18,
+        fontWeight: '900',
+        marginTop: 2,
+    },
+    venueStatusBlock: { marginTop: 2 },
+    venueStatusOk: { color: '#a78bfa', fontSize: 11, fontWeight: '700', lineHeight: 15 },
+    venueStatusLocked: { color: '#fca5a5', fontSize: 11, fontWeight: '700', lineHeight: 15 },
+    venueStatusPaused: { color: '#fcd34d', fontSize: 11, fontWeight: '600', lineHeight: 15 },
+    noVenueHint: { color: '#64748b', fontSize: 11, lineHeight: 15, marginTop: 4 },
+    banAppealBtnCompact: {
+        alignSelf: 'flex-start',
+        marginTop: 8,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 10,
         backgroundColor: '#422006',
         borderWidth: 1,
         borderColor: '#ca8a04',
     },
     banAppealBtnPressed: { opacity: 0.9 },
-    banAppealBtnText: { color: '#fde68a', fontWeight: '800', fontSize: 13 },
-    venuePausedHint: {
-        marginTop: 8,
-        color: '#fcd34d',
-        fontSize: 13,
-        fontWeight: '600',
-    },
-    unlockedHint: { marginTop: 8, color: '#a78bfa', fontSize: 13, fontWeight: '700' },
-    partnerCard: {
-        backgroundColor: '#0b1220',
-        borderWidth: 1,
-        borderColor: '#312e81',
-        borderRadius: 18,
-        padding: 16,
-        marginBottom: 14,
-    },
-    partnerTitle: { color: '#e9d5ff', fontSize: 13, fontWeight: '900' },
-    featuredBox: {
-        marginTop: 12,
-        backgroundColor: '#111827',
-        borderRadius: 12,
-        padding: 12,
-        borderWidth: 1,
-        borderColor: '#4c1d95',
-    },
-    featuredLabel: { color: '#c4b5fd', fontSize: 11, fontWeight: '800', marginBottom: 6 },
-    featuredTitle: { color: '#fff', fontSize: 16, fontWeight: '900' },
-    featuredBody: { color: '#cbd5e1', fontSize: 13, marginTop: 8, lineHeight: 18 },
-    offerCta: {
-        alignSelf: 'flex-start',
-        marginTop: 12,
-        backgroundColor: '#312e81',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 10,
-    },
-    offerCtaText: { color: '#e9d5ff', fontWeight: '800', fontSize: 12 },
-    moreOffers: { marginTop: 12, gap: 10 },
-    offerRow: {
-        backgroundColor: '#111827',
-        borderRadius: 12,
-        padding: 12,
-        borderWidth: 1,
-        borderColor: '#1f2937',
-    },
-    offerRowTitle: { color: '#fff', fontSize: 14, fontWeight: '800' },
-    offerRowBody: { color: '#94a3b8', fontSize: 12, marginTop: 6, lineHeight: 17 },
-    offerExhausted: { color: '#fca5a5', fontSize: 12, marginTop: 8, fontWeight: '700' },
-    offerRowLink: { alignSelf: 'flex-start', marginTop: 8 },
-    offerRowLinkText: { color: '#a78bfa', fontWeight: '800', fontSize: 12 },
-    partnerLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-    partnerLinkBtn: {
-        backgroundColor: '#312e81',
-        paddingVertical: 10,
-        paddingHorizontal: 14,
-        borderRadius: 12,
-    },
-    partnerLinkText: { color: '#e9d5ff', fontWeight: '800', fontSize: 13 },
-    friendsVenueLine: { color: '#93c5fd', fontSize: 12, marginTop: 12, fontWeight: '700' },
-    friendsAtVenueBlock: { marginTop: 14 },
-    friendsAtVenueTitle: { color: '#e2e8f0', fontSize: 12, fontWeight: '900', marginBottom: 8 },
-    friendsAtVenueRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 10,
-        paddingVertical: 8,
-        borderBottomWidth: 1,
-        borderBottomColor: '#1e293b',
-    },
-    friendsAtVenueMain: { flex: 1, minWidth: 0 },
-    friendsAtVenueName: { color: '#fff', fontSize: 13, fontWeight: '800' },
-    friendsAtVenueMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
-    friendsHerePill: {
-        color: '#bbf7d0',
-        fontSize: 10,
-        fontWeight: '800',
-        backgroundColor: '#14532d',
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 8,
-        overflow: 'hidden',
-        alignSelf: 'flex-start',
-    },
-    friendsVisitMeta: { color: '#64748b', fontSize: 11, fontWeight: '600' },
-    friendsAtVenueReport: {
-        paddingVertical: 6,
-        paddingHorizontal: 10,
-        borderRadius: 10,
-        backgroundColor: '#1e293b',
-        borderWidth: 1,
-        borderColor: '#334155',
-    },
-    friendsAtVenueReportText: { color: '#fca5a5', fontSize: 11, fontWeight: '800' },
-    engagementRow: { marginTop: 12 },
-    engagementMeta: { color: '#94a3b8', fontSize: 12, fontWeight: '600' },
-    badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
-    badgeChip: {
-        backgroundColor: '#14532d',
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 999,
-    },
-    badgeChipText: { color: '#bbf7d0', fontSize: 11, fontWeight: '800' },
-    venuePerksBlock: { marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#1e293b' },
-    venuePerksHeading: { color: '#e2e8f0', fontSize: 13, fontWeight: '900' },
-    venuePerksEmpty: { color: '#64748b', fontSize: 12, marginTop: 8, lineHeight: 17 },
-    venuePerkRow: {
-        marginTop: 10,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 8,
-    },
-    venuePerkRowTitle: { color: '#cbd5e1', fontSize: 13, fontWeight: '700', flex: 1 },
-    venuePerkPill: {
-        color: '#86efac',
-        fontSize: 11,
-        fontWeight: '800',
-        backgroundColor: '#14532d',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
-        overflow: 'hidden',
-    },
-    venuePerkPillMuted: { color: '#64748b', fontSize: 12, fontWeight: '700' },
-    wordGamesCard: {
-        backgroundColor: '#0b1220',
-        borderWidth: 1,
-        borderColor: '#312e81',
-        borderRadius: 16,
-        padding: 14,
-        marginBottom: 14,
-    },
-    wordGamesCardTitle: { color: '#fff', fontSize: 15, fontWeight: '900' },
-    wordGamesCardBody: { color: '#94a3b8', fontSize: 12, lineHeight: 17, marginTop: 6 },
-    wordGamesRow: {
-        marginTop: 12,
-        paddingVertical: 10,
-        paddingHorizontal: 12,
-        borderRadius: 12,
-        backgroundColor: '#111827',
-        borderWidth: 1,
-        borderColor: '#1f2937',
-    },
-    wordGamesRowTitle: { color: '#e9d5ff', fontWeight: '900', fontSize: 14 },
-    wordGamesRowSub: { color: '#64748b', fontSize: 11, marginTop: 4, fontWeight: '600' },
-    quickLinks: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-        marginBottom: 12,
-    },
-    quickLink: {
-        flexGrow: 1,
-        minWidth: '30%',
-        backgroundColor: '#0b1220',
-        borderWidth: 1,
-        borderColor: '#1e3a5f',
-        borderRadius: 12,
-        paddingVertical: 10,
-        paddingHorizontal: 12,
-        alignItems: 'center',
-    },
-    quickLinkPressed: { opacity: 0.88 },
-    quickLinkDisabled: { opacity: 0.45 },
-    quickLinkText: { color: '#93c5fd', fontWeight: '800', fontSize: 11, textAlign: 'center' },
-    feedCard: {
-        backgroundColor: '#0b1220',
-        borderWidth: 1,
-        borderColor: '#182238',
-        borderRadius: 16,
-        padding: 14,
-        marginBottom: 12,
-    },
-    feedTitle: { color: '#fff', fontSize: 13, fontWeight: '900', marginBottom: 8 },
-    feedEmpty: { color: '#64748b', fontSize: 12 },
-    feedRow: { paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#1e293b' },
-    feedLine: { color: '#e2e8f0', fontSize: 12, fontWeight: '700' },
-    feedSub: { color: '#64748b', fontSize: 11, marginTop: 2 },
-    challengeBar: {
-        backgroundColor: '#0b1220',
-        borderWidth: 1,
-        borderColor: '#182238',
-        borderRadius: 18,
-        padding: 16,
-        marginBottom: 14,
-    },
-    challengeTitle: { color: '#fff', fontSize: 14, fontWeight: '900' },
-    challengeText: { color: '#9ca3af', fontSize: 13, marginTop: 8, lineHeight: 18 },
-    playArea: {
+    banAppealBtnText: { color: '#fde68a', fontWeight: '800', fontSize: 12 },
+    body: {
         flex: 1,
+        minHeight: 0,
+        width: '100%',
+        justifyContent: 'flex-start',
+    },
+    challengeStrip: {
+        flexShrink: 0,
+        backgroundColor: '#0b1220',
+        borderWidth: 1,
+        borderColor: '#1e293b',
+        borderRadius: 12,
+        paddingVertical: 7,
+        paddingHorizontal: 10,
+    },
+    challengeStripTitle: { color: '#fff', fontSize: 12, fontWeight: '900' },
+    challengeStripText: { color: '#9ca3af', fontSize: 11, marginTop: 4, lineHeight: 15 },
+    playAreaWrap: {
+        flex: 1,
+        minHeight: 0,
+        width: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    playColumn: { alignItems: 'center', maxWidth: '100%' },
+    playLockedBlock: { marginTop: 14, paddingHorizontal: 12, alignItems: 'center' },
+    playLockedHint: {
+        color: '#94a3b8',
+        fontSize: 11,
+        fontWeight: '600',
+        textAlign: 'center',
+        lineHeight: 15,
+    },
+    playLockedLinks: {
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 14,
-        paddingBottom: 10,
+        flexWrap: 'wrap',
+        marginTop: 8,
+        gap: 6,
     },
+    playLockedLink: { paddingVertical: 4, paddingHorizontal: 6 },
+    playLockedLinkPressed: { opacity: 0.85 },
+    playLockedLinkText: { color: '#a78bfa', fontSize: 12, fontWeight: '800' },
+    playLockedSep: { color: '#475569', fontSize: 12, fontWeight: '700' },
     playButton: {
-        width: 150,
-        height: 150,
-        borderRadius: 100,
+        width: 120,
+        height: 120,
+        borderRadius: 72,
         backgroundColor: '#7c3aed',
         alignItems: 'center',
         justifyContent: 'center',
         shadowColor: '#7c3aed',
-        shadowOpacity: 0.35,
-        shadowRadius: 18,
-        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.32,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 6 },
         elevation: 8,
         transform: [{ scale: 1 }],
     },
     playButtonDisabled: { opacity: 0.55 },
     playText: {
         color: '#ffffff',
-        fontSize: 30,
+        fontSize: 24,
         fontWeight: '900',
         letterSpacing: 1,
     },
-    scanBtn: {
-        backgroundColor: '#111827',
-        borderColor: '#1f2937',
-        borderWidth: 1,
-        borderRadius: 14,
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        alignItems: 'center',
+    shortcutsArea: {
+        flexShrink: 0,
+        width: '100%',
+        paddingTop: 8,
+        paddingBottom: 6,
     },
-    scanBtnText: { color: '#a5b4fc', fontWeight: '800' },
+    shortcutsTopRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+    shortcutsGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        alignContent: 'flex-start',
+    },
+    shortcutBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: '#111827',
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: '#312e81',
+        paddingVertical: 9,
+        paddingHorizontal: 10,
+        minHeight: 40,
+    },
+    shortcutBtnFlex: { flex: 1 },
+    shortcutBtnGrid: { width: '48%', marginBottom: 5 },
+    shortcutBtnPressed: { opacity: 0.92 },
+    shortcutBtnDisabled: { opacity: 0.45 },
+    shortcutLabel: {
+        color: '#e2e8f0',
+        fontSize: 12,
+        fontWeight: '800',
+        flexShrink: 1,
+    },
     bottomNav: {
+        flexShrink: 0,
         flexDirection: 'row',
         gap: 10,
-        paddingVertical: 10,
-        paddingBottom: 18,
+        paddingTop: 8,
+        paddingBottom: 10,
+        marginHorizontal: -24,
+        paddingHorizontal: 24,
+        borderTopWidth: 1,
+        borderTopColor: '#1e293b',
+        backgroundColor: '#050816',
     },
     navItem: {
         flex: 1,
@@ -1392,7 +1126,5 @@ const styles = StyleSheet.create({
     navItemPressed: { opacity: 0.85 },
     navIcon: {
         fontSize: 18,
-        marginBottom: 6,
     },
-    navText: { color: '#f9fafb', fontWeight: '900', fontSize: 12 },
 });

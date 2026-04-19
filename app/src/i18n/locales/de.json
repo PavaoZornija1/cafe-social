@@ -178,6 +178,9 @@
     "statTier": "Stufe",
     "detectingVenue": "Erkennung…",
     "currentVenue": "Aktuelles Lokal",
+    "noVenueShort": "Kein Partner-Lokal in der Nähe",
+    "findVenuesCta": "Partner-Karte",
+    "modesTitle": "Mehr",
     "noVenueYet": "Kein Partner-Lokal erkannt. Treue, Freunde und Einladungen gehen trotzdem. Spiele starten am Café — mit Abo oft auch von zu Hause.",
     "lockedHintStandard": "Lokal-Spiele brauchen deinen Standort vor Ort. Der Rest der App bleibt offen.",
     "lockedHintPremium": "Lokal-Spiele brauchen Standort hier oder ein Abo für globales Spielen.",
@@ -198,6 +201,16 @@
     "navLeaderboard": "Rangliste",
     "navProfile": "Profil",
     "navSettings": "Einstellungen",
+    "navQrScan": "QR scannen",
+    "venueHubA11y": "Venue-Hub, {{name}}",
+    "venueErrorNetwork": "Server nicht erreichbar. Verbindung prüfen und ob die App die richtige API nutzt (z. B. die IP deines Rechners auf dem Gerät).",
+    "playLockedHint": "Standort in einem Partner-Café aktivieren oder ein Abo nutzen, um von überall zu spielen.",
+    "playLockedSettings": "Einstellungen",
+    "playLockedFindVenues": "Partner-Karte",
+    "explicitCheckInRequired": "Dieses Café verlangt Check-in per QR. Scanne den Code vor Ort (mit Standort an), um Spiele und Vorteile freizuschalten.",
+    "explicitCheckInChallengeLine": "Check-in per QR an diesem Ort, um weiterzumachen.",
+    "playLockedExplicitCheckIn": "Dieses Lokal braucht einen QR-Check-in vor Ort. Standort aktivieren, dann scannen.",
+    "explicitCheckInCta": "QR scannen zum Check-in",
     "loadVenueError": "Ladekontext fehlgeschlagen",
     "premiumSuffix": " • Premium",
     "linkFriends": "Freunde",
@@ -230,7 +243,15 @@
     "badgeVenueExplorer": "Lokal-Entdecker",
     "linkRedeemPerk": "Vorteil einlösen",
     "linkReceipt": "Kassenbon",
-    "linkPartnerMap": "Partner-Karte"
+    "linkPartnerMap": "Partner-Karte",
+    "venuePerksTitle": "Lokal-Vorteile",
+    "venuePerksEmpty": "Noch keine öffentlichen Vorteile — Personal kann dir einen Code geben.",
+    "venuePerksRedeemed": "Eingelöst"
+  },
+  "venueHub": {
+    "title": "{{name}}",
+    "loadError": "Dieses Lokal konnte nicht geladen werden.",
+    "backA11y": "Zurück"
   },
   "partnerMap": {
     "title": "Partner-Cafés",
@@ -280,7 +301,11 @@
     "needVenue": "Café erkennen für das lokale Tageswort.",
     "notSignedIn": "Nicht angemeldet",
     "globalRequiresSub": "Das globale Tageswort braucht ein aktives Abo.",
-    "wordRoomsHint": "Für mehrstufige Spiele mit Hinweisen (solo oder Räume) nutze „Worträume“ auf der Startseite — hier nur das Tagesrätsel."
+    "wordRoomsHint": "Für mehrstufige Spiele mit Hinweisen (solo oder Räume) nutze „Worträume“ auf der Startseite — hier nur das Tagesrätsel.",
+    "hardModeBlurb": "Das Tageswort ist strenger: extra Hinweise erst nach mehr Versuchen.",
+    "hintSentence": "Hinweis: ",
+    "hintWords": "Stichwörter: ",
+    "hintEmoji": "Emoji-Hinweise: "
   },
   "challenges": {
     "title": "Challenges",
@@ -387,7 +412,8 @@
     "coopHint": "Jeder im Raum darf raten.",
     "back": "Zurück",
     "rematch": "Nochmal spielen (neuer Raum)",
-    "rematchBusy": "Wird erstellt…"
+    "rematchBusy": "Wird erstellt…",
+    "soloNotReady": "Sitzung nicht bereit — kurz warten und erneut versuchen."
   },
   "qr": {
     "title": "Vor Ort einchecken",
@@ -404,7 +430,8 @@
     "unlock": "Freischalten",
     "emptyCode": "Code leer. Gültige Venue-ID einfügen.",
     "unlockError": "Freischalten fehlgeschlagen",
-    "notAuthenticated": "Nicht angemeldet"
+    "notAuthenticated": "Nicht angemeldet",
+    "needLocationForCheckIn": "Standort aktivieren und erneut versuchen — dieses Lokal bestätigt deine Anwesenheit beim Check-in."
   },
   "profile": {
     "title": "Profil",

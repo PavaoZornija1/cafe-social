@@ -81,6 +81,9 @@ model Venue {
   locked     Boolean @default(false)
   lockReason String?
 
+  /// When true, geofence still detects the venue, but venue-gated features need a recent explicit QR check-in.
+  requiresExplicitCheckIn Boolean @default(false)
+
   /// Geo ladder (venue → city → country → region → global)
   city    String?
   country String?
@@ -131,11 +134,25 @@ model Venue {
   banAppeals      VenueBanAppeal[]
   geofenceEvents  PlayerVenueGeofenceEvent[]
   moderationAuditLogs VenueModerationAuditLog[]
+  explicitCheckIns    PlayerVenueCheckIn[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([organizationId])
+}
+
+/// Last explicit QR check-in per player per venue (venues with `requiresExplicitCheckIn` gate on this).
+model PlayerVenueCheckIn {
+  playerId   String
+  venueId    String
+  lastCheckInAt DateTime
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, venueId])
+  @@index([venueId, lastCheckInAt])
 }
 
 /// Partner-facing venue categories (e.g. coffee, restaurant). Venues have M:N types.
@@ -459,6 +476,7 @@ model Player {
 
   dailyWords  PlayerDailyWord[]
   dailyStreaks PlayerDailyStreak[]
+  soloWordSessions SoloWordSession[]
   venueVisitDays   PlayerVenueVisitDay[]
   venuePlayDays    PlayerVenuePlayDay[]
   venuePlayCountedGames PlayerVenuePlayCountedGame[]
@@ -483,6 +501,7 @@ model Player {
   venueBanAppeals    VenueBanAppeal[]
   banAppealsResolved VenueBanAppeal[]           @relation("BanAppealResolvedBy")
   geofenceEvents     PlayerVenueGeofenceEvent[]
+  playerVenueCheckIns PlayerVenueCheckIn[]
   blocksCreated      PlayerBlock[]              @relation("Blocker")
   blocksReceived     PlayerBlock[]              @relation("Blocked")
   moderationAudits   VenueModerationAuditLog[]
@@ -544,7 +563,7 @@ model PlayerVenuePlayDay {
   venueId     String
   dayKey      String
   gamesPlayed Int       @default(0)
-  /// Dedupes repeated solo `/words/session` calls within this window as one game.
+  /// Dedupes repeated solo `POST /words/session/start` within this window as one game.
   lastSoloDeckAt DateTime?
   updatedAt   DateTime @updatedAt
 
@@ -901,6 +920,27 @@ model Word {
   updatedAt DateTime @updatedAt
 
   @@unique([text, language], name: "text_language")
+}
+
+/// Server-backed solo word run: answers never sent until validated; hints only per round.
+model SoloWordSession {
+  id         String        @id @default(uuid())
+  playerId   String
+  wordIds    String[]
+  wordIndex  Int           @default(0)
+  language   String
+  category   WordCategory?
+  difficulty String        @default("normal")
+  venueId    String?
+  globalPlay Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+  expiresAt  DateTime
+  finishedAt DateTime?
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId])
+  @@index([expiresAt])
 }
 
 /// One async “daily word” attempt record per player per calendar day (UTC) and scope (global or venue).
