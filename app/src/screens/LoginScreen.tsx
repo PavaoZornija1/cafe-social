@@ -44,6 +44,10 @@ export default function LoginScreen({ navigation }: Props) {
     }, [isLoaded, isSignedIn, navigation]);
 
     const handleSignIn = async () => {
+        if (isSignedIn) {
+            await replaceAfterAuth(navigation, () => getTokenRef.current());
+            return;
+        }
         if (!signIn) return;
 
         setSubmitError(null);
@@ -101,6 +105,15 @@ export default function LoginScreen({ navigation }: Props) {
     const isMfaFormValid = verificationCode.trim().length > 0;
 
     if (!isLoaded) {
+        return (
+            <View style={styles.centered}>
+                <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+        );
+    }
+
+    // Active Clerk session: redirect without showing the form (avoids “already signed in” if user taps Sign in early).
+    if (isSignedIn) {
         return (
             <View style={styles.centered}>
                 <ActivityIndicator size="large" color={colors.primary} />

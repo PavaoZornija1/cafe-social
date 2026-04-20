@@ -43,6 +43,10 @@ export default function SignUpScreen({ navigation }: Props) {
     }, [isLoaded, isSignedIn, navigation]);
 
     const handleSignUp = async () => {
+        if (isSignedIn) {
+            await replaceAfterAuth(navigation, () => getTokenRef.current());
+            return;
+        }
         if (!signUp) return;
 
         setSubmitError(null);
@@ -86,6 +90,14 @@ export default function SignUpScreen({ navigation }: Props) {
     const isVerifyFormValid = code.trim().length > 0;
 
     if (!isLoaded) {
+        return (
+            <View style={styles.centered}>
+                <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+        );
+    }
+
+    if (isSignedIn) {
         return (
             <View style={styles.centered}>
                 <ActivityIndicator size="large" color={colors.primary} />
