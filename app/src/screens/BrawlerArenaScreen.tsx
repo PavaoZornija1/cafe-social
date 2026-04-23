@@ -1370,6 +1370,12 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const matchClockShown = matchClockRef.current;
   const phaseShown = matchPhaseLabel(matchClockShown);
 
+  // Sky background is oversized so parallax translation never reveals empty edges.
+  const skyW = arenaW * 1.9;
+  const skyH = arenaInnerH * 1.7;
+  const skyLeft = (arenaW - skyW) / 2;
+  const skyTop = (arenaInnerH - skyH) / 2;
+
   const bottomPad = Math.max(insets.bottom, 10);
   const safeRight =
     typeof insets.right === 'number' && Number.isFinite(insets.right)
@@ -1480,12 +1486,15 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
               loop
               resizeMode="cover"
               style={[
-                StyleSheet.absoluteFill,
                 {
+                  position: 'absolute',
+                  left: skyLeft,
+                  top: skyTop,
+                  width: skyW,
+                  height: skyH,
                   transform: [
                     { translateX: -camX * 0.18 },
                     { translateY: -camY * 0.10 },
-                    { scale: 1.1 },
                   ],
                 },
               ]}
