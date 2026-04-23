@@ -5,6 +5,7 @@ import {
   IsInt,
   IsOptional,
   IsUUID,
+  Max,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -27,6 +28,18 @@ export class FinalizeBrawlerParticipantDto {
   @IsOptional()
   @IsEnum(['WIN', 'LOSS', 'DRAW', 'DNF'] as const)
   result?: GameParticipantResult;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(64)
+  kills?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(64)
+  deaths?: number;
 }
 
 export class FinalizeBrawlerSessionDto {

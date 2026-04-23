@@ -145,6 +145,8 @@ export class BrawlerRepository {
       placement?: number;
       score?: number;
       result?: GameParticipantResult;
+      kills?: number;
+      deaths?: number;
     }>;
   }) {
     return this.prisma.$transaction(async (tx) => {
@@ -157,6 +159,8 @@ export class BrawlerRepository {
             placement: p.placement,
             score: p.score,
             result: p.result,
+            ...(typeof p.kills === 'number' ? { kills: p.kills } : {}),
+            ...(typeof p.deaths === 'number' ? { deaths: p.deaths } : {}),
           },
         });
       }

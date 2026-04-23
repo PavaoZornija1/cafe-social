@@ -1,8 +1,19 @@
 import { Injectable } from '@nestjs/common';
-import { GameParticipantResult, GameSessionStatus } from '@prisma/client';
+import {
+  GameParticipantResult,
+  GameSessionStatus,
+  GameType,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlayerVenueStatsRepository } from './player-venue-stats.repository';
-import { XP_GLOBAL_WIN, XP_VENUE_WIN } from '../lib/xp-rewards';
+import {
+  BRAWLER_WIN_XP_MAX,
+  BRAWLER_WIN_XP_MIN,
+  BRAWLER_XP_PER_DEATH_PENALTY,
+  BRAWLER_XP_PER_KILL,
+  XP_GLOBAL_WIN,
+  XP_VENUE_WIN,
+} from '../lib/xp-rewards';
 
 @Injectable()
 export class GameXpAwardService {
@@ -30,14 +41,27 @@ export class GameXpAwardService {
       where: { id: sessionId },
       select: {
         venueId: true,
-        participants: { select: { playerId: true, result: true } },
+        gameType: true,
+        participants: {
+          select: { playerId: true, result: true, kills: true, deaths: true },
+        },
       },
     });
     if (!session) return;
 
-    const delta = session.venueId ? XP_VENUE_WIN : XP_GLOBAL_WIN;
+    const baseXp = session.venueId ? XP_VENUE_WIN : XP_GLOBAL_WIN;
     for (const p of session.participants) {
       if (!p.playerId || p.result !== GameParticipantResult.WIN) continue;
+      let delta = baseXp;
+      if (session.gameType === GameType.BRAWLER) {
+        const kills = p.kills ?? 0;
+        const deaths = p.deaths ?? 0;
+        const raw =
+          baseXp + kills * BRAWLER_XP_PER_KILL - deaths * BRAWLER_XP_PER_DEATH_PENALTY;
+        delta = Math.round(
+          Math.max(BRAWLER_WIN_XP_MIN, Math.min(BRAWLER_WIN_XP_MAX, raw)),
+        );
+      }
       if (session.venueId) {
         await this.venueStats.addVenueXp(p.playerId, session.venueId, delta);
       } else {

@@ -30,6 +30,7 @@ import {
 } from '../brawler/arenaPlatforms';
 import type { BrawlerArenaHeroStats, RootStackParamList } from '../navigation/type';
 import { apiGet, apiPost } from '../lib/api';
+import { previewBrawlerWinXp } from '../lib/brawlerWinXp';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 
@@ -298,9 +299,16 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const trackedSessionGateRef = useRef(!sessionId);
   /** Same tick as session sets `setDevMatchTimerEnabled(true)` — avoids RAF before `devMatchTimerLiveRef` updates. */
   const pendingMatchTimerFromSessionRef = useRef(false);
+  type BrawlerResultsScoreRow = {
+    name: string;
+    kills: number;
+    deaths: number;
+    xpGained: number;
+    resultLabel: string;
+  };
   const [resultsOverlay, setResultsOverlay] = useState<{
     title: string;
-    lines: string[];
+    scoreboard: BrawlerResultsScoreRow[];
   } | null>(null);
 
   const soloOptions = route.params?.soloOptions;
@@ -365,6 +373,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const heroHpRef = useRef(heroCombat.baseHp);
   const heroIFramesLeftRef = useRef(0);
   const [heroDeadOpen, setHeroDeadOpen] = useState(false);
+  /** Solo + ranked: enemy kills from attack hitbox or dash hit (finalize → DB only with `sessionId`). */
+  const playerKillsRef = useRef(0);
+  /** Solo + ranked: hero HP reaches 0 from contact damage (finalize sends to DB only when `sessionId`). */
+  const playerDeathsRef = useRef(0);
 
   const enemiesRef = useRef<Enemy[]>([]);
 
@@ -489,6 +501,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         setHeroDeadOpen(false);
         finalizeStartedRef.current = false;
         setTrackedSessionReady(true);
+        playerKillsRef.current = 0;
+        playerDeathsRef.current = 0;
         bump();
       } catch (e) {
         if (!cancelled) {
@@ -528,6 +542,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           placement: p.id === winnerId ? 1 : 2,
           score: 0,
           result: (p.id === winnerId ? 'WIN' : 'LOSS') as 'WIN' | 'LOSS',
+          kills: p.isBot ? 0 : playerKillsRef.current,
+          deaths: p.isBot ? 0 : playerDeathsRef.current,
         }));
         await apiPost(
           `/brawler/sessions/${encodeURIComponent(sessionId)}/finalize`,
@@ -542,12 +558,29 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           if (p.isBot) return p.botName ?? 'Bot';
           return p.displayNameSnapshot ?? 'You';
         };
-        const lines = participantsPayload.map((row) => {
+        const venueScoped = Boolean(route.params.venueId);
+        const sortedPayload = [...participantsPayload].sort(
+          (a, b) => (a.placement ?? 99) - (b.placement ?? 99),
+        );
+        const scoreboard: BrawlerResultsScoreRow[] = sortedPayload.map((row) => {
           const p = participantsRef.current.find((x) => x.id === row.participantId);
           const name = p ? labelFor(p) : row.participantId;
-          return `${name}: ${row.result}`;
+          const kills = row.kills ?? 0;
+          const deaths = row.deaths ?? 0;
+          const won = row.result === 'WIN';
+          let xpGained = 0;
+          if (won && p && !p.isBot) {
+            xpGained = previewBrawlerWinXp(venueScoped, kills, deaths);
+          }
+          return {
+            name,
+            kills,
+            deaths,
+            xpGained,
+            resultLabel: row.result,
+          };
         });
-        setResultsOverlay({ title: 'Match results', lines });
+        setResultsOverlay({ title: 'Match results', scoreboard });
       } catch (e) {
         if (!cancelled) {
           Alert.alert('Finalize failed', (e as Error).message || 'Unknown error');
@@ -557,7 +590,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [sessionId, gameOverOpen, heroDeadOpen]);
+  }, [sessionId, gameOverOpen, heroDeadOpen, route.params.venueId]);
 
   const spawnDummiesRandomOnPlatforms = useCallback(
     (count: number, heroSpawn: { x: number; y: number }) => {
@@ -777,6 +810,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     heroHpRef.current = heroCombat.baseHp;
     heroIFramesLeftRef.current = 0;
     setHeroDeadOpen(false);
+    playerKillsRef.current = 0;
+    playerDeathsRef.current = 0;
 
     vx.current = 0;
     vy.current = 0;
@@ -1184,6 +1219,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         );
 
         if (hitEnemy) {
+          const enemyHpBefore = hitEnemy.hp;
           hitEnemy.hp = Math.max(0, hitEnemy.hp - heroCombat.dashDmg);
           hitEnemy.iFramesLeft = ENEMY_IFRAMES_S;
           hitEnemy.flashLeft = 0.12;
@@ -1195,7 +1231,12 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
               hitEnemy.x + dir * heroCombat.dashShovePx,
             ),
           );
-          if (hitEnemy.hp <= 0) hitEnemy.respawnLeft = ENEMY_RESPAWN_DELAY_S;
+          if (hitEnemy.hp <= 0) {
+            hitEnemy.respawnLeft = ENEMY_RESPAWN_DELAY_S;
+            if (enemyHpBefore > 0) {
+              playerKillsRef.current += 1;
+            }
+          }
 
           dmgFloatsRef.current.push({
             id: dmgFloatIdRef.current++,
@@ -1265,6 +1306,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           );
 
           if (hitEnemy) {
+            const enemyHpBefore = hitEnemy.hp;
             hitEnemy.hp = Math.max(0, hitEnemy.hp - dmg);
             hitEnemy.iFramesLeft = ENEMY_IFRAMES_S;
             hitEnemy.flashLeft = 0.12;
@@ -1280,6 +1322,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
             if (hitEnemy.hp <= 0) {
               hitEnemy.respawnLeft = ENEMY_RESPAWN_DELAY_S;
+              if (enemyHpBefore > 0) {
+                playerKillsRef.current += 1;
+              }
             }
 
             hitAppliedThisSwing.current = true;
@@ -1446,6 +1491,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           });
 
           if (touchingEnemy) {
+            const heroHpBefore = heroHpRef.current;
             heroHpRef.current = Math.max(0, heroHpRef.current - difficultyTuning.contactDmg);
             heroIFramesLeftRef.current = HERO_IFRAMES_S;
             // Light knockback away from enemy to make hits readable.
@@ -1453,6 +1499,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
               playerX.current + bodyW / 2 < touchingEnemy.x + touchingEnemy.w / 2 ? -1 : 1;
             vx.current = dir * 220;
             if (heroHpRef.current <= 0) {
+              if (heroHpBefore > 0) {
+                playerDeathsRef.current += 1;
+              }
               setHeroDeadOpen(true);
               if (sessionId) {
                 matchEndedRef.current = true;
@@ -1620,6 +1669,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
   const dmgFloats = dmgFloatsRef.current;
 
+  const showKdHud = arenaReadyHud && !resultsOverlay;
+
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.hud}>
@@ -1644,6 +1695,11 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
             <Text style={styles.hudHpText}>
               HP {Math.round(heroHpRef.current)}/{heroCombat.baseHp}
             </Text>
+            {showKdHud ? (
+              <Text style={styles.hudKdText} pointerEvents="none">
+                K {playerKillsRef.current} · D {playerDeathsRef.current}
+              </Text>
+            ) : null}
           </View>
         </View>
         <View style={styles.hudCenter}>
@@ -2202,11 +2258,40 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         <View style={styles.resultsOverlay} pointerEvents="box-none">
           <View style={styles.resultsCard} pointerEvents="auto">
             <Text style={styles.resultsTitle}>{resultsOverlay.title}</Text>
-            {resultsOverlay.lines.map((line, i) => (
-              <Text key={i} style={styles.resultsLine}>
-                {line}
-              </Text>
-            ))}
+            <Text style={styles.resultsSubtitle}>Scoreboard</Text>
+            <View style={styles.resultsTable}>
+              <View style={[styles.resultsTableRow, styles.resultsTableHeaderRow]}>
+                <Text style={[styles.resultsTh, styles.resultsColName]}>Player</Text>
+                <Text style={[styles.resultsTh, styles.resultsColStat]}>K</Text>
+                <Text style={[styles.resultsTh, styles.resultsColStat]}>D</Text>
+                <Text style={[styles.resultsTh, styles.resultsColXp]}>XP</Text>
+                <Text style={[styles.resultsTh, styles.resultsColResult]}>Out</Text>
+              </View>
+              {resultsOverlay.scoreboard.map((row, i) => (
+                <View
+                  key={`${row.name}-${i}`}
+                  style={[
+                    styles.resultsTableRow,
+                    i === resultsOverlay.scoreboard.length - 1 && styles.resultsTableRowLast,
+                  ]}
+                >
+                  <Text
+                    style={[styles.resultsTd, styles.resultsColName]}
+                    numberOfLines={1}
+                  >
+                    {row.name}
+                  </Text>
+                  <Text style={[styles.resultsTd, styles.resultsColStat]}>{row.kills}</Text>
+                  <Text style={[styles.resultsTd, styles.resultsColStat]}>{row.deaths}</Text>
+                  <Text style={[styles.resultsTd, styles.resultsColXp]}>
+                    {row.xpGained > 0 ? `+${row.xpGained}` : '—'}
+                  </Text>
+                  <Text style={[styles.resultsTd, styles.resultsColResult]}>
+                    {row.resultLabel}
+                  </Text>
+                </View>
+              ))}
+            </View>
             <Pressable
               onPress={() => {
                 setResultsOverlay(null);
@@ -2308,6 +2393,14 @@ function createStyles(colors: AppColors) {
     fontSize: 10,
     fontWeight: '800',
   },
+  hudKdText: {
+    marginTop: 4,
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
+    letterSpacing: 0.3,
+  },
   hudTitle: {
     color: colors.text,
     fontSize: 15,
@@ -2380,10 +2473,70 @@ function createStyles(colors: AppColors) {
     fontWeight: '900',
     textAlign: 'center',
   },
-  resultsLine: {
+  resultsSubtitle: {
+    marginTop: 2,
     color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    textAlign: 'center',
+  },
+  resultsTable: {
+    marginTop: 4,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  resultsTableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    backgroundColor: colors.bgElevated,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  resultsTableHeaderRow: {
+    paddingVertical: 8,
+    backgroundColor: colors.surface,
+  },
+  resultsTableRowLast: {
+    borderBottomWidth: 0,
+  },
+  resultsTh: {
+    color: colors.textSecondary,
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  resultsTd: {
+    color: colors.text,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '800',
+  },
+  resultsColName: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 6,
+  },
+  resultsColStat: {
+    width: 28,
+    textAlign: 'center',
+  },
+  resultsColXp: {
+    width: 44,
+    textAlign: 'right',
+    fontVariant: ['tabular-nums'],
+  },
+  resultsColResult: {
+    width: 52,
+    textAlign: 'right',
+    fontSize: 11,
+    fontWeight: '900',
+    color: colors.textSecondary,
   },
   resultsBtn: {
     marginTop: 6,
