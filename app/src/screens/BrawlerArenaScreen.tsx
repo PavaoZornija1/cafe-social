@@ -268,13 +268,25 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const { heroId, heroStats: heroStatsParam } = route.params;
   const insets = useSafeAreaInsets();
 
+  const soloOptions = route.params?.soloOptions;
+  const soloDifficulty = soloOptions?.difficulty ?? 'normal';
+  const difficultyTuning = useMemo(() => {
+    if (soloDifficulty === 'easy') return { enemySpeedMul: 0.85, contactDmg: 7 };
+    if (soloDifficulty === 'hard') return { enemySpeedMul: 1.25, contactDmg: 14 };
+    return { enemySpeedMul: 1.0, contactDmg: 10 };
+  }, [soloDifficulty]);
+
   // Dev settings (in-game toggles to speed up iteration)
   const [devOpen, setDevOpen] = useState(false);
   const [devMatchTimerEnabled, setDevMatchTimerEnabled] = useState(
     DEFAULT_MATCH_TIMER_ENABLED,
   );
-  const [devEnemiesEnabled, setDevEnemiesEnabled] = useState(true);
-  const [devEnemyCount, setDevEnemyCount] = useState(1);
+  const [devEnemiesEnabled, setDevEnemiesEnabled] = useState(
+    soloOptions ? (soloOptions.opponentCount > 0) : true,
+  );
+  const [devEnemyCount, setDevEnemyCount] = useState(
+    soloOptions ? Math.max(0, Math.min(6, Math.floor(soloOptions.opponentCount))) : 1,
+  );
   const [devDummiesEnabled, setDevDummiesEnabled] = useState(true);
   const [devDummyCount, setDevDummyCount] = useState(3);
   const [devShowAttackHitbox, setDevShowAttackHitbox] = useState(
@@ -470,7 +482,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       y,
       w: ENEMY_W,
       h: ENEMY_H,
-      vx: dir * ENEMY_SPEED,
+      vx: dir * ENEMY_SPEED * difficultyTuning.enemySpeedMul,
       vy: 0,
       prevY: y,
       onGround: true,
@@ -481,7 +493,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       knockVx: 0,
       platformIndex: pick.idx,
     };
-  }, [worldW, worldH]);
+  }, [worldW, worldH, difficultyTuning.enemySpeedMul]);
 
   const syncEnemyCount = useCallback(
     (count: number) => {
@@ -1255,7 +1267,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           });
 
           if (touchingEnemy) {
-            heroHpRef.current = Math.max(0, heroHpRef.current - ENEMY_CONTACT_DMG);
+            heroHpRef.current = Math.max(0, heroHpRef.current - difficultyTuning.contactDmg);
             heroIFramesLeftRef.current = HERO_IFRAMES_S;
             // Light knockback away from enemy to make hits readable.
             const dir =

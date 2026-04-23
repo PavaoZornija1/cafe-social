@@ -48,6 +48,10 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
   const [heroes, setHeroes] = useState<BrawlerHero[]>([]);
   const [selectedHeroId, setSelectedHeroId] = useState<string | null>(null);
 
+  const [soloSetupOpen, setSoloSetupOpen] = useState(false);
+  const [soloOpponentCount, setSoloOpponentCount] = useState(1);
+  const [soloDifficulty, setSoloDifficulty] = useState<'easy' | 'normal' | 'hard'>('normal');
+
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -139,6 +143,42 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
     }
   };
 
+  const onStartSolo = () => {
+    if (!selectedHeroId) return;
+    if (selectedHeroId !== BRUISER_ARENA_HERO_ID) {
+      Alert.alert(
+        'Arena',
+        'The playable arena with move/jump is available for Blaze (bruiser sprites) only for now. Pick Blaze to play.',
+      );
+      return;
+    }
+
+    setSoloSetupOpen(true);
+  };
+
+  const startSoloMatch = () => {
+    if (!selectedHeroId) return;
+    const heroStats: BrawlerArenaHeroStats | undefined = selectedHero
+      ? {
+          baseHp: selectedHero.baseHp,
+          moveSpeed: selectedHero.moveSpeed,
+          dashCooldownMs: selectedHero.dashCooldownMs,
+          attackDamage: selectedHero.attackDamage,
+          attackKnockback: selectedHero.attackKnockback,
+        }
+      : undefined;
+
+    navigation.navigate('BrawlerArena', {
+      heroId: selectedHeroId,
+      venueId,
+      heroStats,
+      soloOptions: {
+        opponentCount: soloOpponentCount,
+        difficulty: soloDifficulty,
+      },
+    });
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -146,7 +186,9 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
           <Text style={styles.backText}>← Back</Text>
         </Pressable>
         <Text style={styles.title}>Brawler Lobby</Text>
-        <Text style={styles.subtitle}>Choose your hero and start a short arena match.</Text>
+        <Text style={styles.subtitle}>
+          Choose your hero, then pick Solo (practice) or Multiplayer.
+        </Text>
         <Text style={styles.meta}>Venue: {venueId ?? 'Not set (home play)'}</Text>
 
         {loadingHeroes ? (
@@ -189,20 +231,126 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
           </View>
         )}
 
-        <Pressable
-          onPress={onStart}
-          disabled={!selectedHeroId || creating || loadingHeroes}
-          style={({ pressed }) => [
-            styles.startButton,
-            pressed && styles.startButtonPressed,
-            (!selectedHeroId || creating || loadingHeroes) && styles.startButtonDisabled,
-          ]}
-        >
-          <Text style={styles.startButtonText}>
-            {creating ? 'Loading...' : 'Enter arena'}
-          </Text>
-        </Pressable>
+        <View style={styles.startRow}>
+          <Pressable
+            onPress={onStartSolo}
+            disabled={!selectedHeroId || creating || loadingHeroes}
+            style={({ pressed }) => [
+              styles.startButton,
+              styles.startButtonSolo,
+              pressed && styles.startButtonPressed,
+              (!selectedHeroId || creating || loadingHeroes) && styles.startButtonDisabled,
+            ]}
+          >
+            <Text style={styles.startButtonTextDark}>Solo mode</Text>
+            <Text style={styles.startButtonSubText}>(Practice)</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={onStart}
+            disabled
+            style={({ pressed }) => [
+              styles.startButton,
+              styles.startButtonMulti,
+              pressed && styles.startButtonPressed,
+              styles.startButtonDisabled,
+            ]}
+          >
+            <Text style={styles.startButtonText}>
+              {creating ? 'Loading...' : 'Multiplayer mode'}
+            </Text>
+            <Text style={styles.startButtonSubTextInverse}>(Ranked)</Text>
+          </Pressable>
+        </View>
       </ScrollView>
+
+      {soloSetupOpen ? (
+        <View style={styles.soloOverlay} pointerEvents="box-none">
+          <Pressable
+            style={styles.soloBackdrop}
+            onPress={() => setSoloSetupOpen(false)}
+          />
+          <View style={styles.soloSheet}>
+            <Text style={styles.soloTitle}>Solo setup</Text>
+            <Text style={styles.soloHint}>Choose a quick practice match.</Text>
+
+            <View style={styles.soloRow}>
+              <Text style={styles.soloLabel}>Opponents</Text>
+              <View style={styles.soloStepper}>
+                <Pressable
+                  onPress={() => setSoloOpponentCount((n) => Math.max(0, n - 1))}
+                  style={({ pressed }) => [
+                    styles.soloStepBtn,
+                    pressed && styles.soloStepBtnPressed,
+                  ]}
+                >
+                  <Text style={styles.soloStepBtnText}>−</Text>
+                </Pressable>
+                <Text style={styles.soloValue}>{soloOpponentCount}</Text>
+                <Pressable
+                  onPress={() => setSoloOpponentCount((n) => Math.min(6, n + 1))}
+                  style={({ pressed }) => [
+                    styles.soloStepBtn,
+                    pressed && styles.soloStepBtnPressed,
+                  ]}
+                >
+                  <Text style={styles.soloStepBtnText}>＋</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.soloRow}>
+              <Text style={styles.soloLabel}>Difficulty</Text>
+              <View style={styles.soloPills}>
+                {(['easy', 'normal', 'hard'] as const).map((d) => {
+                  const on = d === soloDifficulty;
+                  return (
+                    <Pressable
+                      key={d}
+                      onPress={() => setSoloDifficulty(d)}
+                      style={({ pressed }) => [
+                        styles.soloPill,
+                        on && styles.soloPillOn,
+                        pressed && styles.soloPillPressed,
+                      ]}
+                    >
+                      <Text style={[styles.soloPillText, on && styles.soloPillTextOn]}>
+                        {d.toUpperCase()}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={styles.soloActions}>
+              <Pressable
+                onPress={() => setSoloSetupOpen(false)}
+                style={({ pressed }) => [
+                  styles.soloBtn,
+                  styles.soloBtnSecondary,
+                  pressed && styles.soloBtnPressed,
+                ]}
+              >
+                <Text style={styles.soloBtnSecondaryText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setSoloSetupOpen(false);
+                  startSoloMatch();
+                }}
+                style={({ pressed }) => [
+                  styles.soloBtn,
+                  styles.soloBtnPrimary,
+                  pressed && styles.soloBtnPressed,
+                ]}
+              >
+                <Text style={styles.soloBtnPrimaryText}>Start</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -253,16 +401,121 @@ function createStyles(colors: AppColors) {
   },
   statsTitle: { color: colors.text, fontSize: 14, fontWeight: '900', marginBottom: 4 },
   statsText: { color: colors.textSecondary, fontSize: 13 },
-  startButton: {
+  startRow: {
     marginTop: 10,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  startButton: {
+    flex: 1,
     backgroundColor: colors.primary,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
   },
+  startButtonSolo: {
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  startButtonMulti: {
+    backgroundColor: colors.primary,
+  },
   startButtonPressed: { opacity: 0.9 },
   startButtonDisabled: { opacity: 0.5 },
   startButtonText: { color: colors.textInverse, fontSize: 15, fontWeight: '900' },
+  startButtonTextDark: { color: colors.text, fontSize: 15, fontWeight: '900' },
+  startButtonSubText: {
+    marginTop: 2,
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  startButtonSubTextInverse: {
+    marginTop: 2,
+    color: 'rgba(255, 255, 255, 0.82)',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+
+  soloOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 50,
+    justifyContent: 'flex-end',
+  },
+  soloBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+  },
+  soloSheet: {
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 18,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderColor: colors.borderStrong,
+    gap: 12,
+  },
+  soloTitle: { color: colors.text, fontSize: 18, fontWeight: '900' },
+  soloHint: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+  soloRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  soloLabel: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '900' },
+  soloStepper: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  soloStepBtn: {
+    width: 36,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  soloStepBtnPressed: { opacity: 0.85 },
+  soloStepBtnText: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  soloValue: {
+    width: 24,
+    textAlign: 'center',
+    color: colors.textSecondary,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
+  },
+  soloPills: { flexDirection: 'row', gap: 8 },
+  soloPill: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  soloPillOn: {
+    backgroundColor: colors.primary,
+    borderColor: 'rgba(167, 139, 250, 0.55)',
+  },
+  soloPillPressed: { opacity: 0.9 },
+  soloPillText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900' },
+  soloPillTextOn: { color: colors.textInverse },
+  soloActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  soloBtn: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  soloBtnPrimary: {
+    backgroundColor: colors.primary,
+  },
+  soloBtnSecondary: {
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  soloBtnPressed: { opacity: 0.9 },
+  soloBtnPrimaryText: { color: colors.textInverse, fontSize: 15, fontWeight: '900' },
+  soloBtnSecondaryText: { color: colors.text, fontSize: 15, fontWeight: '900' },
 
     });
 }

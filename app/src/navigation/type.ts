@@ -22,6 +22,10 @@ export type RootStackParamList = {
       heroId: string;
       venueId?: string;
       heroStats?: BrawlerArenaHeroStats;
+      soloOptions?: {
+        opponentCount: number;
+        difficulty: 'easy' | 'normal' | 'hard';
+      };
     };
     Challenges: undefined;
     Leaderboard: undefined;
