@@ -69,7 +69,7 @@ const ARENA_MAP_BG = require('../../assets/Mossy - FloatingPlatforms.png');
 /** Distant sky behind platforms and hero. */
 const ARENA_SKY_LOTTIE = require('../../assets/lottie/Underwater Ocean Fish and Turtle.json');
 
-const ACTION_CIRCLE_SIZE = 54;
+const ACTION_CIRCLE_SIZE = 66;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BrawlerArena'>;
 
@@ -147,7 +147,7 @@ function arenaHeroCombat(stats: BrawlerArenaHeroStats | undefined) {
 }
 
 const MARGIN_SCREEN = 20;
-const JOYSTICK_SIZE = 102;
+const JOYSTICK_SIZE = 124;
 
 const PRE_MATCH_COUNTDOWN_S = 5;
 const MATCH_PHASE_CHAOS_END_S = 45;
@@ -169,13 +169,13 @@ function matchPhaseLabel(elapsed: number): string {
 
 /** Hit, Dash, Jump — degrees from +X axis (CCW); center is bottom-right of arc box. */
 /** All three circles fit inside this width (no overflow past `right:` edge). */
-const ACTION_ARC_W = 200;
-const ACTION_ARC_H = 102;
-/** Slightly larger radius = a bit more space between the three circles. */
-const ACTION_ARC_R = 59;
+const ACTION_ARC_W = 220;
+const ACTION_ARC_H = 120;
+/** Larger radius = more space between the three circles. */
+const ACTION_ARC_R = 72;
 /** Arc center — tuned so Jump’s right edge stays inside ACTION_ARC_W. */
-const ACTION_ARC_CENTER_X = 116;
-const ACTION_ARC_CENTER_Y = ACTION_ARC_H - 8;
+const ACTION_ARC_CENTER_X = 132;
+const ACTION_ARC_CENTER_Y = ACTION_ARC_H - 10;
 /** ~half-circle fan; degrees spaced a touch wider than before (Hit → Dash → Jump). */
 const ACTION_ARC_ANGLES_HIT_DASH_JUMP = [156, 93, 32] as const;
 
@@ -198,7 +198,9 @@ const ACTION_ARC_LAYOUT = actionArcButtonPositions();
  */
 const ACTION_CONTROLS_SAFE_RIGHT_NUDGE_PX = 44;
 /** Extra px after `(insets.right - nudge)` — usually 0. */
-const ACTION_CONTROLS_RIGHT_GUTTER = 0;
+const ACTION_CONTROLS_RIGHT_GUTTER = 26;
+/** Move the whole action arc upward (px). */
+const ACTION_CONTROLS_BOTTOM_GUTTER = 14;
 
 function overlapX(
   ax: number,
@@ -1673,7 +1675,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
             <View
               style={[
                 styles.actionArcWrap,
-                { right: actionArcRight, bottom: 0 },
+                { right: actionArcRight, bottom: ACTION_CONTROLS_BOTTOM_GUTTER },
               ]}
               pointerEvents="box-none"
             >
@@ -2312,8 +2314,8 @@ function createStyles(colors: AppColors) {
   },
   controlsJoystickCluster: {
     alignSelf: 'flex-start',
-    paddingLeft: 12,
-    paddingTop: 8,
+    paddingLeft: 28,
+    paddingTop: 0,
   },
   actionArcWrap: {
     position: 'absolute',
@@ -2340,7 +2342,7 @@ function createStyles(colors: AppColors) {
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.22)',
-    backgroundColor: 'rgba(154, 52, 18, 0.72)',
+    backgroundColor: 'rgba(220, 38, 38, 0.72)',
     shadowColor: colors.text,
     shadowOpacity: 0.4,
     shadowRadius: 10,
