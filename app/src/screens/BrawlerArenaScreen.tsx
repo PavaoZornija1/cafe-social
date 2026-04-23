@@ -105,7 +105,7 @@ const ATTACK_HIT_FORWARD = 10;
 /** Vertical placement of hitbox relative to hero (px from top). */
 const ATTACK_HIT_Y_FROM_TOP = 18;
 
-const SHOW_ATTACK_HITBOX_DEBUG = true;
+const DEFAULT_SHOW_ATTACK_HITBOX_DEBUG = true;
 
 const DMG_FLOAT_LIFETIME_S = 0.65;
 const DMG_FLOAT_RISE_PX = 26;
@@ -114,7 +114,7 @@ const DMG_FLOAT_RISE_PX = 26;
  * Dev toggle: disable pre-match + match timer so the arena never ends.
  * Useful while iterating on map/platform layout.
  */
-const DISABLE_BRAWLER_MATCH_TIMER = true;
+const DEFAULT_MATCH_TIMER_ENABLED = false;
 
 const ATTACK_DURATION_S = 0.28;
 const DASH_DURATION_S = 0.18;
@@ -266,6 +266,19 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const { heroId, heroStats: heroStatsParam } = route.params;
   const insets = useSafeAreaInsets();
 
+  // Dev settings (in-game toggles to speed up iteration)
+  const [devOpen, setDevOpen] = useState(false);
+  const [devMatchTimerEnabled, setDevMatchTimerEnabled] = useState(
+    DEFAULT_MATCH_TIMER_ENABLED,
+  );
+  const [devEnemiesEnabled, setDevEnemiesEnabled] = useState(true);
+  const [devEnemyCount, setDevEnemyCount] = useState(1);
+  const [devDummiesEnabled, setDevDummiesEnabled] = useState(true);
+  const [devDummyCount, setDevDummyCount] = useState(3);
+  const [devShowAttackHitbox, setDevShowAttackHitbox] = useState(
+    DEFAULT_SHOW_ATTACK_HITBOX_DEBUG,
+  );
+
   const [arenaBox, setArenaBox] = useState({ w: 0, h: 0 });
   const arenaW = arenaBox.w || 1;
   const arenaInnerH = arenaBox.h || 1;
@@ -294,22 +307,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const heroIFramesLeftRef = useRef(0);
   const [heroDeadOpen, setHeroDeadOpen] = useState(false);
 
-  const enemyRef = useRef<Enemy>({
-    x: 0,
-    y: 0,
-    w: ENEMY_W,
-    h: ENEMY_H,
-    vx: ENEMY_SPEED,
-    vy: 0,
-    prevY: 0,
-    onGround: true,
-    hp: ENEMY_HP_MAX,
-    iFramesLeft: 0,
-    respawnLeft: 0,
-    flashLeft: 0,
-    knockVx: 0,
-    platformIndex: 0,
-  });
+  const enemiesRef = useRef<Enemy[]>([]);
 
   type DmgFloat = {
     id: number;
@@ -366,7 +364,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   });
 
   const preMatchLeftRef = useRef(
-    DISABLE_BRAWLER_MATCH_TIMER ? 0 : PRE_MATCH_COUNTDOWN_S,
+    DEFAULT_MATCH_TIMER_ENABLED ? PRE_MATCH_COUNTDOWN_S : 0,
   );
   const matchClockRef = useRef(0);
   const matchEndedRef = useRef(false);
@@ -448,7 +446,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     [worldW, worldH, bodyW, bodyH],
   );
 
-  const spawnEnemyOnRandomPlatform = useCallback(() => {
+  const spawnEnemyOnRandomPlatform = useCallback((): Enemy => {
     const plats = buildArenaPlatforms(worldW, worldH, GROUND_STRIP_H, 4);
     const valid: { p: PlatformWorld; idx: number }[] = [];
     for (let i = 0; i < plats.length; i++) {
@@ -465,7 +463,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     const y = Math.max(0, Math.min(worldH - ENEMY_H, pick.p.y - ENEMY_H));
     const dir = Math.random() < 0.5 ? -1 : 1;
 
-    enemyRef.current = {
+    return {
       x,
       y,
       w: ENEMY_W,
@@ -482,6 +480,16 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       platformIndex: pick.idx,
     };
   }, [worldW, worldH]);
+
+  const syncEnemyCount = useCallback(
+    (count: number) => {
+      const n = Math.max(0, Math.min(6, Math.floor(count)));
+      const next: Enemy[] = [];
+      for (let i = 0; i < n; i++) next.push(spawnEnemyOnRandomPlatform());
+      enemiesRef.current = next;
+    },
+    [spawnEnemyOnRandomPlatform],
+  );
 
   useEffect(() => {
     if (arenaW < 32 || arenaInnerH < 32) return;
@@ -514,8 +522,12 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     playerY.current = spawn.y;
     prevPlayerY.current = spawn.y;
 
-    spawnDummiesRandomOnPlatforms(3, spawn);
-    spawnEnemyOnRandomPlatform();
+    if (devDummiesEnabled) spawnDummiesRandomOnPlatforms(devDummyCount, spawn);
+    else dummiesRef.current = [];
+
+    if (devEnemiesEnabled) syncEnemyCount(devEnemyCount);
+    else enemiesRef.current = [];
+
     heroHpRef.current = heroCombat.baseHp;
     heroIFramesLeftRef.current = 0;
     setHeroDeadOpen(false);
@@ -533,7 +545,11 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     HERO_FEET_EMBED_GROUND_PLATFORM_PX,
     HERO_FEET_EMBED_FLOATING_PLATFORM_PX,
     spawnDummiesRandomOnPlatforms,
-    spawnEnemyOnRandomPlatform,
+    syncEnemyCount,
+    devDummiesEnabled,
+    devDummyCount,
+    devEnemiesEnabled,
+    devEnemyCount,
   ]);
 
   useEffect(() => {
@@ -564,8 +580,11 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     playerX.current = spawn.x;
     playerY.current = spawn.y;
     prevPlayerY.current = spawn.y;
-    spawnDummiesRandomOnPlatforms(3, spawn);
-    spawnEnemyOnRandomPlatform();
+    if (devDummiesEnabled) spawnDummiesRandomOnPlatforms(devDummyCount, spawn);
+    else dummiesRef.current = [];
+
+    if (devEnemiesEnabled) syncEnemyCount(devEnemyCount);
+    else enemiesRef.current = [];
     heroHpRef.current = heroCombat.baseHp;
     heroIFramesLeftRef.current = 0;
     setHeroDeadOpen(false);
@@ -588,9 +607,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     walkAccum.current = 0;
     matchEndedRef.current = false;
     matchClockRef.current = 0;
-    preMatchLeftRef.current = DISABLE_BRAWLER_MATCH_TIMER
-      ? 0
-      : PRE_MATCH_COUNTDOWN_S;
+    preMatchLeftRef.current = devMatchTimerEnabled ? PRE_MATCH_COUNTDOWN_S : 0;
     setGameOverOpen(false);
     bump();
   }, [
@@ -603,7 +620,12 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     heroCombat.baseHp,
     bump,
     spawnDummiesRandomOnPlatforms,
-    spawnEnemyOnRandomPlatform,
+    syncEnemyCount,
+    devDummiesEnabled,
+    devDummyCount,
+    devEnemiesEnabled,
+    devEnemyCount,
+    devMatchTimerEnabled,
   ]);
 
   useEffect(() => {
@@ -622,7 +644,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
       if (
         arenaReady &&
-        !DISABLE_BRAWLER_MATCH_TIMER &&
+        devMatchTimerEnabled &&
         preMatchLeftRef.current > 0
       ) {
         const t0 = preMatchLeftRef.current;
@@ -658,7 +680,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
       if (
         arenaReady &&
-        !DISABLE_BRAWLER_MATCH_TIMER &&
+        devMatchTimerEnabled &&
         preMatchLeftRef.current <= 0
       ) {
         if (!matchEndedRef.current) {
@@ -675,7 +697,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
       if (
         arenaReady &&
-        !DISABLE_BRAWLER_MATCH_TIMER &&
+        devMatchTimerEnabled &&
         preMatchLeftRef.current <= 0 &&
         matchEndedRef.current
       ) {
@@ -817,85 +839,99 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
       // Enemy state tick (respawn / i-frames / patrol).
       {
-        const e = enemyRef.current;
+        const enemies = enemiesRef.current;
+        if (enemies.length > 0) {
+          let changed = false;
+          for (let ei = 0; ei < enemies.length; ei++) {
+            const e = enemies[ei]!;
 
-        if (e.respawnLeft > 0) {
-          e.respawnLeft = Math.max(0, e.respawnLeft - dt);
-          if (e.respawnLeft <= 0) {
-            spawnEnemyOnRandomPlatform();
-            bump();
-          }
-        }
-
-        e.iFramesLeft = Math.max(0, e.iFramesLeft - dt);
-        e.flashLeft = Math.max(0, e.flashLeft - dt);
-
-        if (e.knockVx !== 0) {
-          e.knockVx *= Math.pow(0.25, dt * 10);
-          if (Math.abs(e.knockVx) < 2) e.knockVx = 0;
-        }
-
-        const alive = e.hp > 0 && e.respawnLeft <= 0;
-        if (alive) {
-          const p = plats[e.platformIndex] ?? plats[plats.length - 1]!;
-          const xMin = Math.max(MARGIN_SCREEN, p.x);
-          const xMax = Math.min(worldW - MARGIN_SCREEN - e.w, p.x + p.w - e.w);
-          const y = Math.max(0, Math.min(worldH - e.h, p.y - e.h));
-
-          // Horizontal: patrol clamps/reverses only when not being knocked.
-          const knocked = Math.abs(e.knockVx) > 1;
-          if (!knocked && e.onGround) {
-            e.x += e.vx * dt;
-            if (e.x <= xMin) {
-              e.x = xMin;
-              e.vx = Math.abs(e.vx);
-            } else if (e.x >= xMax) {
-              e.x = xMax;
-              e.vx = -Math.abs(e.vx);
-            }
-          } else {
-            // Knockback can push it off the platform edge.
-            e.x += (e.vx + e.knockVx) * dt;
-          }
-
-          // Gravity + landing (enemy falls if pushed off).
-          e.prevY = e.y;
-          e.vy += GRAVITY * dt;
-          e.y += e.vy * dt;
-
-          const prevBottom = e.prevY + e.h;
-          const newBottom = e.y + e.h;
-          if (e.vy > 0) {
-            let best: { p: PlatformWorld; idx: number } | null = null;
-            for (let i = 0; i < plats.length; i++) {
-              const pl = plats[i]!;
-              if (!overlapX(e.x, e.w, pl, 0)) continue;
-              const pt = pl.y;
-              if (prevBottom <= pt + 14 && newBottom >= pt - 6) {
-                if (!best || pt < best.p.y) best = { p: pl, idx: i };
+            if (e.respawnLeft > 0) {
+              e.respawnLeft = Math.max(0, e.respawnLeft - dt);
+              if (e.respawnLeft <= 0) {
+                enemies[ei] = spawnEnemyOnRandomPlatform();
+                changed = true;
+                continue;
               }
             }
-            if (best) {
-              e.y = best.p.y - e.h;
-              e.vy = 0;
-              e.onGround = true;
-              e.platformIndex = best.idx;
-            } else {
-              e.onGround = false;
+
+            e.iFramesLeft = Math.max(0, e.iFramesLeft - dt);
+            e.flashLeft = Math.max(0, e.flashLeft - dt);
+
+            if (e.knockVx !== 0) {
+              e.knockVx *= Math.pow(0.25, dt * 10);
+              if (Math.abs(e.knockVx) < 2) e.knockVx = 0;
+            }
+
+            const alive = e.hp > 0 && e.respawnLeft <= 0;
+            if (alive) {
+              const p = plats[e.platformIndex] ?? plats[plats.length - 1]!;
+              const xMin = Math.max(MARGIN_SCREEN, p.x);
+              const xMax = Math.min(
+                worldW - MARGIN_SCREEN - e.w,
+                p.x + p.w - e.w,
+              );
+              const y = Math.max(0, Math.min(worldH - e.h, p.y - e.h));
+
+              // Horizontal: patrol clamps/reverses only when not being knocked.
+              const knocked = Math.abs(e.knockVx) > 1;
+              if (!knocked && e.onGround) {
+                e.x += e.vx * dt;
+                if (e.x <= xMin) {
+                  e.x = xMin;
+                  e.vx = Math.abs(e.vx);
+                } else if (e.x >= xMax) {
+                  e.x = xMax;
+                  e.vx = -Math.abs(e.vx);
+                }
+              } else {
+                // Knockback can push it off the platform edge.
+                e.x += (e.vx + e.knockVx) * dt;
+              }
+
+              // Gravity + landing (enemy falls if pushed off).
+              e.prevY = e.y;
+              e.vy += GRAVITY * dt;
+              e.y += e.vy * dt;
+
+              const prevBottom = e.prevY + e.h;
+              const newBottom = e.y + e.h;
+              if (e.vy > 0) {
+                let best: { p: PlatformWorld; idx: number } | null = null;
+                for (let i = 0; i < plats.length; i++) {
+                  const pl = plats[i]!;
+                  if (!overlapX(e.x, e.w, pl, 0)) continue;
+                  const pt = pl.y;
+                  if (prevBottom <= pt + 14 && newBottom >= pt - 6) {
+                    if (!best || pt < best.p.y) best = { p: pl, idx: i };
+                  }
+                }
+                if (best) {
+                  e.y = best.p.y - e.h;
+                  e.vy = 0;
+                  e.onGround = true;
+                  e.platformIndex = best.idx;
+                } else {
+                  e.onGround = false;
+                }
+              }
+
+              // Keep y aligned to platform top when onGround and not falling (stability).
+              if (e.onGround && e.vy === 0 && !knocked) {
+                e.y = y;
+              }
+
+              // Fell out of view: respawn on a platform (keep HP).
+              if (e.y > worldH + 160) {
+                const hpKeep = e.hp;
+                enemies[ei] = spawnEnemyOnRandomPlatform();
+                enemies[ei]!.hp = hpKeep;
+                enemies[ei]!.iFramesLeft = Math.max(enemies[ei]!.iFramesLeft, 0.2);
+                changed = true;
+              }
             }
           }
-
-          // Keep y aligned to platform top when onGround and not falling (stability).
-          if (e.onGround && e.vy === 0 && !knocked) {
-            e.y = y;
-          }
-
-          // Fell out of view: respawn on a platform (keep HP).
-          if (e.y > worldH + 160) {
-            const hpKeep = e.hp;
-            spawnEnemyOnRandomPlatform();
-            enemyRef.current.hp = hpKeep;
-            enemyRef.current.iFramesLeft = Math.max(enemyRef.current.iFramesLeft, 0.2);
+          if (changed) {
+            enemiesRef.current = enemies;
             bump();
           }
         }
@@ -944,27 +980,34 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
             ? playerX.current + bodyW * 0.55
             : playerX.current - dashW + bodyW * 0.45;
 
-        const e = enemyRef.current;
-        const enemyAlive = e.hp > 0 && e.respawnLeft <= 0;
-        const hitEnemy =
-          enemyAlive && aabbOverlap(dashX, dashY, dashW, dashH, e.x, e.y, e.w, e.h);
+        const dir = facing.current === 'right' ? 1 : -1;
+        const enemies = enemiesRef.current;
+        const hitEnemy = enemies.find(
+          (e) =>
+            e.hp > 0 &&
+            e.respawnLeft <= 0 &&
+            e.iFramesLeft <= 0 &&
+            aabbOverlap(dashX, dashY, dashW, dashH, e.x, e.y, e.w, e.h),
+        );
 
-        if (hitEnemy && e.iFramesLeft <= 0) {
-          e.hp = Math.max(0, e.hp - heroCombat.dashDmg);
-          e.iFramesLeft = ENEMY_IFRAMES_S;
-          e.flashLeft = 0.12;
-          const dir = facing.current === 'right' ? 1 : -1;
-          e.knockVx = dir * heroCombat.dashKnockbackSpeed;
-          e.x = Math.max(
+        if (hitEnemy) {
+          hitEnemy.hp = Math.max(0, hitEnemy.hp - heroCombat.dashDmg);
+          hitEnemy.iFramesLeft = ENEMY_IFRAMES_S;
+          hitEnemy.flashLeft = 0.12;
+          hitEnemy.knockVx = dir * heroCombat.dashKnockbackSpeed;
+          hitEnemy.x = Math.max(
             MARGIN_SCREEN,
-            Math.min(worldW - MARGIN_SCREEN - e.w, e.x + dir * heroCombat.dashShovePx),
+            Math.min(
+              worldW - MARGIN_SCREEN - hitEnemy.w,
+              hitEnemy.x + dir * heroCombat.dashShovePx,
+            ),
           );
-          if (e.hp <= 0) e.respawnLeft = ENEMY_RESPAWN_DELAY_S;
+          if (hitEnemy.hp <= 0) hitEnemy.respawnLeft = ENEMY_RESPAWN_DELAY_S;
 
           dmgFloatsRef.current.push({
             id: dmgFloatIdRef.current++,
-            x: e.x + e.w / 2,
-            y: e.y,
+            x: hitEnemy.x + hitEnemy.w / 2,
+            y: hitEnemy.y,
             text: `-${heroCombat.dashDmg}`,
             age: 0,
           });
@@ -978,7 +1021,6 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           if (hitDummy) {
             hitDummy.hp = Math.max(0, hitDummy.hp - heroCombat.dashDmg);
             hitDummy.flashLeft = 0.12;
-            const dir = facing.current === 'right' ? 1 : -1;
             hitDummy.knockVx = dir * heroCombat.dashKnockbackSpeed;
             hitDummy.x = Math.max(
               MARGIN_SCREEN,
@@ -1019,30 +1061,32 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           const dmg = heroCombat.attackDamage;
 
           // Priority: hit enemy first if overlapping, else hit a dummy.
-          const e = enemyRef.current;
-          const enemyAlive = e.hp > 0 && e.respawnLeft <= 0;
-          const hitEnemy =
-            enemyAlive &&
-            e.iFramesLeft <= 0 &&
-            aabbOverlap(hitX, hitY, hitW, hitH, e.x, e.y, e.w, e.h);
+          const dir = facing.current === 'right' ? 1 : -1;
+          const enemies = enemiesRef.current;
+          const hitEnemy = enemies.find(
+            (e) =>
+              e.hp > 0 &&
+              e.respawnLeft <= 0 &&
+              e.iFramesLeft <= 0 &&
+              aabbOverlap(hitX, hitY, hitW, hitH, e.x, e.y, e.w, e.h),
+          );
 
           if (hitEnemy) {
-            e.hp = Math.max(0, e.hp - dmg);
-            e.iFramesLeft = ENEMY_IFRAMES_S;
-            e.flashLeft = 0.12;
-            const dir = facing.current === 'right' ? 1 : -1;
-            e.knockVx = dir * 520;
+            hitEnemy.hp = Math.max(0, hitEnemy.hp - dmg);
+            hitEnemy.iFramesLeft = ENEMY_IFRAMES_S;
+            hitEnemy.flashLeft = 0.12;
+            hitEnemy.knockVx = dir * 520;
 
             dmgFloatsRef.current.push({
               id: dmgFloatIdRef.current++,
-              x: e.x + e.w / 2,
-              y: e.y,
+              x: hitEnemy.x + hitEnemy.w / 2,
+              y: hitEnemy.y,
               text: `-${dmg}`,
               age: 0,
             });
 
-            if (e.hp <= 0) {
-              e.respawnLeft = ENEMY_RESPAWN_DELAY_S;
+            if (hitEnemy.hp <= 0) {
+              hitEnemy.respawnLeft = ENEMY_RESPAWN_DELAY_S;
             }
 
             hitAppliedThisSwing.current = true;
@@ -1186,39 +1230,40 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       }
 
       // Enemy contact damage (strict contact collider: inset rectangles).
-      if (
-        enemyRef.current.hp > 0 &&
-        enemyRef.current.respawnLeft <= 0 &&
-        heroHpRef.current > 0 &&
-        heroIFramesLeftRef.current <= 0
-      ) {
-        const e = enemyRef.current;
-        // Tighten both colliders so being on a nearby platform doesn't count as contact.
-        const heroInsetX = bodyW * 0.22;
-        const heroInsetTop = bodyH * 0.18;
-        const heroInsetBottom = bodyH * 0.08;
-        const hx = playerX.current + heroInsetX;
-        const hy = playerY.current + heroInsetTop;
-        const hw = Math.max(1, bodyW - heroInsetX * 2);
-        const hh = Math.max(1, bodyH - heroInsetTop - heroInsetBottom);
+      if (heroHpRef.current > 0 && heroIFramesLeftRef.current <= 0) {
+        const enemies = enemiesRef.current;
+        if (enemies.length > 0) {
+          // Tighten both colliders so being on a nearby platform doesn't count as contact.
+          const heroInsetX = bodyW * 0.22;
+          const heroInsetTop = bodyH * 0.18;
+          const heroInsetBottom = bodyH * 0.08;
+          const hx = playerX.current + heroInsetX;
+          const hy = playerY.current + heroInsetTop;
+          const hw = Math.max(1, bodyW - heroInsetX * 2);
+          const hh = Math.max(1, bodyH - heroInsetTop - heroInsetBottom);
 
-        const enemyInset = 6;
-        const ex = e.x + enemyInset;
-        const ey = e.y + enemyInset;
-        const ew = Math.max(1, e.w - enemyInset * 2);
-        const eh = Math.max(1, e.h - enemyInset * 2);
+          const enemyInset = 6;
+          const touchingEnemy = enemies.find((e) => {
+            if (e.hp <= 0 || e.respawnLeft > 0) return false;
+            const ex = e.x + enemyInset;
+            const ey = e.y + enemyInset;
+            const ew = Math.max(1, e.w - enemyInset * 2);
+            const eh = Math.max(1, e.h - enemyInset * 2);
+            return aabbOverlap(hx, hy, hw, hh, ex, ey, ew, eh);
+          });
 
-        const touching = aabbOverlap(hx, hy, hw, hh, ex, ey, ew, eh);
-        if (touching) {
-          heroHpRef.current = Math.max(0, heroHpRef.current - ENEMY_CONTACT_DMG);
-          heroIFramesLeftRef.current = HERO_IFRAMES_S;
-          // Light knockback away from enemy to make hits readable.
-          const dir = playerX.current + bodyW / 2 < e.x + e.w / 2 ? -1 : 1;
-          vx.current = dir * 220;
-          if (heroHpRef.current <= 0) {
-            setHeroDeadOpen(true);
+          if (touchingEnemy) {
+            heroHpRef.current = Math.max(0, heroHpRef.current - ENEMY_CONTACT_DMG);
+            heroIFramesLeftRef.current = HERO_IFRAMES_S;
+            // Light knockback away from enemy to make hits readable.
+            const dir =
+              playerX.current + bodyW / 2 < touchingEnemy.x + touchingEnemy.w / 2 ? -1 : 1;
+            vx.current = dir * 220;
+            if (heroHpRef.current <= 0) {
+              setHeroDeadOpen(true);
+            }
+            bump();
           }
-          bump();
         }
       }
 
@@ -1306,14 +1351,14 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const dashReady = dashCooldownLeft.current <= 0 && dashTimeLeft.current <= 0;
 
   const arenaReadyHud = arenaW >= 32 && arenaInnerH >= 32;
-  const controlsLive = DISABLE_BRAWLER_MATCH_TIMER
-    ? arenaReadyHud && !heroDeadOpen
-    : arenaReadyHud &&
-    preMatchLeftRef.current <= 0 &&
-    !matchEndedRef.current &&
-    !heroDeadOpen;
+  const controlsLive = devMatchTimerEnabled
+    ? arenaReadyHud &&
+      preMatchLeftRef.current <= 0 &&
+      !matchEndedRef.current &&
+      !heroDeadOpen
+    : arenaReadyHud && !heroDeadOpen;
   const showHudMatchClock =
-    !DISABLE_BRAWLER_MATCH_TIMER &&
+    devMatchTimerEnabled &&
     arenaReadyHud &&
     preMatchLeftRef.current <= 0;
   const preMatchCeil =
@@ -1399,7 +1444,19 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           ) : null}
         </View>
         <View style={styles.hudSideRight}>
-          <Text style={styles.hudTitle}>Arena</Text>
+          <View style={styles.hudRightRow}>
+            <Text style={styles.hudTitle}>Arena</Text>
+            <Pressable
+              onPress={() => setDevOpen((o) => !o)}
+              style={({ pressed }) => [
+                styles.devBtn,
+                pressed && styles.devBtnPressed,
+              ]}
+              accessibilityLabel="Toggle dev settings"
+            >
+              <Text style={styles.devBtnText}>Dev</Text>
+            </Pressable>
+          </View>
           <Pressable
             onPress={resetArenaRound}
             style={({ pressed }) => [
@@ -1471,46 +1528,48 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
               />
             </View>
 
-          {enemyRef.current.hp > 0 && enemyRef.current.respawnLeft <= 0 ? (
-            <View
-              style={{
-                position: 'absolute',
-                left: enemyRef.current.x,
-                top: enemyRef.current.y,
-                width: enemyRef.current.w,
-                height: enemyRef.current.h,
-                backgroundColor: enemyRef.current.flashLeft > 0 ? '#fb7185' : '#dc2626',
-                borderWidth: 2,
-                borderColor: '#7f1d1d',
-                zIndex: 4,
-              }}
-            >
+          {enemiesRef.current.map((e, idx) => {
+            if (e.hp <= 0 || e.respawnLeft > 0) return null;
+            return (
               <View
-                pointerEvents="none"
+                key={idx}
                 style={{
                   position: 'absolute',
-                  left: 0,
-                  top: -10,
-                  width: '100%',
-                  height: 6,
-                  backgroundColor: '#111827',
+                  left: e.x,
+                  top: e.y,
+                  width: e.w,
+                  height: e.h,
+                  backgroundColor: e.flashLeft > 0 ? '#fb7185' : '#dc2626',
+                  borderWidth: 2,
+                  borderColor: '#7f1d1d',
+                  zIndex: 4,
                 }}
               >
                 <View
+                  pointerEvents="none"
                   style={{
-                    width: `${Math.round(
-                      (enemyRef.current.hp / ENEMY_HP_MAX) * 100,
-                    )}%`,
-                    height: '100%',
-                    backgroundColor: '#f97316',
-                    opacity: enemyRef.current.iFramesLeft > 0 ? 0.65 : 1,
+                    position: 'absolute',
+                    left: 0,
+                    top: -10,
+                    width: '100%',
+                    height: 6,
+                    backgroundColor: '#111827',
                   }}
-                />
+                >
+                  <View
+                    style={{
+                      width: `${Math.round((e.hp / ENEMY_HP_MAX) * 100)}%`,
+                      height: '100%',
+                      backgroundColor: '#f97316',
+                      opacity: e.iFramesLeft > 0 ? 0.65 : 1,
+                    }}
+                  />
+                </View>
               </View>
-            </View>
-          ) : null}
+            );
+          })}
 
-          {SHOW_ATTACK_HITBOX_DEBUG && attackingNow ? (
+          {devShowAttackHitbox && attackingNow ? (
             <View
               pointerEvents="none"
               style={{
@@ -1753,6 +1812,171 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           ) : null}
         </View>
       </View>
+
+      {devOpen ? (
+        <View style={styles.devPanelOverlay} pointerEvents="box-none">
+          <View style={styles.devPanel} pointerEvents="auto">
+            <View style={styles.devRow}>
+              <Text style={styles.devLabel}>Match timer</Text>
+              <Pressable
+                onPress={() => {
+                  setDevMatchTimerEnabled((v) => !v);
+                  preMatchLeftRef.current = !devMatchTimerEnabled ? PRE_MATCH_COUNTDOWN_S : 0;
+                  matchClockRef.current = 0;
+                  matchEndedRef.current = false;
+                  setGameOverOpen(false);
+                  bump();
+                }}
+                style={({ pressed }) => [
+                  styles.devChip,
+                  devMatchTimerEnabled ? styles.devChipOn : styles.devChipOff,
+                  pressed && styles.devChipPressed,
+                ]}
+              >
+                <Text style={styles.devChipText}>
+                  {devMatchTimerEnabled ? 'Enabled' : 'Disabled'}
+                </Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.devRow}>
+              <Text style={styles.devLabel}>Enemies</Text>
+              <Pressable
+                onPress={() => {
+                  setDevEnemiesEnabled((v) => !v);
+                  if (!devEnemiesEnabled) syncEnemyCount(devEnemyCount);
+                  else enemiesRef.current = [];
+                  bump();
+                }}
+                style={({ pressed }) => [
+                  styles.devChip,
+                  devEnemiesEnabled ? styles.devChipOn : styles.devChipOff,
+                  pressed && styles.devChipPressed,
+                ]}
+              >
+                <Text style={styles.devChipText}>
+                  {devEnemiesEnabled ? 'On' : 'Off'}
+                </Text>
+              </Pressable>
+              <View style={styles.devStepper}>
+                <Pressable
+                  onPress={() => {
+                    const next = Math.max(0, devEnemyCount - 1);
+                    setDevEnemyCount(next);
+                    if (devEnemiesEnabled) syncEnemyCount(next);
+                    bump();
+                  }}
+                  style={({ pressed }) => [
+                    styles.devStepBtn,
+                    pressed && styles.devStepBtnPressed,
+                  ]}
+                >
+                  <Text style={styles.devStepBtnText}>−</Text>
+                </Pressable>
+                <Text style={styles.devValue}>{devEnemyCount}</Text>
+                <Pressable
+                  onPress={() => {
+                    const next = Math.min(6, devEnemyCount + 1);
+                    setDevEnemyCount(next);
+                    if (devEnemiesEnabled) syncEnemyCount(next);
+                    bump();
+                  }}
+                  style={({ pressed }) => [
+                    styles.devStepBtn,
+                    pressed && styles.devStepBtnPressed,
+                  ]}
+                >
+                  <Text style={styles.devStepBtnText}>＋</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.devRow}>
+              <Text style={styles.devLabel}>Dummies</Text>
+              <Pressable
+                onPress={() => {
+                  setDevDummiesEnabled((v) => !v);
+                  if (!devDummiesEnabled) {
+                    spawnDummiesRandomOnPlatforms(devDummyCount, {
+                      x: playerX.current,
+                      y: playerY.current,
+                    });
+                  } else {
+                    dummiesRef.current = [];
+                  }
+                  bump();
+                }}
+                style={({ pressed }) => [
+                  styles.devChip,
+                  devDummiesEnabled ? styles.devChipOn : styles.devChipOff,
+                  pressed && styles.devChipPressed,
+                ]}
+              >
+                <Text style={styles.devChipText}>
+                  {devDummiesEnabled ? 'On' : 'Off'}
+                </Text>
+              </Pressable>
+              <View style={styles.devStepper}>
+                <Pressable
+                  onPress={() => {
+                    const next = Math.max(0, devDummyCount - 1);
+                    setDevDummyCount(next);
+                    if (devDummiesEnabled) {
+                      spawnDummiesRandomOnPlatforms(next, {
+                        x: playerX.current,
+                        y: playerY.current,
+                      });
+                    }
+                    bump();
+                  }}
+                  style={({ pressed }) => [
+                    styles.devStepBtn,
+                    pressed && styles.devStepBtnPressed,
+                  ]}
+                >
+                  <Text style={styles.devStepBtnText}>−</Text>
+                </Pressable>
+                <Text style={styles.devValue}>{devDummyCount}</Text>
+                <Pressable
+                  onPress={() => {
+                    const next = Math.min(12, devDummyCount + 1);
+                    setDevDummyCount(next);
+                    if (devDummiesEnabled) {
+                      spawnDummiesRandomOnPlatforms(next, {
+                        x: playerX.current,
+                        y: playerY.current,
+                      });
+                    }
+                    bump();
+                  }}
+                  style={({ pressed }) => [
+                    styles.devStepBtn,
+                    pressed && styles.devStepBtnPressed,
+                  ]}
+                >
+                  <Text style={styles.devStepBtnText}>＋</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.devRow}>
+              <Text style={styles.devLabel}>Hitbox debug</Text>
+              <Pressable
+                onPress={() => setDevShowAttackHitbox((v) => !v)}
+                style={({ pressed }) => [
+                  styles.devChip,
+                  devShowAttackHitbox ? styles.devChipOn : styles.devChipOff,
+                  pressed && styles.devChipPressed,
+                ]}
+              >
+                <Text style={styles.devChipText}>
+                  {devShowAttackHitbox ? 'On' : 'Off'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -1786,6 +2010,11 @@ function createStyles(colors: AppColors) {
     flex: 1,
     alignItems: 'flex-end',
     justifyContent: 'center',
+  },
+  hudRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   hudPhase: {
     color: colors.textSecondary,
@@ -1838,6 +2067,22 @@ function createStyles(colors: AppColors) {
     fontWeight: '900',
     textAlign: 'right',
   },
+  devBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  devBtnPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
+  devBtnText: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
   resetBtn: {
     marginTop: 6,
     paddingVertical: 6,
@@ -1862,6 +2107,76 @@ function createStyles(colors: AppColors) {
   arenaFlex: {
     flex: 1,
     overflow: 'visible',
+  },
+  devPanelOverlay: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    top: 54,
+    zIndex: 80,
+  },
+  devPanel: {
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  devRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  devLabel: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  devChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    minWidth: 88,
+    alignItems: 'center',
+  },
+  devChipOn: {
+    backgroundColor: 'rgba(34, 197, 94, 0.14)',
+    borderColor: 'rgba(34, 197, 94, 0.45)',
+  },
+  devChipOff: {
+    backgroundColor: 'rgba(148, 163, 184, 0.10)',
+    borderColor: 'rgba(148, 163, 184, 0.25)',
+  },
+  devChipPressed: { opacity: 0.88 },
+  devChipText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  devStepper: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  devStepBtn: {
+    width: 34,
+    height: 28,
+    borderRadius: 10,
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  devStepBtnPressed: { opacity: 0.85 },
+  devStepBtnText: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  devValue: {
+    width: 22,
+    textAlign: 'center',
+    color: colors.textSecondary,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
   },
   arena: {
     flex: 1,
