@@ -1,3 +1,4 @@
+import { useAuth } from '@clerk/expo';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -28,6 +29,7 @@ import {
   type PlatformWorld,
 } from '../brawler/arenaPlatforms';
 import type { BrawlerArenaHeroStats, RootStackParamList } from '../navigation/type';
+import { apiGet, apiPost } from '../lib/api';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 
@@ -150,9 +152,9 @@ const MARGIN_SCREEN = 20;
 const JOYSTICK_SIZE = 124;
 
 const PRE_MATCH_COUNTDOWN_S = 5;
-const MATCH_PHASE_CHAOS_END_S = 45;
-const MATCH_PHASE_ENDGAME_END_S = 60;
-const MATCH_MAX_S = 75;
+const DEFAULT_MATCH_PHASE_CHAOS_END_S = 45;
+const DEFAULT_MATCH_PHASE_ENDGAME_END_S = 60;
+const DEFAULT_MATCH_MAX_S = 75;
 
 function formatMatchClock(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
@@ -161,9 +163,13 @@ function formatMatchClock(seconds: number): string {
   return `${m}:${r.toString().padStart(2, '0')}`;
 }
 
-function matchPhaseLabel(elapsed: number): string {
-  if (elapsed >= MATCH_PHASE_ENDGAME_END_S) return 'Sudden Death';
-  if (elapsed >= MATCH_PHASE_CHAOS_END_S) return 'Endgame';
+function matchPhaseLabelDyn(
+  elapsed: number,
+  chaosEndS: number,
+  endgameEndS: number,
+): string {
+  if (elapsed >= endgameEndS) return 'Sudden Death';
+  if (elapsed >= chaosEndS) return 'Endgame';
   return 'Chaos';
 }
 
@@ -267,6 +273,35 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { heroId, heroStats: heroStatsParam } = route.params;
   const insets = useSafeAreaInsets();
+  const sessionId = route.params.sessionId;
+  const { getToken } = useAuth();
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
+  const navigationRef = useRef(navigation);
+  navigationRef.current = navigation;
+
+  const matchChaosEndSRef = useRef(DEFAULT_MATCH_PHASE_CHAOS_END_S);
+  const matchEndgameEndSRef = useRef(DEFAULT_MATCH_PHASE_ENDGAME_END_S);
+  const matchMaxSRef = useRef(DEFAULT_MATCH_MAX_S);
+
+  type TrackedParticipant = {
+    id: string;
+    isBot: boolean;
+    botName?: string | null;
+    playerId?: string | null;
+    displayNameSnapshot?: string | null;
+  };
+  const participantsRef = useRef<TrackedParticipant[]>([]);
+  const finalizeStartedRef = useRef(false);
+  const [trackedSessionReady, setTrackedSessionReady] = useState(!sessionId);
+  /** Same tick as session fetch success — avoids RAF running before React commits `setTrackedSessionReady`. */
+  const trackedSessionGateRef = useRef(!sessionId);
+  /** Same tick as session sets `setDevMatchTimerEnabled(true)` — avoids RAF before `devMatchTimerLiveRef` updates. */
+  const pendingMatchTimerFromSessionRef = useRef(false);
+  const [resultsOverlay, setResultsOverlay] = useState<{
+    title: string;
+    lines: string[];
+  } | null>(null);
 
   const soloOptions = route.params?.soloOptions;
   const soloDifficulty = soloOptions?.difficulty ?? 'normal';
@@ -298,6 +333,16 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const arenaInnerH = arenaBox.h || 1;
   const worldW = Math.max(arenaW, Math.round(arenaW * 2.4));
   const worldH = Math.max(arenaInnerH, Math.round(arenaInnerH * 1.35));
+
+  // RAF `step` must read latest flags/layout; closure from `useEffect` can lag one frame behind state.
+  const devMatchTimerLiveRef = useRef(devMatchTimerEnabled);
+  devMatchTimerLiveRef.current = devMatchTimerEnabled;
+  const arenaWLiveRef = useRef(arenaW);
+  arenaWLiveRef.current = arenaW;
+  const arenaInnerHLiveRef = useRef(arenaInnerH);
+  arenaInnerHLiveRef.current = arenaInnerH;
+  const sessionIdLiveRef = useRef(sessionId);
+  sessionIdLiveRef.current = sessionId;
 
   const heroCombat = useMemo(
     () => arenaHeroCombat(heroStatsParam),
@@ -387,6 +432,132 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const bump = useCallback(() => {
     setRenderTick((t) => (t + 1) % 1_000_000);
   }, []);
+
+  useEffect(() => {
+    if (!sessionId) {
+      trackedSessionGateRef.current = true;
+    }
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (devMatchTimerEnabled) {
+      pendingMatchTimerFromSessionRef.current = false;
+    }
+  }, [devMatchTimerEnabled]);
+
+  // Only `sessionId` in deps: Clerk `getToken` changes identity every render → would refetch
+  // forever and reset pre-match to 5 each time. Use `getTokenRef` inside the async body.
+  useEffect(() => {
+    if (!sessionId) return;
+    trackedSessionGateRef.current = false;
+    pendingMatchTimerFromSessionRef.current = false;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getTokenRef.current();
+        if (!token) throw new Error('Not authenticated');
+        const session = await apiGet<{
+          participants: TrackedParticipant[];
+          brawlerSession: {
+            chaosDurationMs: number;
+            endgameDurationMs: number;
+            suddenDeathMaxMs: number;
+          } | null;
+        }>(`/brawler/sessions/${encodeURIComponent(sessionId)}`, token);
+        if (cancelled) return;
+        participantsRef.current = session.participants ?? [];
+        const bs = session.brawlerSession;
+        if (bs) {
+          const chaosS = bs.chaosDurationMs / 1000;
+          const endgameS = bs.endgameDurationMs / 1000;
+          const suddenS = bs.suddenDeathMaxMs / 1000;
+          matchChaosEndSRef.current = chaosS;
+          matchEndgameEndSRef.current = chaosS + endgameS;
+          matchMaxSRef.current = chaosS + endgameS + suddenS;
+        } else {
+          matchChaosEndSRef.current = DEFAULT_MATCH_PHASE_CHAOS_END_S;
+          matchEndgameEndSRef.current = DEFAULT_MATCH_PHASE_ENDGAME_END_S;
+          matchMaxSRef.current = DEFAULT_MATCH_MAX_S;
+        }
+        trackedSessionGateRef.current = true;
+        pendingMatchTimerFromSessionRef.current = true;
+        setDevMatchTimerEnabled(true);
+        preMatchLeftRef.current = PRE_MATCH_COUNTDOWN_S;
+        matchClockRef.current = 0;
+        matchEndedRef.current = false;
+        setGameOverOpen(false);
+        setHeroDeadOpen(false);
+        finalizeStartedRef.current = false;
+        setTrackedSessionReady(true);
+        bump();
+      } catch (e) {
+        if (!cancelled) {
+          Alert.alert('Session', (e as Error).message || 'Failed to load brawler session');
+          navigationRef.current.goBack();
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+      trackedSessionGateRef.current = false;
+      pendingMatchTimerFromSessionRef.current = false;
+    };
+  }, [sessionId, bump]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    if (!gameOverOpen && !heroDeadOpen) return;
+    if (finalizeStartedRef.current) return;
+    finalizeStartedRef.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getTokenRef.current();
+        if (!token) throw new Error('Not authenticated');
+        const human = participantsRef.current.find((p) => !p.isBot);
+        const bot = participantsRef.current.find((p) => p.isBot);
+        const humanAlive = heroHpRef.current > 0;
+        let winnerId: string | undefined;
+        if (heroDeadOpen) {
+          winnerId = bot?.id ?? human?.id;
+        } else if (gameOverOpen) {
+          winnerId = humanAlive ? human?.id : bot?.id ?? human?.id;
+        }
+        const participantsPayload = participantsRef.current.map((p) => ({
+          participantId: p.id,
+          placement: p.id === winnerId ? 1 : 2,
+          score: 0,
+          result: (p.id === winnerId ? 'WIN' : 'LOSS') as 'WIN' | 'LOSS',
+        }));
+        await apiPost(
+          `/brawler/sessions/${encodeURIComponent(sessionId)}/finalize`,
+          {
+            winnerParticipantId: winnerId,
+            participants: participantsPayload,
+          },
+          token,
+        );
+        if (cancelled) return;
+        const labelFor = (p: TrackedParticipant) => {
+          if (p.isBot) return p.botName ?? 'Bot';
+          return p.displayNameSnapshot ?? 'You';
+        };
+        const lines = participantsPayload.map((row) => {
+          const p = participantsRef.current.find((x) => x.id === row.participantId);
+          const name = p ? labelFor(p) : row.participantId;
+          return `${name}: ${row.result}`;
+        });
+        setResultsOverlay({ title: 'Match results', lines });
+      } catch (e) {
+        if (!cancelled) {
+          Alert.alert('Finalize failed', (e as Error).message || 'Unknown error');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, gameOverOpen, heroDeadOpen]);
 
   const spawnDummiesRandomOnPlatforms = useCallback(
     (count: number, heroSpawn: { x: number; y: number }) => {
@@ -581,6 +752,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   platformsRef.current = platformsWorld;
 
   const resetArenaRound = useCallback(() => {
+    if (sessionId) {
+      navigation.replace('BrawlerLobby', { venueId: route.params.venueId });
+      return;
+    }
     if (arenaW < 32 || arenaInnerH < 32) return;
     const spawn = spawnOnBottomPlatform(
       worldW,
@@ -640,6 +815,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     devEnemiesEnabled,
     devEnemyCount,
     devMatchTimerEnabled,
+    sessionId,
+    navigation,
+    route.params.venueId,
   ]);
 
   useEffect(() => {
@@ -654,13 +832,18 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       const dt = Math.min((now - last) / 1000, 0.05);
       last = now;
 
-      const arenaReady = arenaW >= 32 && arenaInnerH >= 32;
+      const arenaReady =
+        arenaWLiveRef.current >= 32 && arenaInnerHLiveRef.current >= 32;
 
-      if (
-        arenaReady &&
-        devMatchTimerEnabled &&
-        preMatchLeftRef.current > 0
-      ) {
+      if (sessionIdLiveRef.current && !trackedSessionGateRef.current) {
+        rafRef.current = requestAnimationFrame(step);
+        return;
+      }
+
+      const matchTimerOn =
+        devMatchTimerLiveRef.current || pendingMatchTimerFromSessionRef.current;
+
+      if (arenaReady && matchTimerOn && preMatchLeftRef.current > 0) {
         const t0 = preMatchLeftRef.current;
         preMatchLeftRef.current = Math.max(0, t0 - dt);
         const ceilBefore = t0 > 0 ? Math.max(1, Math.ceil(t0)) : 0;
@@ -692,17 +875,13 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         return;
       }
 
-      if (
-        arenaReady &&
-        devMatchTimerEnabled &&
-        preMatchLeftRef.current <= 0
-      ) {
+      if (arenaReady && matchTimerOn && preMatchLeftRef.current <= 0) {
         if (!matchEndedRef.current) {
           matchClockRef.current = Math.min(
-            MATCH_MAX_S,
+            matchMaxSRef.current,
             matchClockRef.current + dt,
           );
-          if (matchClockRef.current >= MATCH_MAX_S) {
+          if (matchClockRef.current >= matchMaxSRef.current) {
             matchEndedRef.current = true;
             setGameOverOpen(true);
           }
@@ -711,7 +890,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
       if (
         arenaReady &&
-        devMatchTimerEnabled &&
+        matchTimerOn &&
         preMatchLeftRef.current <= 0 &&
         matchEndedRef.current
       ) {
@@ -1275,6 +1454,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
             vx.current = dir * 220;
             if (heroHpRef.current <= 0) {
               setHeroDeadOpen(true);
+              if (sessionId) {
+                matchEndedRef.current = true;
+              }
             }
             bump();
           }
@@ -1341,8 +1523,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     floorY,
     heroCombat,
     heroDeadOpen,
+    devMatchTimerEnabled,
     HERO_FEET_EMBED_GROUND_PLATFORM_PX,
     HERO_FEET_EMBED_FLOATING_PLATFORM_PX,
+    sessionId,
   ]);
 
   const px = Math.round(playerX.current);
@@ -1379,8 +1563,17 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     preMatchLeftRef.current > 0
       ? Math.max(1, Math.ceil(preMatchLeftRef.current))
       : 0;
+  const showPreMatchOverlay =
+    arenaReadyHud &&
+    preMatchCeil > 0 &&
+    devMatchTimerEnabled &&
+    (!sessionId || trackedSessionReady);
   const matchClockShown = matchClockRef.current;
-  const phaseShown = matchPhaseLabel(matchClockShown);
+  const phaseShown = matchPhaseLabelDyn(
+    matchClockShown,
+    matchChaosEndSRef.current,
+    matchEndgameEndSRef.current,
+  );
 
   // Sky background is oversized so parallax translation never reveals empty edges.
   const skyW = arenaW * 1.9;
@@ -1466,16 +1659,18 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         <View style={styles.hudSideRight}>
           <View style={styles.hudRightRow}>
             <Text style={styles.hudTitle}>Arena</Text>
-            <Pressable
-              onPress={() => setDevOpen((o) => !o)}
-              style={({ pressed }) => [
-                styles.devBtn,
-                pressed && styles.devBtnPressed,
-              ]}
-              accessibilityLabel="Toggle dev settings"
-            >
-              <Text style={styles.devBtnText}>Dev</Text>
-            </Pressable>
+            {!sessionId ? (
+              <Pressable
+                onPress={() => setDevOpen((o) => !o)}
+                style={({ pressed }) => [
+                  styles.devBtn,
+                  pressed && styles.devBtnPressed,
+                ]}
+                accessibilityLabel="Toggle dev settings"
+              >
+                <Text style={styles.devBtnText}>Dev</Text>
+              </Pressable>
+            ) : null}
           </View>
           <Pressable
             onPress={resetArenaRound}
@@ -1484,7 +1679,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
               pressed && styles.resetBtnPressed,
             ]}
           >
-            <Text style={styles.resetBtnText}>Reset</Text>
+            <Text style={styles.resetBtnText}>
+              {sessionId ? 'Lobby' : 'Reset'}
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -1761,7 +1958,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
             </View>
           </View>
 
-          {arenaReadyHud && preMatchCeil > 0 ? (
+          {showPreMatchOverlay ? (
             <View style={styles.preMatchOverlay}>
               <Text style={styles.preMatchLabel}>Get ready</Text>
               <Text style={styles.preMatchDigit}>{preMatchCeil}</Text>
@@ -1836,7 +2033,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         </View>
       </View>
 
-      {devOpen ? (
+      {!sessionId && devOpen ? (
         <View style={styles.devPanelOverlay} pointerEvents="box-none">
           <View style={styles.devPanel} pointerEvents="auto">
             <View style={styles.devRow}>
@@ -2000,6 +2197,33 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           </View>
         </View>
       ) : null}
+
+      {resultsOverlay ? (
+        <View style={styles.resultsOverlay} pointerEvents="box-none">
+          <View style={styles.resultsCard} pointerEvents="auto">
+            <Text style={styles.resultsTitle}>{resultsOverlay.title}</Text>
+            {resultsOverlay.lines.map((line, i) => (
+              <Text key={i} style={styles.resultsLine}>
+                {line}
+              </Text>
+            ))}
+            <Pressable
+              onPress={() => {
+                setResultsOverlay(null);
+                navigation.replace('BrawlerLobby', {
+                  venueId: route.params.venueId,
+                });
+              }}
+              style={({ pressed }) => [
+                styles.resultsBtn,
+                pressed && styles.resultsBtnPressed,
+              ]}
+            >
+              <Text style={styles.resultsBtnText}>Back to lobby</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -2130,6 +2354,51 @@ function createStyles(colors: AppColors) {
   arenaFlex: {
     flex: 1,
     overflow: 'visible',
+  },
+  resultsOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 90,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  resultsCard: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 18,
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.borderStrong,
+    gap: 10,
+  },
+  resultsTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  resultsLine: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  resultsBtn: {
+    marginTop: 6,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: '#a78bfa',
+  },
+  resultsBtnPressed: { opacity: 0.9 },
+  resultsBtnText: {
+    color: colors.textInverse,
+    fontSize: 15,
+    fontWeight: '900',
   },
   devPanelOverlay: {
     position: 'absolute',

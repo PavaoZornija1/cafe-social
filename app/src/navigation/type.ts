@@ -22,6 +22,8 @@ export type RootStackParamList = {
       heroId: string;
       venueId?: string;
       heroStats?: BrawlerArenaHeroStats;
+      /** Present for server-tracked brawler matches (multiplayer / ranked). */
+      sessionId?: string;
       soloOptions?: {
         opponentCount: number;
         difficulty: 'easy' | 'normal' | 'hard';

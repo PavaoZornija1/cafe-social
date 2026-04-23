@@ -32,7 +32,14 @@ type BrawlerHero = {
 
 type CreateSessionResponse = {
   id: string;
-  participants: Array<{ id: string }>;
+  participants: Array<{
+    id: string;
+    isBot: boolean;
+    botName?: string | null;
+    playerId?: string | null;
+    displayNameSnapshot?: string | null;
+    brawlerHeroId?: string | null;
+  }>;
 };
 
 export default function BrawlerLobbyScreen({ route, navigation }: Props) {
@@ -135,6 +142,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
         heroId: selectedHeroId,
         venueId,
         heroStats,
+        sessionId: created.id,
       });
     } catch (e) {
       Alert.alert('Error', (e as Error).message || 'Failed to start brawler session');
@@ -231,6 +239,12 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
           </View>
         )}
 
+        <View style={styles.rosterCard}>
+          <Text style={styles.rosterTitle}>Multiplayer roster</Text>
+          <Text style={styles.rosterLine}>• You (human)</Text>
+          <Text style={styles.rosterLine}>• Chaos Bot (server session)</Text>
+        </View>
+
         <View style={styles.startRow}>
           <Pressable
             onPress={onStartSolo}
@@ -248,12 +262,12 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
 
           <Pressable
             onPress={onStart}
-            disabled
+            disabled={!selectedHeroId || creating || loadingHeroes}
             style={({ pressed }) => [
               styles.startButton,
               styles.startButtonMulti,
               pressed && styles.startButtonPressed,
-              styles.startButtonDisabled,
+              (!selectedHeroId || creating || loadingHeroes) && styles.startButtonDisabled,
             ]}
           >
             <Text style={styles.startButtonText}>
@@ -437,6 +451,17 @@ function createStyles(colors: AppColors) {
     fontSize: 11,
     fontWeight: '800',
   },
+  rosterCard: {
+    marginTop: 4,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 6,
+  },
+  rosterTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  rosterLine: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
 
   soloOverlay: {
     ...StyleSheet.absoluteFillObject,
