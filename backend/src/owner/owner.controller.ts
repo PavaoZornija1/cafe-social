@@ -53,6 +53,7 @@ import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { PartnerOnboardingThrottlerFilter } from './partner-onboarding-throttle.filter';
 import { PORTAL_VENUE_CONTEXT_HEADER } from './portal-context.constants';
 import { VenueModerationService } from '../venue/venue-moderation.service';
+import { StripePartnerBillingService } from '../stripe/stripe-partner-billing.service';
 import { BanPlayerDto } from './dto/ban-player.dto';
 import { ResolveBanAppealDto } from './dto/resolve-ban-appeal.dto';
 import { DismissModerationReportDto } from './dto/dismiss-moderation-report.dto';
@@ -89,6 +90,7 @@ export class OwnerController {
     private readonly partnerOnboarding: PartnerOnboardingService,
     private readonly ownerOrgVenues: OwnerOrganizationVenueService,
     private readonly venueModeration: VenueModerationService,
+    private readonly stripePartnerBilling: StripePartnerBillingService,
   ) {}
 
   private async staffPlayerId(user: unknown): Promise<string> {
@@ -386,6 +388,41 @@ export class OwnerController {
     const email = normalizeUserEmail(user);
     if (!email) throw new UnauthorizedException('Missing user email');
     return this.staffInvites.acceptInvite(body.token, email);
+  }
+
+  @Post('organizations/:organizationId/stripe/billing-portal')
+  @UseGuards(OrganizationStaffGuard)
+  partnerStripeBillingPortal(
+    @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
+  ) {
+    return this.stripePartnerBilling.createPartnerBillingPortalSession(
+      organizationId,
+      'partner-subscriptions',
+    );
+  }
+
+  @Post('organizations/:organizationId/stripe/checkout-session')
+  @UseGuards(OrganizationStaffGuard)
+  partnerStripeCheckout(
+    @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
+    @Body() body: StripePartnerCheckoutDto,
+  ) {
+    return this.stripePartnerBilling.createPartnerCheckoutSession(organizationId, {
+      priceId: body.priceId,
+      returnKind: 'partner-subscriptions',
+    });
+  }
+
+  @Post('organizations/:organizationId/stripe/elements-subscription')
+  @UseGuards(OrganizationStaffGuard)
+  partnerStripeElementsSubscription(
+    @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
+    @Body() body: StripePartnerCheckoutDto,
+  ) {
+    return this.stripePartnerBilling.createPartnerEmbeddedSubscriptionClientSecret(
+      organizationId,
+      { priceId: body.priceId },
+    );
   }
 
   @Get('organizations/:organizationId/analytics')

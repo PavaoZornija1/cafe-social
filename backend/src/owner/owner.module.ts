@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { PushModule } from '../push/push.module';
@@ -17,6 +17,7 @@ import { PartnerVenueWriteGuard } from './partner-venue-write.guard';
 import { PartnerOpsListener } from './partner-ops.listener';
 import { PartnerOnboardingThrottlerFilter } from './partner-onboarding-throttle.filter';
 import { VenueModule } from '../venue/venue.module';
+import { StripeModule } from '../stripe/stripe.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { VenueModule } from '../venue/venue.module';
     StaffModule,
     PushModule,
     ReceiptModule,
+    forwardRef(() => StripeModule),
   ],
   controllers: [OwnerController],
   providers: [

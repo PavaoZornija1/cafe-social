@@ -275,12 +275,15 @@ export class AdminOrganizationController {
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: StripePartnerCheckoutDto,
   ) {
-    return this.stripePartner.createPartnerCheckoutSession(id, body.priceId);
+    return this.stripePartner.createPartnerCheckoutSession(id, {
+      priceId: body.priceId,
+      returnKind: 'admin-org',
+    });
   }
 
   @Post(':id/stripe/billing-portal')
   stripeBillingPortal(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.stripePartner.createPartnerBillingPortalSession(id);
+    return this.stripePartner.createPartnerBillingPortalSession(id, 'admin-org');
   }
 
   @Patch(':id/venues')

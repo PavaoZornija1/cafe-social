@@ -328,9 +328,16 @@ export class StripePartnerBillingService {
     );
   }
 
+  /**
+   * Hosted Stripe Checkout (redirect). For in-app card entry use
+   * {@link createPartnerEmbeddedSubscriptionClientSecret} + Payment Element.
+   */
   async createPartnerCheckoutSession(
     organizationId: string,
-    priceIdOverride?: string,
+    options?: {
+      priceId?: string;
+      returnKind?: 'admin-org' | 'partner-subscriptions';
+    },
   ): Promise<{ url: string }> {
     const org = await this.prisma.venueOrganization.findUnique({
       where: { id: organizationId },
@@ -338,7 +345,7 @@ export class StripePartnerBillingService {
     if (!org) throw new NotFoundException('Organization not found');
 
     const priceId =
-      priceIdOverride?.trim() ||
+      options?.priceId?.trim() ||
       this.config.get<string>('STRIPE_PARTNER_PRICE_ID')?.trim();
     if (!priceId) {
       throw new BadRequestException(
@@ -347,12 +354,21 @@ export class StripePartnerBillingService {
     }
 
     const origin = this.portalOrigin();
+    const returnKind = options?.returnKind ?? 'admin-org';
+    const success_url =
+      returnKind === 'partner-subscriptions'
+        ? `${origin}/owner/subscriptions?billing=success`
+        : `${origin}/organizations/${organizationId}?billing=success`;
+    const cancel_url =
+      returnKind === 'partner-subscriptions'
+        ? `${origin}/owner/subscriptions?billing=cancel`
+        : `${origin}/organizations/${organizationId}?billing=cancel`;
     const stripe = this.stripe();
 
     const params: Stripe.Checkout.SessionCreateParams = {
       mode: 'subscription',
-      success_url: `${origin}/organizations/${organizationId}?billing=success`,
-      cancel_url: `${origin}/organizations/${organizationId}?billing=cancel`,
+      success_url,
+      cancel_url,
       line_items: [{ price: priceId, quantity: 1 }],
       client_reference_id: organizationId,
       metadata: { organizationId },
@@ -371,8 +387,132 @@ export class StripePartnerBillingService {
     return { url: session.url };
   }
 
+  /**
+   * Incomplete subscription + PaymentIntent `client_secret` for Stripe.js Payment Element.
+   * Webhooks still drive `platformBillingStatus` in our DB.
+   */
+  async createPartnerEmbeddedSubscriptionClientSecret(
+    organizationId: string,
+    options?: { priceId?: string },
+  ): Promise<{
+    publishableKey: string;
+    clientSecret: string | null;
+    subscriptionId: string;
+    subscriptionStatus: string;
+  }> {
+    const publishableKey =
+      this.config.get<string>('STRIPE_PUBLISHABLE_KEY')?.trim() ?? '';
+    if (!publishableKey) {
+      throw new BadRequestException(
+        'STRIPE_PUBLISHABLE_KEY is required for embedded subscription checkout',
+      );
+    }
+
+    const org = await this.prisma.venueOrganization.findUnique({
+      where: { id: organizationId },
+    });
+    if (!org) throw new NotFoundException('Organization not found');
+
+    if (isPayingPartnerOrg(org.platformBillingStatus)) {
+      throw new BadRequestException(
+        'This organization already has active platform billing',
+      );
+    }
+
+    const priceId =
+      options?.priceId?.trim() ||
+      this.config.get<string>('STRIPE_PARTNER_PRICE_ID')?.trim();
+    if (!priceId) {
+      throw new BadRequestException(
+        'Set STRIPE_PARTNER_PRICE_ID on the server or pass priceId in the request body',
+      );
+    }
+
+    const stripe = this.stripe();
+
+    let customerId = org.stripeCustomerId;
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        name: org.name,
+        metadata: { organizationId: org.id },
+      });
+      customerId = customer.id;
+      await this.prisma.venueOrganization.update({
+        where: { id: org.id },
+        data: { stripeCustomerId: customerId },
+      });
+    }
+
+    const incompletes = await stripe.subscriptions.list({
+      customer: customerId,
+      status: 'incomplete',
+      limit: 30,
+    });
+    for (const s of incompletes.data) {
+      if (s.metadata?.organizationId === organizationId) {
+        await stripe.subscriptions.cancel(s.id);
+      }
+    }
+
+    const subscription = await stripe.subscriptions.create({
+      customer: customerId,
+      items: [{ price: priceId }],
+      payment_behavior: 'default_incomplete',
+      payment_settings: {
+        save_default_payment_method: 'on_subscription',
+      },
+      metadata: { organizationId },
+      expand: ['latest_invoice.payment_intent'],
+    });
+
+    if (subscription.status !== 'incomplete') {
+      return {
+        publishableKey,
+        clientSecret: null,
+        subscriptionId: subscription.id,
+        subscriptionStatus: subscription.status,
+      };
+    }
+
+    const invoice = subscription.latest_invoice;
+    if (!invoice || typeof invoice === 'string') {
+      throw new Error('Subscription missing expanded latest_invoice');
+    }
+    const inv = invoice as Stripe.Invoice;
+    const piRaw = inv.payment_intent;
+    if (!piRaw) {
+      return {
+        publishableKey,
+        clientSecret: null,
+        subscriptionId: subscription.id,
+        subscriptionStatus: subscription.status,
+      };
+    }
+
+    const paymentIntent =
+      typeof piRaw === 'string'
+        ? await stripe.paymentIntents.retrieve(piRaw)
+        : piRaw;
+    const clientSecret = paymentIntent.client_secret;
+    if (!clientSecret) {
+      throw new Error('PaymentIntent missing client_secret');
+    }
+
+    return {
+      publishableKey,
+      clientSecret,
+      subscriptionId: subscription.id,
+      subscriptionStatus: subscription.status,
+    };
+  }
+
+  /**
+   * @param returnKind Where Stripe sends the user after the portal session.
+   *  `admin-org` — platform admin org detail. `partner-subscriptions` — partner billing hub.
+   */
   async createPartnerBillingPortalSession(
     organizationId: string,
+    returnKind: 'admin-org' | 'partner-subscriptions' = 'admin-org',
   ): Promise<{ url: string }> {
     const org = await this.prisma.venueOrganization.findUnique({
       where: { id: organizationId },
@@ -380,15 +520,19 @@ export class StripePartnerBillingService {
     if (!org) throw new NotFoundException('Organization not found');
     if (!org.stripeCustomerId) {
       throw new BadRequestException(
-        'No Stripe customer on file — create a subscription via Checkout first',
+        'No Stripe customer on file — subscribe in-app or via Checkout first',
       );
     }
 
     const origin = this.portalOrigin();
+    const return_url =
+      returnKind === 'partner-subscriptions'
+        ? `${origin}/owner/subscriptions`
+        : `${origin}/organizations/${organizationId}`;
     const stripe = this.stripe();
     const portal = await stripe.billingPortal.sessions.create({
       customer: org.stripeCustomerId,
-      return_url: `${origin}/organizations/${organizationId}`,
+      return_url,
     });
     return { url: portal.url };
   }
