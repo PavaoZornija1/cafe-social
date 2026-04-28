@@ -72,6 +72,14 @@ export class PlayerController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('me/reward-claims')
+  meRewardClaims(@CurrentUser() user: unknown) {
+    const email = this.normalizeEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    return this.playerService.listMyRewardClaimsHub(email);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Patch('me/settings')
   meSettings(@CurrentUser() user: unknown, @Body() dto: UpdateMeSettingsDto) {
     const email = this.normalizeEmail(user);

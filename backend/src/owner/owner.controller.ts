@@ -41,6 +41,7 @@ import { OwnerRedemptionActionsService } from './owner-redemption-actions.servic
 import { PlayerService } from '../player/player.service';
 import { VenueReceiptService } from '../receipt/venue-receipt.service';
 import { CreateOwnerCampaignDto } from './dto/create-owner-campaign.dto';
+import { CreateOwnerCampaignBindingDto } from './dto/create-owner-campaign-binding.dto';
 import { ReviewReceiptDto } from './dto/review-receipt.dto';
 import { VoidRedemptionDto } from './dto/void-redemption.dto';
 import { PartnerOnboardingDto } from './dto/partner-onboarding.dto';
@@ -398,18 +399,6 @@ export class OwnerController {
     return this.stripePartnerBilling.createPartnerBillingPortalSession(
       organizationId,
       'partner-subscriptions',
-    );
-  }
-
-  @Get('organizations/:organizationId/stripe/embedded-subscription-setup')
-  @UseGuards(OrganizationStaffGuard)
-  partnerStripeEmbeddedSubscriptionSetup(
-    @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
-    @Query('priceId') priceId?: string,
-  ) {
-    return this.stripePartnerBilling.createPartnerEmbeddedSubscriptionClientSecret(
-      organizationId,
-      { priceId: priceId?.trim() || undefined },
     );
   }
 

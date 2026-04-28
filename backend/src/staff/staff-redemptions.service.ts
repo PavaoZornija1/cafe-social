@@ -50,21 +50,26 @@ export class StaffRedemptionsService {
       venueId: venue.id,
       venueName: venue.name,
       date: dateYmd,
-      redemptions: rows.map((r) => ({
-        redemptionId: r.id,
-        staffVerificationCode: staffVerificationCodeFromRedemptionId(r.id),
-        issuedAt: r.issuedAt.toISOString(),
-        redeemedAt: r.redeemedAt?.toISOString() ?? null,
-        expiresAt: r.expiresAt.toISOString(),
-        status:
-          r.status === 'REDEEMABLE' && r.expiresAt.getTime() <= nowMs
+      redemptions: rows.map((r) => {
+        const voided = r.voidedAt != null;
+        const status = voided
+          ? 'VOIDED'
+          : r.status === 'REDEEMABLE' && r.expiresAt.getTime() <= nowMs
             ? 'EXPIRED'
-            : r.status,
-        perkCode: r.perk.code,
-        perkTitle: r.perk.title,
-        voidedAt: r.voidedAt?.toISOString() ?? null,
-        voidReason: r.voidReason ?? null,
-      })),
+            : r.status;
+        return {
+          redemptionId: r.id,
+          staffVerificationCode: staffVerificationCodeFromRedemptionId(r.id),
+          issuedAt: r.issuedAt.toISOString(),
+          redeemedAt: r.redeemedAt?.toISOString() ?? null,
+          expiresAt: r.expiresAt.toISOString(),
+          status,
+          perkCode: r.perk.code,
+          perkTitle: r.perk.title,
+          voidedAt: r.voidedAt?.toISOString() ?? null,
+          voidReason: r.voidReason ?? null,
+        };
+      }),
     };
   }
 }

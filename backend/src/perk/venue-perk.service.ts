@@ -9,6 +9,7 @@ import { VenueService } from '../venue/venue.service';
 import { VenueModerationService } from '../venue/venue-moderation.service';
 import { VenueFunnelService } from '../venue/venue-funnel.service';
 import { staffVerificationCodeFromRedemptionId } from '../lib/redemption-staff-code';
+import { buildStaffRewardQrPayload } from '../lib/reward-claim-qr';
 
 export type VenuePerkPublicTeaserDto = {
   id: string;
@@ -95,14 +96,6 @@ export class VenuePerkService {
     return raw.trim().toUpperCase().replace(/\s+/g, '');
   }
 
-  private buildStaffQrPayload(redemptionId: string) {
-    return JSON.stringify({
-      kind: 'reward_claim',
-      redemptionId,
-      staffVerificationCode: staffVerificationCodeFromRedemptionId(redemptionId),
-    });
-  }
-
   async listMyRewardsForVenue(
     venueId: string,
     playerId: string,
@@ -112,27 +105,29 @@ export class VenuePerkService {
       include: {
         perk: { select: { id: true, code: true, title: true, subtitle: true } },
       },
-      orderBy: { redeemedAt: 'desc' },
+      orderBy: { issuedAt: 'desc' },
       take: 200,
     });
     const nowMs = Date.now();
     return rows.map((r) => {
-      const computedStatus =
-        r.status === 'REDEEMABLE' && r.expiresAt.getTime() <= nowMs
+      const voided = r.voidedAt != null;
+      const computedStatus = voided
+        ? 'VOIDED'
+        : r.status === 'REDEEMABLE' && r.expiresAt.getTime() <= nowMs
           ? 'EXPIRED'
           : r.status;
       return {
-      redemptionId: r.id,
-      perkId: r.perk.id,
-      perkCode: r.perk.code,
-      perkTitle: r.perk.title,
-      perkSubtitle: r.perk.subtitle,
-      status: computedStatus,
-      issuedAt: r.redeemedAt.toISOString(),
-      redeemedAt: r.staffAcknowledgedAt?.toISOString() ?? null,
-      expiresAt: r.expiresAt.toISOString(),
-      staffVerificationCode: staffVerificationCodeFromRedemptionId(r.id),
-      qrPayload: this.buildStaffQrPayload(r.id),
+        redemptionId: r.id,
+        perkId: r.perk.id,
+        perkCode: r.perk.code,
+        perkTitle: r.perk.title,
+        perkSubtitle: r.perk.subtitle,
+        status: computedStatus,
+        issuedAt: r.issuedAt.toISOString(),
+        redeemedAt: r.redeemedAt?.toISOString() ?? null,
+        expiresAt: r.expiresAt.toISOString(),
+        staffVerificationCode: staffVerificationCodeFromRedemptionId(r.id),
+        qrPayload: buildStaffRewardQrPayload(r.id),
       };
     });
   }
@@ -193,13 +188,18 @@ export class VenuePerkService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      const existing = await tx.venuePerkRedemption.findUnique({
+      const nowTx = new Date();
+      const activeExisting = await tx.venuePerkRedemption.findFirst({
         where: {
-          perkId_playerId: { perkId: perk.id, playerId: params.playerId },
+          perkId: perk.id,
+          playerId: params.playerId,
+          voidedAt: null,
+          status: 'REDEEMABLE',
+          expiresAt: { gt: nowTx },
         },
       });
-      if (existing) {
-        throw new ConflictException('You already redeemed this perk');
+      if (activeExisting) {
+        throw new ConflictException('You already have an active claim for this perk');
       }
 
       const refreshed = await tx.venuePerk.findUnique({ where: { id: perk.id } });
@@ -233,10 +233,10 @@ export class VenuePerkService {
         subtitle: perk.subtitle,
         body: perk.body,
         issuedAt: redemption.issuedAt.toISOString(),
-        redeemedAt: null,
+        redeemedAt: redemption.redeemedAt?.toISOString() ?? null,
         expiresAt: redemption.expiresAt.toISOString(),
         status: redemption.status,
-        qrPayload: this.buildStaffQrPayload(redemption.id),
+        qrPayload: buildStaffRewardQrPayload(redemption.id),
       };
       return out;
     }).then((out) => {
