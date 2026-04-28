@@ -589,7 +589,13 @@ export function useVenueChallengesQuery(
     queryKey: queryKeys.admin.challenges(venueId ?? ""),
     queryFn: () =>
       portalFetch<
-        { id: string; title: string; activeFrom: string | null; activeTo: string | null }[]
+        {
+          id: string;
+          title: string;
+          activeFrom: string | null;
+          activeTo: string | null;
+          rewardPerkId: string | null;
+        }[]
       >(getToken, `/admin/venues/${venueId}/challenges`, { method: "GET" }),
     enabled: Boolean(enabled && venueId),
   });
@@ -649,12 +655,14 @@ export function useStaffRedemptionsQuery(
         redemptions: {
           redemptionId: string;
           staffVerificationCode: string;
-          redeemedAt: string;
+          issuedAt: string;
+          redeemedAt: string | null;
+          expiresAt: string;
+          status: string;
           perkCode: string;
           perkTitle: string;
           voidedAt: string | null;
           voidReason: string | null;
-          staffAcknowledgedAt: string | null;
         }[];
       }>(getToken, `/owner/venues/${venueId}/redemptions?${q}`, { method: "GET" });
     },
@@ -1427,37 +1435,37 @@ export function useOwnerOrganizationCheckoutMutation(getToken: () => Promise<str
   });
 }
 
-export type OwnerElementsSubscriptionSetup = {
-  publishableKey: string;
-  clientSecret: string | null;
-  subscriptionId: string;
-  subscriptionStatus: string;
-};
-
-/** One-shot POST to create an incomplete Stripe subscription + PaymentIntent for Payment Element. */
+/** Stripe Payment Element client secret for partner subscription (embedded checkout). */
 export function useOwnerOrganizationElementsSubscriptionSetupQuery(
   getToken: () => Promise<string | null>,
   organizationId: string | null,
-  priceIdOverride: string | undefined,
+  priceId: string | undefined,
   enabled: boolean,
 ) {
-  const priceKey = priceIdOverride?.trim() ?? "";
+  const qs =
+    priceId && priceId.trim() !== ""
+      ? `?priceId=${encodeURIComponent(priceId.trim())}`
+      : "";
   return useQuery({
-    queryKey: ["owner", "organizations", organizationId, "elements-subscription", priceKey] as const,
+    queryKey: [
+      "owner",
+      "organizations",
+      organizationId ?? "",
+      "stripe-embedded-subscription-setup",
+      priceId?.trim() ?? "",
+    ] as const,
     queryFn: () =>
-      ownerJson<OwnerElementsSubscriptionSetup>(
+      ownerJson<{
+        publishableKey: string;
+        clientSecret: string | null;
+        subscriptionId: string;
+        subscriptionStatus: string;
+      }>(
         getToken,
-        `/owner/organizations/${organizationId}/stripe/elements-subscription`,
-        {
-          method: "POST",
-          body: JSON.stringify(priceKey ? { priceId: priceKey } : {}),
-          headers: { "Content-Type": "application/json" },
-        },
+        `/owner/organizations/${organizationId}/stripe/embedded-subscription-setup${qs}`,
+        { method: "GET" },
       ),
     enabled: Boolean(enabled && organizationId),
-    staleTime: 0,
-    gcTime: 0,
-    retry: false,
   });
 }
 
@@ -1554,13 +1562,7 @@ export function useDeletePerkMutation(
 export function usePatchChallengeMutation(getToken: () => Promise<string | null>, venueId?: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      id,
-      body,
-    }: {
-      id: string;
-      body: { activeFrom: string | null; activeTo: string | null };
-    }) =>
+    mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
       portalFetch(getToken, `/admin/challenges/${id}`, {
         method: "PATCH",
         body: JSON.stringify(body),

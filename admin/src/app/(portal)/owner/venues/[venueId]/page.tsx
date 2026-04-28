@@ -72,12 +72,14 @@ type VenueMetaRow = {
 type RedemptionRow = {
   redemptionId: string;
   staffVerificationCode: string;
-  redeemedAt: string;
+  issuedAt: string;
+  redeemedAt: string | null;
+  expiresAt: string;
+  status: string;
   perkCode: string;
   perkTitle: string;
   voidedAt: string | null;
   voidReason: string | null;
-  staffAcknowledgedAt: string | null;
 };
 
 function todayUtc(): string {
@@ -370,7 +372,7 @@ export default function OwnerVenueDetailPage() {
           <span className="font-mono text-amber-900">{c.getValue()}</span>
         ),
       }),
-      redemptionCol.accessor("redeemedAt", {
+      redemptionCol.accessor("issuedAt", {
         header: "Time (UTC)",
         cell: (c) => (
           <span className="text-slate-600">{new Date(c.getValue()).toISOString()}</span>
@@ -391,11 +393,7 @@ export default function OwnerVenueDetailPage() {
         header: "Status",
         cell: ({ row }) => (
           <span className="text-xs text-slate-500">
-            {row.original.voidedAt
-              ? "Voided"
-              : row.original.staffAcknowledgedAt
-                ? "Ack"
-                : "—"}
+            {row.original.status}
           </span>
         ),
       }),
@@ -411,7 +409,7 @@ export default function OwnerVenueDetailPage() {
                   readOnlyDisabled ||
                   ackMut.isPending ||
                   voidMut.isPending ||
-                  !!row.original.staffAcknowledgedAt
+                  row.original.status === "REDEEMED"
                 }
                 onClick={() => void ackMut.mutateAsync(row.original.redemptionId)}
                 className="text-xs text-brand text-left disabled:opacity-50"
