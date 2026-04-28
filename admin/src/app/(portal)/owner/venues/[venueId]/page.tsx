@@ -20,6 +20,7 @@ import { partnerVenueMutationsBlockedReason } from "@/lib/partnerVenueReadOnly";
 import {
   invalidateOwnerVenuePartnerQueries,
   ownerAnalyticsQueryString,
+  type OwnerCampaignBindingRow,
   type OwnerReceiptSummary,
   type OwnerStaffInviteRow,
   type OwnerVenueCampaignRow,
@@ -37,6 +38,9 @@ import {
   useOwnerVenueGeofenceDwellQuery,
   useOwnerVenueModerationAuditQuery,
   useOwnerVenueModerationBansQuery,
+  useOwnerAddCampaignBindingMutation,
+  useOwnerCampaignBindingsQuery,
+  useOwnerDeleteCampaignBindingMutation,
   useOwnerVenueCampaignsQuery,
   useOwnerVenueReceiptsQuery,
   useOwnerVenueModerationReportsQuery,
@@ -103,6 +107,106 @@ const perkCol = createColumnHelper<{
 const dayCountCol = createColumnHelper<{ day: string; count: number }>();
 const hourCol = createColumnHelper<{ hour: number; count: number }>();
 
+const CAMPAIGN_BINDING_TYPES = ["CHALLENGE", "VENUE_PERK", "VENUE_OFFER"] as const;
+
+function CampaignBindingsEditor({
+  venueId,
+  campaignId,
+  getToken,
+  readOnlyDisabled,
+}: {
+  venueId: string;
+  campaignId: string;
+  getToken: () => Promise<string | null>;
+  readOnlyDisabled: boolean;
+}) {
+  const bindingsQ = useOwnerCampaignBindingsQuery(venueId, campaignId, getToken, true);
+  const addMut = useOwnerAddCampaignBindingMutation(venueId, campaignId, getToken);
+  const delMut = useOwnerDeleteCampaignBindingMutation(venueId, campaignId, getToken);
+  const [entityType, setEntityType] = useState<(typeof CAMPAIGN_BINDING_TYPES)[number]>(
+    "CHALLENGE",
+  );
+  const [entityId, setEntityId] = useState("");
+
+  const rows = bindingsQ.data ?? [];
+
+  return (
+    <div className="border-t border-slate-200 bg-slate-50 p-4 space-y-3 text-sm">
+      <p className="text-xs text-slate-600">
+        Metadata links for this campaign (challenges, perks, offers at this venue). No automation
+        runs on these yet.
+      </p>
+      {bindingsQ.isPending ? <p className="text-slate-500">Loading bindings…</p> : null}
+      {bindingsQ.isError && bindingsQ.error instanceof Error ? (
+        <p className="text-red-700 text-xs">{bindingsQ.error.message}</p>
+      ) : null}
+      {rows.length === 0 && !bindingsQ.isPending ? (
+        <p className="text-xs text-slate-500">No bindings.</p>
+      ) : null}
+      <ul className="space-y-1">
+        {rows.map((b: OwnerCampaignBindingRow) => (
+          <li
+            key={b.id}
+            className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-800"
+          >
+            <span>
+              <span className="font-medium">{b.entityType}</span>{" "}
+              <code className="bg-white px-1 rounded border border-slate-200">{b.entityId}</code>
+            </span>
+            <button
+              type="button"
+              disabled={readOnlyDisabled || delMut.isPending}
+              className="text-red-700 hover:underline disabled:opacity-50"
+              onClick={() => void delMut.mutateAsync(b.id)}
+            >
+              Remove
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="flex flex-wrap gap-2 items-end pt-2 border-t border-slate-200">
+        <label className="text-xs text-slate-600 flex flex-col gap-1">
+          Type
+          <select
+            className="border border-slate-300 rounded px-2 py-1 text-sm bg-white"
+            value={entityType}
+            disabled={readOnlyDisabled}
+            onChange={(e) =>
+              setEntityType(e.target.value as (typeof CAMPAIGN_BINDING_TYPES)[number])
+            }
+          >
+            {CAMPAIGN_BINDING_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-xs text-slate-600 flex flex-col gap-1 min-w-[200px] flex-1">
+          Entity UUID
+          <input
+            className="border border-slate-300 rounded px-2 py-1 text-sm bg-white font-mono"
+            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+            value={entityId}
+            disabled={readOnlyDisabled}
+            onChange={(e) => setEntityId(e.target.value.trim())}
+          />
+        </label>
+        <button
+          type="button"
+          disabled={readOnlyDisabled || addMut.isPending || !entityId}
+          className="bg-brand text-white text-sm px-3 py-2 rounded-lg disabled:opacity-50"
+          onClick={() => {
+            void addMut.mutateAsync({ entityType, entityId }).then(() => setEntityId(""));
+          }}
+        >
+          Add binding
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function OwnerVenueDetailPage() {
   const params = useParams();
   const venueId = params.venueId as string;
@@ -128,6 +232,7 @@ export default function OwnerVenueDetailPage() {
   const [appealNotifyPlayer, setAppealNotifyPlayer] = useState<Record<string, boolean>>({});
   const [reportDismissNotes, setReportDismissNotes] = useState<Record<string, string>>({});
   const [auditOpen, setAuditOpen] = useState(false);
+  const [bindingsCampaignId, setBindingsCampaignId] = useState<string | null>(null);
 
   const STAFF_NOTE_TEMPLATES = [
     "Reviewed — no policy violation found.",
@@ -520,8 +625,25 @@ export default function OwnerVenueDetailPage() {
             <span className="text-xs text-slate-500">Sent</span>
           ),
       }),
+      campaignCol.display({
+        id: "bindings",
+        header: "",
+        cell: ({ row }) => (
+          <button
+            type="button"
+            className="text-sm text-brand"
+            onClick={() =>
+              setBindingsCampaignId((prev) =>
+                prev === row.original.id ? null : row.original.id,
+              )
+            }
+          >
+            {bindingsCampaignId === row.original.id ? "Hide bindings" : "Bindings"}
+          </button>
+        ),
+      }),
     ],
-    [readOnlyDisabled, sendCampMut],
+    [readOnlyDisabled, sendCampMut, bindingsCampaignId],
   );
 
   const campaignTable = useReactTable({
@@ -1781,22 +1903,33 @@ export default function OwnerVenueDetailPage() {
               {campaigns.length === 0 ? (
                 <p className="p-4 text-slate-500 text-sm">No campaigns yet.</p>
               ) : (
-                <table className="w-full text-sm">
-                  <tbody>
-                    {campaignTable.getRowModel().rows.map((row) => (
-                      <tr
-                        key={row.id}
-                        className="border-b border-slate-200 last:border-0 bg-brand-light/60"
-                      >
-                        {row.getVisibleCells().map((cell) => (
-                          <td key={cell.id} className="p-3">
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <>
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {campaignTable.getRowModel().rows.map((row) => (
+                        <tr
+                          key={row.id}
+                          className="border-b border-slate-200 last:border-0 bg-brand-light/60"
+                        >
+                          {row.getVisibleCells().map((cell) => (
+                            <td key={cell.id} className="p-3">
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {bindingsCampaignId ? (
+                    <CampaignBindingsEditor
+                      key={bindingsCampaignId}
+                      venueId={venueId}
+                      campaignId={bindingsCampaignId}
+                      getToken={getToken}
+                      readOnlyDisabled={readOnlyDisabled}
+                    />
+                  ) : null}
+                </>
               )}
             </div>
           </section>
