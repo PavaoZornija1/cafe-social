@@ -16,7 +16,7 @@ export class PerkExpiryReminderScheduler {
     private readonly config: ConfigService,
   ) {}
 
-  /** ~24h before perk.activeTo; runs every 4h and is idempotent per redemption. */
+  /** ~24h before redemption expiresAt; runs every 4h and is idempotent per redemption. */
   @Cron('0 */4 * * *')
   async sendUpcomingExpiryPushes(): Promise<void> {
     const raw = this.config.get<string>('PERK_EXPIRY_REMINDERS_ENABLED');
@@ -31,9 +31,8 @@ export class PerkExpiryReminderScheduler {
     const candidates = await this.prisma.venuePerkRedemption.findMany({
       where: {
         voidedAt: null,
-        perk: {
-          activeTo: { gte: lower, lte: upper },
-        },
+        status: 'REDEEMABLE',
+        expiresAt: { gte: lower, lte: upper },
       },
       select: {
         id: true,

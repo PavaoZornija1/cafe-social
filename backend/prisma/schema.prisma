@@ -118,6 +118,7 @@ model Venue {
   staffMembers     VenueStaff[]
   staffInvites     VenueStaffInvite[]
   campaigns        VenueCampaign[]
+  playerRewardGrants PlayerRewardGrant[]
   receiptSubmissions VenueReceiptSubmission[]
 
   /// Rate-limits marketing “send nudge now” from admin (see `VenueNudgeAdminService`).
@@ -342,9 +343,24 @@ model VenueCampaign {
   updatedAt       DateTime       @updatedAt
 
   venue Venue                @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  sends VenueCampaignSend[]
+  sends   VenueCampaignSend[]
+  bindings VenueCampaignBinding[]
 
   @@index([venueId])
+}
+
+/// Compositional links for a campaign (challenges, perks, offers). Metadata only — no automation runner yet.
+model VenueCampaignBinding {
+  id         String   @id @default(uuid())
+  campaignId String
+  entityType String
+  entityId   String
+  createdAt  DateTime @default(now())
+
+  campaign VenueCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, entityType, entityId])
+  @@index([campaignId])
 }
 
 model VenueCampaignSend {
@@ -488,6 +504,7 @@ model Player {
   venuePlayDays    PlayerVenuePlayDay[]
   venuePlayCountedGames PlayerVenuePlayCountedGame[]
   perkRedemptions  VenuePerkRedemption[] @relation("RedemptionGuest")
+  rewardGrants     PlayerRewardGrant[]
   offerRedemptions VenueOfferRedemption[]
 
   reportsFiled     VenuePlayerReport[] @relation("VenueReportReporter")
@@ -730,6 +747,8 @@ model VenuePerk {
 
   venue       Venue                 @relation(fields: [venueId], references: [id], onDelete: Cascade)
   redemptions VenuePerkRedemption[]
+  rewardGrants PlayerRewardGrant[]
+  challengesWithReward Challenge[] @relation("ChallengeRewardPerk")
 
   @@index([venueId])
 }
@@ -739,26 +758,60 @@ model VenuePerkRedemption {
   perkId     String
   playerId   String
   venueId    String
-  redeemedAt DateTime @default(now())
+  /// Lifecycle: REDEEMABLE | REDEEMED | EXPIRED | VOIDED | LOCKED
+  status     String   @default("REDEEMABLE")
+  /// Claims expire by default after 7 days from issue.
+  expiresAt  DateTime
+  issuedAt   DateTime @default(now())
+  redeemedAt DateTime?
 
-  staffAcknowledgedAt           DateTime?
-  staffAcknowledgedByPlayerId   String?
-  voidedAt                      DateTime?
-  voidReason                    String?
-  voidedByPlayerId              String?
+  redeemedByPlayerId String?
+  voidedAt           DateTime?
+  voidReason         String?
+  voidedByPlayerId   String?
 
-  perk                 VenuePerk @relation(fields: [perkId], references: [id], onDelete: Cascade)
-  venue                Venue     @relation("VenuePerkRedemptionVenue", fields: [venueId], references: [id], onDelete: Cascade)
-  player               Player    @relation("RedemptionGuest", fields: [playerId], references: [id], onDelete: Cascade)
-  staffAcknowledgedBy  Player?   @relation("RedemptionStaffAck", fields: [staffAcknowledgedByPlayerId], references: [id], onDelete: SetNull)
-  voidedBy             Player?   @relation("RedemptionStaffVoid", fields: [voidedByPlayerId], references: [id], onDelete: SetNull)
+  perk        VenuePerk @relation(fields: [perkId], references: [id], onDelete: Cascade)
+  venue       Venue     @relation("VenuePerkRedemptionVenue", fields: [venueId], references: [id], onDelete: Cascade)
+  player      Player    @relation("RedemptionGuest", fields: [playerId], references: [id], onDelete: Cascade)
+  redeemedBy  Player?   @relation("RedemptionStaffAck", fields: [redeemedByPlayerId], references: [id], onDelete: SetNull)
+  voidedBy    Player?   @relation("RedemptionStaffVoid", fields: [voidedByPlayerId], references: [id], onDelete: SetNull)
 
-  @@unique([perkId, playerId])
+  playerRewardGrantId String? @unique
+  playerRewardGrant   PlayerRewardGrant? @relation(fields: [playerRewardGrantId], references: [id], onDelete: SetNull)
+
+  @@index([perkId, playerId])
   @@index([playerId])
   @@index([venueId])
+  @@index([status])
+  @@index([expiresAt])
   @@index([voidedAt])
 
   expiryReminderLogs PerkExpiryReminderLog[]
+}
+
+/// Orchestrated reward issuance; optional 1:1 `VenuePerkRedemption` for staff QR fulfillment.
+model PlayerRewardGrant {
+  id               String   @id @default(uuid())
+  playerId         String
+  venueId          String
+  /// PERK for staff-redeemable QR claims today.
+  kind             String
+  perkId           String?
+  /// e.g. CHALLENGE, CAMPAIGN — compositional; automations reuse the same issuer.
+  sourceType       String
+  sourceId         String?
+  idempotencyKey   String   @unique
+  status           String   @default("ACTIVE")
+  issuedAt         DateTime @default(now())
+
+  player    Player              @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue     Venue               @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  perk      VenuePerk?          @relation(fields: [perkId], references: [id], onDelete: SetNull)
+  redemption VenuePerkRedemption?
+
+  @@index([playerId])
+  @@index([venueId])
+  @@index([sourceType, sourceId])
 }
 
 /// Expo push notification token (one row per device token; reassigned on login).
@@ -1098,6 +1151,9 @@ model Challenge {
   activeFrom DateTime?
   activeTo   DateTime?
 
+  rewardPerkId String?
+  rewardPerk   VenuePerk? @relation("ChallengeRewardPerk", fields: [rewardPerkId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1105,6 +1161,7 @@ model Challenge {
   progress ChallengeProgress[]
 
   @@index([venueId])
+  @@index([rewardPerkId])
 }
 
 /// Per-player progress for a challenge.

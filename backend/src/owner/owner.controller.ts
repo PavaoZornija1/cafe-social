@@ -401,27 +401,15 @@ export class OwnerController {
     );
   }
 
-  @Post('organizations/:organizationId/stripe/checkout-session')
+  @Get('organizations/:organizationId/stripe/embedded-subscription-setup')
   @UseGuards(OrganizationStaffGuard)
-  partnerStripeCheckout(
+  partnerStripeEmbeddedSubscriptionSetup(
     @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
-    @Body() body: StripePartnerCheckoutDto,
-  ) {
-    return this.stripePartnerBilling.createPartnerCheckoutSession(organizationId, {
-      priceId: body.priceId,
-      returnKind: 'partner-subscriptions',
-    });
-  }
-
-  @Post('organizations/:organizationId/stripe/elements-subscription')
-  @UseGuards(OrganizationStaffGuard)
-  partnerStripeElementsSubscription(
-    @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
-    @Body() body: StripePartnerCheckoutDto,
+    @Query('priceId') priceId?: string,
   ) {
     return this.stripePartnerBilling.createPartnerEmbeddedSubscriptionClientSecret(
       organizationId,
-      { priceId: body.priceId },
+      { priceId: priceId?.trim() || undefined },
     );
   }
 

@@ -20,6 +20,20 @@ export type VenuePerkPublicTeaserDto = {
   redeemedByYou: boolean;
 };
 
+export type VenueRedeemableRewardDto = {
+  redemptionId: string;
+  perkId: string;
+  perkCode: string;
+  perkTitle: string;
+  perkSubtitle: string | null;
+  status: string;
+  issuedAt: string;
+  redeemedAt: string | null;
+  expiresAt: string;
+  staffVerificationCode: string;
+  qrPayload: string;
+};
+
 @Injectable()
 export class VenuePerkService {
   constructor(
@@ -79,6 +93,48 @@ export class VenuePerkService {
 
   normalizeCode(raw: string): string {
     return raw.trim().toUpperCase().replace(/\s+/g, '');
+  }
+
+  private buildStaffQrPayload(redemptionId: string) {
+    return JSON.stringify({
+      kind: 'reward_claim',
+      redemptionId,
+      staffVerificationCode: staffVerificationCodeFromRedemptionId(redemptionId),
+    });
+  }
+
+  async listMyRewardsForVenue(
+    venueId: string,
+    playerId: string,
+  ): Promise<VenueRedeemableRewardDto[]> {
+    const rows = await this.prisma.venuePerkRedemption.findMany({
+      where: { venueId, playerId },
+      include: {
+        perk: { select: { id: true, code: true, title: true, subtitle: true } },
+      },
+      orderBy: { redeemedAt: 'desc' },
+      take: 200,
+    });
+    const nowMs = Date.now();
+    return rows.map((r) => {
+      const computedStatus =
+        r.status === 'REDEEMABLE' && r.expiresAt.getTime() <= nowMs
+          ? 'EXPIRED'
+          : r.status;
+      return {
+      redemptionId: r.id,
+      perkId: r.perk.id,
+      perkCode: r.perk.code,
+      perkTitle: r.perk.title,
+      perkSubtitle: r.perk.subtitle,
+      status: computedStatus,
+      issuedAt: r.redeemedAt.toISOString(),
+      redeemedAt: r.staffAcknowledgedAt?.toISOString() ?? null,
+      expiresAt: r.expiresAt.toISOString(),
+      staffVerificationCode: staffVerificationCodeFromRedemptionId(r.id),
+      qrPayload: this.buildStaffQrPayload(r.id),
+      };
+    });
   }
 
   async redeem(params: {
@@ -160,6 +216,8 @@ export class VenuePerkService {
           perkId: perk.id,
           playerId: params.playerId,
           venueId: params.venueId,
+          status: 'REDEEMABLE',
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         },
       });
 
@@ -174,7 +232,11 @@ export class VenuePerkService {
         title: perk.title,
         subtitle: perk.subtitle,
         body: perk.body,
-        redeemedAt: redemption.redeemedAt.toISOString(),
+        issuedAt: redemption.issuedAt.toISOString(),
+        redeemedAt: null,
+        expiresAt: redemption.expiresAt.toISOString(),
+        status: redemption.status,
+        qrPayload: this.buildStaffQrPayload(redemption.id),
       };
       return out;
     }).then((out) => {

@@ -37,6 +37,15 @@ export class VenuePerkController {
     return this.perks.listPublicTeasersForVenue(venueId, player.id);
   }
 
+  @Get(':venueId/perks/my-rewards')
+  async listMyRewards(
+    @CurrentUser() user: unknown,
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+  ) {
+    const player = await this.players.findOrCreateByEmail(this.email(user));
+    return this.perks.listMyRewardsForVenue(venueId, player.id);
+  }
+
   @Post(':venueId/perks/redeem')
   async redeem(
     @CurrentUser() user: unknown,

@@ -186,7 +186,7 @@ export class PlayerService {
     const horizon = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
     const rows = await this.prisma.venuePerkRedemption.findMany({
       where: { playerId: player.id },
-      orderBy: { redeemedAt: 'desc' },
+      orderBy: { issuedAt: 'desc' },
       include: {
         perk: {
           select: {
@@ -204,7 +204,7 @@ export class PlayerService {
 
     const items = rows.map((r) => {
       const voided = r.voidedAt != null;
-      const perkActiveTo = r.perk.activeTo;
+      const perkActiveTo = r.expiresAt;
       const msToExpiry =
         !voided && perkActiveTo && perkActiveTo.getTime() > now.getTime()
           ? perkActiveTo.getTime() - now.getTime()
@@ -220,7 +220,7 @@ export class PlayerService {
         !voided && perkActiveTo != null && perkActiveTo.getTime() <= now.getTime();
       return {
         id: r.id,
-        redeemedAt: r.redeemedAt.toISOString(),
+        redeemedAt: (r.redeemedAt ?? r.issuedAt).toISOString(),
         voided,
         venueId: r.venueId,
         venueName: r.venue.name,

@@ -37,14 +37,15 @@ export class StaffRedemptionsService {
     const rows = await this.prisma.venuePerkRedemption.findMany({
       where: {
         venueId,
-        redeemedAt: { gte: start, lte: end },
+        issuedAt: { gte: start, lte: end },
       },
-      orderBy: { redeemedAt: 'desc' },
+      orderBy: { issuedAt: 'desc' },
       include: {
         perk: { select: { code: true, title: true } },
       },
     });
 
+    const nowMs = Date.now();
     return {
       venueId: venue.id,
       venueName: venue.name,
@@ -52,12 +53,17 @@ export class StaffRedemptionsService {
       redemptions: rows.map((r) => ({
         redemptionId: r.id,
         staffVerificationCode: staffVerificationCodeFromRedemptionId(r.id),
-        redeemedAt: r.redeemedAt.toISOString(),
+        issuedAt: r.issuedAt.toISOString(),
+        redeemedAt: r.redeemedAt?.toISOString() ?? null,
+        expiresAt: r.expiresAt.toISOString(),
+        status:
+          r.status === 'REDEEMABLE' && r.expiresAt.getTime() <= nowMs
+            ? 'EXPIRED'
+            : r.status,
         perkCode: r.perk.code,
         perkTitle: r.perk.title,
         voidedAt: r.voidedAt?.toISOString() ?? null,
         voidReason: r.voidReason ?? null,
-        staffAcknowledgedAt: r.staffAcknowledgedAt?.toISOString() ?? null,
       })),
     };
   }

@@ -164,10 +164,10 @@ export class OwnerAnalyticsService {
       this.prisma.venuePerkRedemption.findMany({
         where: {
           venueId,
-          redeemedAt: { gte: start, lte: end },
+          issuedAt: { gte: start, lte: end },
         },
         select: {
-          redeemedAt: true,
+          issuedAt: true,
           playerId: true,
           voidedAt: true,
           perkId: true,
@@ -191,7 +191,7 @@ export class OwnerAnalyticsService {
       this.prisma.venuePerkRedemption.count({
         where: {
           venueId,
-          redeemedAt: { gte: start, lte: end },
+          issuedAt: { gte: start, lte: end },
           voidedAt: { not: null },
         },
       }),
@@ -199,7 +199,7 @@ export class OwnerAnalyticsService {
         by: ['perkId'],
         where: {
           venueId,
-          redeemedAt: { gte: start, lte: end },
+          issuedAt: { gte: start, lte: end },
           voidedAt: null,
         },
         _count: { id: true },
@@ -208,7 +208,7 @@ export class OwnerAnalyticsService {
 
     const activeRedemptions = redemptionsAll.filter((r) => !r.voidedAt);
 
-    const redemptionsByDay = this.countByIsoDay(activeRedemptions.map((r) => r.redeemedAt));
+    const redemptionsByDay = this.countByIsoDay(activeRedemptions.map((r) => r.issuedAt));
     const visitsByDay = new Map<string, number>();
     const uniqueVisitors = new Set<string>();
     for (const v of visitRows) {
@@ -232,10 +232,10 @@ export class OwnerAnalyticsService {
     const byHourUtc = new Array(24).fill(0) as number[];
     const byHourVenue = tz ? (new Array(24).fill(0) as number[]) : null;
     for (const r of activeRedemptions) {
-      const h = r.redeemedAt.getUTCHours();
+      const h = r.issuedAt.getUTCHours();
       byHourUtc[h] += 1;
       if (byHourVenue && tz) {
-        const hv = hourInTimeZone(r.redeemedAt, tz);
+        const hv = hourInTimeZone(r.issuedAt, tz);
         byHourVenue[hv] += 1;
       }
     }
@@ -380,10 +380,10 @@ export class OwnerAnalyticsService {
       this.prisma.venuePerkRedemption.findMany({
         where: {
           venueId: { in: venueIds },
-          redeemedAt: { gte: start, lte: end },
+          issuedAt: { gte: start, lte: end },
         },
         select: {
-          redeemedAt: true,
+          issuedAt: true,
           playerId: true,
           voidedAt: true,
           perkId: true,
@@ -407,7 +407,7 @@ export class OwnerAnalyticsService {
       this.prisma.venuePerkRedemption.count({
         where: {
           venueId: { in: venueIds },
-          redeemedAt: { gte: start, lte: end },
+          issuedAt: { gte: start, lte: end },
           voidedAt: { not: null },
         },
       }),
@@ -415,7 +415,7 @@ export class OwnerAnalyticsService {
         by: ['perkId'],
         where: {
           venueId: { in: venueIds },
-          redeemedAt: { gte: start, lte: end },
+          issuedAt: { gte: start, lte: end },
           voidedAt: null,
         },
         _count: { id: true },
@@ -423,7 +423,7 @@ export class OwnerAnalyticsService {
     ]);
 
     const activeRedemptions = redemptionsAll.filter((r) => !r.voidedAt);
-    const redemptionsByDay = this.countByIsoDay(activeRedemptions.map((r) => r.redeemedAt));
+    const redemptionsByDay = this.countByIsoDay(activeRedemptions.map((r) => r.issuedAt));
     const timelineDays = this.buildDayList(startDay, endDay);
 
     const uniqueVisitors = new Set(visitRows.map((v) => v.playerId));
@@ -448,10 +448,10 @@ export class OwnerAnalyticsService {
     const byHourUtc = new Array(24).fill(0) as number[];
     const byHourVenue = tz ? (new Array(24).fill(0) as number[]) : null;
     for (const r of activeRedemptions) {
-      const h = r.redeemedAt.getUTCHours();
+      const h = r.issuedAt.getUTCHours();
       byHourUtc[h] += 1;
       if (byHourVenue && tz) {
-        const hv = hourInTimeZone(r.redeemedAt, tz);
+        const hv = hourInTimeZone(r.issuedAt, tz);
         byHourVenue[hv] += 1;
       }
     }
@@ -529,9 +529,9 @@ export class OwnerAnalyticsService {
     const rows = await this.prisma.venuePerkRedemption.findMany({
       where: {
         venueId,
-        redeemedAt: { gte: start, lte: end },
+        issuedAt: { gte: start, lte: end },
       },
-      orderBy: { redeemedAt: 'asc' },
+      orderBy: { issuedAt: 'asc' },
       include: {
         perk: { select: { code: true, title: true } },
       },
@@ -540,26 +540,26 @@ export class OwnerAnalyticsService {
     const header = [
       'redemption_id',
       'staff_code',
-      'redeemed_at_utc',
+      'issued_at_utc',
       'perk_code',
       'perk_title',
       'player_id',
       'voided',
       'void_reason',
-      'acknowledged_utc',
+      'issued_at_utc',
     ].join(',');
 
     const lines = rows.map((r) =>
       [
         r.id,
         staffVerificationCodeFromRedemptionId(r.id),
-        r.redeemedAt.toISOString(),
+        r.issuedAt.toISOString(),
         csvEscape(r.perk.code),
         csvEscape(r.perk.title),
         r.playerId,
         r.voidedAt ? 'yes' : 'no',
         r.voidReason ? csvEscape(r.voidReason) : '',
-        r.staffAcknowledgedAt?.toISOString() ?? '',
+        r.redeemedAt?.toISOString() ?? '',
       ].join(','),
     );
 
@@ -607,9 +607,9 @@ export class OwnerAnalyticsService {
     const rows = await this.prisma.venuePerkRedemption.findMany({
       where: {
         venueId: { in: venueIds },
-        redeemedAt: { gte: start, lte: end },
+        issuedAt: { gte: start, lte: end },
       },
-      orderBy: { redeemedAt: 'asc' },
+      orderBy: { issuedAt: 'asc' },
       include: {
         perk: { select: { code: true, title: true } },
       },
@@ -620,13 +620,13 @@ export class OwnerAnalyticsService {
       'venue_name',
       'redemption_id',
       'staff_code',
-      'redeemed_at_utc',
+      'issued_at_utc',
       'perk_code',
       'perk_title',
       'player_id',
       'voided',
       'void_reason',
-      'acknowledged_utc',
+      'issued_at_utc',
     ].join(',');
 
     const lines = rows.map((r) =>
@@ -635,13 +635,13 @@ export class OwnerAnalyticsService {
         csvEscape(nameById.get(r.venueId) ?? ''),
         r.id,
         staffVerificationCodeFromRedemptionId(r.id),
-        r.redeemedAt.toISOString(),
+        r.issuedAt.toISOString(),
         csvEscape(r.perk.code),
         csvEscape(r.perk.title),
         r.playerId,
         r.voidedAt ? 'yes' : 'no',
         r.voidReason ? csvEscape(r.voidReason) : '',
-        r.staffAcknowledgedAt?.toISOString() ?? '',
+        r.redeemedAt?.toISOString() ?? '',
       ].join(','),
     );
 

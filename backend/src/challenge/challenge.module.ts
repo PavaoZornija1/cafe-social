@@ -7,11 +7,11 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { StatsModule } from '../stats/stats.module';
 import { VenueModule } from '../venue/venue.module';
+import { RewardModule } from '../reward/reward.module';
 
 @Module({
-  imports: [PrismaModule, PlayerModule, AuthModule, StatsModule, VenueModule],
+  imports: [PrismaModule, PlayerModule, AuthModule, StatsModule, VenueModule, RewardModule],
   controllers: [ChallengeController],
   providers: [ChallengeRepository, ChallengeService],
 })
 export class ChallengeModule {}
-
