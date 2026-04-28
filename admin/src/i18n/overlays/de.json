@@ -15,7 +15,51 @@
     "locationsCms": "Standorte & Inhalt (CMS)",
     "superAdminBadge": "Super-Admin",
     "language": "Sprache",
-    "loadProfileError": "Profil konnte nicht geladen werden"
+    "loadProfileError": "Profil konnte nicht geladen werden",
+    "streamlinedOnboardingLead": "Schließen Sie die Einrichtung ab, um Ihr Dashboard zu öffnen"
+  },
+  "partnerOnboarding": {
+    "accessGrantedTitle": "Sie haben bereits Zugang zu einem Standort",
+    "accessGrantedBody": "Ein Administrator hat Sie einem Standort hinzugefügt oder der Zugang wurde anders freigeschaltet. Sie müssen diesen Einrichtungsassistenten nicht abschließen. Sie werden zu Ihren Standorten weitergeleitet…",
+    "backToSetup": "← Partner-Einrichtung",
+    "backToVenues": "← Standorte-Dashboard"
+  },
+  "partnerSubscriptions": {
+    "title": "Abo & Abrechnung",
+    "lead": "Die Plattform-Abrechnung erfolgt pro Organisation. Abonnieren Sie in der App mit dem Stripe Payment Element oder nutzen Sie das gehostete Checkout — Kartendaten verlassen Stripe; Webhooks aktualisieren den Status.",
+    "backVenues": "← Standorte & Dashboard",
+    "sectionStripe": "Stripe-Abrechnung",
+    "sectionHowItWorks": "So funktioniert die Abrechnung",
+    "stepCheckout": "„In dieser App abonnieren“ öffnet ein eingebettetes Kartenformular (Stripe Elements), „Auf stripe.com zahlen“ das gehostete Checkout.",
+    "stepPortal": "Ist die Abrechnung aktiv, nutzen Sie „Stripe-Kundenportal“ für Rechnungen, Zahlungsmittel und Planänderungen.",
+    "stripeExplainer": "Rechnungen und Planänderungen laufen über das sichere Stripe-Kundenportal. Cafe Social speichert keine vollständigen Kartennummern.",
+    "noOrgs": "Ihre Standorte sind noch keiner Organisation zugeordnet. Danach erscheinen Abo und Testphase hier.",
+    "venuesLabel": "Standorte",
+    "plan": "Plan",
+    "trialEnds": "Test endet",
+    "renews": "Periode verlängert / endet",
+    "subscribeTitle": "Abo starten oder verlängern",
+    "subscribeHint": "Server: STRIPE_PARTNER_PRICE_ID und STRIPE_PUBLISHABLE_KEY für In-App-Zahlung. Optional NEXT_PUBLIC_STRIPE_PARTNER_PRICE_ID in dieser App.",
+    "subscribeEmbeddedCta": "In dieser App abonnieren",
+    "subscribeHostedCta": "Auf stripe.com zahlen",
+    "subscribeCta": "Auf stripe.com zahlen",
+    "openStripePortal": "Stripe-Kundenportal öffnen",
+    "askOwner": "Nur Owner oder Manager können das Abrechnungsportal öffnen.",
+    "savedPortalLink": "Gespeicherte Portal-URL",
+    "billingSuccess": "Zahlung abgeschlossen — Stripe synchronisiert das Abo. Aktualisieren, falls der Status nicht innerhalb einer Minute steht.",
+    "billingCancel": "Checkout abgebrochen. Keine Belastung.",
+    "dismiss": "Schließen"
+  },
+  "partnerSubscriptionPay": {
+    "title": "Zahlungsdaten",
+    "lead": "Die Karteneingabe stellt Stripe bereit (PCI). Nach der Zahlung aktualisieren Webhooks den Abrechnungsstatus Ihrer Organisation.",
+    "back": "← Abo & Abrechnung",
+    "loading": "Sichere Zahlung wird vorbereitet…",
+    "submit": "Abonnieren",
+    "missingOrg": "Organisation fehlt. Bitte unter Abo & Abrechnung eine Organisation wählen.",
+    "loadError": "Zahlung konnte nicht gestartet werden. Bitte zurück und erneut versuchen.",
+    "noPaymentStep": "Keine Karteneingabe nötig — Ihr Abo ist vermutlich schon aktiv. Weiterleitung…",
+    "unexpectedNoSecret": "Zahlungsformular konnte nicht geladen werden. Bitte gehostetes Checkout auf der Abo-Seite nutzen oder Support kontaktieren."
   },
   "picker": {
     "title": "Als Kunde ansehen",

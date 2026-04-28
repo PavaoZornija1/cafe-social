@@ -15,7 +15,51 @@
     "locationsCms": "Lokacije i sadržaj (CMS)",
     "superAdminBadge": "Super admin",
     "language": "Jezik",
-    "loadProfileError": "Profil se nije uspio učitati"
+    "loadProfileError": "Profil se nije uspio učitati",
+    "streamlinedOnboardingLead": "Dovršite postavljanje za pristup nadzornoj ploči"
+  },
+  "partnerOnboarding": {
+    "accessGrantedTitle": "Već imate pristup lokaciji",
+    "accessGrantedBody": "Administrator vas je dodao na lokaciju ili je pristup ostvaren na drugi način. Ne morate završavati ovaj čarobnjak za postavljanje. Preusmjeravamo vas na lokacije…",
+    "backToSetup": "← Postavljanje partnera",
+    "backToVenues": "← Nadzorna ploča lokacija"
+  },
+  "partnerSubscriptions": {
+    "title": "Pretplata i naplata",
+    "lead": "Naplata platforme je po organizaciji. Pretplatite se u aplikaciji putem Stripe Payment Elementa ili koristite hostani Checkout — webhookovi ažuriraju status.",
+    "backVenues": "← Lokacije i nadzorna ploča",
+    "sectionStripe": "Stripe naplata",
+    "sectionHowItWorks": "Kako naplata funkcionira",
+    "stepCheckout": "„Pretplati se u ovoj aplikaciji“ otvara ugrađeni obrazac (Stripe Elements); „Plati na stripe.com“ otvara hostani Checkout.",
+    "stepPortal": "Kad je naplata aktivna, koristite „Otvori Stripe korisnički portal“ za račune, načine plaćanja i promjene plana.",
+    "stripeExplainer": "Računi i promjene plana idu preko sigurnog Stripe portala. Cafe Social ne pohranjuje pune brojeve kartica.",
+    "noOrgs": "Vaše lokacije još nisu povezane s organizacijom. Tada će se ovdje pojaviti pretplata i probno razdoblje.",
+    "venuesLabel": "Lokacije",
+    "plan": "Plan",
+    "trialEnds": "Kraj proba",
+    "renews": "Obnova / kraj razdoblja",
+    "subscribeTitle": "Započni ili obnovi pretplatu",
+    "subscribeHint": "Poslužitelj: STRIPE_PARTNER_PRICE_ID i STRIPE_PUBLISHABLE_KEY za plaćanje u aplikaciji. Opcionalno NEXT_PUBLIC_STRIPE_PARTNER_PRICE_ID u ovoj aplikaciji.",
+    "subscribeEmbeddedCta": "Pretplati se u ovoj aplikaciji",
+    "subscribeHostedCta": "Plati na stripe.com",
+    "subscribeCta": "Plati na stripe.com",
+    "openStripePortal": "Otvori Stripe korisnički portal",
+    "askOwner": "Samo vlasnici ili menadžeri mogu otvoriti portal naplate.",
+    "savedPortalLink": "Spremljena poveznica na portal",
+    "billingSuccess": "Plaćanje dovršeno — Stripe sinkronizira pretplatu. Osvježite ako se status ne promijeni unutar minute.",
+    "billingCancel": "Checkout otkazan. Nema naplate.",
+    "dismiss": "Zatvori"
+  },
+  "partnerSubscriptionPay": {
+    "title": "Podaci za plaćanje",
+    "lead": "Polja kartice prikazuje Stripe (PCI). Nakon plaćanja webhookovi ažuriraju status naplate organizacije.",
+    "back": "← Pretplata i naplata",
+    "loading": "Priprema sigurnog plaćanja…",
+    "submit": "Pretplati se",
+    "missingOrg": "Nedostaje organizacija. Vratite se i odaberite organizaciju na stranici Pretplata i naplata.",
+    "loadError": "Plaćanje se nije moglo pokrenuti. Vratite se i pokušajte ponovno.",
+    "noPaymentStep": "Kartica nije potrebna — pretplata je možda već aktivna. Preusmjeravanje…",
+    "unexpectedNoSecret": "Obrazac za plaćanje se nije učitao. Pokušajte hostani Checkout sa stranice pretplate ili kontaktirajte podršku."
   },
   "picker": {
     "title": "Prikaz kao kupac",

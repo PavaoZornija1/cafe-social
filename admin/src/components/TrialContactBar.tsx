@@ -1,14 +1,8 @@
 "use client";
 
-function isPayingPartnerStatus(status: string): boolean {
-  const s = status?.trim().toUpperCase() ?? "NONE";
-  return (
-    s === "ACTIVE" ||
-    s === "ACTIVE_CANCELING" ||
-    s === "TRIALING" ||
-    s === "PAST_DUE"
-  );
-}
+import Link from "next/link";
+import { useTranslation } from "react-i18next";
+import { isPartnerOrgBillingActive } from "@/lib/partnerBillingStatus";
 
 type OrgLike = {
   trialEndsAt: string | null;
@@ -21,15 +15,13 @@ export function TrialContactBar({
 }: {
   organizations: OrgLike[];
 }) {
-  const salesHref =
-    process.env.NEXT_PUBLIC_SALES_CONTACT_URL?.trim() ||
-    "mailto:sales@cafesocial.example?subject=Cafe%20Social%20partner%20trial";
+  const { t } = useTranslation();
 
   const nonPayingWithTrial = organizations.filter(
     (o) =>
       o &&
       o.trialEndsAt &&
-      !isPayingPartnerStatus(o.platformBillingStatus),
+      !isPartnerOrgBillingActive(o.platformBillingStatus),
   ) as NonNullable<OrgLike>[];
 
   if (nonPayingWithTrial.length === 0) return null;
@@ -42,20 +34,26 @@ export function TrialContactBar({
     (o) => new Date(o.trialEndsAt!).getTime() > now,
   );
 
+  const cta = (
+    <Link
+      href="/owner/subscriptions"
+      className="shrink-0 inline-flex items-center justify-center rounded-xl bg-brand px-4 py-2 text-xs font-semibold text-brand-foreground shadow-md shadow-brand/25 transition hover:bg-brand-hover hover:shadow-lg hover:shadow-brand/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+    >
+      {t("admin.trialBar.manageSubscription")}
+    </Link>
+  );
+
   if (endedTrialOrgs.length > 0) {
     return (
-      <div className="border-b border-amber-300/90 bg-amber-50 px-5 py-3 text-sm flex flex-wrap items-center justify-between gap-3">
-        <p className="font-medium text-amber-950">
-          Your trial has ended
-          {endedTrialOrgs.length === 1 ? ` (${endedTrialOrgs[0]!.name})` : ""}.
-          Subscribe or contact us to restore partner editing and venue play.
-        </p>
-        <a
-          href={salesHref}
-          className="shrink-0 rounded-lg bg-amber-800 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-amber-900 transition-colors"
-        >
-          Contact sales / billing
-        </a>
+      <div className="border-b border-amber-200/90 bg-gradient-to-r from-amber-50 via-amber-50/95 to-white">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-3.5">
+          <p className="text-sm font-medium text-amber-950 leading-snug max-w-3xl">
+            {t("admin.trialBar.trialEndedLead")}
+            {endedTrialOrgs.length === 1 ? ` (${endedTrialOrgs[0]!.name})` : ""}.{" "}
+            {t("admin.trialBar.trialEndedTail")}
+          </p>
+          {cta}
+        </div>
       </div>
     );
   }
@@ -72,19 +70,18 @@ export function TrialContactBar({
       : null;
 
   return (
-    <div className="border-b border-brand-light bg-brand-light/90 text-brand px-5 py-3 text-sm flex flex-wrap items-center justify-between gap-3">
-      <p className="font-medium text-slate-800">
-        Trial active
-        {daysLeft !== null ? ` · about ${daysLeft} day${daysLeft === 1 ? "" : "s"} left` : ""}
-        {activeTrialOrgs.length === 1 ? ` (${activeTrialOrgs[0]!.name})` : ""}.
-        One location included — upgrade to add more.
-      </p>
-      <a
-        href={salesHref}
-        className="shrink-0 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-brand-foreground shadow-sm hover:bg-brand-hover transition-colors"
-      >
-        Contact sales
-      </a>
+    <div className="border-b border-brand-light/80 bg-gradient-to-r from-brand-light/95 via-brand-light/80 to-white">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-3.5">
+        <p className="text-sm font-medium text-slate-800 leading-snug max-w-3xl">
+          {t("admin.trialBar.activeLead")}
+          {daysLeft !== null
+            ? t("admin.trialBar.daysLeft", { count: daysLeft })
+            : ""}
+          {activeTrialOrgs.length === 1 ? ` (${activeTrialOrgs[0]!.name})` : ""}.{" "}
+          {t("admin.trialBar.activeTail")}
+        </p>
+        {cta}
+      </div>
     </div>
   );
 }

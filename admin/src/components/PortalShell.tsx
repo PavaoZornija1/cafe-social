@@ -54,12 +54,16 @@ export default function PortalShell({
     return Array.from(m.values());
   }, [me?.venues]);
 
+  const onboardingPathsWhileIncomplete = useMemo(() => {
+    return pathname === "/onboarding" || Boolean(pathname?.startsWith("/owner/accept-invite"));
+  }, [pathname]);
+
   useEffect(() => {
     if (!isLoaded || !me) return;
-    if (me.needsPartnerOnboarding && pathname !== "/onboarding") {
+    if (me.needsPartnerOnboarding && !onboardingPathsWhileIncomplete) {
       router.replace("/onboarding");
     }
-  }, [isLoaded, me, pathname, router]);
+  }, [isLoaded, me, onboardingPathsWhileIncomplete, router]);
 
   if (!isLoaded) {
     return (
@@ -91,6 +95,53 @@ export default function PortalShell({
 
   const isSa = me?.platformRole === "SUPER_ADMIN";
   const showPartnerCmsLink = !isSa && partnerHasCmsAccess(me);
+
+  const isStreamlinedPartnerSetup =
+    Boolean(me?.needsPartnerOnboarding) && onboardingPathsWhileIncomplete;
+
+  if (isStreamlinedPartnerSetup) {
+    return (
+      <div className="min-h-screen text-slate-900 bg-gradient-to-br from-brand-lighter via-[var(--background)] to-white">
+        <header className="sticky top-0 z-20 border-b border-slate-200/90 bg-white/90 backdrop-blur-md">
+          <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+            <Link href="/onboarding" className="flex items-center gap-3 group shrink-0">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-foreground text-xs font-bold tracking-tight shadow-md shadow-brand/30 transition-transform group-hover:scale-[1.02]">
+                CS
+              </div>
+              <div className="min-w-0">
+                <p className="text-[13px] font-semibold text-brand leading-tight tracking-tight">
+                  {t("admin.shell.brand")}
+                </p>
+                <p className="text-[11px] text-brand-muted font-medium mt-0.5 tracking-wide">
+                  {t("admin.shell.streamlinedOnboardingLead")}
+                </p>
+              </div>
+            </Link>
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+              <div className="w-[min(100%,9.5rem)]">
+                <AdminLanguageSelect />
+              </div>
+              <UserButton
+                appearance={{
+                  elements: {
+                    userButtonAvatarBox: "h-8 w-8 rounded-lg ring-2 ring-white shadow-sm",
+                  },
+                }}
+              />
+            </div>
+          </div>
+        </header>
+        <main className="mx-auto min-h-[calc(100vh-3.5rem)] min-w-0">
+          {err ? (
+            <div className="m-4 rounded-2xl border border-red-200/90 bg-red-50/90 text-red-800 text-sm p-4 shadow-sm backdrop-blur-sm">
+              {err}
+            </div>
+          ) : null}
+          {children}
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen text-slate-900">
@@ -174,9 +225,25 @@ export default function PortalShell({
               <>
                 <Link
                   href="/owner/venues"
-                  className={navClass(pathname?.startsWith("/owner/venues") ?? false)}
+                  className={navClass(
+                    Boolean(pathname?.startsWith("/owner/venues")) &&
+                      !pathname?.startsWith("/owner/analytics") &&
+                      !pathname?.startsWith("/owner/subscriptions"),
+                  )}
                 >
                   {t("admin.shell.venuesAndDashboard")}
+                </Link>
+                <Link
+                  href="/owner/analytics"
+                  className={navClass(pathname?.startsWith("/owner/analytics") ?? false)}
+                >
+                  {t("admin.shell.statistics")}
+                </Link>
+                <Link
+                  href="/owner/subscriptions"
+                  className={navClass(pathname?.startsWith("/owner/subscriptions") ?? false)}
+                >
+                  {t("admin.shell.subscriptions")}
                 </Link>
                 {showPartnerCmsLink ? (
                   <Link

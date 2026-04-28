@@ -1395,6 +1395,72 @@ export function useOwnerOrganizationAnalyticsQuery(
   });
 }
 
+/** Stripe Customer Portal for partners (invoices, payment methods, subscription). */
+export function useOwnerOrganizationBillingPortalMutation(
+  getToken: () => Promise<string | null>,
+) {
+  return useMutation({
+    mutationFn: (organizationId: string) =>
+      ownerJson<{ url: string }>(
+        getToken,
+        `/owner/organizations/${organizationId}/stripe/billing-portal`,
+        { method: "POST", body: "{}", headers: { "Content-Type": "application/json" } },
+      ),
+  });
+}
+
+/** Stripe Checkout (subscription) — partner starts paid plan / enters card on Stripe-hosted page. */
+export function useOwnerOrganizationCheckoutMutation(getToken: () => Promise<string | null>) {
+  return useMutation({
+    mutationFn: (args: { organizationId: string; priceId?: string }) =>
+      ownerJson<{ url: string }>(
+        getToken,
+        `/owner/organizations/${args.organizationId}/stripe/checkout-session`,
+        {
+          method: "POST",
+          body: JSON.stringify(
+            args.priceId?.trim() ? { priceId: args.priceId.trim() } : {},
+          ),
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+  });
+}
+
+export type OwnerElementsSubscriptionSetup = {
+  publishableKey: string;
+  clientSecret: string | null;
+  subscriptionId: string;
+  subscriptionStatus: string;
+};
+
+/** One-shot POST to create an incomplete Stripe subscription + PaymentIntent for Payment Element. */
+export function useOwnerOrganizationElementsSubscriptionSetupQuery(
+  getToken: () => Promise<string | null>,
+  organizationId: string | null,
+  priceIdOverride: string | undefined,
+  enabled: boolean,
+) {
+  const priceKey = priceIdOverride?.trim() ?? "";
+  return useQuery({
+    queryKey: ["owner", "organizations", organizationId, "elements-subscription", priceKey] as const,
+    queryFn: () =>
+      ownerJson<OwnerElementsSubscriptionSetup>(
+        getToken,
+        `/owner/organizations/${organizationId}/stripe/elements-subscription`,
+        {
+          method: "POST",
+          body: JSON.stringify(priceKey ? { priceId: priceKey } : {}),
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    enabled: Boolean(enabled && organizationId),
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+  });
+}
+
 /** For super-admin org detail — loads all venue rows for link checkboxes (paged on the server). */
 export function useAdminVenuesForOrgLinkQuery(
   getToken: () => Promise<string | null>,

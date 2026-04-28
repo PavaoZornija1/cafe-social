@@ -5,7 +5,8 @@ import { useForm, useStore } from "@tanstack/react-form";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { GeofencePolygonGeoJson } from "@/components/VenueGeofenceMap";
 import { CitySelect } from "@/components/ui/CitySelect";
 import { CountrySelect } from "@/components/ui/CountrySelect";
@@ -24,6 +25,7 @@ const STEPS = 4;
 
 export default function PartnerOnboardingPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { isLoaded, getToken } = useAuth();
   const [step, setStep] = useState(0);
   const [submitErr, setSubmitErr] = useState<string | null>(null);
@@ -32,6 +34,8 @@ export default function PartnerOnboardingPage() {
   const [mapLayoutKey, setMapLayoutKey] = useState(0);
   const meQ = usePortalMeQuery(getToken, isLoaded);
   const onboardMut = usePartnerOnboardingMutation(getToken);
+  const prevNeedsOnboardingRef = useRef<boolean | null>(null);
+  const [accessGrantedMidFlow, setAccessGrantedMidFlow] = useState(false);
 
   const form = useForm({
     defaultValues: {
@@ -83,13 +87,45 @@ export default function PartnerOnboardingPage() {
 
   useEffect(() => {
     if (!meQ.data || meQ.isPending) return;
-    if (!meQ.data.needsPartnerOnboarding) {
-      router.replace("/owner/venues");
+    const needs = meQ.data.needsPartnerOnboarding;
+
+    if (prevNeedsOnboardingRef.current === null) {
+      prevNeedsOnboardingRef.current = needs;
+      if (!needs) {
+        router.replace("/owner/venues");
+      }
+      return;
     }
+
+    if (prevNeedsOnboardingRef.current === true && needs === false) {
+      setAccessGrantedMidFlow(true);
+      const id = window.setTimeout(() => {
+        router.replace("/owner/venues");
+      }, 2400);
+      prevNeedsOnboardingRef.current = false;
+      return () => window.clearTimeout(id);
+    }
+
+    prevNeedsOnboardingRef.current = needs;
   }, [meQ.data, meQ.isPending, router]);
 
   if (!isLoaded) {
     return <div className="p-8 text-slate-600 text-sm">Loading…</div>;
+  }
+
+  if (accessGrantedMidFlow) {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md rounded-2xl border border-emerald-200/90 bg-emerald-50/90 px-6 py-8 text-center shadow-sm">
+          <h1 className="text-lg font-semibold text-emerald-950">
+            {t("admin.partnerOnboarding.accessGrantedTitle")}
+          </h1>
+          <p className="mt-3 text-sm text-emerald-900/90 leading-relaxed">
+            {t("admin.partnerOnboarding.accessGrantedBody")}
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (

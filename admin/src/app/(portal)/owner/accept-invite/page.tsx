@@ -5,13 +5,17 @@ import { useAuth } from '@clerk/nextjs';
 import { useForm } from '@tanstack/react-form';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect } from 'react';
-import { useAcceptStaffInviteMutation } from '@/lib/queries';
+import { useTranslation } from 'react-i18next';
+import { useAcceptStaffInviteMutation, usePortalMeQuery } from '@/lib/queries';
 
 function AcceptStaffInviteInner() {
+  const { t } = useTranslation();
   const searchParams = useSearchParams();
   const initial = searchParams.get('token') ?? '';
   const { getToken, isLoaded, isSignedIn } = useAuth();
+  const meQ = usePortalMeQuery(getToken, isLoaded);
   const acceptMut = useAcceptStaffInviteMutation(getToken);
+  const needsOnboarding = Boolean(meQ.data?.needsPartnerOnboarding);
 
   const form = useForm({
     defaultValues: { token: initial },
@@ -28,8 +32,13 @@ function AcceptStaffInviteInner() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 p-8 max-w-lg mx-auto">
-      <Link href="/owner/venues" className="text-sm text-brand hover:underline">
-        ← Venues
+      <Link
+        href={needsOnboarding ? '/onboarding' : '/owner/venues'}
+        className="text-sm text-brand hover:underline"
+      >
+        {needsOnboarding
+          ? t('admin.partnerOnboarding.backToSetup')
+          : t('admin.partnerOnboarding.backToVenues')}
       </Link>
       <h1 className="text-xl font-semibold mt-4">Accept staff invite</h1>
       <p className="text-sm text-slate-600 mt-2">
