@@ -4,6 +4,7 @@ import { WordService } from './word.service';
 import { WordRepository } from './word.repository';
 import { WordMatchController } from './word-match.controller';
 import { WordMatchService } from './word-match.service';
+import { WordMatchLiveRedisService } from './word-match-live-redis.service';
 import { WordMatchGateway } from './word-match.gateway';
 import { WordMatchCleanupService } from './word-match-cleanup.service';
 import { DailyWordController } from './daily-word.controller';
@@ -31,6 +32,7 @@ import { StatsModule } from '../stats/stats.module';
     WordService,
     WordRepository,
     WordMatchService,
+    WordMatchLiveRedisService,
     WordMatchGateway,
     WordMatchCleanupService,
     DailyWordService,

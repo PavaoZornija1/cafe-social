@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -24,6 +25,12 @@ import {
 import { RecordBrawlerEventsDto } from './dto/record-brawler-events.dto';
 import { FinalizeBrawlerSessionDto } from './dto/finalize-brawler-session.dto';
 import type { EnqueueBrawlerMatchQueueDto } from './dto/enqueue-brawler-match-queue.dto';
+import { BrawlerLiveRedisService } from './brawler-live-redis.service';
+import { resolveIfSnapshotRev } from '../game-runtime/snapshot-rev.util';
+
+type BrawlerSessionView = NonNullable<Awaited<ReturnType<BrawlerRepository['findSessionById']>>>;
+
+export type BrawlerSessionPayload = BrawlerSessionView & { snapshotRev: number | null };
 
 @Injectable()
 export class BrawlerService {
@@ -34,7 +41,34 @@ export class BrawlerService {
     private readonly venuePlayLimit: VenuePlayLimitService,
     private readonly venues: VenueService,
     private readonly gameXp: GameXpAwardService,
+    private readonly brawlerLive: BrawlerLiveRedisService,
   ) {}
+
+  private async syncBrawlerSnapshot(sessionId: string): Promise<void> {
+    await this.brawlerLive.refreshSnapshot(sessionId);
+  }
+
+  private async readBrawlerSnapshotRev(sessionId: string): Promise<number | null> {
+    const env = await this.brawlerLive.readSession(sessionId);
+    return env?.rev ?? null;
+  }
+
+  private async assertBrawlerIfSnapshotRev(
+    sessionId: string,
+    expected: number | undefined,
+  ): Promise<void> {
+    if (expected === undefined) return;
+    const env = await this.brawlerLive.readSession(sessionId);
+    if (!env) return;
+    if (env.rev !== expected) {
+      throw new ConflictException({
+        statusCode: 409,
+        error: 'Conflict',
+        message: 'snapshot revision mismatch',
+        currentRev: env.rev,
+      });
+    }
+  }
 
   private async assertAtVenueIfNeeded(
     sessionVenueId: string | null | undefined,
@@ -123,7 +157,7 @@ export class BrawlerService {
         ? ({ ranked: rankedReq } as Prisma.InputJsonValue)
         : undefined;
 
-    return this.brawlerRepo.createSession({
+    const created = await this.brawlerRepo.createSession({
       venueId: dto.venueId,
       partyId: dto.partyId,
       config,
@@ -150,15 +184,29 @@ export class BrawlerService {
         };
       }),
     });
+    await this.syncBrawlerSnapshot(created.id);
+    return {
+      ...created,
+      snapshotRev: await this.readBrawlerSnapshotRev(created.id),
+    };
   }
 
-  async getSession(sessionId: string) {
+  async getSession(sessionId: string): Promise<BrawlerSessionPayload> {
+    const env = await this.brawlerLive.readSession(sessionId);
+    if (env?.session) {
+      return { ...(env.session as BrawlerSessionView), snapshotRev: env.rev };
+    }
     const session = await this.brawlerRepo.findSessionById(sessionId);
     if (!session) throw new NotFoundException('session not found');
-    return session;
+    await this.syncBrawlerSnapshot(sessionId);
+    return {
+      ...session,
+      snapshotRev: await this.readBrawlerSnapshotRev(sessionId),
+    };
   }
 
-  async startSession(sessionId: string, email: string) {
+  async startSession(sessionId: string, email: string, ifSnapshotRev?: number) {
+    await this.assertBrawlerIfSnapshotRev(sessionId, ifSnapshotRev);
     const session = await this.brawlerRepo.startSession(sessionId);
     if (!session) throw new NotFoundException('session not found');
     if (session.status !== GameSessionStatus.ACTIVE) {
@@ -174,10 +222,15 @@ export class BrawlerService {
         }
       }
     }
-    return session;
+    await this.syncBrawlerSnapshot(sessionId);
+    return {
+      ...session,
+      snapshotRev: await this.readBrawlerSnapshotRev(sessionId),
+    };
   }
 
-  async abandonSession(sessionId: string, email: string) {
+  async abandonSession(sessionId: string, email: string, ifSnapshotRev?: number) {
+    await this.assertBrawlerIfSnapshotRev(sessionId, ifSnapshotRev);
     const existing = await this.brawlerRepo.findSessionById(sessionId);
     if (!existing) throw new NotFoundException('session not found');
     if (existing.gameType !== GameType.BRAWLER) {
@@ -202,10 +255,18 @@ export class BrawlerService {
         endedAt: new Date(),
       },
     });
-    return { ok: true as const };
+    await this.syncBrawlerSnapshot(sessionId);
+    return {
+      ok: true as const,
+      snapshotRev: await this.readBrawlerSnapshotRev(sessionId),
+    };
   }
 
-  async recordEvents(sessionId: string, dto: RecordBrawlerEventsDto) {
+  async recordEvents(sessionId: string, dto: RecordBrawlerEventsDto, ifMatchHeader?: string) {
+    await this.assertBrawlerIfSnapshotRev(
+      sessionId,
+      resolveIfSnapshotRev(ifMatchHeader, dto.ifSnapshotRev),
+    );
     const session = await this.brawlerRepo.findSessionById(sessionId);
     if (!session) throw new NotFoundException('session not found');
     if (session.status !== GameSessionStatus.ACTIVE) {
@@ -233,10 +294,18 @@ export class BrawlerService {
       })),
     );
 
-    return { inserted: created.count };
+    await this.syncBrawlerSnapshot(sessionId);
+    return {
+      inserted: created.count,
+      snapshotRev: await this.readBrawlerSnapshotRev(sessionId),
+    };
   }
 
-  async finalizeSession(sessionId: string, dto: FinalizeBrawlerSessionDto) {
+  async finalizeSession(sessionId: string, dto: FinalizeBrawlerSessionDto, ifMatchHeader?: string) {
+    await this.assertBrawlerIfSnapshotRev(
+      sessionId,
+      resolveIfSnapshotRev(ifMatchHeader, dto.ifSnapshotRev),
+    );
     const existingSession = await this.brawlerRepo.findSessionById(sessionId);
     if (!existingSession) throw new NotFoundException('session not found');
     if (existingSession.status === GameSessionStatus.FINISHED) {
@@ -262,7 +331,11 @@ export class BrawlerService {
       participants: dto.participants,
     });
     void this.gameXp.tryAwardSessionWinXp(sessionId);
-    return session;
+    await this.syncBrawlerSnapshot(sessionId);
+    return {
+      ...session,
+      snapshotRev: await this.readBrawlerSnapshotRev(sessionId),
+    };
   }
 
   async enqueueVenueBrawlerMatch(email: string, dto: EnqueueBrawlerMatchQueueDto) {
@@ -471,6 +544,7 @@ export class BrawlerService {
         }
       }
     }
+    await this.syncBrawlerSnapshot(sessionId);
   }
 
   private validateParticipants(participants: CreateBrawlerParticipantDto[]) {

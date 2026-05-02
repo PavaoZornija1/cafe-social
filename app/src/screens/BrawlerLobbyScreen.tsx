@@ -33,6 +33,7 @@ type BrawlerHero = {
 
 type CreateSessionResponse = {
   id: string;
+  snapshotRev?: number | null;
   participants: Array<{
     id: string;
     isBot: boolean;
@@ -130,7 +131,11 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
         token,
       );
 
-      await apiPost(`/brawler/sessions/${encodeURIComponent(created.id)}/start`, {}, token);
+      await apiPost(
+        `/brawler/sessions/${encodeURIComponent(created.id)}/start`,
+        typeof created.snapshotRev === 'number' ? { ifSnapshotRev: created.snapshotRev } : {},
+        token,
+      );
 
       const heroStats: BrawlerArenaHeroStats | undefined = selectedHero
         ? {

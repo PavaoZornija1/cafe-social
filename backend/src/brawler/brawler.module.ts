@@ -6,12 +6,13 @@ import { VenueModule } from '../venue/venue.module';
 import { BrawlerController } from './brawler.controller';
 import { BrawlerService } from './brawler.service';
 import { BrawlerRepository } from './brawler.repository';
+import { BrawlerLiveRedisService } from './brawler-live-redis.service';
 import { StatsModule } from '../stats/stats.module';
 
 @Module({
   imports: [PrismaModule, PlayerModule, AuthModule, VenueModule, StatsModule],
   controllers: [BrawlerController],
-  providers: [BrawlerService, BrawlerRepository],
+  providers: [BrawlerService, BrawlerRepository, BrawlerLiveRedisService],
 })
 export class BrawlerModule {}
 

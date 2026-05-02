@@ -520,6 +520,7 @@
     "loadError": "Nije moguće učitati riječi",
     "emptyDeck": "Trenutno nema dostupnih riječi. Pokušaj kasnije.",
     "wrongGuess": "Ne baš — pokušaj ponovno.",
+    "snapshotStaleRetry": "Stanje se promijenilo — pokušaj ponovno.",
     "matchDeckError": "Nije moguće učitati riječi. Zamoli domaćina da pokrene.",
     "needVenuePresence": "Uključi lokaciju i budi u ovom kafiću za igranje.",
     "needVenueForMatch": "Uključi lokaciju i budi na lokalu ovog meča.",

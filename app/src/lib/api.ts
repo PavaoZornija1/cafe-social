@@ -32,10 +32,16 @@ async function handleResponse<T>(res: Response): Promise<T> {
       const maybeMessage = (body as Json & { message?: unknown }).message;
       if (typeof maybeMessage === 'string') {
         message = maybeMessage;
+      } else if (maybeMessage != null && typeof maybeMessage === 'object') {
+        const m = (maybeMessage as Json & { message?: unknown }).message;
+        if (typeof m === 'string') message = m;
       }
     }
 
-    throw new Error(message);
+    const err = new Error(message) as Error & { status?: number; body?: unknown };
+    err.status = res.status;
+    err.body = body;
+    throw err;
   }
 
   return body as T;

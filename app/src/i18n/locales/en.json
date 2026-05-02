@@ -520,6 +520,7 @@
     "loadError": "Failed to load word deck",
     "emptyDeck": "No words are available right now. Try again later.",
     "wrongGuess": "Not quite — try again.",
+    "snapshotStaleRetry": "The room updated — try your action again.",
     "matchDeckError": "Could not load match deck. Ask the host to start the game.",
     "needVenuePresence": "Enable location and be at this café to play.",
     "needVenueForMatch": "Enable location and be at the venue for this match.",

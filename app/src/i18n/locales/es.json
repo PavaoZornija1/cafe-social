@@ -520,6 +520,7 @@
     "loadError": "No se pudo cargar el mazo",
     "emptyDeck": "No hay palabras disponibles ahora. Inténtalo más tarde.",
     "wrongGuess": "No es correcto — inténtalo de nuevo.",
+    "snapshotStaleRetry": "La partida cambió — inténtalo otra vez.",
     "matchDeckError": "No se pudo cargar la lista. Pide al anfitrión que inicie.",
     "needVenuePresence": "Activa la ubicación y entra en este café para jugar.",
     "needVenueForMatch": "Activa la ubicación y entra en el local de esta partida.",

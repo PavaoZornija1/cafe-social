@@ -520,6 +520,7 @@
     "loadError": "Wortliste konnte nicht geladen werden",
     "emptyDeck": "Gerade sind keine Wörter verfügbar. Bitte später erneut versuchen.",
     "wrongGuess": "Noch nicht — versuch es noch einmal.",
+    "snapshotStaleRetry": "Der Raum hat sich geändert — bitte noch einmal.",
     "matchDeckError": "Wortliste konnte nicht geladen werden. Bitte den Host starten lassen.",
     "needVenuePresence": "Standort aktivieren und im Café sein, um zu spielen.",
     "needVenueForMatch": "Standort aktivieren und am Ort dieses Matches sein.",

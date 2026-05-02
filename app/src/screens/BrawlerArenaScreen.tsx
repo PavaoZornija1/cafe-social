@@ -277,6 +277,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const { heroId, heroStats: heroStatsParam } = route.params;
   const insets = useSafeAreaInsets();
   const sessionId = route.params.sessionId;
+
+  useEffect(() => {
+    brawlerSnapshotRevRef.current = undefined;
+  }, [sessionId]);
   const { getToken } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
@@ -296,6 +300,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   };
   const participantsRef = useRef<TrackedParticipant[]>([]);
   const finalizeStartedRef = useRef(false);
+  const brawlerSnapshotRevRef = useRef<number | undefined>(undefined);
   /** Venue 1v1 queue: two humans, no bot — real-time PvP not wired yet; gate gameplay and show notice. */
   const [venueTwoHumanHold, setVenueTwoHumanHold] = useState(false);
   const venueTwoHumanHoldRef = useRef(false);
@@ -474,6 +479,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         const token = await getTokenRef.current();
         if (!token) throw new Error('Not authenticated');
         const session = await apiGet<{
+          snapshotRev?: number | null;
           participants: TrackedParticipant[];
           brawlerSession: {
             chaosDurationMs: number;
@@ -482,6 +488,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           } | null;
         }>(`/brawler/sessions/${encodeURIComponent(sessionId)}`, token);
         if (cancelled) return;
+        if (typeof session.snapshotRev === 'number') {
+          brawlerSnapshotRevRef.current = session.snapshotRev;
+        }
         const parts = session.participants ?? [];
         participantsRef.current = parts;
         const humanOnly = parts.filter((p) => p.playerId && !p.isBot);
@@ -567,6 +576,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           {
             winnerParticipantId: winnerId,
             participants: participantsPayload,
+            ...(typeof brawlerSnapshotRevRef.current === 'number'
+              ? { ifSnapshotRev: brawlerSnapshotRevRef.current }
+              : {}),
           },
           token,
         );
@@ -1661,7 +1673,13 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     try {
       const token = await getTokenRef.current();
       if (token) {
-        await apiPost(`/brawler/sessions/${encodeURIComponent(sessionId)}/abandon`, {}, token);
+        await apiPost(
+          `/brawler/sessions/${encodeURIComponent(sessionId)}/abandon`,
+          typeof brawlerSnapshotRevRef.current === 'number'
+            ? { ifSnapshotRev: brawlerSnapshotRevRef.current }
+            : {},
+          token,
+        );
       }
     } catch {
       /* */

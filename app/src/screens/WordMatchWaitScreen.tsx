@@ -33,6 +33,7 @@ type MatchState = {
   deckLanguage?: string;
   deckCategory?: string | null;
   participants: { playerId: string | null; username: string; isYou: boolean }[];
+  snapshotRev?: number | null;
 };
 
 export default function WordMatchWaitScreen({ navigation, route }: Props) {
@@ -218,7 +219,13 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
       setStarting(true);
       const token = await getTokenRef.current();
       if (!token) throw new Error(t('qr.notAuthenticated'));
-      await apiPost(`/words/matches/${encodeURIComponent(sessionId)}/start`, {}, token);
+      await apiPost(
+        `/words/matches/${encodeURIComponent(sessionId)}/start`,
+        typeof matchState?.snapshotRev === 'number'
+          ? { ifSnapshotRev: matchState.snapshotRev }
+          : {},
+        token,
+      );
       const s = await apiGet<MatchState>(
         `/words/matches/${encodeURIComponent(sessionId)}/state`,
         token,
@@ -237,7 +244,13 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
         try {
           const token = await getTokenRef.current();
           if (token) {
-            await apiPost(`/words/matches/${encodeURIComponent(sessionId)}/leave`, {}, token);
+            await apiPost(
+              `/words/matches/${encodeURIComponent(sessionId)}/leave`,
+              typeof matchState?.snapshotRev === 'number'
+                ? { ifSnapshotRev: matchState.snapshotRev }
+                : {},
+              token,
+            );
           }
         } catch {
           /* still navigate away */

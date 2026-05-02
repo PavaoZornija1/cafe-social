@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   ParseUUIDPipe,
   Post,
@@ -21,6 +22,8 @@ import {
   EnqueueBrawlerMatchQueueDto,
   LeaveBrawlerMatchQueueDto,
 } from './dto/enqueue-brawler-match-queue.dto';
+import { BrawlerIfRevDto } from './dto/brawler-if-rev.dto';
+import { resolveIfSnapshotRev } from '../game-runtime/snapshot-rev.util';
 
 @Controller('brawler')
 @UseGuards(JwtAuthGuard)
@@ -55,32 +58,46 @@ export class BrawlerController {
   startSession(
     @CurrentUser() user: unknown,
     @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Headers('if-match') ifMatch: string | undefined,
+    @Body() meta: BrawlerIfRevDto,
   ) {
-    return this.brawler.startSession(sessionId, this.email(user));
+    return this.brawler.startSession(
+      sessionId,
+      this.email(user),
+      resolveIfSnapshotRev(ifMatch, meta.ifSnapshotRev),
+    );
   }
 
   @Post('sessions/:sessionId/events')
   recordEvents(
     @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Headers('if-match') ifMatch: string | undefined,
     @Body() dto: RecordBrawlerEventsDto,
   ) {
-    return this.brawler.recordEvents(sessionId, dto);
+    return this.brawler.recordEvents(sessionId, dto, ifMatch);
   }
 
   @Post('sessions/:sessionId/finalize')
   finalizeSession(
     @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Headers('if-match') ifMatch: string | undefined,
     @Body() dto: FinalizeBrawlerSessionDto,
   ) {
-    return this.brawler.finalizeSession(sessionId, dto);
+    return this.brawler.finalizeSession(sessionId, dto, ifMatch);
   }
 
   @Post('sessions/:sessionId/abandon')
   abandonSession(
     @CurrentUser() user: unknown,
     @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Headers('if-match') ifMatch: string | undefined,
+    @Body() meta: BrawlerIfRevDto,
   ) {
-    return this.brawler.abandonSession(sessionId, this.email(user));
+    return this.brawler.abandonSession(
+      sessionId,
+      this.email(user),
+      resolveIfSnapshotRev(ifMatch, meta.ifSnapshotRev),
+    );
   }
 
   @Post('queue/enqueue')

@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional } from 'class-validator';
+import { IsInt, IsNumber, IsOptional } from 'class-validator';
 
 export class MatchPassDto {
   @IsOptional()
@@ -8,4 +8,8 @@ export class MatchPassDto {
   @IsOptional()
   @IsNumber()
   longitude?: number;
+
+  @IsOptional()
+  @IsInt()
+  ifSnapshotRev?: number;
 }
