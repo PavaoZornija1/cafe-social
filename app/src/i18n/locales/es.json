@@ -221,6 +221,7 @@
     "linkFriends": "Amigos",
     "linkParties": "Grupos",
     "linkPeopleHere": "Quién hay aquí",
+    "linkRewardsHub": "Centro de recompensas",
     "linkRedeemInvite": "Canjear invitación",
     "linkDailyWord": "Palabra del día",
     "linkWordRooms": "Salas de palabras",
@@ -299,7 +300,20 @@
     "perkRedeemCta": "Canjear",
     "lockedAtVenueHint": "Activa la ubicación o completa el check-in para juegos en el local y algunas acciones.",
     "sectionYourStats": "Tu progreso",
-    "venuesExploredMonth": "{{n}} locales distintos en los últimos 30 días."
+    "venuesExploredMonth": "{{n}} locales distintos en los últimos 30 días.",
+    "locationTitle": "Ubicación",
+    "locationCoordsHint": "Las indicaciones usan el pin del local en el mapa.",
+    "playGamesTitle": "Juegos en este local",
+    "playGamesHint": "Palabras, brawler y más cuentan para este local si juegas aquí.",
+    "playGamesCta": "Elegir juego",
+    "peopleHereTitle": "Quién hay aquí",
+    "peopleHereTeaser": "{{n}} personas recientes por presencia en este local (sin contarte).",
+    "challengesAtVenueTitle": "Retos aquí",
+    "challengesSeeAll": "Todos los retos",
+    "challengesEmptyShort": "No hay retos activos para este local ahora.",
+    "myRewardsHereTitle": "Tus recompensas aquí",
+    "myRewardsHereEmpty": "Aún no hay perks canjeables — mira los retos.",
+    "myRewardsSeeCrossVenue": "Todas las recompensas (todos los locales)"
   },
   "partnerMap": {
     "title": "Locales asociados",
@@ -606,6 +620,23 @@
     "blockTitle": "¿Bloquear a este jugador?",
     "blockConfirm": "{{username}} no podrá enviarte solicitudes ni aparecer en funciones de amigos. Se quita cualquier solicitud pendiente.",
     "blockFailed": "No se pudo actualizar la lista de bloqueados."
+  },
+  "rewardsHub": {
+    "title": "Centro de recompensas",
+    "subtitle": "Códigos QR y códigos para el personal de retos en distintos locales.",
+    "loadError": "No se pudieron cargar tus recompensas.",
+    "activeCount": "{{n}} listas para mostrar al personal",
+    "empty": "Aún no hay recompensas entre locales. Completa un reto con recompensa de beneficio estando en un café.",
+    "openVenue": "Abrir hub del local",
+    "sectionReady": "Listas para canjear",
+    "sectionHistory": "Canjeadas, caducadas o anuladas",
+    "statusRedeemable": "Lista",
+    "statusExpired": "Caducada",
+    "statusVoided": "Anulada",
+    "statusRedeemed": "Canjeada",
+    "statusOther": "{{status}}",
+    "pullToRefresh": "Desliza para actualizar",
+    "redeemAtVenue": "Canjear en el café"
   },
   "perk": {
     "title": "Canjear beneficio",

@@ -29,7 +29,7 @@ export type RootStackParamList = {
         difficulty: 'easy' | 'normal' | 'hard';
       };
     };
-    Challenges: undefined;
+    Challenges: { venueId?: string; venueName?: string } | undefined;
     Leaderboard: undefined;
     Profile: undefined;
     Friends: undefined;

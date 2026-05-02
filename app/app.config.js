@@ -22,8 +22,8 @@ export default {
       ...(process.env.EXPO_APPLE_TEAM_ID && {
         appleTeamId: process.env.EXPO_APPLE_TEAM_ID,
       }),
-      // Must be a unique identifier registered to your development team.
-      bundleIdentifier: 'com.pavaozornija.cafesocial.app',
+      // Personal Team: `…cafesocial.app` is not available globally — use a unique suffix (Xcode must accept it).
+      bundleIdentifier: 'com.pavaozornija.cafesocial.devclient',
       usesAppleSignIn: false,
       infoPlist: {
         NSCameraUsageDescription:
@@ -50,7 +50,7 @@ export default {
         backgroundColor: '#FAF7F2',
       },
       edgeToEdgeEnabled: true,
-      package: 'com.cafesocial.app',
+      package: 'com.pavaozornija.cafesocial.devclient',
       permissions: ['ACCESS_COARSE_LOCATION', 'ACCESS_FINE_LOCATION', 'CAMERA'],
     },
     web: {
@@ -80,8 +80,7 @@ export default {
       [
         'expo-image-picker',
         {
-          photosPermission:
-            'Allow Cafe Social to choose a receipt image to send to the venue.',
+          photosPermission: 'Allow Cafe Social to choose a receipt image to send to the venue.',
         },
       ],
     ],

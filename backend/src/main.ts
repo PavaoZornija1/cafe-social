@@ -22,7 +22,9 @@ async function bootstrap() {
   } else {
     app.useWebSocketAdapter(new IoAdapter(app));
   }
-  const port = configService.get<number>('PORT') ?? 3005;
+  const port = Number(configService.get<string>('PORT') ?? '3005') || 3005;
+  /** Listen on all interfaces so phones on the LAN can reach dev (not only 127.0.0.1). */
+  const host = configService.get<string>('HOST')?.trim() || '0.0.0.0';
 
   app.setGlobalPrefix('api');
   app.enableCors({
@@ -42,9 +44,11 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(port);
+  await app.listen(port, host);
   // eslint-disable-next-line no-console
-  console.log(`Cafe Social backend is running on http://localhost:${port}/api`);
+  console.log(
+    `Cafe Social backend listening on http://${host}:${port}/api (use your Mac LAN IP from the phone, e.g. http://192.168.x.x:${port}/api)`,
+  );
 }
 
 bootstrap();

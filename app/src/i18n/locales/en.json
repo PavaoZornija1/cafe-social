@@ -221,6 +221,7 @@
     "linkFriends": "Friends",
     "linkParties": "Parties",
     "linkPeopleHere": "Who's here",
+    "linkRewardsHub": "Rewards hub",
     "linkRedeemInvite": "Redeem invite",
     "linkDailyWord": "Daily word",
     "linkWordRooms": "Word rooms",
@@ -299,7 +300,20 @@
     "perkRedeemCta": "Redeem",
     "lockedAtVenueHint": "Turn on location or complete check-in to use venue games and some actions.",
     "sectionYourStats": "Your progress",
-    "venuesExploredMonth": "{{n}} different venues visited in the last 30 days."
+    "venuesExploredMonth": "{{n}} different venues visited in the last 30 days.",
+    "locationTitle": "Location",
+    "locationCoordsHint": "Directions use the venue pin on the map.",
+    "playGamesTitle": "Games at this café",
+    "playGamesHint": "Word games, brawler, and more count toward this venue when you play here.",
+    "playGamesCta": "Choose a game",
+    "peopleHereTitle": "Who's here",
+    "peopleHereTeaser": "{{n}} others recently on presence at this venue (not counting you).",
+    "challengesAtVenueTitle": "Challenges here",
+    "challengesSeeAll": "All challenges",
+    "challengesEmptyShort": "No active challenges for this venue right now.",
+    "myRewardsHereTitle": "Your rewards here",
+    "myRewardsHereEmpty": "No redeemable perk rewards at this venue yet — check challenges.",
+    "myRewardsSeeCrossVenue": "All rewards (every venue)"
   },
   "partnerMap": {
     "title": "Partner venues",
@@ -606,6 +620,23 @@
     "blockTitle": "Block this player?",
     "blockConfirm": "{{username}} won’t be able to send friend requests or appear in your friend features. Any pending request is removed.",
     "blockFailed": "Could not update block list."
+  },
+  "rewardsHub": {
+    "title": "Rewards hub",
+    "subtitle": "QR rewards and staff codes from challenges across venues.",
+    "loadError": "Couldn’t load your rewards.",
+    "activeCount": "{{n}} ready to show staff",
+    "empty": "No cross-venue rewards yet. Complete a challenge with a perk reward while you’re at a café.",
+    "openVenue": "Open venue hub",
+    "sectionReady": "Ready to redeem",
+    "sectionHistory": "Redeemed, expired, or voided",
+    "statusRedeemable": "Ready",
+    "statusExpired": "Expired",
+    "statusVoided": "Voided",
+    "statusRedeemed": "Redeemed",
+    "statusOther": "{{status}}",
+    "pullToRefresh": "Pull to refresh",
+    "redeemAtVenue": "Redeem at café"
   },
   "perk": {
     "title": "Redeem perk",

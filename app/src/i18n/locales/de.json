@@ -221,6 +221,7 @@
     "linkFriends": "Freunde",
     "linkParties": "Gruppen",
     "linkPeopleHere": "Wer ist hier",
+    "linkRewardsHub": "Belohnungen",
     "linkRedeemInvite": "Einladung einlösen",
     "linkDailyWord": "Tageswort",
     "linkWordRooms": "Worträume",
@@ -299,7 +300,20 @@
     "perkRedeemCta": "Einlösen",
     "lockedAtVenueHint": "Standort aktivieren oder Check-in abschließen für Lokal-Spiele und manche Aktionen.",
     "sectionYourStats": "Dein Fortschritt",
-    "venuesExploredMonth": "{{n}} verschiedene Orte in den letzten 30 Tagen besucht."
+    "venuesExploredMonth": "{{n}} verschiedene Orte in den letzten 30 Tagen besucht.",
+    "locationTitle": "Standort",
+    "locationCoordsHint": "Navigation nutzt den Venue-Pin auf der Karte.",
+    "playGamesTitle": "Spiele in diesem Café",
+    "playGamesHint": "Wortspiele, Brawler und mehr zählen für dieses Lokal, wenn du hier spielst.",
+    "playGamesCta": "Spiel wählen",
+    "peopleHereTitle": "Wer ist hier",
+    "peopleHereTeaser": "{{n}} andere kürzlich per Präsenz an diesem Ort (ohne dich).",
+    "challengesAtVenueTitle": "Challenges hier",
+    "challengesSeeAll": "Alle Challenges",
+    "challengesEmptyShort": "Aktuell keine aktiven Challenges für dieses Lokal.",
+    "myRewardsHereTitle": "Deine Belohnungen hier",
+    "myRewardsHereEmpty": "Noch keine einlösbaren Perk-Belohnungen — schau bei den Challenges.",
+    "myRewardsSeeCrossVenue": "Alle Belohnungen (alle Orte)"
   },
   "partnerMap": {
     "title": "Partner-Cafés",
@@ -606,6 +620,23 @@
     "blockTitle": "Diese Person blockieren?",
     "blockConfirm": "{{username}} kann dir keine Freundschaftsanfragen senden und erscheint nicht in Freundes-Funktionen. Ausstehende Anfragen werden entfernt.",
     "blockFailed": "Blockliste konnte nicht aktualisiert werden."
+  },
+  "rewardsHub": {
+    "title": "Belohnungen",
+    "subtitle": "QR-Belohnungen und Personal-Codes aus Challenges an verschiedenen Orten.",
+    "loadError": "Belohnungen konnten nicht geladen werden.",
+    "activeCount": "{{n}} bereit fürs Personal",
+    "empty": "Noch keine café-übergreifenden Belohnungen. Schließ eine Challenge mit Perk-Belohnung ab, während du im Café bist.",
+    "openVenue": "Venue-Hub öffnen",
+    "sectionReady": "Bereit zum Einlösen",
+    "sectionHistory": "Eingelöst, abgelaufen oder ungültig",
+    "statusRedeemable": "Bereit",
+    "statusExpired": "Abgelaufen",
+    "statusVoided": "Ungültig",
+    "statusRedeemed": "Eingelöst",
+    "statusOther": "{{status}}",
+    "pullToRefresh": "Zum Aktualisieren ziehen",
+    "redeemAtVenue": "Im Café einlösen"
   },
   "perk": {
     "title": "Vorteil einlösen",

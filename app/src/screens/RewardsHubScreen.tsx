@@ -1,10 +1,11 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useRef, useState, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -24,21 +25,52 @@ import type { AppColors } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RewardsHub'>;
 
+function statusLabelKey(status: string): string {
+  switch (status) {
+    case 'REDEEMABLE':
+      return 'rewardsHub.statusRedeemable';
+    case 'EXPIRED':
+      return 'rewardsHub.statusExpired';
+    case 'VOIDED':
+      return 'rewardsHub.statusVoided';
+    case 'REDEEMED':
+      return 'rewardsHub.statusRedeemed';
+    default:
+      return 'rewardsHub.statusOther';
+  }
+}
+
+function formatExpiry(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString(undefined, {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return iso.slice(0, 10);
+  }
+}
+
 export default function RewardsHubScreen({ navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
+  const tRef = useRef(t);
+  tRef.current = t;
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [payload, setPayload] = useState<GlobalRewardClaimsPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const fetchRewards = useCallback(async (mode: 'initial' | 'refresh') => {
     if (!isLoaded) return;
-    setLoading(true);
+    if (mode === 'initial') setLoading(true);
+    else setRefreshing(true);
     setError(null);
     try {
       const token = await getTokenRef.current();
@@ -49,25 +81,50 @@ export default function RewardsHubScreen({ navigation }: Props) {
       const data = await fetchMyGlobalRewardClaims(token);
       setPayload(data);
     } catch {
-      setError(t('rewardsHub.loadError'));
+      setError(tRef.current('rewardsHub.loadError'));
       setPayload(null);
     } finally {
-      setLoading(false);
+      if (mode === 'initial') setLoading(false);
+      else setRefreshing(false);
     }
-  }, [isLoaded, t]);
+  }, [isLoaded]);
 
   useFocusEffect(
     useCallback(() => {
-      void load();
-    }, [load]),
+      void fetchRewards('initial');
+    }, [fetchRewards]),
   );
 
   const items: GlobalRewardClaim[] = payload?.items ?? [];
   const activeN = payload?.wallet.activeRedeemable ?? 0;
 
+  const { redeemable, history } = useMemo(() => {
+    const r: GlobalRewardClaim[] = [];
+    const h: GlobalRewardClaim[] = [];
+    for (const it of items) {
+      if (it.status === 'REDEEMABLE') r.push(it);
+      else h.push(it);
+    }
+    return { redeemable: r, history: h };
+  }, [items]);
+
+  const onRefresh = useCallback(() => {
+    void fetchRewards('refresh');
+  }, [fetchRewards]);
+
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            title={t('rewardsHub.pullToRefresh')}
+          />
+        }
+      >
         <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Text style={styles.backText}>{t('common.back')}</Text>
         </Pressable>
@@ -86,35 +143,96 @@ export default function RewardsHubScreen({ navigation }: Props) {
           <Text style={styles.empty}>{t('rewardsHub.empty')}</Text>
         ) : null}
 
-        {items.map((r) => (
-          <View key={r.redemptionId} style={styles.card}>
-            <Text style={styles.venueName}>{r.venueName}</Text>
-            <Text style={styles.perkTitle}>{r.perkTitle}</Text>
-            {r.perkSubtitle ? <Text style={styles.perkSub}>{r.perkSubtitle}</Text> : null}
-            <Text style={styles.meta}>
-              {t('perk.rewardStatus')}: {r.status} · {t('perk.rewardExpires')}{' '}
-              {new Date(r.expiresAt).toISOString().slice(0, 10)}
-            </Text>
-            {r.status === 'REDEEMABLE' ? (
-              <View style={styles.qrWrap}>
-                <QRCode value={r.qrPayload} size={140} />
-              </View>
-            ) : null}
-            <Text style={styles.codeLine}>
-              {t('perk.staffVerificationCode')}: {r.staffVerificationCode}
-            </Text>
-            <Pressable
-              style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
-              onPress={() =>
-                navigation.navigate('VenueHub', { venueId: r.venueId, venueName: r.venueName })
-              }
+        {redeemable.length > 0 ? (
+          <>
+            <Text style={styles.sectionTitle}>{t('rewardsHub.sectionReady')}</Text>
+            {redeemable.map((r) => (
+              <RewardClaimCard
+                key={r.redemptionId}
+                r={r}
+                styles={styles}
+                navigation={navigation}
+                showQr
+              />
+            ))}
+          </>
+        ) : null}
+
+        {history.length > 0 ? (
+          <>
+            <Text
+              style={[
+                styles.sectionTitle,
+                redeemable.length > 0 ? styles.sectionTitleSpaced : null,
+              ]}
             >
-              <Text style={styles.secondaryBtnText}>{t('rewardsHub.openVenue')}</Text>
-            </Pressable>
-          </View>
-        ))}
+              {t('rewardsHub.sectionHistory')}
+            </Text>
+            {history.map((r) => (
+              <RewardClaimCard
+                key={r.redemptionId}
+                r={r}
+                styles={styles}
+                navigation={navigation}
+                showQr={false}
+              />
+            ))}
+          </>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+type RewardClaimCardProps = {
+  r: GlobalRewardClaim;
+  styles: ReturnType<typeof createStyles>;
+  navigation: Props['navigation'];
+  showQr: boolean;
+};
+
+function RewardClaimCard({ r, styles, navigation, showQr }: RewardClaimCardProps) {
+  const { t } = useTranslation();
+  const labelKey = statusLabelKey(r.status);
+  const statusText =
+    labelKey === 'rewardsHub.statusOther'
+      ? t(labelKey, { status: r.status })
+      : t(labelKey);
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.venueName}>{r.venueName}</Text>
+      <Text style={styles.perkTitle}>{r.perkTitle}</Text>
+      {r.perkSubtitle ? <Text style={styles.perkSub}>{r.perkSubtitle}</Text> : null}
+      <Text style={styles.meta}>
+        {t('perk.rewardStatus')}: {statusText} · {t('perk.rewardExpires')}{' '}
+        {formatExpiry(r.expiresAt)}
+      </Text>
+      {showQr && r.status === 'REDEEMABLE' ? (
+        <View style={styles.qrWrap}>
+          <QRCode value={r.qrPayload} size={140} />
+        </View>
+      ) : null}
+      <Text style={styles.codeLine}>
+        {t('perk.staffVerificationCode')}: {r.staffVerificationCode}
+      </Text>
+      {r.status === 'REDEEMABLE' ? (
+        <Pressable
+          style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
+          onPress={() => navigation.navigate('RedeemPerk', { venueId: r.venueId })}
+        >
+          <Text style={styles.primaryBtnText}>{t('rewardsHub.redeemAtVenue')}</Text>
+        </Pressable>
+      ) : null}
+      <Pressable
+        style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
+        onPress={() =>
+          navigation.navigate('VenueHub', { venueId: r.venueId, venueName: r.venueName })
+        }
+      >
+        <Text style={styles.secondaryBtnText}>{t('rewardsHub.openVenue')}</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -127,10 +245,17 @@ function createStyles(colors: AppColors) {
     title: { fontSize: 22, fontWeight: '700', color: colors.text },
     hint: { marginTop: 6, fontSize: 14, color: colors.textMuted },
     meta: { marginTop: 8, fontSize: 13, color: colors.textMuted },
-    err: { marginTop: 12, color: '#b91c1c', fontSize: 14 },
+    sectionTitle: {
+      marginTop: 20,
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.textSecondary,
+    },
+    sectionTitleSpaced: { marginTop: 28 },
+    err: { marginTop: 12, color: colors.error, fontSize: 14 },
     empty: { marginTop: 16, fontSize: 15, color: colors.textMuted },
     card: {
-      marginTop: 16,
+      marginTop: 12,
       padding: 16,
       borderRadius: 12,
       backgroundColor: colors.surface,
@@ -142,8 +267,17 @@ function createStyles(colors: AppColors) {
     perkSub: { marginTop: 4, fontSize: 14, color: colors.textMuted },
     qrWrap: { alignItems: 'center', marginTop: 12 },
     codeLine: { marginTop: 10, fontSize: 12, color: colors.textMuted },
-    secondaryBtn: {
+    primaryBtn: {
       marginTop: 12,
+      alignSelf: 'flex-start',
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      backgroundColor: colors.primary,
+    },
+    primaryBtnText: { color: colors.textInverse, fontSize: 14, fontWeight: '600' },
+    secondaryBtn: {
+      marginTop: 10,
       alignSelf: 'flex-start',
       paddingVertical: 8,
       paddingHorizontal: 14,

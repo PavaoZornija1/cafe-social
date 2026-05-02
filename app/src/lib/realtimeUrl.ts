@@ -1,4 +1,6 @@
-const API_URL = (process.env.EXPO_PUBLIC_API_URL as string | undefined) ?? 'http://localhost:3005/api';
+const envApiUrl = (process.env.EXPO_PUBLIC_API_URL as string | undefined)?.trim();
+const API_URL =
+  envApiUrl && envApiUrl.length > 0 ? envApiUrl : 'http://localhost:3005/api';
 
 /** HTTP origin for Socket.IO (strip `/api` path). */
 export function getRealtimeBaseUrl(): string {

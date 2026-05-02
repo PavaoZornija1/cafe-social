@@ -1,4 +1,21 @@
-const API_URL = (process.env.EXPO_PUBLIC_API_URL as string | undefined) ?? 'http://localhost:3005/api';
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+
+const envApiUrl = (process.env.EXPO_PUBLIC_API_URL as string | undefined)?.trim();
+const API_URL =
+  envApiUrl && envApiUrl.length > 0 ? envApiUrl : 'http://localhost:3005/api';
+
+if (
+  __DEV__ &&
+  Platform.OS !== 'web' &&
+  Constants.isDevice &&
+  (!envApiUrl || envApiUrl.includes('localhost') || envApiUrl.includes('127.0.0.1'))
+) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    '[api] API URL is missing or still points at localhost — a real device cannot reach your Mac that way. Set EXPO_PUBLIC_API_URL in app/.env to http://<YOUR_MAC_LAN_IP>:3005/api (see ipconfig getifaddr en0), restart Metro with --clear and reload, or rebuild if JS is embedded from Xcode.',
+  );
+}
 
 type Json = Record<string, unknown>;
 

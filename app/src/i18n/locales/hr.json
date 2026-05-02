@@ -221,6 +221,7 @@
     "linkFriends": "Prijatelji",
     "linkParties": "Partyji",
     "linkPeopleHere": "Tko je ovdje",
+    "linkRewardsHub": "Nagrade",
     "linkRedeemInvite": "Iskoristi pozivnicu",
     "linkDailyWord": "Dnevna riječ",
     "linkWordRooms": "Sobe za riječi",
@@ -299,7 +300,20 @@
     "perkRedeemCta": "Iskoristi",
     "lockedAtVenueHint": "Uključi lokaciju ili dovrši prijavu za igre na lokalu i neke radnje.",
     "sectionYourStats": "Tvoj napredak",
-    "venuesExploredMonth": "{{n}} različitih lokala posjeta u zadnjih 30 dana."
+    "venuesExploredMonth": "{{n}} različitih lokala posjeta u zadnjih 30 dana.",
+    "locationTitle": "Lokacija",
+    "locationCoordsHint": "Upute koriste pin lokala na karti.",
+    "playGamesTitle": "Igre u ovom kafiću",
+    "playGamesHint": "Riječi, brawler i ostalo broji za ovaj lokal kad igraš ovdje.",
+    "playGamesCta": "Odaberi igru",
+    "peopleHereTitle": "Tko je ovdje",
+    "peopleHereTeaser": "{{n}} drugih nedavno na prisutnosti na ovom lokalu (bez tebe).",
+    "challengesAtVenueTitle": "Izazovi ovdje",
+    "challengesSeeAll": "Svi izazovi",
+    "challengesEmptyShort": "Trenutno nema aktivnih izazova za ovaj lokal.",
+    "myRewardsHereTitle": "Tvoje nagrade ovdje",
+    "myRewardsHereEmpty": "Još nema iskoristivih perk nagrada — pogledaj izazove.",
+    "myRewardsSeeCrossVenue": "Sve nagrade (svi lokali)"
   },
   "partnerMap": {
     "title": "Partnerski lokali",
@@ -606,6 +620,23 @@
     "blockTitle": "Blokirati ovog igrača?",
     "blockConfirm": "{{username}} neće moći slati zahtjeve niti se pojavljivati u prijateljskim funkcijama. Uklanjamo i sve čekajuće zahtjeve.",
     "blockFailed": "Lista blokiranih se nije ažurirala."
+  },
+  "rewardsHub": {
+    "title": "Nagrade",
+    "subtitle": "QR nagrade i kodovi za osoblje iz izazova u različitim lokalima.",
+    "loadError": "Nagrade se nisu mogle učitati.",
+    "activeCount": "{{n}} spremno za osoblje",
+    "empty": "Još nema nagrada između lokala. Završi izazov s nagradom pogodnosti dok si u kafiću.",
+    "openVenue": "Otvori hub lokala",
+    "sectionReady": "Spremno za iskorištavanje",
+    "sectionHistory": "Iskorišteno, isteklo ili poništeno",
+    "statusRedeemable": "Spremno",
+    "statusExpired": "Isteklo",
+    "statusVoided": "Poništeno",
+    "statusRedeemed": "Iskorišteno",
+    "statusOther": "{{status}}",
+    "pullToRefresh": "Povuci za osvježavanje",
+    "redeemAtVenue": "Iskoristi u kafiću"
   },
   "perk": {
     "title": "Iskoristi pogodnost",

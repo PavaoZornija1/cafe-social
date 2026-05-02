@@ -519,6 +519,10 @@ export class VenueService {
         latitude: true,
         longitude: true,
         requiresExplicitCheckIn: true,
+        address: true,
+        city: true,
+        country: true,
+        region: true,
       },
     });
     if (!v) throw new NotFoundException(`Venue ${id} not found`);
@@ -538,6 +542,10 @@ export class VenueService {
         featuredOffer: null,
         geofence: geofenceForClient,
         requiresExplicitCheckIn: v.requiresExplicitCheckIn,
+        address: v.address,
+        city: v.city,
+        country: v.country,
+        region: v.region,
       };
     }
     const { offers, featuredOffer } = await loadPublicVenueOffersForVenue(this.prisma, id);
@@ -550,6 +558,10 @@ export class VenueService {
       featuredOffer,
       geofence: geofenceForClient,
       requiresExplicitCheckIn: v.requiresExplicitCheckIn,
+      address: v.address,
+      city: v.city,
+      country: v.country,
+      region: v.region,
     };
   }
 
