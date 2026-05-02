@@ -64,9 +64,9 @@ type MatchState = {
 };
 
 function secondsPerWord(diff?: string): number {
-  if (diff === 'easy') return 120;
-  if (diff === 'hard') return 60;
-  return 90;
+  if (diff === 'easy') return 90;
+  if (diff === 'hard') return 30;
+  return 60;
 }
 
 export default function WordGameScreen({ navigation, route }: Props) {
