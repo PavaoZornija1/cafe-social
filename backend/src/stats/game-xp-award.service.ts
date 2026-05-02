@@ -28,6 +28,10 @@ type WordMatchConfigJson = {
   ranked?: boolean;
 };
 
+type BrawlerMatchConfigJson = {
+  ranked?: boolean;
+};
+
 const ELO_K = 32;
 
 function eloPair(
@@ -201,6 +205,84 @@ export class GameXpAwardService {
         );
       }
       await this.addXp(p.playerId, session.venueId, delta);
+    }
+
+    if (session.gameType === GameType.BRAWLER) {
+      const cfg = session.config as unknown as BrawlerMatchConfigJson | null;
+      const ranked = Boolean(cfg?.ranked);
+      if (!ranked || session.rankAwardedAt) return;
+
+      const humans = session.participants.filter((p) => p.playerId);
+      if (humans.length !== 2) return;
+
+      const h0 = humans[0]!;
+      const h1 = humans[1]!;
+      if (!h0.playerId || !h1.playerId) return;
+      const r0 = h0.result;
+      const r1 = h1.result;
+      if (r0 == null || r1 == null) return;
+
+      const [aId, bId] = [h0.playerId, h1.playerId].sort() as [string, string];
+      const ha = humans.find((h) => h.playerId === aId)!;
+      const hb = humans.find((h) => h.playerId === bId)!;
+
+      let sa: number;
+      let sb: number;
+      if (ha.result === GameParticipantResult.WIN && hb.result === GameParticipantResult.LOSS) {
+        sa = 1;
+        sb = 0;
+      } else if (
+        ha.result === GameParticipantResult.LOSS &&
+        hb.result === GameParticipantResult.WIN
+      ) {
+        sa = 0;
+        sb = 1;
+      } else if (
+        ha.result === GameParticipantResult.DRAW ||
+        hb.result === GameParticipantResult.DRAW
+      ) {
+        sa = 0.5;
+        sb = 0.5;
+      } else {
+        return;
+      }
+
+      const claimRank = await this.prisma.gameSession.updateMany({
+        where: { id: sessionId, rankAwardedAt: null },
+        data: { rankAwardedAt: new Date() },
+      });
+      if (claimRank.count === 0) return;
+
+      const [pa, pb] = await Promise.all([
+        this.prisma.player.findUnique({
+          where: { id: aId },
+          select: { competitiveRankRating: true, brawlerRankRating: true },
+        }),
+        this.prisma.player.findUnique({
+          where: { id: bId },
+          select: { competitiveRankRating: true, brawlerRankRating: true },
+        }),
+      ]);
+      const rgA = pa?.competitiveRankRating ?? 1500;
+      const rgB = pb?.competitiveRankRating ?? 1500;
+      const rbA = pa?.brawlerRankRating ?? 1500;
+      const rbB = pb?.brawlerRankRating ?? 1500;
+      const global = eloPair(rgA, rgB, sa, sb);
+      const brawl = eloPair(rbA, rbB, sa, sb);
+      await this.prisma.player.update({
+        where: { id: aId },
+        data: {
+          competitiveRankRating: global.newA,
+          brawlerRankRating: brawl.newA,
+        },
+      });
+      await this.prisma.player.update({
+        where: { id: bId },
+        data: {
+          competitiveRankRating: global.newB,
+          brawlerRankRating: brawl.newB,
+        },
+      });
     }
   }
 

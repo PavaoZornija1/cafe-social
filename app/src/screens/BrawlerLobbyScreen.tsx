@@ -1,6 +1,7 @@
 import { useAuth } from '@clerk/expo';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
@@ -43,6 +44,7 @@ type CreateSessionResponse = {
 };
 
 export default function BrawlerLobbyScreen({ route, navigation }: Props) {
+  const { t } = useTranslation();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const venueId = route.params?.venueId;
@@ -58,6 +60,8 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
   const [soloSetupOpen, setSoloSetupOpen] = useState(false);
   const [soloOpponentCount, setSoloOpponentCount] = useState(1);
   const [soloDifficulty, setSoloDifficulty] = useState<'easy' | 'normal' | 'hard'>('normal');
+  /** Venue queue: casual (false) vs ranked (true). */
+  const [queueRanked, setQueueRanked] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,7 +77,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
         setSelectedHeroId(rows[0]?.id ?? null);
       } catch (e) {
         if (cancelled) return;
-        Alert.alert('Error', (e as Error).message || 'Failed to load heroes');
+        Alert.alert(t('common.error'), (e as Error).message || t('brawlerLobby.loadHeroesFailed'));
       } finally {
         if (!cancelled) setLoadingHeroes(false);
       }
@@ -97,14 +101,14 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
     navigation.navigate('ChooseGame', { venueId });
   };
 
-  const onStart = async () => {
+  const onStartPracticeVsBot = async () => {
     if (!selectedHeroId) return;
     if (!isLoaded) return;
 
     if (selectedHeroId !== BRUISER_ARENA_HERO_ID) {
       Alert.alert(
-        'Arena',
-        'The playable arena with move/jump is available for Blaze (bruiser sprites) only for now. Pick Blaze to play.',
+        t('brawlerLobby.heroGateTitle'),
+        t('brawlerLobby.heroGateBody'),
       );
       return;
     }
@@ -145,19 +149,29 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
         sessionId: created.id,
       });
     } catch (e) {
-      Alert.alert('Error', (e as Error).message || 'Failed to start brawler session');
+      Alert.alert(t('common.error'), (e as Error).message || t('brawlerLobby.startSessionFailed'));
     } finally {
       setCreating(false);
     }
   };
 
+  const onQueueAtVenue = () => {
+    if (!venueId || !selectedHeroId) return;
+    if (selectedHeroId !== BRUISER_ARENA_HERO_ID) {
+      Alert.alert(t('brawlerLobby.heroGateTitle'), t('brawlerLobby.heroGateBody'));
+      return;
+    }
+    navigation.navigate('BrawlerVenueQueue', {
+      venueId,
+      brawlerHeroId: selectedHeroId,
+      ranked: queueRanked ? true : undefined,
+    });
+  };
+
   const onStartSolo = () => {
     if (!selectedHeroId) return;
     if (selectedHeroId !== BRUISER_ARENA_HERO_ID) {
-      Alert.alert(
-        'Arena',
-        'The playable arena with move/jump is available for Blaze (bruiser sprites) only for now. Pick Blaze to play.',
-      );
+      Alert.alert(t('brawlerLobby.heroGateTitle'), t('brawlerLobby.heroGateBody'));
       return;
     }
 
@@ -191,18 +205,18 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
         <Pressable onPress={onBack} style={styles.backBtn}>
-          <Text style={styles.backText}>← Back</Text>
+          <Text style={styles.backText}>← {t('common.back')}</Text>
         </Pressable>
-        <Text style={styles.title}>Brawler Lobby</Text>
-        <Text style={styles.subtitle}>
-          Choose your hero, then pick Solo (practice) or Multiplayer.
+        <Text style={styles.title}>{t('brawlerLobby.title')}</Text>
+        <Text style={styles.subtitle}>{t('brawlerLobby.subtitle')}</Text>
+        <Text style={styles.meta}>
+          {venueId ? t('brawlerLobby.venueLine', { venueId }) : t('brawlerLobby.noVenueLine')}
         </Text>
-        <Text style={styles.meta}>Venue: {venueId ?? 'Not set (home play)'}</Text>
 
         {loadingHeroes ? (
           <View style={styles.loadingWrap}>
             <ActivityIndicator color="#a78bfa" />
-            <Text style={styles.loadingText}>Loading heroes...</Text>
+            <Text style={styles.loadingText}>{t('brawlerLobby.loadingHeroes')}</Text>
           </View>
         ) : (
           <View style={styles.heroList}>
@@ -239,10 +253,56 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
           </View>
         )}
 
+        {venueId ? (
+          <View style={styles.rankCard}>
+            <Text style={styles.rankTitle}>{t('brawlerLobby.queueRankTitle')}</Text>
+            <View style={styles.rankRow}>
+              <Pressable
+                onPress={() => setQueueRanked(false)}
+                style={({ pressed }) => [
+                  styles.rankPill,
+                  !queueRanked && styles.rankPillOn,
+                  pressed && styles.rankPillPressed,
+                ]}
+              >
+                <Text style={[styles.rankPillText, !queueRanked && styles.rankPillTextOn]}>
+                  {t('brawlerLobby.queueCasual')}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setQueueRanked(true)}
+                style={({ pressed }) => [
+                  styles.rankPill,
+                  queueRanked && styles.rankPillOn,
+                  pressed && styles.rankPillPressed,
+                ]}
+              >
+                <Text style={[styles.rankPillText, queueRanked && styles.rankPillTextOn]}>
+                  {t('brawlerLobby.queueRanked')}
+                </Text>
+              </Pressable>
+            </View>
+            <Text style={styles.rankHint}>{t('brawlerLobby.queueRankedHint')}</Text>
+            <Pressable
+              onPress={onQueueAtVenue}
+              disabled={!selectedHeroId || creating || loadingHeroes}
+              style={({ pressed }) => [
+                styles.queueCta,
+                pressed && styles.startButtonPressed,
+                (!selectedHeroId || creating || loadingHeroes) && styles.startButtonDisabled,
+              ]}
+            >
+              <Text style={styles.queueCtaText}>{t('brawlerLobby.queueAtVenue')}</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Text style={styles.venueHint}>{t('brawlerLobby.venueRequiredQueue')}</Text>
+        )}
+
         <View style={styles.rosterCard}>
-          <Text style={styles.rosterTitle}>Multiplayer roster</Text>
-          <Text style={styles.rosterLine}>• You (human)</Text>
-          <Text style={styles.rosterLine}>• Chaos Bot (server session)</Text>
+          <Text style={styles.rosterTitle}>{t('brawlerLobby.practiceRosterTitle')}</Text>
+          <Text style={styles.rosterLine}>{t('brawlerLobby.practiceRosterYou')}</Text>
+          <Text style={styles.rosterLine}>{t('brawlerLobby.practiceRosterBot')}</Text>
         </View>
 
         <View style={styles.startRow}>
@@ -256,12 +316,12 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
               (!selectedHeroId || creating || loadingHeroes) && styles.startButtonDisabled,
             ]}
           >
-            <Text style={styles.startButtonTextDark}>Solo mode</Text>
-            <Text style={styles.startButtonSubText}>(Practice)</Text>
+            <Text style={styles.startButtonTextDark}>{t('brawlerLobby.soloMode')}</Text>
+            <Text style={styles.startButtonSubText}>{t('brawlerLobby.soloModeSub')}</Text>
           </Pressable>
 
           <Pressable
-            onPress={onStart}
+            onPress={onStartPracticeVsBot}
             disabled={!selectedHeroId || creating || loadingHeroes}
             style={({ pressed }) => [
               styles.startButton,
@@ -271,9 +331,9 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
             ]}
           >
             <Text style={styles.startButtonText}>
-              {creating ? 'Loading...' : 'Multiplayer mode'}
+              {creating ? t('brawlerLobby.creating') : t('brawlerLobby.practiceVsBot')}
             </Text>
-            <Text style={styles.startButtonSubTextInverse}>(Ranked)</Text>
+            <Text style={styles.startButtonSubTextInverse}>{t('brawlerLobby.practiceVsBotSub')}</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -285,11 +345,11 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
             onPress={() => setSoloSetupOpen(false)}
           />
           <View style={styles.soloSheet}>
-            <Text style={styles.soloTitle}>Solo setup</Text>
-            <Text style={styles.soloHint}>Choose a quick practice match.</Text>
+            <Text style={styles.soloTitle}>{t('brawlerLobby.soloSetupTitle')}</Text>
+            <Text style={styles.soloHint}>{t('brawlerLobby.soloSetupHint')}</Text>
 
             <View style={styles.soloRow}>
-              <Text style={styles.soloLabel}>Opponents</Text>
+              <Text style={styles.soloLabel}>{t('brawlerLobby.soloOpponents')}</Text>
               <View style={styles.soloStepper}>
                 <Pressable
                   onPress={() => setSoloOpponentCount((n) => Math.max(0, n - 1))}
@@ -314,7 +374,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
             </View>
 
             <View style={styles.soloRow}>
-              <Text style={styles.soloLabel}>Difficulty</Text>
+              <Text style={styles.soloLabel}>{t('brawlerLobby.soloDifficulty')}</Text>
               <View style={styles.soloPills}>
                 {(['easy', 'normal', 'hard'] as const).map((d) => {
                   const on = d === soloDifficulty;
@@ -346,7 +406,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
                   pressed && styles.soloBtnPressed,
                 ]}
               >
-                <Text style={styles.soloBtnSecondaryText}>Cancel</Text>
+                <Text style={styles.soloBtnSecondaryText}>{t('common.cancel')}</Text>
               </Pressable>
               <Pressable
                 onPress={() => {
@@ -359,7 +419,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
                   pressed && styles.soloBtnPressed,
                 ]}
               >
-                <Text style={styles.soloBtnPrimaryText}>Start</Text>
+                <Text style={styles.soloBtnPrimaryText}>{t('brawlerLobby.soloStartBtn')}</Text>
               </Pressable>
             </View>
           </View>
@@ -462,6 +522,52 @@ function createStyles(colors: AppColors) {
   },
   rosterTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
   rosterLine: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
+
+  rankCard: {
+    marginTop: 6,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    gap: 10,
+  },
+  rankTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  rankRow: { flexDirection: 'row', gap: 8 },
+  rankPill: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    alignItems: 'center',
+  },
+  rankPillOn: {
+    backgroundColor: colors.primary,
+    borderColor: 'rgba(167, 139, 250, 0.55)',
+  },
+  rankPillPressed: { opacity: 0.9 },
+  rankPillText: { color: colors.textSecondary, fontSize: 13, fontWeight: '900' },
+  rankPillTextOn: { color: colors.textInverse },
+  rankHint: { color: colors.textMuted, fontSize: 11, fontWeight: '600', lineHeight: 16 },
+  queueCta: {
+    marginTop: 4,
+    borderRadius: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
+    backgroundColor: colors.honeyMuted,
+    borderWidth: 1,
+    borderColor: colors.honey,
+  },
+  queueCtaText: { color: colors.honeyDark, fontSize: 14, fontWeight: '900' },
+  venueHint: {
+    marginTop: 4,
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
 
   soloOverlay: {
     ...StyleSheet.absoluteFillObject,

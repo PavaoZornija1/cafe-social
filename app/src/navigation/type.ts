@@ -18,6 +18,12 @@ export type RootStackParamList = {
     DailyWord: undefined;
     ChooseGame: { venueId?: string; challengeId?: string } | undefined;
     BrawlerLobby: { venueId?: string } | undefined;
+    /** Venue-only: brawler matchmaking queue then paired session. */
+    BrawlerVenueQueue: {
+      venueId: string;
+      brawlerHeroId: string;
+      ranked?: boolean;
+    };
     BrawlerArena: {
       heroId: string;
       venueId?: string;

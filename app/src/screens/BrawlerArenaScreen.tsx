@@ -1,6 +1,7 @@
 import { useAuth } from '@clerk/expo';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Image,
@@ -270,6 +271,7 @@ function ArenaPlatformArt({
 }
 
 export default function BrawlerArenaScreen({ navigation, route }: Props) {
+  const { t } = useTranslation();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { heroId, heroStats: heroStatsParam } = route.params;
@@ -294,6 +296,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   };
   const participantsRef = useRef<TrackedParticipant[]>([]);
   const finalizeStartedRef = useRef(false);
+  /** Venue 1v1 queue: two humans, no bot — real-time PvP not wired yet; gate gameplay and show notice. */
+  const [venueTwoHumanHold, setVenueTwoHumanHold] = useState(false);
+  const venueTwoHumanHoldRef = useRef(false);
   const [trackedSessionReady, setTrackedSessionReady] = useState(!sessionId);
   /** Same tick as session fetch success — avoids RAF running before React commits `setTrackedSessionReady`. */
   const trackedSessionGateRef = useRef(!sessionId);
@@ -477,7 +482,19 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           } | null;
         }>(`/brawler/sessions/${encodeURIComponent(sessionId)}`, token);
         if (cancelled) return;
-        participantsRef.current = session.participants ?? [];
+        const parts = session.participants ?? [];
+        participantsRef.current = parts;
+        const humanOnly = parts.filter((p) => p.playerId && !p.isBot);
+        const hasBot = parts.some((p) => p.isBot);
+        if (humanOnly.length === 2 && !hasBot) {
+          venueTwoHumanHoldRef.current = true;
+          setVenueTwoHumanHold(true);
+          trackedSessionGateRef.current = false;
+          setTrackedSessionReady(false);
+          return;
+        }
+        venueTwoHumanHoldRef.current = false;
+        setVenueTwoHumanHold(false);
         const bs = session.brawlerSession;
         if (bs) {
           const chaosS = bs.chaosDurationMs / 1000;
@@ -519,7 +536,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   }, [sessionId, bump]);
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || venueTwoHumanHold) return;
     if (!gameOverOpen && !heroDeadOpen) return;
     if (finalizeStartedRef.current) return;
     finalizeStartedRef.current = true;
@@ -590,7 +607,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [sessionId, gameOverOpen, heroDeadOpen, route.params.venueId]);
+  }, [sessionId, venueTwoHumanHold, gameOverOpen, heroDeadOpen, route.params.venueId]);
 
   const spawnDummiesRandomOnPlatforms = useCallback(
     (count: number, heroSpawn: { x: number; y: number }) => {
@@ -1639,7 +1656,24 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     Math.max(0, safeRight - ACTION_CONTROLS_SAFE_RIGHT_NUDGE_PX) +
     ACTION_CONTROLS_RIGHT_GUTTER;
 
+  const abandonVenueTwoHumanAndLeave = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      const token = await getTokenRef.current();
+      if (token) {
+        await apiPost(`/brawler/sessions/${encodeURIComponent(sessionId)}/abandon`, {}, token);
+      }
+    } catch {
+      /* */
+    }
+    navigation.replace('BrawlerLobby', { venueId: route.params.venueId });
+  }, [navigation, route.params.venueId, sessionId]);
+
   const requestExitFromHud = useCallback(() => {
+    if (venueTwoHumanHoldRef.current) {
+      void abandonVenueTwoHumanAndLeave();
+      return;
+    }
     if (gameOverOpen) {
       navigation.goBack();
       return;
@@ -1656,7 +1690,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         },
       ],
     );
-  }, [gameOverOpen, navigation]);
+  }, [abandonVenueTwoHumanAndLeave, gameOverOpen, navigation]);
 
   const dummies = dummiesRef.current;
   const debugHitW = ATTACK_HIT_W;
@@ -1669,7 +1703,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
   const dmgFloats = dmgFloatsRef.current;
 
-  const showKdHud = arenaReadyHud && !resultsOverlay;
+  const showKdHud = arenaReadyHud && !resultsOverlay && !venueTwoHumanHold;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -2254,6 +2288,26 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         </View>
       ) : null}
 
+      {venueTwoHumanHold ? (
+        <View style={styles.venuePvpHoldOverlay} pointerEvents="auto">
+          <View style={styles.venuePvpHoldCard}>
+            <Text style={styles.venuePvpHoldTitle}>{t('brawlerMatch.pvpPlaceholderTitle')}</Text>
+            <Text style={styles.venuePvpHoldBody}>{t('brawlerMatch.pvpPlaceholderBody')}</Text>
+            <Pressable
+              onPress={() => {
+                void abandonVenueTwoHumanAndLeave();
+              }}
+              style={({ pressed }) => [
+                styles.venuePvpHoldBtn,
+                pressed && styles.resultsBtnPressed,
+              ]}
+            >
+              <Text style={styles.venuePvpHoldBtnText}>{t('brawlerMatch.backToLobby')}</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+
       {resultsOverlay ? (
         <View style={styles.resultsOverlay} pointerEvents="box-none">
           <View style={styles.resultsCard} pointerEvents="auto">
@@ -2455,6 +2509,52 @@ function createStyles(colors: AppColors) {
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
+  },
+  venuePvpHoldOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 95,
+    backgroundColor: 'rgba(0, 0, 0, 0.62)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  venuePvpHoldCard: {
+    width: '100%',
+    maxWidth: 380,
+    borderRadius: 16,
+    paddingVertical: 22,
+    paddingHorizontal: 18,
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.borderStrong,
+    gap: 12,
+  },
+  venuePvpHoldTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  venuePvpHoldBody: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  venuePvpHoldBtn: {
+    marginTop: 4,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: '#a78bfa',
+  },
+  venuePvpHoldBtnText: {
+    color: colors.textInverse,
+    fontSize: 15,
+    fontWeight: '900',
   },
   resultsCard: {
     width: '100%',

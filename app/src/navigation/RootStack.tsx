@@ -30,6 +30,7 @@ import BanAppealScreen from "../screens/BanAppealScreen";
 import MyVenueReportsScreen from "../screens/MyVenueReportsScreen";
 import ChooseGameScreen from "../screens/ChooseGameScreen";
 import BrawlerLobbyScreen from "../screens/BrawlerLobbyScreen";
+import BrawlerVenueQueueScreen from "../screens/BrawlerVenueQueueScreen";
 import BrawlerArenaScreen from "../screens/BrawlerArenaScreen";
 import StaffVenuesScreen from "../screens/StaffVenuesScreen";
 import StaffRedemptionsScreen from "../screens/StaffRedemptionsScreen";
@@ -63,6 +64,7 @@ export default function RootStack() {
             <Stack.Screen name="DailyWord" component={DailyWordScreen} />
             <Stack.Screen name="ChooseGame" component={ChooseGameScreen} />
             <Stack.Screen name="BrawlerLobby" component={BrawlerLobbyScreen} />
+            <Stack.Screen name="BrawlerVenueQueue" component={BrawlerVenueQueueScreen} />
             <Stack.Screen name="BrawlerArena" component={BrawlerArenaScreen} />
             <Stack.Screen name="Challenges" component={ChallengesScreen} />
             <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />

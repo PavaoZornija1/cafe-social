@@ -108,7 +108,8 @@ model Venue {
   playerVenueStats PlayerVenueStats[]
   challenges       Challenge[]
   gameSessions         GameSession[]
-  wordMatchQueueEntries WordMatchQueueEntry[]
+  wordMatchQueueEntries   WordMatchQueueEntry[]
+  brawlerMatchQueueEntries BrawlerMatchQueueEntry[]
   playerGameVenueStats PlayerGameVenueStats[]
   feedEvents       VenueFeedEvent[]
   perks            VenuePerk[]
@@ -521,7 +522,8 @@ model Player {
   bansIssued       VenuePlayerBan[]    @relation("VenueBanCreatedBy")
   funnelEvents     VenueFunnelEvent[]
 
-  wordMatchQueueEntries WordMatchQueueEntry[]
+  wordMatchQueueEntries   WordMatchQueueEntry[]
+  brawlerMatchQueueEntries BrawlerMatchQueueEntry[]
 
   venueStaff VenueStaff[]
   staffInvitesSent VenueStaffInvite[] @relation("StaffInviteSentBy")
@@ -1441,6 +1443,31 @@ enum WordMatchQueueStatus {
 enum WordMatchQueueMode {
   COOP
   VERSUS
+}
+
+enum BrawlerMatchQueueStatus {
+  WAITING
+  MATCHED
+  CANCELLED
+}
+
+/// Venue-only brawler matchmaking: same venue + casual/ranked bucket pairs into a 1v1 room (auto-started).
+model BrawlerMatchQueueEntry {
+  id               String                 @id @default(uuid())
+  venueId          String
+  playerId         String
+  ranked           Boolean                @default(false)
+  brawlerHeroId    String?
+  status           BrawlerMatchQueueStatus @default(WAITING)
+  matchedSessionId String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([venueId, ranked, status, createdAt], map: "BrawlerMatchQueueEntry_bucket_idx")
+  @@index([playerId, status], map: "BrawlerMatchQueueEntry_player_status_idx")
 }
 
 /// Venue-only matchmaking: same rules bucket pairs into a new word room (2 players, auto-started).

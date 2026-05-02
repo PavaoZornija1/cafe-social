@@ -3,6 +3,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsBoolean,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -37,6 +38,19 @@ export class CreateBrawlerSessionDto {
   @IsOptional()
   @IsUUID()
   partyId?: string;
+
+  @IsOptional()
+  @IsNumber()
+  latitude?: number;
+
+  @IsOptional()
+  @IsNumber()
+  longitude?: number;
+
+  /** Ranked 1v1 at a venue only (no bots); requires location when venue is set. */
+  @IsOptional()
+  @IsBoolean()
+  ranked?: boolean;
 
   @IsArray()
   @ArrayMinSize(2)
