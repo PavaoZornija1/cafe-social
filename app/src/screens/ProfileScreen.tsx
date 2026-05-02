@@ -228,6 +228,26 @@ export default function ProfileScreen({ navigation }: Props) {
               <Text style={styles.value}>{summary.tier}</Text>
             </View>
             <View style={styles.row}>
+              <Text style={styles.label}>{t('profile.ratingGlobal')}</Text>
+              <Text style={styles.value}>
+                {summary.competitiveRankRating != null
+                  ? String(summary.competitiveRankRating)
+                  : '—'}
+              </Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.label}>{t('profile.ratingWord')}</Text>
+              <Text style={styles.value}>
+                {summary.wordRankRating != null ? String(summary.wordRankRating) : '—'}
+              </Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.label}>{t('profile.ratingBrawler')}</Text>
+              <Text style={styles.value}>
+                {summary.brawlerRankRating != null ? String(summary.brawlerRankRating) : '—'}
+              </Text>
+            </View>
+            <View style={styles.row}>
               <Text style={styles.label}>{t('profile.completedChallenges')}</Text>
               <Text style={styles.value}>{summary.completedChallenges}</Text>
             </View>

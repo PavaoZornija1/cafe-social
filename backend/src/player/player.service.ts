@@ -83,6 +83,12 @@ export class PlayerService {
     tier: string;
     nextTierXpThreshold: number | null;
     nextTierName: string | null;
+    /** Global competitive rating (Elo-style); independent of XP / tier. */
+    competitiveRankRating: number;
+    /** Ranked word versus ladder only. */
+    wordRankRating: number;
+    /** Ranked brawler ladder only. */
+    brawlerRankRating: number;
     completedChallenges: number;
     venuesUnlocked: number;
     discoverable: boolean;
@@ -113,6 +119,9 @@ export class PlayerService {
       tier: tierLabel,
       nextTierXpThreshold,
       nextTierName,
+      competitiveRankRating: player.competitiveRankRating,
+      wordRankRating: player.wordRankRating,
+      brawlerRankRating: player.brawlerRankRating,
       completedChallenges,
       venuesUnlocked,
       discoverable: player.discoverable,

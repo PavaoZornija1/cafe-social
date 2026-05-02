@@ -15,6 +15,7 @@ import { normalizeUserEmail } from '../auth/user-email.util';
 import { WordService } from './word.service';
 import { CreateSoloWordSessionDto } from './dto/create-solo-word-session.dto';
 import { CoopGuessDto } from './dto/coop-guess.dto';
+import { WordSessionPassDto } from './dto/word-session-pass.dto';
 
 @Controller('words')
 @UseGuards(JwtAuthGuard)
@@ -59,5 +60,14 @@ export class WordController {
     @Body() dto: CoopGuessDto,
   ) {
     return this.words.soloGuess(this.email(user), sessionId, dto);
+  }
+
+  @Post('session/:sessionId/pass')
+  soloPass(
+    @CurrentUser() user: unknown,
+    @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Body() dto: WordSessionPassDto,
+  ) {
+    return this.words.soloPass(this.email(user), sessionId, dto);
   }
 }

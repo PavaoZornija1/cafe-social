@@ -15,8 +15,13 @@ import { normalizeUserEmail } from '../auth/user-email.util';
 import { PlayerService } from '../player/player.service';
 import { WordMatchService } from './word-match.service';
 import { CreateWordMatchDto } from './dto/create-word-match.dto';
+import {
+  EnqueueWordMatchQueueDto,
+  LeaveWordMatchQueueDto,
+} from './dto/enqueue-word-match-queue.dto';
 import { JoinWordMatchDto } from './dto/join-word-match.dto';
 import { CoopGuessDto } from './dto/coop-guess.dto';
+import { MatchPassDto } from './dto/match-pass.dto';
 
 @Controller('words/matches')
 @UseGuards(JwtAuthGuard)
@@ -41,6 +46,21 @@ export class WordMatchController {
   @Post('join')
   join(@CurrentUser() user: unknown, @Body() dto: JoinWordMatchDto) {
     return this.match.joinByCode(this.email(user), dto);
+  }
+
+  @Post('queue/enqueue')
+  queueEnqueue(@CurrentUser() user: unknown, @Body() dto: EnqueueWordMatchQueueDto) {
+    return this.match.enqueueVenueWordMatch(this.email(user), dto);
+  }
+
+  @Get('queue/me')
+  queueMe(@CurrentUser() user: unknown, @Query('venueId', new ParseUUIDPipe()) venueId: string) {
+    return this.match.getVenueQueueStatus(this.email(user), venueId);
+  }
+
+  @Post('queue/leave')
+  queueLeave(@CurrentUser() user: unknown, @Body() dto: LeaveWordMatchQueueDto) {
+    return this.match.leaveVenueWordQueue(this.email(user), dto.venueId);
   }
 
   @Post(':sessionId/start')
@@ -86,6 +106,15 @@ export class WordMatchController {
     @Body() dto: CoopGuessDto,
   ) {
     return this.match.coopGuess(this.email(user), sessionId, dto);
+  }
+
+  @Post(':sessionId/coop-pass')
+  coopPass(
+    @CurrentUser() user: unknown,
+    @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Body() dto: MatchPassDto,
+  ) {
+    return this.match.coopPass(this.email(user), sessionId, dto);
   }
 
   @Post(':sessionId/versus-guess')

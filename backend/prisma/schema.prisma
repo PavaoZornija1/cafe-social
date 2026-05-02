@@ -108,6 +108,7 @@ model Venue {
   playerVenueStats PlayerVenueStats[]
   challenges       Challenge[]
   gameSessions         GameSession[]
+  wordMatchQueueEntries WordMatchQueueEntry[]
   playerGameVenueStats PlayerGameVenueStats[]
   feedEvents       VenueFeedEvent[]
   perks            VenuePerk[]
@@ -465,6 +466,13 @@ model Player {
   /// XP from global / off-venue wins (tier uses venue XP sum + this). Venue leaderboards stay venue-only.
   bonusXp Int @default(0)
 
+  /// Global competitive rating (Elo-style); independent of XP / tier. Updated on every ranked match (any mode).
+  competitiveRankRating Int @default(1500)
+  /// Ranked word (versus) ladder only.
+  wordRankRating Int @default(1500)
+  /// Ranked brawler ladder only (future).
+  brawlerRankRating Int @default(1500)
+
   lastPresenceVenueId String?
   lastPresenceAt      DateTime?
 
@@ -512,6 +520,8 @@ model Player {
   bansReceived     VenuePlayerBan[]    @relation("VenueBanSubject")
   bansIssued       VenuePlayerBan[]    @relation("VenueBanCreatedBy")
   funnelEvents     VenueFunnelEvent[]
+
+  wordMatchQueueEntries WordMatchQueueEntry[]
 
   venueStaff VenueStaff[]
   staffInvitesSent VenueStaffInvite[] @relation("StaffInviteSentBy")
@@ -1067,6 +1077,8 @@ model SoloWordSession {
   createdAt  DateTime      @default(now())
   expiresAt  DateTime
   finishedAt DateTime?
+  /// Correct guesses only (skips/timeouts do not increment). Used for deck-complete XP.
+  wordsSolved Int @default(0)
   /// Set once when deck-complete XP has been granted.
   winXpAwarded Boolean @default(false)
 
@@ -1237,6 +1249,8 @@ model GameSession {
   endedAt     DateTime?
   /// Set once when win XP has been granted for this finished session (idempotency).
   winXpAwardedAt DateTime?
+  /// Set once competitive rank deltas have been applied for this session (idempotency; any ranked mode).
+  rankAwardedAt DateTime?
   /// Winner stored at participant level (supports bots + non-player entities).
   winnerParticipantId String?
   createdAt   DateTime          @default(now())
@@ -1418,12 +1432,48 @@ model BrawlerParticipantStats {
   @@index([ringOuts])
 }
 
+enum WordMatchQueueStatus {
+  WAITING
+  MATCHED
+  CANCELLED
+}
+
+enum WordMatchQueueMode {
+  COOP
+  VERSUS
+}
+
+/// Venue-only matchmaking: same rules bucket pairs into a new word room (2 players, auto-started).
+model WordMatchQueueEntry {
+  id               String               @id @default(uuid())
+  venueId          String
+  playerId         String
+  mode             WordMatchQueueMode
+  difficulty       String
+  wordCount        Int
+  language         String
+  category         WordCategory?
+  ranked           Boolean              @default(false)
+  status           WordMatchQueueStatus @default(WAITING)
+  matchedSessionId String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([venueId, mode, difficulty, wordCount, language, category, ranked, status, createdAt], map: "WordMatchQueueEntry_bucket_idx")
+  @@index([playerId, status], map: "WordMatchQueueEntry_player_status_idx")
+}
+
 model WordSession {
   sessionId            String @id
   roundCount           Int    @default(1)
   language             String @default("en")
   /// Co-op: shared progress index into the ordered word list (server-authoritative).
   sharedWordIndex      Int    @default(0)
+  /// Co-op: count of words solved correctly (skips do not increment). Must equal deck size for a win.
+  wordsSolvedCount     Int    @default(0)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
   session              GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)

@@ -15,6 +15,7 @@ import FriendsScreen from "../screens/FriendsScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import QrScanScreen from "../screens/QrScanScreen";
 import WordLobbyScreen from "../screens/WordLobbyScreen";
+import WordVenueQueueScreen from "../screens/WordVenueQueueScreen";
 import WordMatchJoinScreen from "../screens/WordMatchJoinScreen";
 import WordMatchWaitScreen from "../screens/WordMatchWaitScreen";
 import WordGameScreen from "../screens/WordGameScreen";
@@ -79,6 +80,7 @@ export default function RootStack() {
             <Stack.Screen name="MyVenueReports" component={MyVenueReportsScreen} />
             <Stack.Screen name="QrScan" component={QrScanScreen} />
             <Stack.Screen name="WordLobby" component={WordLobbyScreen} />
+            <Stack.Screen name="WordVenueQueue" component={WordVenueQueueScreen} />
             <Stack.Screen name="WordMatchJoin" component={WordMatchJoinScreen} />
             <Stack.Screen name="WordMatchWait" component={WordMatchWaitScreen} />
             <Stack.Screen name="WordGame" component={WordGameScreen} />

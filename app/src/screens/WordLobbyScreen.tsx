@@ -29,6 +29,8 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
   const { venueId, challengeId } = route.params ?? {};
   const [difficulty, setDifficulty] = useState<Difficulty>('easy');
   const [playKind, setPlayKind] = useState<PlayKind>('solo');
+  /** Versus only: ranked affects rating (casual does not). */
+  const [versusRanked, setVersusRanked] = useState(false);
   const [wordCount, setWordCount] = useState<number>(5);
   const [wordCategory, setWordCategory] = useState<(typeof WORD_CATEGORY_KEYS)[number] | null>(
     null,
@@ -65,6 +67,21 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
       create: true,
       wordCount,
       wordCategory: wordCategory ?? undefined,
+      ranked: playKind === 'versus' && versusRanked ? true : undefined,
+    });
+  };
+
+  const onQueueAtVenue = () => {
+    if (!venueId) return;
+    if (playKind !== 'coop' && playKind !== 'versus') return;
+    navigation.navigate('WordVenueQueue', {
+      venueId,
+      challengeId,
+      mode: playKind,
+      difficulty,
+      wordCount,
+      wordCategory: wordCategory ?? undefined,
+      ranked: playKind === 'versus' && versusRanked ? true : undefined,
     });
   };
 
@@ -109,6 +126,37 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
               ? t('wordLobby.modeCoopHint')
               : t('wordLobby.modeVersusHint')}
         </Text>
+
+        {playKind === 'versus' ? (
+          <>
+            <Text style={styles.sectionTitle}>{t('wordLobby.versusMatchTypeTitle')}</Text>
+            <View style={styles.segmentRow}>
+              <Pressable
+                onPress={() => setVersusRanked(false)}
+                style={({ pressed }) => [
+                  styles.segment,
+                  pressed && styles.segmentPressed,
+                  !versusRanked && styles.segmentActive,
+                ]}
+              >
+                <Text style={styles.segmentText}>{t('wordLobby.versusCasual')}</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setVersusRanked(true)}
+                style={({ pressed }) => [
+                  styles.segment,
+                  pressed && styles.segmentPressed,
+                  versusRanked && styles.segmentActive,
+                ]}
+              >
+                <Text style={styles.segmentText}>{t('wordLobby.versusRanked')}</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.modeHint}>
+              {versusRanked ? t('wordLobby.versusRankedHint') : t('wordLobby.versusCasualHint')}
+            </Text>
+          </>
+        ) : null}
 
         <Text style={styles.sectionTitle}>{t('wordLobby.deckLengthTitle')}</Text>
         <View style={styles.chipRow}>
@@ -200,6 +248,12 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
           </Text>
         </Pressable>
 
+        {venueId && (playKind === 'coop' || playKind === 'versus') ? (
+          <Pressable onPress={onQueueAtVenue} style={styles.queueBtn}>
+            <Text style={styles.queueBtnText}>{t('wordLobby.queueAtVenue')}</Text>
+          </Pressable>
+        ) : null}
+
         <Pressable
           onPress={() => navigation.navigate('WordMatchJoin', { venueId, challengeId })}
           style={styles.secondary}
@@ -267,6 +321,16 @@ function createStyles(colors: AppColors) {
     alignItems: 'center',
   },
   playBtnText: { color: colors.textInverse, fontWeight: '900', fontSize: 16 },
+  queueBtn: {
+    marginTop: 12,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.honey,
+  },
+  queueBtnText: { color: colors.honeyDark, fontWeight: '900', fontSize: 15 },
   secondary: {
     marginTop: 14,
     paddingVertical: 12,

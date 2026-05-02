@@ -12,20 +12,17 @@ import {
   Min,
 } from 'class-validator';
 
-export type WordMatchMode = 'coop' | 'versus';
+export type WordMatchQueueModeDto = 'coop' | 'versus';
 
-export class CreateWordMatchDto {
-  @IsOptional()
+export class EnqueueWordMatchQueueDto {
   @IsUUID()
-  venueId?: string;
+  venueId!: string;
 
-  @IsOptional()
   @IsNumber()
-  latitude?: number;
+  latitude!: number;
 
-  @IsOptional()
   @IsNumber()
-  longitude?: number;
+  longitude!: number;
 
   @IsString()
   @IsIn(['en', 'de', 'es', 'hr'])
@@ -42,15 +39,19 @@ export class CreateWordMatchDto {
 
   @IsString()
   @IsIn(['coop', 'versus'])
-  mode!: WordMatchMode;
+  mode!: WordMatchQueueModeDto;
 
-  /** Ranked versus only: rating changes on finish; ignored for co-op. */
-  @IsOptional()
-  @IsBoolean()
-  ranked?: boolean;
-
-  /** When set, all words in the deck share this category. */
   @IsOptional()
   @IsEnum(WordCategory)
   category?: WordCategory;
+
+  /** Versus only — ranked queue (rating changes on finish). */
+  @IsOptional()
+  @IsBoolean()
+  ranked?: boolean;
+}
+
+export class LeaveWordMatchQueueDto {
+  @IsUUID()
+  venueId!: string;
 }

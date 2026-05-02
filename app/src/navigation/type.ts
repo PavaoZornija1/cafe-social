@@ -50,6 +50,16 @@ export type RootStackParamList = {
     MyVenueReports: undefined;
     QrScan: { venueId?: string };
     WordLobby: { venueId?: string; challengeId?: string };
+    /** Venue-only: matchmaking queue then auto-paired room (same rules bucket). */
+    WordVenueQueue: {
+      venueId: string;
+      challengeId?: string;
+      mode: 'coop' | 'versus';
+      difficulty: 'easy' | 'normal' | 'hard';
+      wordCount: number;
+      wordCategory?: string;
+      ranked?: boolean;
+    };
     WordMatchJoin: { venueId?: string; challengeId?: string };
     WordMatchWait: {
       venueId?: string;
@@ -61,6 +71,8 @@ export type RootStackParamList = {
       /** Host create only — passed to POST /words/matches */
       wordCount?: number;
       wordCategory?: string;
+      /** Versus only — ranked match (rating changes on finish). */
+      ranked?: boolean;
     };
     WordGame: {
       venueId?: string;
@@ -71,6 +83,8 @@ export type RootStackParamList = {
       sessionWordsCount?: number;
       /** Solo — filters POST /words/session/start */
       wordCategory?: string;
+      /** From server state for versus ranked. */
+      ranked?: boolean;
     };
     StaffVenues: undefined;
     StaffRedemptions: {
