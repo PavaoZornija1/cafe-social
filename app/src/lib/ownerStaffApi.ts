@@ -1,4 +1,4 @@
-import { apiGet } from './api';
+import { apiGet, apiPost } from './api';
 
 export type OwnerVenueRow = {
   role: 'EMPLOYEE' | 'MANAGER' | 'OWNER';
@@ -16,12 +16,14 @@ export type OwnerVenuesResponse = { venues: OwnerVenueRow[] };
 export type StaffRedemptionRow = {
   redemptionId: string;
   staffVerificationCode: string;
-  redeemedAt: string;
+  issuedAt: string;
+  redeemedAt: string | null;
+  expiresAt: string;
+  status: string;
   perkCode: string;
   perkTitle: string;
   voidedAt: string | null;
   voidReason: string | null;
-  staffAcknowledgedAt: string | null;
 };
 
 export type StaffRedemptionsResponse = {
@@ -39,6 +41,18 @@ export function fetchStaffRedemptions(token: string, venueId: string, dateYmd: s
   const q = new URLSearchParams({ date: dateYmd });
   return apiGet<StaffRedemptionsResponse>(
     `/owner/venues/${encodeURIComponent(venueId)}/redemptions?${q}`,
+    token,
+  );
+}
+
+export function scanAndRedeemStaffReward(
+  token: string,
+  venueId: string,
+  code: string,
+) {
+  return apiPost<{ ok: true }>(
+    `/owner/venues/${encodeURIComponent(venueId)}/redemptions/scan`,
+    { code },
     token,
   );
 }

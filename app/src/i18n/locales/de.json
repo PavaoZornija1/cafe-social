@@ -168,7 +168,9 @@
     "modOpenReports": "{{n}} offene Meldungen",
     "modActiveBans": "{{n}} aktive Sperren",
     "modOpenAppeals": "{{n}} offene Einsprüche",
-    "modPartnerToolsHint": "Manager können im Partner-Portal handeln; hier nur Lesen für Personal vor Ort."
+    "modPartnerToolsHint": "Manager können im Partner-Portal handeln; hier nur Lesen für Personal vor Ort.",
+    "scanSuccessTitle": "Belohnung eingelöst",
+    "scanSuccessBody": "QR verifiziert und Belohnung als eingelöst markiert."
   },
   "home": {
     "appTitle": "Cafe Social",
@@ -365,7 +367,8 @@
     "progressCta": "Fortschritt +1",
     "updating": "Aktualisiere…",
     "loadError": "Challenges konnten nicht geladen werden",
-    "weekly": "Wöchentliche Challenge — Fortschritt setzt sich jede ISO-Woche (UTC) zurück."
+    "weekly": "Wöchentliche Challenge — Fortschritt setzt sich jede ISO-Woche (UTC) zurück.",
+    "rewardLine": "Belohnung bei Abschluss: {{title}}"
   },
   "wordLobby": {
     "title": "Wortspiel",
@@ -500,7 +503,8 @@
     "recentPerksEmpty": "Noch keine Einlösungen — besuche ein Partner-Café.",
     "redeemedAt": "Eingelöst {{when}}",
     "openFriends": "Freunde",
-    "shareFriendLink": "Freundes-Link teilen"
+    "shareFriendLink": "Freundes-Link teilen",
+    "openRewardsHub": "Meine Belohnungen (QR)"
   },
   "leaderboard": {
     "title": "Rangliste",
@@ -613,7 +617,10 @@
     "needVenue": "Lokal muss erkannt sein (oder von der Startseite öffnen, wenn du dort bist).",
     "redeemFailed": "Einlösen fehlgeschlagen.",
     "showToStaff": "Diesen Bildschirm ggf. dem Personal zeigen.",
-    "staffVerificationCode": "Code für Personal"
+    "staffVerificationCode": "Code für Personal",
+    "myRewards": "Meine einlösbaren Belohnungen",
+    "rewardStatus": "Status",
+    "rewardExpires": "Läuft ab"
   },
   "redeem": {
     "title": "Einladung einlösen",

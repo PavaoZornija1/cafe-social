@@ -203,6 +203,12 @@ export default function ProfileScreen({ navigation }: Props) {
               {sharing ? '…' : t('profile.shareFriendLink')}
             </Text>
           </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.linkBtn, pressed && styles.linkBtnPressed]}
+            onPress={() => navigation.navigate('RewardsHub')}
+          >
+            <Text style={styles.linkBtnText}>{t('profile.openRewardsHub')}</Text>
+          </Pressable>
         </View>
 
         {loading ? (

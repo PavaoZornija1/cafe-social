@@ -30,6 +30,8 @@ type VenueChallenge = {
   progressCount: number;
   isCompleted: boolean;
   resetsWeekly?: boolean;
+  rewardPerkId: string | null;
+  rewardTitle: string | null;
 };
 
 export default function ChallengesScreen({ navigation }: Props) {
@@ -158,6 +160,9 @@ export default function ChallengesScreen({ navigation }: Props) {
                   : t('challenges.worksFromHome')}
               </Text>
               {c.resetsWeekly ? <Text style={styles.cardWeekly}>{t('challenges.weekly')}</Text> : null}
+              {c.rewardTitle ? (
+                <Text style={styles.cardReward}>{t('challenges.rewardLine', { title: c.rewardTitle })}</Text>
+              ) : null}
 
               <Pressable
                 disabled={!!progressingId && progressingId !== c.id}
@@ -227,6 +232,7 @@ function createStyles(colors: AppColors) {
   cardProgress: { color: colors.textSecondary, marginTop: 10, fontSize: 14, fontWeight: '800' },
   cardHint: { color: colors.honeyDark, marginTop: 6, fontSize: 13, fontWeight: '700' },
   cardWeekly: { color: '#fbbf24', marginTop: 6, fontSize: 12, fontWeight: '700' },
+  cardReward: { color: colors.textSecondary, marginTop: 8, fontSize: 13, fontWeight: '700', lineHeight: 18 },
   actionBtn: {
     marginTop: 14,
     backgroundColor: colors.surface,

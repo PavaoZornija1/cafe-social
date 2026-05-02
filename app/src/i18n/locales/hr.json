@@ -168,7 +168,9 @@
     "modOpenReports": "{{n}} otvorenih prijava",
     "modActiveBans": "{{n}} aktivnih zabrana",
     "modOpenAppeals": "{{n}} otvorenih žalbi",
-    "modPartnerToolsHint": "Manageri rade u partnerskom portalu; ovo je samo za čitanje za osoblje na licu mjesta."
+    "modPartnerToolsHint": "Manageri rade u partnerskom portalu; ovo je samo za čitanje za osoblje na licu mjesta.",
+    "scanSuccessTitle": "Nagrada iskorištena",
+    "scanSuccessBody": "QR potvrđen i nagrada označena kao iskorištena."
   },
   "home": {
     "appTitle": "Cafe Social",
@@ -365,7 +367,8 @@
     "progressCta": "Napredak +1",
     "updating": "Ažuriranje…",
     "loadError": "Izazovi se nisu mogli učitati",
-    "weekly": "Tjedni izazov — napredak se resetira svaki ISO tjedan (UTC)."
+    "weekly": "Tjedni izazov — napredak se resetira svaki ISO tjedan (UTC).",
+    "rewardLine": "Nagrada kad završiš: {{title}}"
   },
   "wordLobby": {
     "title": "Igra riječima",
@@ -500,7 +503,8 @@
     "recentPerksEmpty": "Još nema otkupa — posjeti partnerski kafić.",
     "redeemedAt": "Otkupljeno {{when}}",
     "openFriends": "Prijatelji",
-    "shareFriendLink": "Podijeli pozivnicu"
+    "shareFriendLink": "Podijeli pozivnicu",
+    "openRewardsHub": "Moje nagrade (QR)"
   },
   "leaderboard": {
     "title": "Ljestvica",
@@ -613,7 +617,10 @@
     "needVenue": "Lokal mora biti prepoznat (ili otvori s Početne dok si tamo).",
     "redeemFailed": "Nije uspjelo iskoristiti.",
     "showToStaff": "Po potrebi pokaži ovaj ekran osoblju.",
-    "staffVerificationCode": "Kôd za osoblje"
+    "staffVerificationCode": "Kôd za osoblje",
+    "myRewards": "Moje iskoristive nagrade",
+    "rewardStatus": "Status",
+    "rewardExpires": "Istječe"
   },
   "redeem": {
     "title": "Iskoristi pozivnicu",

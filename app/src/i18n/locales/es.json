@@ -168,7 +168,9 @@
     "modOpenReports": "{{n}} informes abiertos",
     "modActiveBans": "{{n}} bloqueos activos",
     "modOpenAppeals": "{{n}} apelaciones abiertas",
-    "modPartnerToolsHint": "Los gestores actúan en el portal partner; esto es solo lectura para el personal."
+    "modPartnerToolsHint": "Los gestores actúan en el portal partner; esto es solo lectura para el personal.",
+    "scanSuccessTitle": "Recompensa canjeada",
+    "scanSuccessBody": "QR verificado y recompensa marcada como canjeada."
   },
   "home": {
     "appTitle": "Cafe Social",
@@ -365,7 +367,8 @@
     "progressCta": "Progreso +1",
     "updating": "Actualizando…",
     "loadError": "No se pudieron cargar los retos",
-    "weekly": "Reto semanal — el progreso se reinicia cada semana ISO (UTC)."
+    "weekly": "Reto semanal — el progreso se reinicia cada semana ISO (UTC).",
+    "rewardLine": "Recompensa al completar: {{title}}"
   },
   "wordLobby": {
     "title": "Juego de palabras",
@@ -500,7 +503,8 @@
     "recentPerksEmpty": "Aún no hay canjes — visita un café socio.",
     "redeemedAt": "Canjeado {{when}}",
     "openFriends": "Amigos",
-    "shareFriendLink": "Enlace de amistad"
+    "shareFriendLink": "Enlace de amistad",
+    "openRewardsHub": "Mis recompensas (QR)"
   },
   "leaderboard": {
     "title": "Clasificación",
@@ -613,7 +617,10 @@
     "needVenue": "Debes estar detectado en el local (o abre esto desde Inicio estando allí).",
     "redeemFailed": "No se pudo canjear.",
     "showToStaff": "Muestra esta pantalla al personal si hace falta.",
-    "staffVerificationCode": "Código para el personal"
+    "staffVerificationCode": "Código para el personal",
+    "myRewards": "Mis recompensas canjeables",
+    "rewardStatus": "Estado",
+    "rewardExpires": "Expira"
   },
   "redeem": {
     "title": "Canjear invitación",

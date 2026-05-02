@@ -199,8 +199,8 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
                 <Text style={styles.code}>{item.staffVerificationCode}</Text>
                 <Text style={styles.perkTitle}>{item.perkTitle}</Text>
                 <Text style={styles.perkMeta}>
-                  {item.perkCode} · {new Date(item.redeemedAt).toISOString()}
-                  {voided ? ` · VOID` : ""}
+                  {item.perkCode} · {new Date(item.issuedAt).toISOString()} · {item.status}
+                  {voided ? ` · VOID` : ''}
                 </Text>
               </View>
             );

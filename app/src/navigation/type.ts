@@ -38,6 +38,7 @@ export type RootStackParamList = {
     PartyDetail: { partyId: string };
     RedeemInvite: { token?: string } | undefined;
     RedeemPerk: { venueId?: string } | undefined;
+    RewardsHub: undefined;
     PeopleHere: { venueId: string; venueName?: string };
     ReportPlayer: {
         venueId: string;

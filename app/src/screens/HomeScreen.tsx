@@ -54,6 +54,8 @@ type VenueChallenge = {
     progressCount: number;
     isCompleted: boolean;
     resetsWeekly?: boolean;
+    rewardPerkId: string | null;
+    rewardTitle: string | null;
 };
 
 type VenuePublicOffer = {
@@ -830,6 +832,21 @@ export default function HomeScreen({ navigation }: Props) {
                                 <Ionicons name="pricetag-outline" size={18} color={colors.honey} />
                                 <Text style={styles.shortcutLabel} numberOfLines={1}>
                                     {t('home.linkRedeemPerk')}
+                                </Text>
+                            </Pressable>
+                            <Pressable
+                                style={({ pressed }) => [
+                                    styles.shortcutBtn,
+                                    styles.shortcutBtnGrid,
+                                    pressed && styles.shortcutBtnPressed,
+                                ]}
+                                onPress={() => navigation.navigate('RewardsHub')}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('home.linkRewardsHub')}
+                            >
+                                <Ionicons name="gift-outline" size={18} color={colors.honey} />
+                                <Text style={styles.shortcutLabel} numberOfLines={1}>
+                                    {t('home.linkRewardsHub')}
                                 </Text>
                             </Pressable>
                             <Pressable

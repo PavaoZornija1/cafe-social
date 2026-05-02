@@ -22,6 +22,7 @@ import PartiesScreen from "../screens/PartiesScreen";
 import PartyDetailScreen from "../screens/PartyDetailScreen";
 import RedeemInviteScreen from "../screens/RedeemInviteScreen";
 import RedeemPerkScreen from "../screens/RedeemPerkScreen";
+import RewardsHubScreen from "../screens/RewardsHubScreen";
 import PeopleHereScreen from "../screens/PeopleHereScreen";
 import ReportPlayerScreen from "../screens/ReportPlayerScreen";
 import BanAppealScreen from "../screens/BanAppealScreen";
@@ -71,6 +72,7 @@ export default function RootStack() {
             <Stack.Screen name="PartyDetail" component={PartyDetailScreen} />
             <Stack.Screen name="RedeemInvite" component={RedeemInviteScreen} />
             <Stack.Screen name="RedeemPerk" component={RedeemPerkScreen} />
+            <Stack.Screen name="RewardsHub" component={RewardsHubScreen} />
             <Stack.Screen name="PeopleHere" component={PeopleHereScreen} />
             <Stack.Screen name="ReportPlayer" component={ReportPlayerScreen} />
             <Stack.Screen name="BanAppeal" component={BanAppealScreen} />

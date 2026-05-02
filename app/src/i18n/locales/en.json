@@ -168,7 +168,9 @@
     "modOpenReports": "{{n}} open reports",
     "modActiveBans": "{{n}} active bans",
     "modOpenAppeals": "{{n}} open appeals",
-    "modPartnerToolsHint": "Managers can take action in the partner portal; this is a read-only signal for on-site staff."
+    "modPartnerToolsHint": "Managers can take action in the partner portal; this is a read-only signal for on-site staff.",
+    "scanSuccessTitle": "Reward redeemed",
+    "scanSuccessBody": "QR verified and reward marked as redeemed."
   },
   "home": {
     "appTitle": "Cafe Social",
@@ -365,7 +367,8 @@
     "progressCta": "Progress +1",
     "updating": "Updating…",
     "loadError": "Failed to load challenges",
-    "weekly": "Weekly challenge — progress resets each ISO week (UTC)."
+    "weekly": "Weekly challenge — progress resets each ISO week (UTC).",
+    "rewardLine": "Reward when completed: {{title}}"
   },
   "wordLobby": {
     "title": "Word Game",
@@ -500,7 +503,8 @@
     "recentPerksEmpty": "No redemptions yet — visit a partner café and redeem an offer.",
     "redeemedAt": "Redeemed {{when}}",
     "openFriends": "Friends",
-    "shareFriendLink": "Share friend invite"
+    "shareFriendLink": "Share friend invite",
+    "openRewardsHub": "My rewards (QR)"
   },
   "leaderboard": {
     "title": "Leaderboard",
@@ -619,7 +623,10 @@
     "availableAtVenue": "Offers at this venue",
     "qrUnlockHint": "Check in (QR or invite) may be required before redeeming this one.",
     "redeemedByYou": "You already redeemed this offer.",
-    "fullyRedeemedLabel": "Fully redeemed — ask staff for new codes."
+    "fullyRedeemedLabel": "Fully redeemed — ask staff for new codes.",
+    "myRewards": "My redeemable rewards",
+    "rewardStatus": "Status",
+    "rewardExpires": "Expires"
   },
   "redeem": {
     "title": "Redeem invite",
