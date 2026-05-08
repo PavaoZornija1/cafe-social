@@ -184,6 +184,7 @@
     "queueSearching": "Tražimo drugog igrača…",
     "queuePosition": "Ti si #{{n}} u redu.",
     "queueLeave": "Izađi iz reda",
+    "queueBotFillHint": "Ako nakon {{seconds}} sekundi nitko nije dostupan, možemo te spariti s botom (samo casual).",
     "queueEnqueueFailed": "Nije moguće ući u red.",
     "rankedBadge": "Ranked",
     "pvpPlaceholderTitle": "Meč pronađen",
@@ -502,6 +503,7 @@
     "queueSearching": "Tražimo drugog igrača…",
     "queuePosition": "Ti si #{{n}} u redu za ovu postavku.",
     "queueLeave": "Izađi iz reda",
+    "queueBotFillHint": "Ako nakon {{seconds}} sekundi nitko nije dostupan, možemo te spariti s botom (samo casual).",
     "queueEnqueueFailed": "Nije moguće ući u red."
   },
   "wordGame": {

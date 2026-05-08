@@ -13,6 +13,7 @@ import { StatsModule } from '../stats/stats.module';
   imports: [PrismaModule, PlayerModule, AuthModule, VenueModule, StatsModule],
   controllers: [BrawlerController],
   providers: [BrawlerService, BrawlerRepository, BrawlerLiveRedisService],
+  exports: [BrawlerService],
 })
 export class BrawlerModule {}
 

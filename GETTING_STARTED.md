@@ -34,6 +34,10 @@ cp .env.example .env
 # Optional but useful:
 #   CLERK_AUTHORIZED_PARTIES=http://localhost:3000
 #   REDIS_URL=redis://127.0.0.1:6379
+# Optional — queue bot-fill (casual matchmaking). Defaults: 10s wait, 1s word bot tick.
+#   WORD_QUEUE_BOT_FILL_AFTER_MS=10000
+#   BRAWLER_QUEUE_BOT_FILL_AFTER_MS=10000
+#   WORD_BOT_TICK_MS=1000
 
 npm install
 npx prisma migrate dev          # creates schema and runs the seed (prisma.seed in package.json)

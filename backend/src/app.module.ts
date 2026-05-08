@@ -23,6 +23,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { EmailModule } from './email/email.module';
 import { RedisModule } from './redis/redis.module';
+import { QueueBotModule } from './queue-bot/queue-bot.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { RedisModule } from './redis/redis.module';
     StaffModule,
     RevenueCatModule,
     StripeModule,
+    QueueBotModule,
   ],
   controllers: [HealthController],
   providers: [],

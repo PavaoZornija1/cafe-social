@@ -442,6 +442,105 @@ export class BrawlerService {
     return { status: 'waiting' as const, position: waitingAhead + 1 };
   }
 
+  /** Casual-only queue bot-fill: pair one WAITING row with Chaos Bot (same hero as human). */
+  async tryFillBrawlerQueueWithBot(queueEntryId: string): Promise<string | null> {
+    let createdSessionId: string | null = null;
+    await this.prisma.$transaction(async (tx) => {
+      const row = await tx.brawlerMatchQueueEntry.findUnique({
+        where: { id: queueEntryId },
+      });
+      if (!row || row.status !== BrawlerMatchQueueStatus.WAITING || row.ranked) {
+        return;
+      }
+
+      const heroId = row.brawlerHeroId;
+      if (!heroId) return;
+
+      const pa = await tx.player.findUnique({
+        where: { id: row.playerId },
+        select: { username: true },
+      });
+      if (!pa) return;
+
+      const heroes = await tx.brawlerHero.findMany({
+        where: { id: heroId, isActive: true },
+      });
+      if (heroes.length !== 1) return;
+      const hero = heroes[0]!;
+
+      const snap = (h: (typeof heroes)[0]) =>
+        ({
+          id: h.id,
+          name: h.name,
+          version: h.version,
+          baseHp: h.baseHp,
+          moveSpeed: h.moveSpeed,
+          dashCooldownMs: h.dashCooldownMs,
+          attackDamage: h.attackDamage,
+          attackKnockback: h.attackKnockback,
+        }) as Prisma.InputJsonValue;
+
+      const playerVenueIds: Record<string, string> = {};
+      if (row.venueId) playerVenueIds[row.playerId] = row.venueId;
+
+      const config = {
+        ranked: false,
+        playerVenueIds,
+      } as unknown as Prisma.InputJsonValue;
+
+      const session = await tx.gameSession.create({
+        data: {
+          gameType: GameType.BRAWLER,
+          status: GameSessionStatus.PENDING,
+          venueId: row.venueId ?? null,
+          config,
+          brawlerSession: { create: {} },
+          participants: {
+            create: [
+              {
+                playerId: row.playerId,
+                isBot: false,
+                displayNameSnapshot: pa.username,
+                brawlerHeroId: heroId,
+                characterSnapshot: heroId,
+                heroSnapshot: snap(hero),
+              },
+              {
+                playerId: null,
+                isBot: true,
+                botName: 'Chaos Bot',
+                brawlerHeroId: heroId,
+                characterSnapshot: heroId,
+                heroSnapshot: snap(hero),
+              },
+            ],
+          },
+        },
+      });
+
+      const upd = await tx.brawlerMatchQueueEntry.updateMany({
+        where: {
+          id: row.id,
+          status: BrawlerMatchQueueStatus.WAITING,
+        },
+        data: {
+          status: BrawlerMatchQueueStatus.MATCHED,
+          matchedSessionId: session.id,
+        },
+      });
+      if (upd.count !== 1) {
+        await tx.gameSession.delete({ where: { id: session.id } });
+        return;
+      }
+      createdSessionId = session.id;
+    });
+
+    if (createdSessionId) {
+      await this.activateBrawlerMatchSession(createdSessionId);
+    }
+    return createdSessionId;
+  }
+
   private async tryMatchBrawlerQueueBucket(ranked: boolean): Promise<void> {
     let createdSessionId: string | null = null;
     await this.prisma.$transaction(async (tx) => {

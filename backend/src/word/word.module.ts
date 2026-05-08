@@ -37,6 +37,7 @@ import { StatsModule } from '../stats/stats.module';
     WordMatchCleanupService,
     DailyWordService,
   ],
+  exports: [WordMatchService],
 })
 export class WordModule {}
 

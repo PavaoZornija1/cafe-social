@@ -52,8 +52,14 @@ export type WordMatchConfig = {
   playerVenueIds?: Record<string, string>;
 };
 
-function isParticipantActive(p: { playerId: string | null; leftAt: Date | null }): boolean {
-  return Boolean(p.playerId && !p.leftAt);
+function isParticipantActive(p: {
+  playerId: string | null;
+  leftAt: Date | null;
+  isBot?: boolean;
+}): boolean {
+  if (p.leftAt) return false;
+  if (p.isBot) return true;
+  return Boolean(p.playerId);
 }
 
 @Injectable()
@@ -94,6 +100,7 @@ export class WordMatchService {
         username: p.username,
         score: p.score,
         result: p.result,
+        isBot: p.isBot ?? false,
         isYou: viewerPlayerId ? p.playerId === viewerPlayerId : false,
       })),
       isParticipant: viewerPlayerId
@@ -176,7 +183,6 @@ export class WordMatchService {
       data: { status: GameSessionStatus.FINISHED, endedAt: new Date() },
     });
     for (const p of participants.filter(isParticipantActive)) {
-      if (!p.playerId) continue;
       await tx.gameParticipant.update({
         where: { id: p.id },
         data: { result: GameParticipantResult.LOSS },
@@ -367,7 +373,9 @@ export class WordMatchService {
     if (!config?.hostPlayerId || config.hostPlayerId !== player.id) {
       throw new ForbiddenException('only the host can start the match');
     }
-    const activeHumans = session.participants.filter(isParticipantActive);
+    const activeHumans = session.participants.filter(
+      (p) => !p.leftAt && Boolean(p.playerId) && !p.isBot,
+    );
     if (activeHumans.length < 2) {
       throw new BadRequestException('need at least 2 players');
     }
@@ -497,6 +505,7 @@ export class WordMatchService {
         username: p.displayNameSnapshot ?? p.player?.username ?? 'Player',
         score: p.score,
         result: p.result,
+        isBot: p.isBot,
         isYou: viewerPlayerId ? p.playerId === viewerPlayerId : false,
       })),
       isParticipant: viewerPlayerId
@@ -716,7 +725,6 @@ export class WordMatchService {
           },
         });
         for (const p of session.participants.filter(isParticipantActive)) {
-          if (!p.playerId) continue;
           await tx.gameParticipant.update({
             where: { id: p.id },
             data: {
@@ -905,7 +913,6 @@ export class WordMatchService {
         });
         const stillIn = session.participants.filter(isParticipantActive);
         for (const p of stillIn) {
-          if (!p.playerId) continue;
           const isWinner = p.id === part.id;
           await tx.gameParticipant.update({
             where: { id: p.id },
@@ -1251,6 +1258,315 @@ export class WordMatchService {
       },
     });
     return { status: 'waiting' as const, position: waitingAhead + 1 };
+  }
+
+  /** Casual-only queue bot-fill: pair one WAITING row with a bot opponent and activate the session. */
+  async tryFillWordQueueWithBot(queueEntryId: string): Promise<string | null> {
+    let createdSessionId: string | null = null;
+    await this.prisma.$transaction(async (tx) => {
+      const row = await tx.wordMatchQueueEntry.findUnique({
+        where: { id: queueEntryId },
+      });
+      if (!row || row.status !== WordMatchQueueStatus.WAITING || row.ranked) {
+        return;
+      }
+
+      const pa = await tx.player.findUnique({
+        where: { id: row.playerId },
+        select: { username: true },
+      });
+      if (!pa) return;
+
+      const deck = await this.wordRepo.findRandomSessionDeck({
+        language: row.language,
+        category: row.category ?? undefined,
+        count: row.wordCount,
+        difficulty: row.difficulty,
+      });
+      if (deck.length === 0) return;
+
+      const wordIds = deck.map((w) => w.id);
+      const inviteCode = await this.newInviteCode(tx);
+      const wordGameMode: 'coop' | 'versus' =
+        row.mode === WordMatchQueueMode.COOP ? 'coop' : 'versus';
+      const playerVenueIds: Record<string, string> = {};
+      if (row.venueId) playerVenueIds[row.playerId] = row.venueId;
+
+      const config: WordMatchConfig = {
+        wordGameMode,
+        difficulty: row.difficulty,
+        wordIds,
+        hostPlayerId: row.playerId,
+        category: row.category ?? null,
+        playerVenueIds,
+      };
+
+      const botDisplayName = 'Café Bot';
+      const session = await tx.gameSession.create({
+        data: {
+          gameType: GameType.WORD_GAME,
+          status: GameSessionStatus.PENDING,
+          inviteCode,
+          venueId: row.venueId ?? null,
+          config: config as unknown as Prisma.InputJsonValue,
+          wordSession: {
+            create: {
+              roundCount: wordIds.length,
+              language: row.language,
+              sharedWordIndex: 0,
+            },
+          },
+          participants: {
+            create: [
+              {
+                playerId: row.playerId,
+                isBot: false,
+                displayNameSnapshot: pa.username,
+              },
+              {
+                playerId: null,
+                isBot: true,
+                botName: botDisplayName,
+                displayNameSnapshot: botDisplayName,
+              },
+            ],
+          },
+        },
+      });
+
+      const upd = await tx.wordMatchQueueEntry.updateMany({
+        where: {
+          id: row.id,
+          status: WordMatchQueueStatus.WAITING,
+        },
+        data: {
+          status: WordMatchQueueStatus.MATCHED,
+          matchedSessionId: session.id,
+        },
+      });
+      if (upd.count !== 1) {
+        await tx.gameSession.delete({ where: { id: session.id } });
+        return;
+      }
+      createdSessionId = session.id;
+    });
+
+    if (createdSessionId) {
+      await this.activateWordMatchSession(createdSessionId);
+    }
+    return createdSessionId;
+  }
+
+  /**
+   * Queue bot driver — co-op: correct guess (exact word) or pass current word.
+   * No auth / venue checks (server-side bot only).
+   */
+  async executeWordMatchBotCoopTurn(
+    sessionId: string,
+    botParticipantId: string,
+    kind: 'correct' | 'pass',
+  ): Promise<{ done: boolean; sessionFinished?: boolean }> {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const session = await tx.gameSession.findUnique({
+        where: { id: sessionId },
+        include: { wordSession: true, participants: true },
+      });
+      if (!session || session.status !== GameSessionStatus.ACTIVE || !session.wordSession) {
+        throw new BadRequestException('match not active');
+      }
+      const config = session.config as unknown as WordMatchConfig;
+      if (config.wordGameMode !== 'coop') {
+        throw new BadRequestException('not a co-op match');
+      }
+      const botPart = session.participants.find((p) => p.id === botParticipantId);
+      if (!botPart?.isBot || botPart.leftAt) {
+        throw new ForbiddenException('invalid bot participant');
+      }
+
+      const part = botPart;
+
+      if (kind === 'correct') {
+        const idx = session.wordSession.sharedWordIndex;
+        const wordIds = config.wordIds;
+        if (idx >= wordIds.length) {
+          return { done: true, sessionFinished: false, perfectCoop: false };
+        }
+        const word = await tx.word.findUnique({ where: { id: wordIds[idx]! } });
+        if (!word) throw new BadRequestException('word missing');
+
+        await tx.wordParticipantStats.upsert({
+          where: { participantId: part.id },
+          create: { participantId: part.id, correctAnswers: 1 },
+          update: { correctAnswers: { increment: 1 } },
+        });
+
+        const nextIdx = idx + 1;
+        const perfectRun =
+          session.wordSession.wordsSolvedCount + 1 === wordIds.length &&
+          nextIdx >= wordIds.length;
+        await tx.wordSession.update({
+          where: { sessionId },
+          data: { sharedWordIndex: nextIdx, wordsSolvedCount: { increment: 1 } },
+        });
+
+        if (nextIdx >= wordIds.length) {
+          await tx.gameSession.update({
+            where: { id: sessionId },
+            data: {
+              status: GameSessionStatus.FINISHED,
+              endedAt: new Date(),
+            },
+          });
+          for (const p of session.participants.filter(isParticipantActive)) {
+            await tx.gameParticipant.update({
+              where: { id: p.id },
+              data: {
+                result: perfectRun ? GameParticipantResult.WIN : GameParticipantResult.LOSS,
+              },
+            });
+          }
+          return { done: true, sessionFinished: true, perfectCoop: perfectRun };
+        }
+
+        return { done: false, sessionFinished: false, perfectCoop: false };
+      }
+
+      // pass
+      const idx = session.wordSession.sharedWordIndex;
+      const wordIds = config.wordIds;
+      if (idx >= wordIds.length) {
+        return { done: true, sessionFinished: false, perfectCoop: false };
+      }
+
+      const word = await tx.word.findUnique({ where: { id: wordIds[idx]! } });
+      if (!word) throw new BadRequestException('word missing');
+
+      await tx.wordParticipantStats.upsert({
+        where: { participantId: part.id },
+        create: { participantId: part.id, wrongAnswers: 1 },
+        update: { wrongAnswers: { increment: 1 } },
+      });
+
+      const nextIdx = idx + 1;
+      await tx.wordSession.update({
+        where: { sessionId },
+        data: { sharedWordIndex: nextIdx },
+      });
+
+      if (nextIdx >= wordIds.length) {
+        await this.finishCoopAllLoss(tx, sessionId, session.participants);
+        return { done: true, sessionFinished: true, perfectCoop: false };
+      }
+
+      return { done: false, sessionFinished: false, perfectCoop: false };
+    });
+
+    await this.syncWordMatchSnapshot(sessionId);
+    if (kind === 'correct') {
+      this.pushSessionRefresh(sessionId, { reason: 'coop_guess' });
+    } else {
+      this.pushSessionRefresh(sessionId, { reason: 'coop_pass' });
+    }
+    if (result.perfectCoop) {
+      void this.gameXp.tryAwardSessionWinXp(sessionId);
+    }
+    return { done: result.done, sessionFinished: result.sessionFinished };
+  }
+
+  /**
+   * Queue bot driver — versus: correct or wrong guess for the bot's current word.
+   */
+  async executeWordMatchBotVersusTurn(
+    sessionId: string,
+    botParticipantId: string,
+    kind: 'correct' | 'wrong',
+  ): Promise<{ finished: boolean }> {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const session = await tx.gameSession.findUnique({
+        where: { id: sessionId },
+        include: { wordSession: true, participants: true },
+      });
+      if (!session || session.status !== GameSessionStatus.ACTIVE || !session.wordSession) {
+        throw new BadRequestException('match not active');
+      }
+      const config = session.config as unknown as WordMatchConfig;
+      if (config.wordGameMode !== 'versus') {
+        throw new BadRequestException('not a versus match');
+      }
+      const target = config.wordIds.length;
+
+      const partRow = session.participants.find((p) => p.id === botParticipantId);
+      if (!partRow?.isBot || partRow.leftAt) {
+        throw new ForbiddenException('invalid bot participant');
+      }
+
+      const idx = partRow.score;
+      if (idx >= target) {
+        return { finished: true };
+      }
+
+      const word = await tx.word.findUnique({ where: { id: config.wordIds[idx]! } });
+      if (!word) throw new BadRequestException('word missing');
+
+      if (kind === 'wrong') {
+        await tx.wordParticipantStats.upsert({
+          where: { participantId: partRow.id },
+          create: { participantId: partRow.id, wrongAnswers: 1 },
+          update: { wrongAnswers: { increment: 1 } },
+        });
+        return { finished: false };
+      }
+
+      const updated = await tx.gameParticipant.update({
+        where: { id: partRow.id },
+        data: { score: { increment: 1 } },
+      });
+
+      await tx.wordParticipantStats.upsert({
+        where: { participantId: partRow.id },
+        create: { participantId: partRow.id, correctAnswers: 1 },
+        update: { correctAnswers: { increment: 1 } },
+      });
+
+      if (updated.score >= target) {
+        await tx.gameSession.update({
+          where: { id: sessionId },
+          data: { status: GameSessionStatus.FINISHED, endedAt: new Date() },
+        });
+        const stillIn = session.participants.filter(isParticipantActive);
+        for (const p of stillIn) {
+          const isWinner = p.id === partRow.id;
+          await tx.gameParticipant.update({
+            where: { id: p.id },
+            data: {
+              result: isWinner ? GameParticipantResult.WIN : GameParticipantResult.LOSS,
+              placement: isWinner ? 1 : 2,
+            },
+          });
+        }
+        return { finished: true };
+      }
+
+      return { finished: false };
+    });
+
+    await this.syncWordMatchSnapshot(sessionId);
+    if (kind === 'correct') {
+      const part = await this.prisma.gameParticipant.findUnique({
+        where: { id: botParticipantId },
+      });
+      if (part) {
+        this.pushSessionRefresh(sessionId, {
+          reason: 'versus_guess',
+          participantId: part.id,
+          score: part.score,
+        });
+      }
+    }
+    if (result.finished) {
+      void this.gameXp.tryAwardSessionWinXp(sessionId);
+    }
+    return result;
   }
 
   private async tryMatchWordQueueBucket(

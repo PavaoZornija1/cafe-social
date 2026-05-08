@@ -184,6 +184,7 @@
     "queueSearching": "Looking for another player…",
     "queuePosition": "You’re #{{n}} in line.",
     "queueLeave": "Leave queue",
+    "queueBotFillHint": "If no one is available after {{seconds}} seconds, you may be paired with a bot (casual only).",
     "queueEnqueueFailed": "Could not join the queue.",
     "rankedBadge": "Ranked",
     "pvpPlaceholderTitle": "Match found",
@@ -502,6 +503,7 @@
     "queueSearching": "Looking for another player…",
     "queuePosition": "You’re #{{n}} in line for this setup.",
     "queueLeave": "Leave queue",
+    "queueBotFillHint": "If no one is available after {{seconds}} seconds, you may be paired with a bot (casual only).",
     "queueEnqueueFailed": "Could not join the queue."
   },
   "wordGame": {

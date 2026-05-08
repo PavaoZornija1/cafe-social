@@ -184,6 +184,7 @@
     "queueSearching": "Buscando a otro jugador…",
     "queuePosition": "Eres el n.º {{n}} en la cola.",
     "queueLeave": "Salir de la cola",
+    "queueBotFillHint": "Si nadie está disponible tras {{seconds}} segundos, podrás emparejarte con un bot (solo casual).",
     "queueEnqueueFailed": "No se pudo unir a la cola.",
     "rankedBadge": "Ranked",
     "pvpPlaceholderTitle": "Partida encontrada",
@@ -502,6 +503,7 @@
     "queueSearching": "Buscando a otro jugador…",
     "queuePosition": "Eres el n.º {{n}} en la cola para esta configuración.",
     "queueLeave": "Salir de la cola",
+    "queueBotFillHint": "Si nadie está disponible tras {{seconds}} segundos, podrás emparejarte con un bot (solo casual).",
     "queueEnqueueFailed": "No se pudo entrar en la cola."
   },
   "wordGame": {

@@ -182,6 +182,11 @@ export default function WordVenueQueueScreen({ navigation, route }: Props) {
                 ? t('wordMatch.queuePosition', { n: poll.position })
                 : t('wordMatch.queueSearching')}
             </Text>
+            {!ranked ? (
+              <Text style={styles.hint}>
+                {t('wordMatch.queueBotFillHint', { seconds: 10 })}
+              </Text>
+            ) : null}
           </View>
         )}
         {!enrolling && !error ? (
@@ -240,5 +245,13 @@ function createStyles(colors: AppColors) {
     btnText: { color: colors.text, fontWeight: '800' },
     link: { marginTop: 28, alignItems: 'center' },
     linkText: { color: colors.textMuted, fontWeight: '700' },
+    hint: {
+      marginTop: 8,
+      color: colors.textMuted,
+      fontSize: 12,
+      lineHeight: 17,
+      textAlign: 'center',
+      paddingHorizontal: 8,
+    },
   });
 }

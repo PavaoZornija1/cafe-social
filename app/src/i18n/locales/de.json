@@ -184,6 +184,7 @@
     "queueSearching": "Suche einen weiteren Spieler…",
     "queuePosition": "Du bist Nr. {{n}} in der Warteschlange.",
     "queueLeave": "Warteschlange verlassen",
+    "queueBotFillHint": "Wenn nach {{seconds}} Sekunden niemand verfügbar ist, kannst du mit einem Bot gematcht werden (nur Casual).",
     "queueEnqueueFailed": "Warteschlange konnte nicht beigetreten werden.",
     "rankedBadge": "Ranked",
     "pvpPlaceholderTitle": "Match gefunden",
@@ -502,6 +503,7 @@
     "queueSearching": "Suche einen zweiten Spieler…",
     "queuePosition": "Du bist Nr. {{n}} für diese Einstellungen.",
     "queueLeave": "Warteschlange verlassen",
+    "queueBotFillHint": "Wenn nach {{seconds}} Sekunden niemand verfügbar ist, kannst du mit einem Bot gematcht werden (nur Casual).",
     "queueEnqueueFailed": "Warteschlange konnte nicht beigetreten werden."
   },
   "wordGame": {

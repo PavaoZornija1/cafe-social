@@ -30,6 +30,8 @@ export type WordMatchLiveSnapshotV1 = {
     username: string;
     score: number;
     result: string | null;
+    /** Omitted in older Redis snapshots — treat as false. */
+    isBot?: boolean;
   }>;
 };
 
@@ -43,8 +45,14 @@ type WordMatchConfigJson = {
   playerVenueIds?: Record<string, string>;
 };
 
-function isParticipantActive(p: { playerId: string | null; leftAt: Date | null }): boolean {
-  return Boolean(p.playerId && !p.leftAt);
+function isParticipantActive(p: {
+  playerId: string | null;
+  leftAt: Date | null;
+  isBot?: boolean;
+}): boolean {
+  if (p.leftAt) return false;
+  if (p.isBot) return true;
+  return Boolean(p.playerId);
 }
 
 /**
@@ -93,6 +101,7 @@ export async function loadWordMatchSnapshotFromDb(
       username: p.displayNameSnapshot ?? p.player?.username ?? 'Player',
       score: p.score,
       result: p.result,
+      isBot: p.isBot,
     })),
   };
 }
