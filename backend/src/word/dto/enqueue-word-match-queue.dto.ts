@@ -15,14 +15,22 @@ import {
 export type WordMatchQueueModeDto = 'coop' | 'versus';
 
 export class EnqueueWordMatchQueueDto {
+  /**
+   * Player's current venue (geofenced) — required unless the caller is an active subscriber,
+   * in whom case the queue is global and presence is not enforced.
+   */
+  @IsOptional()
   @IsUUID()
-  venueId!: string;
+  venueId?: string;
 
+  /** Required when `venueId` is set (presence check). Subscribers may omit. */
+  @IsOptional()
   @IsNumber()
-  latitude!: number;
+  latitude?: number;
 
+  @IsOptional()
   @IsNumber()
-  longitude!: number;
+  longitude?: number;
 
   @IsString()
   @IsIn(['en', 'de', 'es', 'hr'])
@@ -52,6 +60,8 @@ export class EnqueueWordMatchQueueDto {
 }
 
 export class LeaveWordMatchQueueDto {
+  /** Optional — when omitted, leaves whichever queue the player is currently in. */
+  @IsOptional()
   @IsUUID()
-  venueId!: string;
+  venueId?: string;
 }

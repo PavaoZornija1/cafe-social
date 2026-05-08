@@ -11,6 +11,8 @@ export type WordMatchLiveSnapshotV1 = {
   difficulty: string;
   ranked: boolean;
   venueId: string | null;
+  /** Per-player venue (cross-venue queue matches). Empty/absent for legacy single-venue rooms. */
+  playerVenueIds: Record<string, string>;
   deckLanguage: string;
   deckCategory: string | null;
   hostPlayerId: string;
@@ -38,6 +40,7 @@ type WordMatchConfigJson = {
   hostPlayerId?: string;
   category?: string | null;
   ranked?: boolean;
+  playerVenueIds?: Record<string, string>;
 };
 
 function isParticipantActive(p: { playerId: string | null; leftAt: Date | null }): boolean {
@@ -73,6 +76,7 @@ export async function loadWordMatchSnapshotFromDb(
     difficulty: config.difficulty ?? 'normal',
     ranked: Boolean(config.ranked),
     venueId: session.venueId,
+    playerVenueIds: config.playerVenueIds ?? {},
     deckLanguage: ws?.language ?? 'en',
     deckCategory: (config.category ?? null) as string | null,
     hostPlayerId: config.hostPlayerId ?? '',

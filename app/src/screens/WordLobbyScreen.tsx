@@ -1,7 +1,10 @@
+import { useAuth } from '@clerk/expo';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { apiGet } from '../lib/api';
+import type { MeSummaryDto } from '../lib/meSummary';
 import type { RootStackParamList } from '../navigation/type';
 import { toApiWordLanguage } from '../lib/wordDeckLanguage';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -35,6 +38,29 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
   const [wordCategory, setWordCategory] = useState<(typeof WORD_CATEGORY_KEYS)[number] | null>(
     null,
   );
+
+  const { isLoaded, getToken } = useAuth();
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
+  const [subscriptionActive, setSubscriptionActive] = useState(false);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = await getTokenRef.current();
+        if (!token) return;
+        const summary = await apiGet<MeSummaryDto>('/players/me/summary', token);
+        if (!cancelled) setSubscriptionActive(Boolean(summary.subscriptionActive));
+      } catch {
+        // Non-blocking — without a known sub, we just hide the global CTA.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded]);
 
   const difficultyLabel = useMemo(() => {
     if (difficulty === 'easy') return t('wordLobby.easyDesc');
@@ -76,6 +102,18 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
     if (playKind !== 'coop' && playKind !== 'versus') return;
     navigation.navigate('WordVenueQueue', {
       venueId,
+      challengeId,
+      mode: playKind,
+      difficulty,
+      wordCount,
+      wordCategory: wordCategory ?? undefined,
+      ranked: playKind === 'versus' && versusRanked ? true : undefined,
+    });
+  };
+
+  const onQueueAnywhere = () => {
+    if (playKind !== 'coop' && playKind !== 'versus') return;
+    navigation.navigate('WordVenueQueue', {
       challengeId,
       mode: playKind,
       difficulty,
@@ -252,6 +290,15 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
           <Pressable onPress={onQueueAtVenue} style={styles.queueBtn}>
             <Text style={styles.queueBtnText}>{t('wordLobby.queueAtVenue')}</Text>
           </Pressable>
+        ) : null}
+
+        {subscriptionActive && (playKind === 'coop' || playKind === 'versus') ? (
+          <>
+            <Pressable onPress={onQueueAnywhere} style={styles.queueBtn}>
+              <Text style={styles.queueBtnText}>{t('wordLobby.queueAnywhere')}</Text>
+            </Pressable>
+            <Text style={styles.modeHint}>{t('wordLobby.queueAnywhereHint')}</Text>
+          </>
         ) : null}
 
         <Pressable

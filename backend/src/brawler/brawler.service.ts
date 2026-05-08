@@ -16,6 +16,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PlayerService } from '../player/player.service';
 import { VenuePlayLimitService } from '../venue/venue-play-limit.service';
 import { VenueService } from '../venue/venue.service';
+import { SubscriptionRepository } from '../venue/subscription.repository';
 import { BrawlerRepository } from './brawler.repository';
 import { GameXpAwardService } from '../stats/game-xp-award.service';
 import {
@@ -42,6 +43,7 @@ export class BrawlerService {
     private readonly venues: VenueService,
     private readonly gameXp: GameXpAwardService,
     private readonly brawlerLive: BrawlerLiveRedisService,
+    private readonly subscriptions: SubscriptionRepository,
   ) {}
 
   private async syncBrawlerSnapshot(sessionId: string): Promise<void> {
@@ -340,17 +342,32 @@ export class BrawlerService {
 
   async enqueueVenueBrawlerMatch(email: string, dto: EnqueueBrawlerMatchQueueDto) {
     const player = await this.players.findOrCreateByEmail(email);
-    const vId = dto.venueId.trim();
+    const rawVenueId = dto.venueId?.trim() || null;
     const ranked = Boolean(dto.ranked);
     const heroId = dto.brawlerHeroId.trim();
     if (!heroId) {
-      throw new BadRequestException('brawlerHeroId is required for venue queue');
+      throw new BadRequestException('brawlerHeroId is required for the brawler queue');
     }
     const heroOk = await this.brawlerRepo.findHeroesByIds([heroId]);
     if (heroOk.length !== 1) {
       throw new BadRequestException('invalid or inactive brawler hero');
     }
-    await this.assertAtVenueIfNeeded(vId, dto.latitude, dto.longitude);
+
+    let vId: string | null = null;
+    if (rawVenueId) {
+      // Gating only — players at a venue must be inside its geofence.
+      // The matchmaker pool itself is global (cross-venue) below.
+      await this.assertAtVenueIfNeeded(rawVenueId, dto.latitude, dto.longitude);
+      vId = rawVenueId;
+    } else {
+      // No venue: caller must be an active subscriber (queue-from-anywhere).
+      const subOk = await this.subscriptions.isActiveSubscriber(player.id);
+      if (!subOk) {
+        throw new ForbiddenException(
+          'Queueing without a venue requires an active subscription',
+        );
+      }
+    }
 
     await this.prisma.brawlerMatchQueueEntry.updateMany({
       where: { playerId: player.id, status: BrawlerMatchQueueStatus.WAITING },
@@ -366,17 +383,18 @@ export class BrawlerService {
       },
     });
 
-    await this.tryMatchVenueBrawlerQueueBucket(vId, ranked);
+    await this.tryMatchBrawlerQueueBucket(ranked);
 
     return this.getVenueBrawlerQueueStatusForPlayer(player.id, vId);
   }
 
-  async leaveVenueBrawlerQueue(email: string, venueId: string): Promise<{ ok: true }> {
+  async leaveVenueBrawlerQueue(email: string, venueId?: string | null): Promise<{ ok: true }> {
     const player = await this.players.findOrCreateByEmail(email);
+    const v = venueId?.trim() || null;
     await this.prisma.brawlerMatchQueueEntry.updateMany({
       where: {
         playerId: player.id,
-        venueId: venueId.trim(),
+        ...(v ? { venueId: v } : {}),
         status: BrawlerMatchQueueStatus.WAITING,
       },
       data: { status: BrawlerMatchQueueStatus.CANCELLED },
@@ -384,16 +402,16 @@ export class BrawlerService {
     return { ok: true as const };
   }
 
-  async getVenueBrawlerQueueStatus(email: string, venueId: string) {
+  async getVenueBrawlerQueueStatus(email: string, venueId?: string | null) {
     const player = await this.players.findOrCreateByEmail(email);
-    return this.getVenueBrawlerQueueStatusForPlayer(player.id, venueId.trim());
+    return this.getVenueBrawlerQueueStatusForPlayer(player.id, venueId?.trim() || null);
   }
 
-  private async getVenueBrawlerQueueStatusForPlayer(playerId: string, venueId: string) {
+  private async getVenueBrawlerQueueStatusForPlayer(playerId: string, venueId: string | null) {
     const row = await this.prisma.brawlerMatchQueueEntry.findFirst({
       where: {
         playerId,
-        venueId,
+        ...(venueId ? { venueId } : {}),
         status: { in: [BrawlerMatchQueueStatus.WAITING, BrawlerMatchQueueStatus.MATCHED] },
       },
       orderBy: { createdAt: 'desc' },
@@ -413,9 +431,9 @@ export class BrawlerService {
       }
       return { status: 'matched' as const, sessionId: row.matchedSessionId };
     }
+    // Position is global across all venues — players can be paired with anyone in the same rules bucket.
     const waitingAhead = await this.prisma.brawlerMatchQueueEntry.count({
       where: {
-        venueId,
         ranked: row.ranked,
         status: BrawlerMatchQueueStatus.WAITING,
         createdAt: { lt: row.createdAt },
@@ -424,15 +442,13 @@ export class BrawlerService {
     return { status: 'waiting' as const, position: waitingAhead + 1 };
   }
 
-  private async tryMatchVenueBrawlerQueueBucket(
-    venueId: string,
-    ranked: boolean,
-  ): Promise<void> {
+  private async tryMatchBrawlerQueueBucket(ranked: boolean): Promise<void> {
     let createdSessionId: string | null = null;
     await this.prisma.$transaction(async (tx) => {
+      // Cross-venue pairing: bucket is rules-based only. Each player is gated to their own
+      // venue separately via `playerVenueIds` stamped onto the session config below.
       const pair = await tx.brawlerMatchQueueEntry.findMany({
         where: {
-          venueId,
           ranked,
           status: BrawlerMatchQueueStatus.WAITING,
         },
@@ -476,13 +492,21 @@ export class BrawlerService {
           attackKnockback: hero.attackKnockback,
         }) as Prisma.InputJsonValue;
 
-      const config = { ranked } as Prisma.InputJsonValue;
+      const playerVenueIds: Record<string, string> = {};
+      if (a.venueId) playerVenueIds[a.playerId] = a.venueId;
+      if (b.venueId) playerVenueIds[b.playerId] = b.venueId;
+      const config = {
+        ranked,
+        playerVenueIds,
+      } as unknown as Prisma.InputJsonValue;
 
       const session = await tx.gameSession.create({
         data: {
           gameType: GameType.BRAWLER,
           status: GameSessionStatus.PENDING,
-          venueId,
+          // Host's venue (or null when host is a subscriber queueing from outside any venue).
+          // Per-player play limits below use each participant's own venue from `playerVenueIds`.
+          venueId: a.venueId ?? null,
           config,
           brawlerSession: { create: {} },
           participants: {
@@ -537,12 +561,15 @@ export class BrawlerService {
     const started = await this.brawlerRepo.startSession(sessionId);
     if (!started || started.status !== GameSessionStatus.ACTIVE) return;
 
-    if (session.venueId) {
-      for (const p of session.participants) {
-        if (p.playerId && !p.isBot) {
-          await this.venuePlayLimit.beginBrawler(p.playerId, session.venueId, sessionId);
-        }
-      }
+    // Cross-venue queue matches stamp each player's own venue on the session config so play
+    // limits / bans are applied to their actual venue (not the host's).
+    const cfg = (session.config ?? {}) as { playerVenueIds?: Record<string, string> };
+    const playerVenueIds = cfg.playerVenueIds ?? {};
+    for (const p of session.participants) {
+      if (!p.playerId || p.isBot) continue;
+      const venueId = playerVenueIds[p.playerId] ?? session.venueId ?? null;
+      if (!venueId) continue;
+      await this.venuePlayLimit.beginBrawler(p.playerId, venueId, sessionId);
     }
     await this.syncBrawlerSnapshot(sessionId);
   }

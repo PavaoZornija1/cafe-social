@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
@@ -107,9 +106,8 @@ export class BrawlerController {
 
   @Get('queue/me')
   queueMe(@CurrentUser() user: unknown, @Query('venueId') venueId?: string) {
-    if (!venueId?.trim()) {
-      throw new BadRequestException('venueId query parameter is required');
-    }
+    // venueId optional: subscribers can queue without a venue; others may also
+    // omit it to look up whichever in-flight queue row they currently have.
     return this.brawler.getVenueBrawlerQueueStatus(this.email(user), venueId);
   }
 

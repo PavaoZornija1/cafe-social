@@ -42,8 +42,10 @@ export default function BrawlerVenueQueueScreen({ navigation, route }: Props) {
   const pollOnce = useCallback(async () => {
     const token = await getTokenRef.current();
     if (!token) return;
-    const q = new URLSearchParams({ venueId });
-    const s = await apiGet<QueuePoll>(`/brawler/queue/me?${q.toString()}`, token);
+    const path = venueId
+      ? `/brawler/queue/me?${new URLSearchParams({ venueId }).toString()}`
+      : '/brawler/queue/me';
+    const s = await apiGet<QueuePoll>(path, token);
     setPoll(s);
     if (s.status === 'matched' && s.sessionId && !navigatedRef.current) {
       navigatedRef.current = true;
@@ -65,22 +67,28 @@ export default function BrawlerVenueQueueScreen({ navigation, route }: Props) {
       try {
         const token = await getTokenRef.current();
         if (!token) throw new Error(t('qr.notAuthenticated'));
-        const { venue, coords } = await fetchDetectedVenue();
-        if (cancelled) return;
-        if (!coords || venue?.id !== venueId) {
-          throw new Error(t('wordMatch.needPresenceToCreate'));
+
+        const baseBody = {
+          brawlerHeroId,
+          ...(ranked ? { ranked: true } : {}),
+        };
+
+        if (venueId) {
+          const { venue, coords } = await fetchDetectedVenue();
+          if (cancelled) return;
+          if (!coords || venue?.id !== venueId) {
+            throw new Error(t('wordMatch.needPresenceToCreate'));
+          }
+          await apiPost<QueuePoll>(
+            '/brawler/queue/enqueue',
+            { venueId, latitude: coords.lat, longitude: coords.lng, ...baseBody },
+            token,
+          );
+        } else {
+          // Subscriber queueing from anywhere — backend enforces the subscription check.
+          await apiPost<QueuePoll>('/brawler/queue/enqueue', baseBody, token);
         }
-        await apiPost<QueuePoll>(
-          '/brawler/queue/enqueue',
-          {
-            venueId,
-            latitude: coords.lat,
-            longitude: coords.lng,
-            brawlerHeroId,
-            ...(ranked ? { ranked: true } : {}),
-          },
-          token,
-        );
+
         if (cancelled) return;
         await pollOnce();
       } catch (e) {
@@ -109,7 +117,7 @@ export default function BrawlerVenueQueueScreen({ navigation, route }: Props) {
       try {
         const token = await getTokenRef.current();
         if (token) {
-          await apiPost('/brawler/queue/leave', { venueId }, token);
+          await apiPost('/brawler/queue/leave', venueId ? { venueId } : {}, token);
         }
       } catch {
         /* */

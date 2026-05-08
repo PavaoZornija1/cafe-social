@@ -18,9 +18,13 @@ export type RootStackParamList = {
     DailyWord: undefined;
     ChooseGame: { venueId?: string; challengeId?: string } | undefined;
     BrawlerLobby: { venueId?: string } | undefined;
-    /** Venue-only: brawler matchmaking queue then paired session. */
+    /**
+     * Cross-venue brawler matchmaking queue.
+     * `venueId` is required for venue-presence players; subscribers may queue from anywhere
+     * (omit `venueId` to skip the presence check).
+     */
     BrawlerVenueQueue: {
-      venueId: string;
+      venueId?: string;
       brawlerHeroId: string;
       ranked?: boolean;
     };
@@ -56,9 +60,13 @@ export type RootStackParamList = {
     MyVenueReports: undefined;
     QrScan: { venueId?: string };
     WordLobby: { venueId?: string; challengeId?: string };
-    /** Venue-only: matchmaking queue then auto-paired room (same rules bucket). */
+    /**
+     * Cross-venue matchmaking queue (auto-pairs into a new word room).
+     * `venueId` is required for venue-presence players; subscribers may queue from anywhere
+     * (omit `venueId` to skip the presence check).
+     */
     WordVenueQueue: {
-      venueId: string;
+      venueId?: string;
       challengeId?: string;
       mode: 'coop' | 'versus';
       difficulty: 'easy' | 'normal' | 'hard';

@@ -51,8 +51,10 @@ export default function WordVenueQueueScreen({ navigation, route }: Props) {
   const pollOnce = useCallback(async () => {
     const token = await getTokenRef.current();
     if (!token) return;
-    const q = new URLSearchParams({ venueId });
-    const s = await apiGet<QueuePoll>(`/words/matches/queue/me?${q.toString()}`, token);
+    const path = venueId
+      ? `/words/matches/queue/me?${new URLSearchParams({ venueId }).toString()}`
+      : '/words/matches/queue/me';
+    const s = await apiGet<QueuePoll>(path, token);
     setPoll(s);
     if (s.status === 'matched' && s.sessionId && !navigatedRef.current) {
       navigatedRef.current = true;
@@ -80,26 +82,33 @@ export default function WordVenueQueueScreen({ navigation, route }: Props) {
       try {
         const token = await getTokenRef.current();
         if (!token) throw new Error(t('qr.notAuthenticated'));
-        const { venue, coords } = await fetchDetectedVenue();
-        if (cancelled) return;
-        if (!coords || venue?.id !== venueId) {
-          throw new Error(t('wordMatch.needPresenceToCreate'));
+
+        const baseBody = {
+          language: toApiWordLanguage(i18n.language),
+          wordCount,
+          difficulty,
+          mode,
+          ...(wordCategory ? { category: wordCategory } : {}),
+          ...(mode === 'versus' && ranked ? { ranked: true } : {}),
+        };
+
+        if (venueId) {
+          // Venue queueing: must be inside the geofence.
+          const { venue, coords } = await fetchDetectedVenue();
+          if (cancelled) return;
+          if (!coords || venue?.id !== venueId) {
+            throw new Error(t('wordMatch.needPresenceToCreate'));
+          }
+          await apiPost<QueuePoll>(
+            '/words/matches/queue/enqueue',
+            { venueId, latitude: coords.lat, longitude: coords.lng, ...baseBody },
+            token,
+          );
+        } else {
+          // Subscriber queueing from anywhere — backend enforces the subscription check.
+          await apiPost<QueuePoll>('/words/matches/queue/enqueue', baseBody, token);
         }
-        await apiPost<QueuePoll>(
-          '/words/matches/queue/enqueue',
-          {
-            venueId,
-            latitude: coords.lat,
-            longitude: coords.lng,
-            language: toApiWordLanguage(i18n.language),
-            wordCount,
-            difficulty,
-            mode,
-            ...(wordCategory ? { category: wordCategory } : {}),
-            ...(mode === 'versus' && ranked ? { ranked: true } : {}),
-          },
-          token,
-        );
+
         if (cancelled) return;
         await pollOnce();
       } catch (e) {
@@ -128,7 +137,8 @@ export default function WordVenueQueueScreen({ navigation, route }: Props) {
       try {
         const token = await getTokenRef.current();
         if (token) {
-          await apiPost('/words/matches/queue/leave', { venueId }, token);
+          // Subscriber queue rows have no venueId — backend handles `{}` by leaving whichever row.
+          await apiPost('/words/matches/queue/leave', venueId ? { venueId } : {}, token);
         }
       } catch {
         /* */

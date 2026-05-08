@@ -44,6 +44,12 @@ export type WordMatchConfig = {
   category?: WordCategory | null;
   /** Versus ranked: Elo-style rating updates on match end (2 human players). */
   ranked?: boolean;
+  /**
+   * Per-player venue context — populated for cross-venue queue matches.
+   * Each player is geofence-gated to **their own** venue (not `session.venueId`),
+   * and per-venue play limits / nudges count against their own venue.
+   */
+  playerVenueIds?: Record<string, string>;
 };
 
 function isParticipantActive(p: { playerId: string | null; leftAt: Date | null }): boolean {
@@ -116,6 +122,22 @@ export class WordMatchService {
         currentRev: snap.rev,
       });
     }
+  }
+
+  /**
+   * Returns the venue this player is gated to for a given word session:
+   *   1. `config.playerVenueIds[playerId]` (cross-venue queue match — own venue)
+   *   2. `session.venueId` (legacy single-venue room / rematch)
+   * Returns null for purely-global rooms (subscriber-only, no venue).
+   */
+  private effectivePlayerVenueId(
+    config: WordMatchConfig | null | undefined,
+    sessionVenueId: string | null | undefined,
+    playerId: string,
+  ): string | null {
+    const own = config?.playerVenueIds?.[playerId];
+    if (own && own.trim()) return own.trim();
+    return sessionVenueId ?? null;
   }
 
   /** When `sessionVenueId` is set, `latitude`/`longitude` must place the user in that venue’s geofence. */
@@ -373,10 +395,28 @@ export class WordMatchService {
       },
     });
 
-    if (session.venueId) {
+    // Emit one feed event per **distinct** venue represented in the match. For cross-venue
+    // queue matches both venues see the "match started" entry; for legacy single-venue rooms
+    // (or rematches) we fall back to `session.venueId`.
+    const playerVenueIds = config.playerVenueIds ?? {};
+    const partByPlayer = new Map(
+      session.participants
+        .filter((p) => p.playerId)
+        .map((p) => [p.playerId as string, p]),
+    );
+    const venueToActor: Record<string, string> = {};
+    for (const [pid, vid] of Object.entries(playerVenueIds)) {
+      if (!vid) continue;
+      if (venueToActor[vid]) continue;
+      const part = partByPlayer.get(pid);
+      venueToActor[vid] = part?.displayNameSnapshot ?? 'Player';
+    }
+    if (Object.keys(venueToActor).length === 0 && session.venueId) {
       const hostParticipant = session.participants.find((p) => p.playerId === config.hostPlayerId);
-      const name = hostParticipant?.displayNameSnapshot ?? 'Player';
-      void this.venueFeed.recordWordMatchStarted(session.venueId, name, config.wordGameMode);
+      venueToActor[session.venueId] = hostParticipant?.displayNameSnapshot ?? 'Player';
+    }
+    for (const [vid, name] of Object.entries(venueToActor)) {
+      void this.venueFeed.recordWordMatchStarted(vid, name, config.wordGameMode);
     }
 
     await this.syncWordMatchSnapshot(sessionId);
@@ -500,9 +540,14 @@ export class WordMatchService {
       if (!self) {
         throw new ForbiddenException('not in this match');
       }
-      await this.assertAtVenueIfNeeded(snap.venueId, latitude, longitude);
-      if (snap.venueId) {
-        await this.venuePlayLimit.beginWordMatchDeck(player.id, snap.venueId, sessionId);
+      // Cross-venue queue matches stamp each player's own venue on the snapshot.
+      const playerVenueId =
+        snap.playerVenueIds?.[player.id] && snap.playerVenueIds[player.id]!.trim()
+          ? snap.playerVenueIds[player.id]!.trim()
+          : snap.venueId;
+      await this.assertAtVenueIfNeeded(playerVenueId, latitude, longitude);
+      if (playerVenueId) {
+        await this.venuePlayLimit.beginWordMatchDeck(player.id, playerVenueId, sessionId);
       }
 
       const mode = snap.mode;
@@ -544,13 +589,14 @@ export class WordMatchService {
       throw new BadRequestException('match is not active');
     }
     await this.ensureParticipant(sessionId, player.id);
-    await this.assertAtVenueIfNeeded(session.venueId, latitude, longitude);
+    const config = session.config as unknown as WordMatchConfig;
+    const playerVenueId = this.effectivePlayerVenueId(config, session.venueId, player.id);
+    await this.assertAtVenueIfNeeded(playerVenueId, latitude, longitude);
 
-    if (session.venueId) {
-      await this.venuePlayLimit.beginWordMatchDeck(player.id, session.venueId, sessionId);
+    if (playerVenueId) {
+      await this.venuePlayLimit.beginWordMatchDeck(player.id, playerVenueId, sessionId);
     }
 
-    const config = session.config as unknown as WordMatchConfig;
     const ws = session.wordSession;
     if (!ws) throw new BadRequestException('invalid session');
 
@@ -596,9 +642,13 @@ export class WordMatchService {
 
     const brief = await this.prisma.gameSession.findUnique({
       where: { id: sessionId },
-      select: { venueId: true },
+      select: { venueId: true, config: true },
     });
-    await this.assertAtVenueIfNeeded(brief?.venueId, dto.latitude, dto.longitude);
+    await this.assertAtVenueIfNeeded(
+      this.effectivePlayerVenueId(brief?.config as unknown as WordMatchConfig | null, brief?.venueId, player.id),
+      dto.latitude,
+      dto.longitude,
+    );
 
     const result = await this.prisma.$transaction(async (tx) => {
       const session = await tx.gameSession.findUnique({
@@ -714,9 +764,13 @@ export class WordMatchService {
 
     const brief = await this.prisma.gameSession.findUnique({
       where: { id: sessionId },
-      select: { venueId: true },
+      select: { venueId: true, config: true },
     });
-    await this.assertAtVenueIfNeeded(brief?.venueId, dto.latitude, dto.longitude);
+    await this.assertAtVenueIfNeeded(
+      this.effectivePlayerVenueId(brief?.config as unknown as WordMatchConfig | null, brief?.venueId, player.id),
+      dto.latitude,
+      dto.longitude,
+    );
 
     const result = await this.prisma.$transaction(async (tx) => {
       const session = await tx.gameSession.findUnique({
@@ -781,9 +835,13 @@ export class WordMatchService {
 
     const brief = await this.prisma.gameSession.findUnique({
       where: { id: sessionId },
-      select: { venueId: true },
+      select: { venueId: true, config: true },
     });
-    await this.assertAtVenueIfNeeded(brief?.venueId, dto.latitude, dto.longitude);
+    await this.assertAtVenueIfNeeded(
+      this.effectivePlayerVenueId(brief?.config as unknown as WordMatchConfig | null, brief?.venueId, player.id),
+      dto.latitude,
+      dto.longitude,
+    );
 
     const result = await this.prisma.$transaction(async (tx) => {
       const session = await tx.gameSession.findUnique({
@@ -1077,8 +1135,24 @@ export class WordMatchService {
 
   async enqueueVenueWordMatch(email: string, dto: EnqueueWordMatchQueueDto) {
     const player = await this.players.findOrCreateByEmail(email);
-    const vId = dto.venueId.trim();
-    await this.assertAtVenueIfNeeded(vId, dto.latitude, dto.longitude);
+    const rawVenueId = dto.venueId?.trim() || null;
+
+    let vId: string | null = null;
+    if (rawVenueId) {
+      // Gating only — players at a venue must be inside its geofence.
+      // The matchmaker pool itself is global (cross-venue) below.
+      await this.assertAtVenueIfNeeded(rawVenueId, dto.latitude, dto.longitude);
+      vId = rawVenueId;
+    } else {
+      // No venue: caller must be an active subscriber (queue-from-anywhere).
+      const subOk = await this.subscriptions.isActiveSubscriber(player.id);
+      if (!subOk) {
+        throw new ForbiddenException(
+          'Queueing without a venue requires an active subscription',
+        );
+      }
+    }
+
     if (dto.ranked && dto.mode !== 'versus') {
       throw new BadRequestException('ranked is only available in versus mode');
     }
@@ -1104,8 +1178,7 @@ export class WordMatchService {
       },
     });
 
-    await this.tryMatchVenueWordQueueBucket(
-      vId,
+    await this.tryMatchWordQueueBucket(
       modeEnum,
       dto.difficulty,
       dto.wordCount,
@@ -1117,12 +1190,15 @@ export class WordMatchService {
     return this.getVenueQueueStatusForPlayer(player.id, vId);
   }
 
-  async leaveVenueWordQueue(email: string, venueId: string): Promise<{ ok: true }> {
+  async leaveVenueWordQueue(email: string, venueId?: string | null): Promise<{ ok: true }> {
     const player = await this.players.findOrCreateByEmail(email);
+    const v = venueId?.trim() || null;
     await this.prisma.wordMatchQueueEntry.updateMany({
       where: {
         playerId: player.id,
-        venueId: venueId.trim(),
+        // When venueId omitted, leave whichever queue the player is currently in
+        // (single in-flight WAITING row enforced at enqueue time).
+        ...(v ? { venueId: v } : {}),
         status: WordMatchQueueStatus.WAITING,
       },
       data: { status: WordMatchQueueStatus.CANCELLED },
@@ -1130,16 +1206,18 @@ export class WordMatchService {
     return { ok: true as const };
   }
 
-  async getVenueQueueStatus(email: string, venueId: string) {
+  async getVenueQueueStatus(email: string, venueId?: string | null) {
     const player = await this.players.findOrCreateByEmail(email);
-    return this.getVenueQueueStatusForPlayer(player.id, venueId.trim());
+    return this.getVenueQueueStatusForPlayer(player.id, venueId?.trim() || null);
   }
 
-  private async getVenueQueueStatusForPlayer(playerId: string, venueId: string) {
+  private async getVenueQueueStatusForPlayer(playerId: string, venueId: string | null) {
     const row = await this.prisma.wordMatchQueueEntry.findFirst({
       where: {
         playerId,
-        venueId,
+        // When the caller didn't pass a venue, return whichever current row the player has
+        // (subscribers queueing from anywhere have a single in-flight WAITING row).
+        ...(venueId ? { venueId } : {}),
         status: { in: [WordMatchQueueStatus.WAITING, WordMatchQueueStatus.MATCHED] },
       },
       orderBy: { createdAt: 'desc' },
@@ -1159,9 +1237,9 @@ export class WordMatchService {
       }
       return { status: 'matched' as const, sessionId: row.matchedSessionId };
     }
+    // Position is global across all venues — players can be paired with anyone in the same rules bucket.
     const waitingAhead = await this.prisma.wordMatchQueueEntry.count({
       where: {
-        venueId,
         mode: row.mode,
         difficulty: row.difficulty,
         wordCount: row.wordCount,
@@ -1175,8 +1253,7 @@ export class WordMatchService {
     return { status: 'waiting' as const, position: waitingAhead + 1 };
   }
 
-  private async tryMatchVenueWordQueueBucket(
-    venueId: string,
+  private async tryMatchWordQueueBucket(
     mode: WordMatchQueueMode,
     difficulty: string,
     wordCount: number,
@@ -1186,9 +1263,10 @@ export class WordMatchService {
   ): Promise<void> {
     let createdSessionId: string | null = null;
     await this.prisma.$transaction(async (tx) => {
+      // Cross-venue pairing: bucket is rules-based only. Each player is gated to their own
+      // venue separately via `playerVenueIds` stamped onto the session config below.
       const pair = await tx.wordMatchQueueEntry.findMany({
         where: {
-          venueId,
           mode,
           difficulty,
           wordCount,
@@ -1203,6 +1281,7 @@ export class WordMatchService {
       if (pair.length < 2) return;
 
       const [a, b] = pair;
+      if (a.playerId === b.playerId) return;
       const [pa, pb] = await Promise.all([
         tx.player.findUnique({ where: { id: a.playerId }, select: { username: true } }),
         tx.player.findUnique({ where: { id: b.playerId }, select: { username: true } }),
@@ -1220,12 +1299,16 @@ export class WordMatchService {
 
       const wordIds = deck.map((w) => w.id);
       const inviteCode = await this.newInviteCode(tx);
+      const playerVenueIds: Record<string, string> = {};
+      if (a.venueId) playerVenueIds[a.playerId] = a.venueId;
+      if (b.venueId) playerVenueIds[b.playerId] = b.venueId;
       const config: WordMatchConfig = {
         wordGameMode,
         difficulty,
         wordIds,
         hostPlayerId: a.playerId,
         category: category ?? null,
+        playerVenueIds,
         ...(wordGameMode === 'versus' && ranked ? { ranked: true } : {}),
       };
 
@@ -1234,7 +1317,9 @@ export class WordMatchService {
           gameType: GameType.WORD_GAME,
           status: GameSessionStatus.PENDING,
           inviteCode,
-          venueId,
+          // Host's venue (or null when host is a subscriber queueing from outside any venue).
+          // Per-player gating uses each participant's own venue from `playerVenueIds`.
+          venueId: a.venueId ?? null,
           config: config as unknown as Prisma.InputJsonValue,
           wordSession: {
             create: {

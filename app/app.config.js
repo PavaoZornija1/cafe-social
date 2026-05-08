@@ -62,6 +62,7 @@ export default {
       '@clerk/expo',
       'expo-secure-store',
       'expo-web-browser',
+      'expo-localization',
       'expo-location',
       [
         'expo-camera',

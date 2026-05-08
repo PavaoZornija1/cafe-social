@@ -57,7 +57,9 @@ export class WordMatchController {
   }
 
   @Get('queue/me')
-  queueMe(@CurrentUser() user: unknown, @Query('venueId', new ParseUUIDPipe()) venueId: string) {
+  queueMe(@CurrentUser() user: unknown, @Query('venueId') venueId?: string) {
+    // venueId optional: subscribers can queue without a venue; others may also
+    // omit it to look up whichever in-flight queue row they currently have.
     return this.match.getVenueQueueStatus(this.email(user), venueId);
   }
 

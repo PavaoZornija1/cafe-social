@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { apiGet, apiPost } from '../lib/api';
+import type { MeSummaryDto } from '../lib/meSummary';
 import { BRUISER_ARENA_HERO_ID } from '../brawler/bruiserSpritesheet';
 import type { BrawlerArenaHeroStats, RootStackParamList } from '../navigation/type';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -63,6 +64,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
   const [soloDifficulty, setSoloDifficulty] = useState<'easy' | 'normal' | 'hard'>('normal');
   /** Venue queue: casual (false) vs ranked (true). */
   const [queueRanked, setQueueRanked] = useState(false);
+  const [subscriptionActive, setSubscriptionActive] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,6 +86,24 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
       }
     }
     void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = await getTokenRef.current();
+        if (!token) return;
+        const summary = await apiGet<MeSummaryDto>('/players/me/summary', token);
+        if (!cancelled) setSubscriptionActive(Boolean(summary.subscriptionActive));
+      } catch {
+        // Non-blocking — without a known sub, we just hide the global CTA.
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -168,6 +188,18 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
     }
     navigation.navigate('BrawlerVenueQueue', {
       venueId,
+      brawlerHeroId: selectedHeroId,
+      ranked: queueRanked ? true : undefined,
+    });
+  };
+
+  const onQueueAnywhere = () => {
+    if (!selectedHeroId) return;
+    if (selectedHeroId !== BRUISER_ARENA_HERO_ID) {
+      Alert.alert(t('brawlerLobby.heroGateTitle'), t('brawlerLobby.heroGateBody'));
+      return;
+    }
+    navigation.navigate('BrawlerVenueQueue', {
       brawlerHeroId: selectedHeroId,
       ranked: queueRanked ? true : undefined,
     });
@@ -258,7 +290,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
           </View>
         )}
 
-        {venueId ? (
+        {venueId || subscriptionActive ? (
           <View style={styles.rankCard}>
             <Text style={styles.rankTitle}>{t('brawlerLobby.queueRankTitle')}</Text>
             <View style={styles.rankRow}>
@@ -288,17 +320,35 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
               </Pressable>
             </View>
             <Text style={styles.rankHint}>{t('brawlerLobby.queueRankedHint')}</Text>
-            <Pressable
-              onPress={onQueueAtVenue}
-              disabled={!selectedHeroId || creating || loadingHeroes}
-              style={({ pressed }) => [
-                styles.queueCta,
-                pressed && styles.startButtonPressed,
-                (!selectedHeroId || creating || loadingHeroes) && styles.startButtonDisabled,
-              ]}
-            >
-              <Text style={styles.queueCtaText}>{t('brawlerLobby.queueAtVenue')}</Text>
-            </Pressable>
+            {venueId ? (
+              <Pressable
+                onPress={onQueueAtVenue}
+                disabled={!selectedHeroId || creating || loadingHeroes}
+                style={({ pressed }) => [
+                  styles.queueCta,
+                  pressed && styles.startButtonPressed,
+                  (!selectedHeroId || creating || loadingHeroes) && styles.startButtonDisabled,
+                ]}
+              >
+                <Text style={styles.queueCtaText}>{t('brawlerLobby.queueAtVenue')}</Text>
+              </Pressable>
+            ) : null}
+            {subscriptionActive ? (
+              <>
+                <Pressable
+                  onPress={onQueueAnywhere}
+                  disabled={!selectedHeroId || creating || loadingHeroes}
+                  style={({ pressed }) => [
+                    styles.queueCta,
+                    pressed && styles.startButtonPressed,
+                    (!selectedHeroId || creating || loadingHeroes) && styles.startButtonDisabled,
+                  ]}
+                >
+                  <Text style={styles.queueCtaText}>{t('brawlerLobby.queueAnywhere')}</Text>
+                </Pressable>
+                <Text style={styles.rankHint}>{t('brawlerLobby.queueAnywhereHint')}</Text>
+              </>
+            ) : null}
           </View>
         ) : (
           <Text style={styles.venueHint}>{t('brawlerLobby.venueRequiredQueue')}</Text>
