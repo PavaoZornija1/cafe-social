@@ -7,6 +7,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { normalizeUserEmail } from '../auth/user-email.util';
@@ -28,6 +29,8 @@ export class VenueReceiptController {
   }
 
   @Post(':venueId/receipts')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ receipt: { limit: 10, ttl: 60000 } })
   async submit(
     @CurrentUser() user: unknown,
     @Param('venueId', new ParseUUIDPipe()) venueId: string,

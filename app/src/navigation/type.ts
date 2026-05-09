@@ -27,6 +27,8 @@ export type RootStackParamList = {
       venueId?: string;
       brawlerHeroId: string;
       ranked?: boolean;
+      /** Same tuning as Practice vs bot — forwarded to `BrawlerArena` on match. */
+      heroStats?: BrawlerArenaHeroStats;
     };
     BrawlerArena: {
       heroId: string;

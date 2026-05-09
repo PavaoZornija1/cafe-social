@@ -28,12 +28,22 @@ import { QueueBotModule } from './queue-bot/queue-bot.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
+    // Named throttler buckets keyed by use case. `@Throttle({ <name>: { limit, ttl } })` on a
+    // controller method opts that route into the matching bucket. Tracker keys default to the
+    // request IP (IPv4/IPv6) — single Clerk-authenticated callers map to one bucket each.
     ThrottlerModule.forRoot([
-      {
-        name: 'onboarding',
-        ttl: 60000,
-        limit: 8,
-      },
+      // Self-serve partner onboarding bootstrap (legacy bucket; do not narrow without checking).
+      { name: 'onboarding', ttl: 60000, limit: 8 },
+      // Word/brawler queue enqueue: brief bursts are fine, but no spamming the matchmaker.
+      { name: 'enqueue', ttl: 60000, limit: 30 },
+      // Presence heartbeat: foreground + ~5 min ticker + manual venue switches → keep generous.
+      { name: 'presence', ttl: 60000, limit: 60 },
+      // Friend graph mutations (request / accept / reject / cancel) — discourages harassment loops.
+      { name: 'friend', ttl: 60000, limit: 20 },
+      // Perk + invite redemption — small bursts during a visit; bots/abuse capped well below that.
+      { name: 'redeem', ttl: 60000, limit: 20 },
+      // Receipt upload: image payload, more expensive — tighter cap.
+      { name: 'receipt', ttl: 60000, limit: 10 },
     ]),
     EventEmitterModule.forRoot(),
     ConfigModule.forRoot({

@@ -28,7 +28,7 @@ export default function BrawlerVenueQueueScreen({ navigation, route }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
-  const { venueId, ranked = false, brawlerHeroId } = route.params;
+  const { venueId, ranked = false, brawlerHeroId, heroStats } = route.params;
   const { getToken, isLoaded } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
@@ -52,10 +52,11 @@ export default function BrawlerVenueQueueScreen({ navigation, route }: Props) {
       navigation.replace('BrawlerArena', {
         heroId: brawlerHeroId,
         venueId,
+        heroStats,
         sessionId: s.sessionId,
       });
     }
-  }, [venueId, brawlerHeroId, navigation]);
+  }, [venueId, brawlerHeroId, heroStats, navigation]);
 
   useEffect(() => {
     if (!isLoaded || enrolledRef.current) return;

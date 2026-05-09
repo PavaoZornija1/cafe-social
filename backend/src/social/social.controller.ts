@@ -12,6 +12,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { normalizeUserEmail } from '../auth/user-email.util';
@@ -49,6 +50,8 @@ export class SocialController {
   }
 
   @Post('me/presence')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ presence: { limit: 60, ttl: 60000 } })
   async setPresence(
     @CurrentUser() user: unknown,
     @Body() dto: UpdatePresenceDto,
@@ -160,6 +163,8 @@ export class SocialController {
   }
 
   @Delete('friends/outgoing/:friendshipId')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ friend: { limit: 20, ttl: 60000 } })
   async cancelOutgoing(
     @CurrentUser() user: unknown,
     @Param('friendshipId', new ParseUUIDPipe()) friendshipId: string,
@@ -170,6 +175,8 @@ export class SocialController {
   }
 
   @Post('friends/request')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ friend: { limit: 20, ttl: 60000 } })
   async request(
     @CurrentUser() user: unknown,
     @Body() dto: FriendRequestDto,
@@ -194,6 +201,8 @@ export class SocialController {
   }
 
   @Post('friends/request-by-username')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ friend: { limit: 20, ttl: 60000 } })
   async requestByUsername(
     @CurrentUser() user: unknown,
     @Body() dto: FriendRequestByUsernameDto,
@@ -226,6 +235,8 @@ export class SocialController {
   }
 
   @Post('friends/accept')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ friend: { limit: 20, ttl: 60000 } })
   async accept(
     @CurrentUser() user: unknown,
     @Body() dto: FriendAcceptDto,
@@ -236,6 +247,8 @@ export class SocialController {
   }
 
   @Post('friends/reject')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ friend: { limit: 20, ttl: 60000 } })
   async reject(
     @CurrentUser() user: unknown,
     @Body() dto: FriendAcceptDto,

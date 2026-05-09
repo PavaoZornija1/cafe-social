@@ -8,7 +8,8 @@
     "dev:clean": "npm run clean && next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.0.7",

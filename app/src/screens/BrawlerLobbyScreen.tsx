@@ -186,10 +186,20 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
       Alert.alert(t('brawlerLobby.heroGateTitle'), t('brawlerLobby.heroGateBody'));
       return;
     }
+    const heroStats: BrawlerArenaHeroStats | undefined = selectedHero
+      ? {
+          baseHp: selectedHero.baseHp,
+          moveSpeed: selectedHero.moveSpeed,
+          dashCooldownMs: selectedHero.dashCooldownMs,
+          attackDamage: selectedHero.attackDamage,
+          attackKnockback: selectedHero.attackKnockback,
+        }
+      : undefined;
     navigation.navigate('BrawlerVenueQueue', {
       venueId,
       brawlerHeroId: selectedHeroId,
       ranked: queueRanked ? true : undefined,
+      heroStats,
     });
   };
 
@@ -199,9 +209,19 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
       Alert.alert(t('brawlerLobby.heroGateTitle'), t('brawlerLobby.heroGateBody'));
       return;
     }
+    const heroStats: BrawlerArenaHeroStats | undefined = selectedHero
+      ? {
+          baseHp: selectedHero.baseHp,
+          moveSpeed: selectedHero.moveSpeed,
+          dashCooldownMs: selectedHero.dashCooldownMs,
+          attackDamage: selectedHero.attackDamage,
+          attackKnockback: selectedHero.attackKnockback,
+        }
+      : undefined;
     navigation.navigate('BrawlerVenueQueue', {
       brawlerHeroId: selectedHeroId,
       ranked: queueRanked ? true : undefined,
+      heroStats,
     });
   };
 

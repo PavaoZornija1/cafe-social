@@ -10,6 +10,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { normalizeUserEmail } from '../auth/user-email.util';
@@ -100,6 +101,8 @@ export class BrawlerController {
   }
 
   @Post('queue/enqueue')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ enqueue: { limit: 30, ttl: 60000 } })
   queueEnqueue(@CurrentUser() user: unknown, @Body() dto: EnqueueBrawlerMatchQueueDto) {
     return this.brawler.enqueueVenueBrawlerMatch(this.email(user), dto);
   }

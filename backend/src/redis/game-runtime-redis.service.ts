@@ -5,7 +5,12 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createClient, type RedisClientType } from 'redis';
+import { createClient } from 'redis';
+
+// `redis@5` types `createClient` with the bundled module commands and the active RESP version,
+// so the unparameterized `RedisClientType` (defaults to RESP2) is incompatible with the
+// concrete return type. We capture the actual return type to avoid the generic mismatch.
+type RuntimeRedisClient = ReturnType<typeof createClient>;
 
 /**
  * Dedicated Redis connection for **application** game runtime data (JSON snapshots, locks, etc.).
@@ -14,7 +19,7 @@ import { createClient, type RedisClientType } from 'redis';
 @Injectable()
 export class GameRuntimeRedisService implements OnModuleInit, OnModuleDestroy {
   private readonly log = new Logger(GameRuntimeRedisService.name);
-  private client: RedisClientType | null = null;
+  private client: RuntimeRedisClient | null = null;
 
   constructor(private readonly config: ConfigService) {}
 
