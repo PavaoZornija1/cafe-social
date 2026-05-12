@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { apiGet, apiPost } from '../lib/api';
 import type { MeSummaryDto } from '../lib/meSummary';
+import { fetchDetectedVenue } from '../lib/venueDetectClient';
 import { BRUISER_ARENA_HERO_ID } from '../brawler/bruiserSpritesheet';
 import type { BrawlerArenaHeroStats, RootStackParamList } from '../navigation/type';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -151,9 +152,22 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
         token,
       );
 
+      const { coords } = await fetchDetectedVenue({ locationAccuracy: 'high' });
+      if (!coords) {
+        throw new Error(t('brawlerLobby.needLocationForStart'));
+      }
+
+      const startBody: { ifSnapshotRev?: number; latitude: number; longitude: number } = {
+        latitude: coords.lat,
+        longitude: coords.lng,
+      };
+      if (typeof created.snapshotRev === 'number') {
+        startBody.ifSnapshotRev = created.snapshotRev;
+      }
+
       await apiPost(
         `/brawler/sessions/${encodeURIComponent(created.id)}/start`,
-        typeof created.snapshotRev === 'number' ? { ifSnapshotRev: created.snapshotRev } : {},
+        startBody,
         token,
       );
 

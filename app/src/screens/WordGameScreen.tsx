@@ -2,6 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -16,6 +17,9 @@ import { apiGet, apiPost } from '../lib/api';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
 import { useWordMatchSocket } from '../lib/useWordMatchSocket';
 import { toApiWordLanguage } from '../lib/wordDeckLanguage';
+import type { MeSummaryDto } from '../lib/meSummary';
+import { useVenueActivePlayBudgetSync } from '../lib/useVenueActivePlayBudgetSync';
+import VenuePlayTimeBar from '../components/VenuePlayTimeBar';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 
@@ -106,6 +110,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
   const [matchState, setMatchState] = useState<MatchState | null>(null);
   const [soloSessionId, setSoloSessionId] = useState<string | null>(null);
   const [soloTargetCount, setSoloTargetCount] = useState(sessionWordsCount);
+  const [subscriptionActive, setSubscriptionActive] = useState(false);
 
   const soloStartedRef = useRef(false);
   const mpBootDoneRef = useRef(false);
@@ -122,6 +127,44 @@ export default function WordGameScreen({ navigation, route }: Props) {
   useEffect(() => {
     submittingRef.current = submitting;
   }, [submitting]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = await getTokenRef.current();
+        if (!token) return;
+        const s = await apiGet<MeSummaryDto>('/players/me/summary', token);
+        if (!cancelled) setSubscriptionActive(Boolean(s.subscriptionActive));
+      } catch {
+        /* non-blocking */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded]);
+
+  const activePlayBudgetEnabled =
+    Boolean(venueId) &&
+    !subscriptionActive &&
+    (matchSessionId ? matchState?.status === 'ACTIVE' : Boolean(soloSessionId));
+
+  useVenueActivePlayBudgetSync({
+    getToken: () => getTokenRef.current(),
+    venueId: venueId ?? null,
+    subscriptionActive,
+    kind: matchSessionId ? 'word_match' : 'solo_word',
+    gameSessionId: matchSessionId,
+    soloWordSessionId: soloSessionId,
+    enabled: activePlayBudgetEnabled,
+    onBudgetExhausted: () => {
+      Alert.alert(t('wordGame.playTimeExhaustedTitle'), t('wordGame.playTimeExhaustedBody'), [
+        { text: 'OK', onPress: () => navigation.replace('Home') },
+      ]);
+    },
+  });
 
   const leaveGame = useCallback(() => {
     void (async () => {
@@ -892,6 +935,13 @@ export default function WordGameScreen({ navigation, route }: Props) {
           <Text style={styles.navBackText}>{t('common.back')}</Text>
         </Pressable>
       </View>
+      {venueId ? (
+        <VenuePlayTimeBar
+          venueId={venueId}
+          getToken={() => getTokenRef.current()}
+          subscriptionActive={subscriptionActive}
+        />
+      ) : null}
       <View style={styles.container}>
         <Text style={styles.title}>{t('wordGame.title')}</Text>
         <Text style={styles.sub}>

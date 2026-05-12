@@ -8,6 +8,11 @@
     "retry": "Erneut",
     "save": "Speichern"
   },
+  "venuePlayBar": {
+    "timeRemaining": "~{{minutes}} Min. Spielzeit heute (UTC) an diesem Ort übrig",
+    "outsideGeofence": "Betritt die Geofence des Lokals, um deine Spielzeit zu nutzen.",
+    "extend": "Verlängern"
+  },
   "social": {
     "or": "oder",
     "continueWithGoogle": "Mit Google fortfahren",
@@ -108,6 +113,11 @@
     "staffOpen": "Personalmodus — Einlösungen & QR",
     "subscription": "Abo",
     "subscriptionHint": "Mitglieder schalten Heimspiel und Extras bei ausgewählten Premium-Partnern frei. Der Status hier ist das, was nach Store- und RevenueCat-Sync auf unseren Servern liegt.",
+    "subscriptionBenefitsTitle": "Was Mitglieder bekommen",
+    "subscriptionBenefitPlay": "Unbegrenzte aktive Spielzeit vor Ort (kein tägliches Café-Zeitlimit).",
+    "subscriptionBenefitParties": "Größere Gruppen und mehr Einladungslinks für Freund:innen.",
+    "subscriptionBenefitGlobal": "Wortspiele von überall, wenn es nicht um Laufkundschaft am Ort geht.",
+    "subscriptionBenefitFootnote": "Genaue Limits folgen deinem Store-Produkt — so ist die Stufe gedacht.",
     "subscriptionPaywallLead": "Abonnieren in wenigen Schritten. Wiederherstellung und Abo-Verwaltung jederzeit im Store-Konto.",
     "subscriptionActive": "Abo aktiv.",
     "subscriptionInactive": "Kein aktives Abo hinterlegt.",
@@ -129,7 +139,22 @@
     "subscriptionPurchaseImmediate": "Fertig — dein Abo ist aktiv.",
     "subscriptionPurchaseError": "Kauf nicht abgeschlossen. Erneut versuchen oder „Käufe wiederherstellen“.",
     "subscriptionRestoreActive": "Wiederherstellung ok — Abo ist aktiv.",
-    "subscriptionManageNativeError": "Abo-Verwaltung konnte nicht geöffnet werden. Bitte in App Store bzw. Google Play unter Abos öffnen."
+    "subscriptionManageNativeError": "Abo-Verwaltung konnte nicht geöffnet werden. Bitte in App Store bzw. Google Play unter Abos öffnen.",
+    "venuePlayBudgetSection": "Spielzeit im Café",
+    "venuePlayBudgetHint": "Die Gratis-Stufe hat ein tägliches Aktivspiel-Kontingent pro Lokal (UTC-Tag). Abonnent:innen haben unbegrenzt.",
+    "venuePlayBudgetLead": "Kaufe extra Minuten per In-App-Kauf (RevenueCat). Du musst mit Standort in der Geofence des Lokals sein — die Gutschrift gilt für heute an diesem Ort.",
+    "venuePlayBudgetFairPlay": "Fairness: Das kostenlose Tageskontingent startet jeden UTC-Tag neu und zählt nur in der Zone des Cafés — kein Überraschungs-Stopp mitten im Spiel. Abonnent:innen haben kein Limit; optionale Pakete verlängern nur heute an diesem Ort.",
+    "venuePlayBudgetBuy": "Extra Spielzeit kaufen…",
+    "venuePlayBudgetPickTitle": "Produkt wählen",
+    "venuePlayBudgetPickBody": "Preise kommen vom App Store oder Google Play. Die Gutschrift erfolgt nach dem Kauf auf unseren Servern.",
+    "venuePlayBudgetSuccessTitle": "Spielzeit gutgeschrieben",
+    "venuePlayBudgetSuccessBody": "+{{minutes}} Minuten gutgeschrieben. Du hast heute (UTC) an diesem Ort noch etwa {{remaining}} Minuten.",
+    "venuePlayBudgetNeedVenueTitle": "Ort erforderlich",
+    "venuePlayBudgetNeedVenueBody": "Standort einschalten und ins Partnerlokal gehen, dann erneut versuchen.",
+    "venuePlayBudgetNoProductsTitle": "Nicht konfiguriert",
+    "venuePlayBudgetNoProductsBody": "EXPO_PUBLIC_VENUE_PLAY_BUDGET_IAP_PRODUCTS im App-Build setzen (gleiche Produkt-IDs wie der Server).",
+    "venuePlayBudgetProductMissing": "Dieses Produkt ist im Store nicht verfügbar. RevenueCat und App Store Connect / Play Console prüfen.",
+    "venuePlayBudgetPurchaseError": "Kauf oder Server-Gutschrift fehlgeschlagen. Bei Abbuchung „Käufe wiederherstellen“ nutzen und erneut unter Einstellungen beanspruchen."
   },
   "chooseGame": {
     "title": "Spiel wählen",
@@ -175,7 +200,8 @@
     "soloSetupHint": "Schnelles Trainingsmatch wählen.",
     "soloOpponents": "Gegner",
     "soloDifficulty": "Schwierigkeit",
-    "soloStartBtn": "Start"
+    "soloStartBtn": "Start",
+    "needLocationForStart": "Standort einschalten und in der Geofence des Lokals stehen, um eine zeiterfasste Brawler-Session zu starten."
   },
   "brawlerMatch": {
     "queueTitle": "Matchmaking",
@@ -189,7 +215,9 @@
     "rankedBadge": "Ranked",
     "pvpPlaceholderTitle": "Match gefunden",
     "pvpPlaceholderBody": "Du bist für ein Venue-Duell gematcht. Echtzeit-Kampf zwischen zwei Telefonen ist in diesem Build noch nicht drin — zurück, um den Raum freizugeben, oder Solo / vs Bot in der Lobby.",
-    "backToLobby": "Zurück zur Lobby"
+    "backToLobby": "Zurück zur Lobby",
+    "playTimeExhaustedTitle": "Spielzeit aufgebraucht",
+    "playTimeExhaustedBody": "Du hast deine kostenlose aktive Spielzeit an diesem Ort für heute (UTC) verbraucht. Du kannst in der App mehr Zeit kaufen oder morgen wiederkommen."
   },
   "staff": {
     "venuesTitle": "Deine Venues",
@@ -263,6 +291,16 @@
     "playLockedExplicitCheckIn": "Dieses Lokal braucht einen QR-Check-in vor Ort. Standort aktivieren, dann scannen.",
     "explicitCheckInCta": "QR scannen zum Check-in",
     "loadVenueError": "Ladekontext fehlgeschlagen",
+    "venueErrorLocationHint": "Wenn das weiter passiert: genaue Standortfreigabe für die App aktivieren und in die Geofence des Cafés gehen.",
+    "featuredOfferVenueKicker": "An diesem Ort",
+    "featuredOfferEnds": "Bis {{date}} (UTC)",
+    "featuredOfferRewardsCta": "Meine Rewards & Codes",
+    "startHereTitle": "Zum ersten Mal hier?",
+    "startHereSubtitle": "Wähle einen schnellen Einstieg — den Rest findest du jederzeit.",
+    "startDailyWord": "Tageswort",
+    "startQuickPlay": "Schnell spielen",
+    "startWordRooms": "Wort-Räume",
+    "startSocialHint": "Mit Freund:innen? Party unter Einladungen starten, dann Wort-Räume am selben Ort öffnen.",
     "premiumSuffix": " • Premium",
     "linkFriends": "Freunde",
     "linkParties": "Gruppen",
@@ -546,7 +584,9 @@
     "timeExpiredCoopSkip": "Zeit abgelaufen — Team hat dieses Wort übersprungen.",
     "timeExpiredCoopDone": "Zeit abgelaufen — letztes Wort übersprungen. Match ohne perfekten Durchlauf beendet.",
     "timeExpiredVersus": "Zeit abgelaufen — du hast das Match verlassen.",
-    "timerPassError": "Zeit-Aktion fehlgeschlagen. Erneut versuchen oder beenden."
+    "timerPassError": "Zeit-Aktion fehlgeschlagen. Erneut versuchen oder beenden.",
+    "playTimeExhaustedTitle": "Spielzeit aufgebraucht",
+    "playTimeExhaustedBody": "Du hast deine kostenlose aktive Spielzeit an diesem Ort für heute (UTC) verbraucht. Du kannst in der App mehr Zeit kaufen oder morgen wiederkommen."
   },
   "qr": {
     "title": "Vor Ort einchecken",

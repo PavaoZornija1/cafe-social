@@ -15,6 +15,8 @@ import { VenueOfferController } from './venue-offer.controller';
 import { VenueOrderNudgeCopyService } from './venue-order-nudge-copy.service';
 import { VenueNudgeAdminService } from './venue-nudge-admin.service';
 import { VenuePlayLimitService } from './venue-play-limit.service';
+import { VenuePlayBudgetService } from './venue-play-budget.service';
+import { VenuePlayBudgetController } from './venue-play-budget.controller';
 import { VenueFunnelService } from './venue-funnel.service';
 import { VenueModerationService } from './venue-moderation.service';
 import { VenuePlayerReportController } from './venue-player-report.controller';
@@ -27,7 +29,13 @@ import { PushModule } from '../push/push.module';
     AuthModule,
     PushModule,
   ],
-  controllers: [VenueController, VenueAccessController, VenueOfferController, VenuePlayerReportController],
+  controllers: [
+    VenueController,
+    VenueAccessController,
+    VenueOfferController,
+    VenuePlayerReportController,
+    VenuePlayBudgetController,
+  ],
   providers: [
     VenueService,
     VenueOfferService,
@@ -36,6 +44,7 @@ import { PushModule } from '../push/push.module';
     VenueFunnelService,
     VenueModerationService,
     VenuePlayLimitService,
+    VenuePlayBudgetService,
     VenueRepository,
     VenueAccessService,
     PlayerVenueRepository,
@@ -50,6 +59,7 @@ import { PushModule } from '../push/push.module';
     VenueFunnelService,
     VenueModerationService,
     VenuePlayLimitService,
+    VenuePlayBudgetService,
     SubscriptionRepository,
     PlayerVenueRepository,
   ],

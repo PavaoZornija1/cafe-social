@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ownerFetch } from "@/lib/portalApi";
 import { PORTAL_VENUE_CONTEXT_EVENT } from "@/lib/portalVenueContext";
 import { OwnerAnalyticsCharts } from "@/components/OwnerAnalyticsCharts";
+import { OwnerAnalyticsRoiSnapshot } from "@/components/OwnerAnalyticsRoiSnapshot";
 import { PartnerReadOnlyBanner } from "@/components/PartnerReadOnlyBanner";
 import { partnerVenueMutationsBlockedReason } from "@/lib/partnerVenueReadOnly";
 import {
@@ -51,6 +52,11 @@ import {
   useOwnerVoidRedemptionMutation,
   useStaffRedemptionsQuery,
 } from "@/lib/queries";
+import { CAMPAIGN_COPY_TEMPLATES } from "@/lib/campaignCopyTemplates";
+import {
+  previousComparisonUtcRange,
+  resolveFrontendAnalyticsPeriod,
+} from "@/lib/analyticsPeriodClient";
 
 type VenueMetaRow = {
   role: "EMPLOYEE" | "MANAGER" | "OWNER";
@@ -294,6 +300,23 @@ export default function OwnerVenueDetailPage() {
     Boolean(isLoaded && metaRow && canAnalytics),
     analyticsFromYmd.trim() || undefined,
     analyticsToYmd.trim() || undefined,
+  );
+  const analyticsComparisonRange = useMemo(() => {
+    const cur = resolveFrontendAnalyticsPeriod(
+      days,
+      analyticsFromYmd.trim() || undefined,
+      analyticsToYmd.trim() || undefined,
+    );
+    return previousComparisonUtcRange(cur.startDay, cur.endDay);
+  }, [days, analyticsFromYmd, analyticsToYmd]);
+
+  const analyticsPrevQ = useOwnerVenueAnalyticsQuery(
+    venueId,
+    days,
+    getToken,
+    Boolean(isLoaded && metaRow && canAnalytics),
+    analyticsComparisonRange.from,
+    analyticsComparisonRange.to,
   );
   const geofenceDwellQ = useOwnerVenueGeofenceDwellQuery(
     venueId,
@@ -918,29 +941,44 @@ export default function OwnerVenueDetailPage() {
               </Link>
             </p>
           ) : null}
-          {isOwner && orgBilling?.billingPortalUrl && !hidePartnerFinancialUi ? (
-            <p className="text-sm mt-2">
-              <a
-                href={orgBilling.billingPortalUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-emerald-700 hover:underline"
-              >
-                Subscription / billing portal →
-              </a>
-              <span className="text-slate-500 ml-2">
-                {orgBilling.platformBillingPlan ?? "—"} · {orgBilling.platformBillingStatus}
-                {orgBilling.platformBillingRenewsAt
-                  ? ` · renews ${orgBilling.platformBillingRenewsAt.slice(0, 10)}`
-                  : ""}
-                {orgBilling.platformBillingStatus === "ACTIVE_CANCELING"
-                  ? " · ends at period end"
-                  : ""}
-                {orgBilling.platformBillingStatus === "CANCELED"
-                  ? " · contact support to restore organization billing"
-                  : ""}
-              </span>
-            </p>
+          {isOwner && orgBilling && !hidePartnerFinancialUi ? (
+            <>
+              {orgBilling.billingPortalUrl ? (
+                <p className="text-sm mt-2">
+                  <a
+                    href={orgBilling.billingPortalUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-emerald-700 hover:underline"
+                  >
+                    Subscription / billing portal →
+                  </a>
+                  <span className="text-slate-500 ml-2">
+                    {orgBilling.platformBillingPlan ?? "—"} · {orgBilling.platformBillingStatus}
+                    {orgBilling.platformBillingRenewsAt
+                      ? ` · renews ${orgBilling.platformBillingRenewsAt.slice(0, 10)}`
+                      : ""}
+                    {orgBilling.platformBillingStatus === "ACTIVE_CANCELING"
+                      ? " · ends at period end"
+                      : ""}
+                    {orgBilling.platformBillingStatus === "CANCELED"
+                      ? " · contact support to restore organization billing"
+                      : ""}
+                  </span>
+                </p>
+              ) : (
+                <p className="text-sm mt-2 text-slate-500">
+                  Billing portal URL not configured — contact support to connect Stripe customer portal.
+                </p>
+              )}
+              <p className="text-xs text-slate-600 max-w-2xl mt-2 leading-relaxed">
+                <strong>Commercial clarity:</strong> the organization subscription covers partner portal
+                access and venue features. In-app <strong>guest</strong> subscriptions and optional
+                play-time top-ups are billed by the app stores to the Cafe Social product account (not
+                shared with venues unless separately contracted). Your contract defines venue fees;
+                this portal shows Stripe org status only.
+              </p>
+            </>
           ) : null}
         </div>
         <UserButton />
@@ -957,6 +995,48 @@ export default function OwnerVenueDetailPage() {
           </div>
         )}
         {readOnlyMessage ? <PartnerReadOnlyBanner message={readOnlyMessage} /> : null}
+
+        {canAnalytics && metaRow && (
+          <section className="border border-emerald-200 rounded-xl p-4 space-y-3 bg-emerald-50/40">
+            <h2 className="text-lg font-medium text-slate-900">Partner playbook</h2>
+            <p className="text-sm text-slate-700">
+              Short checklist to go live with QR, staff, and a first campaign. Full printable brief:{" "}
+              <code className="text-xs bg-white/80 px-1 rounded border border-emerald-200">
+                docs/prilog-za-partnera-cafe-social.md
+              </code>{" "}
+              in the repo.
+            </p>
+            <ol className="list-decimal list-inside text-sm text-slate-700 space-y-1.5">
+              <li>
+                <strong>Geofence</strong> — draw once in the CMS (super admin) so detection matches your
+                floor.
+              </li>
+              <li>
+                <strong>Test QR / deep link</strong> — scan or open{" "}
+                <code className="text-xs bg-white/80 px-1 rounded break-all">
+                  cafesocial://unlock?venueId={venueId}
+                </code>{" "}
+                on a phone with the app installed.
+              </li>
+              <li>
+                <strong>Sample perks & challenges</strong> — publish one simple perk staff can honour and
+                one weekly challenge in the CMS.
+              </li>
+              <li>
+                <strong>Poster copy</strong> — use the partner brief wording for table tents; point guests
+                to the app + your venue context.
+              </li>
+              <li>
+                <strong>Staff shift</strong> — one person owns redemption verification; managers can void
+                with reason (audit trail below).
+              </li>
+            </ol>
+            <p className="text-xs text-slate-600">
+              Order-nudge push copy is driven by venue type templates in the CMS when set; otherwise
+              platform defaults apply.
+            </p>
+          </section>
+        )}
 
         {canAnalytics && metaRow && (
           <section>
@@ -1045,6 +1125,12 @@ export default function OwnerVenueDetailPage() {
                     ? ` · Venue TZ: ${analytics.analyticsTimeZone}`
                     : ""}
                 </p>
+                <OwnerAnalyticsRoiSnapshot
+                  current={analytics}
+                  previous={analyticsPrevQ.data}
+                  previousLoading={analyticsPrevQ.isLoading}
+                  campaigns={campaignsQ.data ?? []}
+                />
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-sm text-slate-600">Active redemptions</p>
@@ -1324,6 +1410,14 @@ export default function OwnerVenueDetailPage() {
         {canAnalytics && metaRow && (
           <section className="border border-slate-200 rounded-xl p-4 space-y-4">
             <h2 className="text-lg font-medium">Moderation</h2>
+            <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-slate-800">
+              <p className="font-medium text-slate-900">Trust &amp; safety without extra tooling</p>
+              <p className="text-xs text-slate-700 mt-1">
+                Player reports, venue bans, and ban appeals stay in this portal — bans block play and
+                redemptions here only. Use dismiss when no action is needed; audit log below captures
+                staff actions for accountability.
+              </p>
+            </div>
             <p className="text-xs text-slate-500">
               Open player reports and venue bans. Banning blocks play and redemptions at this
               location. Dismiss clears a report without banning.
@@ -1834,6 +1928,32 @@ export default function OwnerVenueDetailPage() {
               Push to players who visited this venue in the last N UTC days. Only sends to accounts
               with partner marketing on and not in total privacy (server-side).
             </p>
+            <p className="text-xs text-slate-600">
+              <strong>Order nudge</strong> (after dwell) uses optional per-venue overrides in the CMS, else
+              templates matched to this venue&apos;s <strong>venue types</strong> (super admin), else
+              platform defaults.
+            </p>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-medium text-slate-700 mb-2">Suggested copy (apply to draft)</p>
+              <div className="flex flex-wrap gap-2">
+                {CAMPAIGN_COPY_TEMPLATES.map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    disabled={readOnlyDisabled}
+                    onClick={() => {
+                      campaignForm.setFieldValue("name", tpl.name);
+                      campaignForm.setFieldValue("title", tpl.title);
+                      campaignForm.setFieldValue("body", tpl.body);
+                      campaignForm.setFieldValue("segmentDays", tpl.segmentDays);
+                    }}
+                    className="text-xs border border-slate-300 rounded-full px-3 py-1 bg-white hover:bg-slate-100 disabled:opacity-50"
+                  >
+                    {tpl.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <form
               className="grid gap-2 sm:grid-cols-2"
               onSubmit={(e) => {
@@ -2034,7 +2154,13 @@ export default function OwnerVenueDetailPage() {
 
         {redemptionsPayload && metaRow && (
           <section>
-            <h2 className="text-lg font-medium mb-4">Perk redemptions</h2>
+            <h2 className="text-lg font-medium mb-2">Perk redemptions</h2>
+            <p className="text-sm text-slate-600 mb-4 max-w-2xl">
+              Each redemption shows a <strong>staff verification code</strong> — match it before
+              honouring the perk. Managers and owners can <strong>void</strong> with a reason (row greys
+              out; exports and analytics reflect voids). This gives a simple fraud-resistant audit trail
+              without spreadsheets.
+            </p>
             {canAnalytics && (
               <div className="mb-4 flex flex-wrap items-center gap-2">
                 <input

@@ -65,6 +65,8 @@ export class BrawlerController {
       sessionId,
       this.email(user),
       resolveIfSnapshotRev(ifMatch, meta.ifSnapshotRev),
+      meta.latitude,
+      meta.longitude,
     );
   }
 

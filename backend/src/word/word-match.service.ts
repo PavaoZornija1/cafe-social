@@ -29,6 +29,7 @@ import { PushService } from '../push/push.service';
 import { VenueFeedService } from '../venue-feed/venue-feed.service';
 import { SubscriptionRepository } from '../venue/subscription.repository';
 import { VenuePlayLimitService } from '../venue/venue-play-limit.service';
+import { VenuePlayBudgetService } from '../venue/venue-play-budget.service';
 import { VenueService } from '../venue/venue.service';
 import { normalizeGuess } from './word-match.util';
 import { GameXpAwardService } from '../stats/game-xp-award.service';
@@ -74,6 +75,7 @@ export class WordMatchService {
     private readonly subscriptions: SubscriptionRepository,
     private readonly venues: VenueService,
     private readonly venuePlayLimit: VenuePlayLimitService,
+    private readonly venuePlayBudget: VenuePlayBudgetService,
     private readonly gameXp: GameXpAwardService,
     private readonly liveRedis: WordMatchLiveRedisService,
   ) {}
@@ -167,6 +169,29 @@ export class WordMatchService {
       latitude!,
       longitude!,
     );
+  }
+
+  /**
+   * Play budget is only enforced on the first deck fetch that counts this match;
+   * later polls must not fail after stamina hits 0 mid-match.
+   */
+  private async assertVenuePlayBudgetUnlessWordMatchAlreadyCounted(
+    playerId: string,
+    venueId: string,
+    sessionId: string,
+  ): Promise<void> {
+    if (await this.subscriptions.isActiveSubscriber(playerId)) return;
+    const existing = await this.prisma.playerVenuePlayCountedGame.findUnique({
+      where: {
+        playerId_gameSessionId_kind: {
+          playerId,
+          gameSessionId: sessionId,
+          kind: 'word_match',
+        },
+      },
+    });
+    if (existing) return;
+    await this.venuePlayBudget.assertHasRemainingVenuePlayBudget(playerId, venueId);
   }
 
   private pushSessionRefresh(sessionId: string, meta?: Partial<WordMatchRefreshPayload>) {
@@ -556,6 +581,11 @@ export class WordMatchService {
           : snap.venueId;
       await this.assertAtVenueIfNeeded(playerVenueId, latitude, longitude);
       if (playerVenueId) {
+        await this.assertVenuePlayBudgetUnlessWordMatchAlreadyCounted(
+          player.id,
+          playerVenueId,
+          sessionId,
+        );
         await this.venuePlayLimit.beginWordMatchDeck(player.id, playerVenueId, sessionId);
       }
 
@@ -603,6 +633,11 @@ export class WordMatchService {
     await this.assertAtVenueIfNeeded(playerVenueId, latitude, longitude);
 
     if (playerVenueId) {
+      await this.assertVenuePlayBudgetUnlessWordMatchAlreadyCounted(
+        player.id,
+        playerVenueId,
+        sessionId,
+      );
       await this.venuePlayLimit.beginWordMatchDeck(player.id, playerVenueId, sessionId);
     }
 

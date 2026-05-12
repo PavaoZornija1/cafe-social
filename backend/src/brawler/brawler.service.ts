@@ -15,6 +15,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { PlayerService } from '../player/player.service';
 import { VenuePlayLimitService } from '../venue/venue-play-limit.service';
+import { VenuePlayBudgetService } from '../venue/venue-play-budget.service';
 import { VenueService } from '../venue/venue.service';
 import { SubscriptionRepository } from '../venue/subscription.repository';
 import { BrawlerRepository } from './brawler.repository';
@@ -40,6 +41,7 @@ export class BrawlerService {
     private readonly brawlerRepo: BrawlerRepository,
     private readonly players: PlayerService,
     private readonly venuePlayLimit: VenuePlayLimitService,
+    private readonly venuePlayBudget: VenuePlayBudgetService,
     private readonly venues: VenueService,
     private readonly gameXp: GameXpAwardService,
     private readonly brawlerLive: BrawlerLiveRedisService,
@@ -207,7 +209,13 @@ export class BrawlerService {
     };
   }
 
-  async startSession(sessionId: string, email: string, ifSnapshotRev?: number) {
+  async startSession(
+    sessionId: string,
+    email: string,
+    ifSnapshotRev?: number,
+    latitude?: number,
+    longitude?: number,
+  ) {
     await this.assertBrawlerIfSnapshotRev(sessionId, ifSnapshotRev);
     const session = await this.brawlerRepo.startSession(sessionId);
     if (!session) throw new NotFoundException('session not found');
@@ -220,6 +228,25 @@ export class BrawlerService {
         const player = await this.players.findOrCreateByEmail(email);
         const human = full.participants.find((p) => p.playerId === player.id && !p.isBot);
         if (human) {
+          const sub = await this.subscriptions.isActiveSubscriber(player.id);
+          if (!sub) {
+            const hasCoords =
+              typeof latitude === 'number' &&
+              typeof longitude === 'number' &&
+              Number.isFinite(latitude) &&
+              Number.isFinite(longitude);
+            if (!hasCoords) {
+              throw new ForbiddenException(
+                'Brawler at a venue requires your current location (lat/lng) for play-time tracking.',
+              );
+            }
+            await this.venuePlayBudget.assertCanStartVenuePlayAtVenueWithCoords(
+              player.id,
+              session.venueId,
+              latitude,
+              longitude,
+            );
+          }
           await this.venuePlayLimit.beginBrawler(player.id, session.venueId, sessionId);
         }
       }
@@ -657,13 +684,21 @@ export class BrawlerService {
     if (!session || session.gameType !== GameType.BRAWLER) return;
     if (session.status !== GameSessionStatus.PENDING) return;
 
+    const cfg = (session.config ?? {}) as { playerVenueIds?: Record<string, string> };
+    const playerVenueIds = cfg.playerVenueIds ?? {};
+    for (const p of session.participants) {
+      if (!p.playerId || p.isBot) continue;
+      const venueId = playerVenueIds[p.playerId] ?? session.venueId ?? null;
+      if (!venueId) continue;
+      const sub = await this.subscriptions.isActiveSubscriber(p.playerId);
+      if (!sub) {
+        await this.venuePlayBudget.assertHasRemainingVenuePlayBudget(p.playerId, venueId);
+      }
+    }
+
     const started = await this.brawlerRepo.startSession(sessionId);
     if (!started || started.status !== GameSessionStatus.ACTIVE) return;
 
-    // Cross-venue queue matches stamp each player's own venue on the session config so play
-    // limits / bans are applied to their actual venue (not the host's).
-    const cfg = (session.config ?? {}) as { playerVenueIds?: Record<string, string> };
-    const playerVenueIds = cfg.playerVenueIds ?? {};
     for (const p of session.participants) {
       if (!p.playerId || p.isBot) continue;
       const venueId = playerVenueIds[p.playerId] ?? session.venueId ?? null;

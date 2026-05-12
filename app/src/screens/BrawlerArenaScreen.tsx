@@ -31,6 +31,9 @@ import {
 } from '../brawler/arenaPlatforms';
 import type { BrawlerArenaHeroStats, RootStackParamList } from '../navigation/type';
 import { apiGet, apiPost } from '../lib/api';
+import type { MeSummaryDto } from '../lib/meSummary';
+import { useVenueActivePlayBudgetSync } from '../lib/useVenueActivePlayBudgetSync';
+import VenuePlayTimeBar from '../components/VenuePlayTimeBar';
 import { previewBrawlerWinXp } from '../lib/brawlerWinXp';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
@@ -274,7 +277,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { heroId, heroStats: heroStatsParam } = route.params;
+  const { heroId, heroStats: heroStatsParam, venueId: routeVenueId } = route.params;
   const insets = useSafeAreaInsets();
   const sessionId = route.params.sessionId;
 
@@ -286,6 +289,24 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   getTokenRef.current = getToken;
   const navigationRef = useRef(navigation);
   navigationRef.current = navigation;
+
+  const [subscriptionActive, setSubscriptionActive] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = await getTokenRef.current();
+        if (!token) return;
+        const s = await apiGet<MeSummaryDto>('/players/me/summary', token);
+        if (!cancelled) setSubscriptionActive(Boolean(s.subscriptionActive));
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const matchChaosEndSRef = useRef(DEFAULT_MATCH_PHASE_CHAOS_END_S);
   const matchEndgameEndSRef = useRef(DEFAULT_MATCH_PHASE_ENDGAME_END_S);
@@ -309,6 +330,20 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const trackedSessionGateRef = useRef(!sessionId);
   /** Same tick as session sets `setDevMatchTimerEnabled(true)` — avoids RAF before `devMatchTimerLiveRef` updates. */
   const pendingMatchTimerFromSessionRef = useRef(false);
+
+  useVenueActivePlayBudgetSync({
+    getToken: () => getTokenRef.current(),
+    venueId: routeVenueId ?? null,
+    subscriptionActive,
+    kind: 'brawler',
+    gameSessionId: sessionId,
+    enabled: Boolean(routeVenueId && sessionId && !subscriptionActive && trackedSessionReady),
+    onBudgetExhausted: () => {
+      Alert.alert(t('brawlerMatch.playTimeExhaustedTitle'), t('brawlerMatch.playTimeExhaustedBody'), [
+        { text: 'OK', onPress: () => navigationRef.current.replace('Home') },
+      ]);
+    },
+  });
   type BrawlerResultsScoreRow = {
     name: string;
     kills: number;
@@ -1793,6 +1828,14 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           </Pressable>
         </View>
       </View>
+
+      {routeVenueId ? (
+        <VenuePlayTimeBar
+          venueId={routeVenueId}
+          getToken={() => getTokenRef.current()}
+          subscriptionActive={subscriptionActive}
+        />
+      ) : null}
 
       <View style={styles.arenaFlex}>
         <View style={styles.arena} onLayout={onArenaLayout}>

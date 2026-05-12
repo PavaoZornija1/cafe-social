@@ -5,6 +5,9 @@ jest.mock('../venue/venue.service', () => ({ VenueService: class VenueService {}
 jest.mock('../venue/venue-play-limit.service', () => ({
   VenuePlayLimitService: class VenuePlayLimitService {},
 }));
+jest.mock('../venue/venue-play-budget.service', () => ({
+  VenuePlayBudgetService: class VenuePlayBudgetService {},
+}));
 
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import {
@@ -109,6 +112,9 @@ function buildService(opts: {
   const venuePlayLimit = {
     beginWordMatchDeck: jest.fn().mockResolvedValue(undefined),
   };
+  const venuePlayBudget = {
+    assertHasRemainingVenuePlayBudget: jest.fn().mockResolvedValue(undefined),
+  };
   const gameXp = {
     tryAwardSessionWinXp: opts.awardSessionXp ?? jest.fn().mockResolvedValue(undefined),
   };
@@ -128,10 +134,23 @@ function buildService(opts: {
     subscriptions as never,
     venues as never,
     venuePlayLimit as never,
+    venuePlayBudget as never,
     gameXp as never,
     liveRedis as never,
   );
-  return { svc, prisma, players, wordRepo, events, subscriptions, venues, liveRedis, gameXp, pushNotifications, venueFeed };
+  return {
+    svc,
+    prisma,
+    players,
+    wordRepo,
+    events,
+    subscriptions,
+    venues,
+    liveRedis,
+    gameXp,
+    pushNotifications,
+    venueFeed,
+  };
 }
 
 describe('WordMatchService.enqueueVenueWordMatch', () => {

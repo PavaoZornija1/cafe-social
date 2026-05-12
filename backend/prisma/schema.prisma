@@ -117,6 +117,9 @@ model Venue {
   visitDays        PlayerVenueVisitDay[]
   venuePlayDays    PlayerVenuePlayDay[]
   venuePlayCountedGames PlayerVenuePlayCountedGame[]
+  venueActivePlayBudgetDays PlayerVenueActivePlayBudgetDay[]
+  venueActivePlaySessions   PlayerVenueActivePlaySession[]
+  venuePlayBudgetIapGrants  VenuePlayBudgetIapGrant[]
   staffMembers     VenueStaff[]
   staffInvites     VenueStaffInvite[]
   campaigns        VenueCampaign[]
@@ -512,6 +515,9 @@ model Player {
   venueVisitDays   PlayerVenueVisitDay[]
   venuePlayDays    PlayerVenuePlayDay[]
   venuePlayCountedGames PlayerVenuePlayCountedGame[]
+  venueActivePlayBudgetDays PlayerVenueActivePlayBudgetDay[]
+  venueActivePlaySessions   PlayerVenueActivePlaySession[]
+  venuePlayBudgetIapGrants  VenuePlayBudgetIapGrant[]
   perkRedemptions  VenuePerkRedemption[] @relation("RedemptionGuest")
   rewardGrants     PlayerRewardGrant[]
   offerRedemptions VenueOfferRedemption[]
@@ -626,6 +632,63 @@ model PlayerVenuePlayCountedGame {
 
   @@unique([playerId, gameSessionId, kind])
   @@index([playerId, dayKey])
+}
+
+/// Per UTC day per venue: **active play seconds** consumed + IAP bonus pool (free tier stamina).
+model PlayerVenueActivePlayBudgetDay {
+  playerId   String
+  venueId    String
+  dayKey     String
+  /// Seconds of active play charged while in geofence (free allowance + IAP bonus).
+  consumedActiveSeconds    Int @default(0)
+  /// Extra seconds granted via in-app purchase today at this venue (UTC day).
+  iapBonusSecondsRemaining Int @default(0)
+  updatedAt DateTime @updatedAt
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, venueId, dayKey])
+  @@index([venueId, dayKey])
+  @@index([playerId, dayKey])
+}
+
+/// Server-side “active play” interval for stamina ticks (geofence re-checked each tick).
+model PlayerVenueActivePlaySession {
+  id        String @id @default(uuid())
+  playerId  String
+  venueId   String
+  dayKey    String
+  /// solo_word | word_match | brawler
+  kind      String
+  gameSessionId     String?
+  soloWordSessionId String?
+  startedAt  DateTime @default(now())
+  lastTickAt DateTime @default(now())
+  endedAt    DateTime?
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, endedAt])
+  @@index([playerId, lastTickAt])
+}
+
+/// Idempotent log: one RevenueCat non-subscription transaction grants bonus seconds once.
+model VenuePlayBudgetIapGrant {
+  id                  String   @id @default(uuid())
+  playerId            String
+  venueId             String
+  dayKey              String
+  productId           String
+  storeTransactionId  String   @unique
+  grantedSeconds      Int
+  createdAt           DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, createdAt])
 }
 
 /// Partner funnel analytics: guest journey at a venue (`detect` has null playerId).

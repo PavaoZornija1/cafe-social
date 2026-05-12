@@ -8,6 +8,11 @@
     "retry": "Retry",
     "save": "Save"
   },
+  "venuePlayBar": {
+    "timeRemaining": "~{{minutes}} min play time left today (UTC) at this venue",
+    "outsideGeofence": "Step inside the venue geofence to use your play time.",
+    "extend": "Extend"
+  },
   "social": {
     "or": "or",
     "continueWithGoogle": "Continue with Google",
@@ -108,6 +113,11 @@
     "staffOpen": "Staff mode — redemptions & QR",
     "subscription": "Subscription",
     "subscriptionHint": "Members unlock play from home and bonus perks at select premium partner venues. Status here is what our servers have on file after the store and RevenueCat sync.",
+    "subscriptionBenefitsTitle": "What members get",
+    "subscriptionBenefitPlay": "Unlimited active play at venues (no daily café play-time cap).",
+    "subscriptionBenefitParties": "Larger parties and more invite links for coordinating with friends.",
+    "subscriptionBenefitGlobal": "Word games from anywhere when the venue doesn’t need to foot traffic.",
+    "subscriptionBenefitFootnote": "Exact limits follow your store product — this is the intent of the tier.",
     "subscriptionPaywallLead": "Subscribe in a few taps. You can restore past purchases or manage billing anytime in your store account.",
     "subscriptionActive": "Subscription active.",
     "subscriptionInactive": "No active subscription on file.",
@@ -129,7 +139,22 @@
     "subscriptionPurchaseImmediate": "You’re all set — your subscription is active.",
     "subscriptionPurchaseError": "Purchase could not be completed. Try again or use Restore purchases.",
     "subscriptionRestoreActive": "Restore worked — your subscription is active.",
-    "subscriptionManageNativeError": "Could not open subscription management. Open the App Store or Google Play subscription settings for this app."
+    "subscriptionManageNativeError": "Could not open subscription management. Open the App Store or Google Play subscription settings for this app.",
+    "venuePlayBudgetSection": "Café play time",
+    "venuePlayBudgetHint": "Free tier has a daily active-play budget per venue (UTC day). Subscribers have unlimited play.",
+    "venuePlayBudgetLead": "Buy extra minutes with an in-app purchase (RevenueCat). You must be inside the venue geofence with location on — the credit applies to today at that venue.",
+    "venuePlayBudgetFairPlay": "Fair play: the free daily allowance resets each UTC day and only counts while you’re in the venue’s zone — it’s not meant to surprise you mid-game. Subscribers skip the cap; optional packs extend today at this venue only.",
+    "venuePlayBudgetBuy": "Buy extra play time…",
+    "venuePlayBudgetPickTitle": "Choose a product",
+    "venuePlayBudgetPickBody": "Prices come from the App Store or Google Play. The grant is applied on our servers after purchase.",
+    "venuePlayBudgetSuccessTitle": "Play time added",
+    "venuePlayBudgetSuccessBody": "+{{minutes}} minutes credited. You have about {{remaining}} minutes left today at this venue (UTC).",
+    "venuePlayBudgetNeedVenueTitle": "Need venue location",
+    "venuePlayBudgetNeedVenueBody": "Turn on location and stand inside the partner venue, then try again.",
+    "venuePlayBudgetNoProductsTitle": "Not configured",
+    "venuePlayBudgetNoProductsBody": "Add EXPO_PUBLIC_VENUE_PLAY_BUDGET_IAP_PRODUCTS in the app build (same product IDs as the server).",
+    "venuePlayBudgetProductMissing": "This product is not available from the store. Check RevenueCat and App Store Connect / Play Console.",
+    "venuePlayBudgetPurchaseError": "Purchase or server credit failed. If you were charged, use Restore purchases and try claiming again from Settings."
   },
   "chooseGame": {
     "title": "Choose a game",
@@ -175,7 +200,8 @@
     "soloSetupHint": "Choose a quick practice match.",
     "soloOpponents": "Opponents",
     "soloDifficulty": "Difficulty",
-    "soloStartBtn": "Start"
+    "soloStartBtn": "Start",
+    "needLocationForStart": "Turn on location and stand inside the venue geofence to start a timed brawler session."
   },
   "brawlerMatch": {
     "queueTitle": "Matchmaking",
@@ -189,7 +215,9 @@
     "rankedBadge": "Ranked",
     "pvpPlaceholderTitle": "Match found",
     "pvpPlaceholderBody": "You’re paired for a venue brawl. Real-time combat between two phones is not in this build yet — go back to free the room, or play solo / vs bot from the lobby.",
-    "backToLobby": "Back to lobby"
+    "backToLobby": "Back to lobby",
+    "playTimeExhaustedTitle": "Play time used up",
+    "playTimeExhaustedBody": "You’ve used your free active play time at this venue for today (UTC). You can buy more time in the app or come back tomorrow."
   },
   "staff": {
     "venuesTitle": "Your venues",
@@ -263,6 +291,16 @@
     "playLockedExplicitCheckIn": "This venue needs a one-time QR check-in while you’re on site. Allow location, then scan.",
     "explicitCheckInCta": "Scan QR to check in",
     "loadVenueError": "Failed to load venue context",
+    "venueErrorLocationHint": "If this persists, enable precise location for this app and step inside the café’s geofence.",
+    "featuredOfferVenueKicker": "At this venue",
+    "featuredOfferEnds": "Through {{date}} (UTC)",
+    "featuredOfferRewardsCta": "My rewards & codes",
+    "startHereTitle": "First time here?",
+    "startHereSubtitle": "Pick one quick win — you can explore the rest anytime.",
+    "startDailyWord": "Daily word",
+    "startQuickPlay": "Quick play",
+    "startWordRooms": "Word rooms",
+    "startSocialHint": "Playing with friends? Start a party from Invites, then open Word rooms with the same venue.",
     "premiumSuffix": " • Premium",
     "linkFriends": "Friends",
     "linkParties": "Parties",
@@ -546,7 +584,9 @@
     "timeExpiredCoopSkip": "Time’s up — your team skipped this word.",
     "timeExpiredCoopDone": "Time’s up — skipped the last word. Match ended (no perfect clear).",
     "timeExpiredVersus": "Time’s up — you left the match.",
-    "timerPassError": "Could not apply time-up. Try again or exit."
+    "timerPassError": "Could not apply time-up. Try again or exit.",
+    "playTimeExhaustedTitle": "Play time used up",
+    "playTimeExhaustedBody": "You’ve used your free active play time at this venue for today (UTC). You can buy more time in the app or come back tomorrow."
   },
   "qr": {
     "title": "Check in at venue",

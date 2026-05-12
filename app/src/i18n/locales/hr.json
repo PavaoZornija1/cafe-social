@@ -8,6 +8,11 @@
     "retry": "Pokušaj ponovo",
     "save": "Spremi"
   },
+  "venuePlayBar": {
+    "timeRemaining": "~{{minutes}} min igre danas (UTC) u ovom lokalu",
+    "outsideGeofence": "Uđi u geofence partner lokala da koristiš svoje vrijeme igranja.",
+    "extend": "Produži"
+  },
   "social": {
     "or": "ili",
     "continueWithGoogle": "Nastavi s Googleom",
@@ -108,6 +113,11 @@
     "staffOpen": "Način osoblja — otkupi i QR",
     "subscription": "Pretplata",
     "subscriptionHint": "Članstvo otključava igru od kuće i dodatke u odabranim premium lokacijama. Status ovdje je ono što naš poslužitelj ima nakon sinkronizacije trgovine i RevenueCata.",
+    "subscriptionBenefitsTitle": "Što članstvo donosi",
+    "subscriptionBenefitPlay": "Neograničeno aktivno igranje u lokalu (bez dnevnog limita u kafiću).",
+    "subscriptionBenefitParties": "Veće zabave i više pozivnica za druženje s prijateljima.",
+    "subscriptionBenefitGlobal": "Word igre odakle god kad nisi vezan za promet u lokalu.",
+    "subscriptionBenefitFootnote": "Točne granice ovise o proizvodu u trgovini — tako je razina zamišljena.",
     "subscriptionPaywallLead": "Pretplati se u par koraka. Starije kupnje možeš obnoviti, naplatu upravljati u računu trgovine.",
     "subscriptionActive": "Pretplata je aktivna.",
     "subscriptionInactive": "Nema aktivne pretplate.",
@@ -129,7 +139,22 @@
     "subscriptionPurchaseImmediate": "Sve je spremno — pretplata je aktivna.",
     "subscriptionPurchaseError": "Kupnja nije dovršena. Pokušaj ponovno ili Vrati kupnje.",
     "subscriptionRestoreActive": "Obnova uspjela — pretplata je aktivna.",
-    "subscriptionManageNativeError": "Nije moguće otvoriti upravljanje pretplatom. Otvori postavke pretplate u App Storeu ili Google Playu."
+    "subscriptionManageNativeError": "Nije moguće otvoriti upravljanje pretplatom. Otvori postavke pretplate u App Storeu ili Google Playu.",
+    "venuePlayBudgetSection": "Vrijeme igranja u kafiću",
+    "venuePlayBudgetHint": "Besplatni nivo ima dnevni limit aktivnog igranja po lokalu (UTC dan). Pretplatnici imaju neograničeno igranje.",
+    "venuePlayBudgetLead": "Kupi dodatne minute putem in-app kupnje (RevenueCat). Moraš biti unutar geofencea lokala s uključenom lokacijom: kredit se odnosi na današnji dan u tom lokalu.",
+    "venuePlayBudgetFairPlay": "Pošteno pravilo: besplatni dnevni limit resetira se svaki UTC dan i broji samo unutar zone lokala — nije da te iznenadi usred igre. Pretplatnici nemaju limit; opcijski paketi produžuju samo današnji dan u tom lokalu.",
+    "venuePlayBudgetBuy": "Kupi dodatno vrijeme…",
+    "venuePlayBudgetPickTitle": "Odaberi proizvod",
+    "venuePlayBudgetPickBody": "Cijene dolaze iz App Storea ili Google Playa. Kredit se primjenjuje na našim poslužiteljima nakon kupnje.",
+    "venuePlayBudgetSuccessTitle": "Vrijeme dodano",
+    "venuePlayBudgetSuccessBody": "+{{minutes}} minuta dodano. Ostalo ti je oko {{remaining}} minuta danas (UTC) u ovom lokalu.",
+    "venuePlayBudgetNeedVenueTitle": "Potreban je lokal",
+    "venuePlayBudgetNeedVenueBody": "Uključi lokaciju i uđi u partner lokal, zatim pokušaj ponovo.",
+    "venuePlayBudgetNoProductsTitle": "Nije konfigurirano",
+    "venuePlayBudgetNoProductsBody": "Dodaj EXPO_PUBLIC_VENUE_PLAY_BUDGET_IAP_PRODUCTS u build (isti ID-ovi kao na poslužitelju).",
+    "venuePlayBudgetProductMissing": "Ovaj proizvod nije dostupan u trgovini. Provjeri RevenueCat i App Store Connect / Play Console.",
+    "venuePlayBudgetPurchaseError": "Kupnja ili kredit na poslužitelju nije uspio. Ako si naplaćen, koristi Obnovi kupnje i pokušaj ponovo u Postavkama."
   },
   "chooseGame": {
     "title": "Odaberi igru",
@@ -175,7 +200,8 @@
     "soloSetupHint": "Odaberi brzu vježbenu utakmicu.",
     "soloOpponents": "Protivnici",
     "soloDifficulty": "Težina",
-    "soloStartBtn": "Start"
+    "soloStartBtn": "Start",
+    "needLocationForStart": "Uključi lokaciju i uđi u geofence partner lokala da pokreneš Brawler sesiju s evidentiranim vremenom."
   },
   "brawlerMatch": {
     "queueTitle": "Matchmaking",
@@ -189,7 +215,9 @@
     "rankedBadge": "Ranked",
     "pvpPlaceholderTitle": "Meč pronađen",
     "pvpPlaceholderBody": "Upareni ste za dvoboj na lokalu. Borba u stvarnom vremenu između dva telefona još nije u ovoj verziji — vrati se da oslobodiš sobu ili igraj solo / vs bot iz lobija.",
-    "backToLobby": "Natrag u lobby"
+    "backToLobby": "Natrag u lobby",
+    "playTimeExhaustedTitle": "Vrijeme igranja potrošeno",
+    "playTimeExhaustedBody": "Iskoristio si besplatno aktivno vrijeme u ovom lokalu za danas (UTC). Možeš kupiti više u aplikaciji ili se vratiti sutra."
   },
   "staff": {
     "venuesTitle": "Tvoji lokali",
@@ -263,6 +291,16 @@
     "playLockedExplicitCheckIn": "Ovaj lokal traži jednokratnu QR prijavu dok si na mjestu. Uključi lokaciju pa skeniraj.",
     "explicitCheckInCta": "Skeniraj QR za prijavu",
     "loadVenueError": "Učitavanje konteksta lokala nije uspjelo",
+    "venueErrorLocationHint": "Ako se ponavlja, uključi preciznu lokaciju za aplikaciju i uđi u geofence kafića.",
+    "featuredOfferVenueKicker": "U ovom lokalu",
+    "featuredOfferEnds": "Do {{date}} (UTC)",
+    "featuredOfferRewardsCta": "Moje nagrade i kodovi",
+    "startHereTitle": "Prvi put ovdje?",
+    "startHereSubtitle": "Odaberi brzi korak — ostalo je dostupno kad god želiš.",
+    "startDailyWord": "Dnevna riječ",
+    "startQuickPlay": "Brza igra",
+    "startWordRooms": "Sobe za riječi",
+    "startSocialHint": "S ekipom? Započni zabavu pod Pozivnicama, zatim otvori sobe za riječi na istom lokalu.",
     "premiumSuffix": " • Premium",
     "linkFriends": "Prijatelji",
     "linkParties": "Partyji",
@@ -546,7 +584,9 @@
     "timeExpiredCoopSkip": "Vrijeme je isteklo — tim je preskočio ovu riječ.",
     "timeExpiredCoopDone": "Vrijeme je isteklo — zadnja riječ preskočena. Meč završen bez savršenog prolaska.",
     "timeExpiredVersus": "Vrijeme je isteklo — napustio/la si meč.",
-    "timerPassError": "Nije uspjelo primijeniti istek. Pokušaj ponovno ili izađi."
+    "timerPassError": "Nije uspjelo primijeniti istek. Pokušaj ponovno ili izađi.",
+    "playTimeExhaustedTitle": "Vrijeme igranja potrošeno",
+    "playTimeExhaustedBody": "Iskoristio si besplatno aktivno vrijeme u ovom lokalu za danas (UTC). Možeš kupiti više u aplikaciji ili se vratiti sutra."
   },
   "qr": {
     "title": "Prijava na lokalu",

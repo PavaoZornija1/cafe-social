@@ -4,6 +4,9 @@ jest.mock('../venue/venue.service', () => ({ VenueService: class VenueService {}
 jest.mock('../venue/venue-play-limit.service', () => ({
   VenuePlayLimitService: class VenuePlayLimitService {},
 }));
+jest.mock('../venue/venue-play-budget.service', () => ({
+  VenuePlayBudgetService: class VenuePlayBudgetService {},
+}));
 
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import {
@@ -86,6 +89,10 @@ function buildService(opts: {
   const venuePlayLimit = {
     beginBrawler: jest.fn().mockResolvedValue(undefined),
   };
+  const venuePlayBudget = {
+    assertHasRemainingVenuePlayBudget: jest.fn().mockResolvedValue(undefined),
+    assertCanStartVenuePlayAtVenueWithCoords: jest.fn().mockResolvedValue(undefined),
+  };
   const venues = {
     assertCoordinatesAllowedForGuestVenue: jest.fn().mockResolvedValue(undefined),
   };
@@ -106,12 +113,23 @@ function buildService(opts: {
     brawlerRepo as never,
     players as never,
     venuePlayLimit as never,
+    venuePlayBudget as never,
     venues as never,
     gameXp as never,
     brawlerLive as never,
     subscriptions as never,
   );
-  return { svc, prisma, brawlerRepo, players, brawlerLive, subscriptions, venues, venuePlayLimit };
+  return {
+    svc,
+    prisma,
+    brawlerRepo,
+    players,
+    brawlerLive,
+    subscriptions,
+    venues,
+    venuePlayLimit,
+    venuePlayBudget,
+  };
 }
 
 describe('BrawlerService.enqueueVenueBrawlerMatch', () => {
@@ -253,7 +271,7 @@ describe('BrawlerService.tryFillBrawlerQueueWithBot (casual-only)', () => {
         { playerId: null, isBot: true },
       ],
     });
-    const { svc, brawlerRepo, venuePlayLimit } = buildService({
+    const { svc, brawlerRepo, venuePlayLimit, venuePlayBudget } = buildService({
       prisma,
       refreshSnapshot,
       startSession,
@@ -294,6 +312,10 @@ describe('BrawlerService.tryFillBrawlerQueueWithBot (casual-only)', () => {
       }),
     );
 
+    expect(venuePlayBudget.assertHasRemainingVenuePlayBudget).toHaveBeenCalledWith(
+      'player-a',
+      'venue-1',
+    );
     // Activation path: repo.startSession + per-player play limit + Redis refresh.
     expect(brawlerRepo.startSession).toHaveBeenCalledWith('session-bot');
     expect(venuePlayLimit.beginBrawler).toHaveBeenCalledWith(

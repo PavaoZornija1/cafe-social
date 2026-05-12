@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PlayerService } from '../player/player.service';
 import { SubscriptionRepository } from '../venue/subscription.repository';
 import { VenuePlayLimitService } from '../venue/venue-play-limit.service';
+import { VenuePlayBudgetService } from '../venue/venue-play-budget.service';
 import { VenueService } from '../venue/venue.service';
 import { WordRepository } from './word.repository';
 import { wordToPublicHints, type WordPublicHint } from './word-hint.util';
@@ -29,6 +30,7 @@ export class WordService {
     private readonly subscriptions: SubscriptionRepository,
     private readonly venues: VenueService,
     private readonly venuePlayLimit: VenuePlayLimitService,
+    private readonly venuePlayBudget: VenuePlayBudgetService,
     private readonly gameXp: GameXpAwardService,
   ) {}
 
@@ -95,6 +97,15 @@ export class WordService {
     });
 
     if (!globalPlay && dto.venueId?.trim()) {
+      const sub = await this.subscriptions.isActiveSubscriber(player.id);
+      if (!sub) {
+        await this.venuePlayBudget.assertCanStartVenuePlayAtVenueWithCoords(
+          player.id,
+          dto.venueId.trim(),
+          dto.latitude!,
+          dto.longitude!,
+        );
+      }
       await this.venuePlayLimit.beginSoloWord(player.id, dto.venueId.trim());
     }
 
