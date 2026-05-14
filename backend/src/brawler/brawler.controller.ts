@@ -15,6 +15,8 @@ import { BrawlerService } from './brawler.service';
 import { CreateBrawlerSessionDto } from './dto/create-brawler-session.dto';
 import { RecordBrawlerEventsDto } from './dto/record-brawler-events.dto';
 import { FinalizeBrawlerSessionDto } from './dto/finalize-brawler-session.dto';
+import { PickBrawlerPowerupDto } from './dto/pick-brawler-powerup.dto';
+import { PickBrawlerPowerupDto } from './dto/pick-brawler-powerup.dto';
 
 @Controller('brawler')
 @UseGuards(JwtAuthGuard)
@@ -61,12 +63,28 @@ export class BrawlerController {
     return this.brawler.recordEvents(sessionId, dto);
   }
 
+  @Post('sessions/:sessionId/powerups/pick')
+  pickPowerup(
+    @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Body() dto: PickBrawlerPowerupDto,
+  ) {
+    return this.brawler.pickPowerup(sessionId, dto);
+  }
+
   @Post('sessions/:sessionId/finalize')
   finalizeSession(
     @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
     @Body() dto: FinalizeBrawlerSessionDto,
   ) {
     return this.brawler.finalizeSession(sessionId, dto);
+  }
+
+  @Post('sessions/:sessionId/powerups/pick')
+  pickPowerup(
+    @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Body() dto: PickBrawlerPowerupDto,
+  ) {
+    return this.brawler.pickPowerup(sessionId, dto);
   }
 }
 

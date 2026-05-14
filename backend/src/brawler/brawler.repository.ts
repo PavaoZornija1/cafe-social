@@ -22,6 +22,13 @@ type SessionParticipantInput = {
 export class BrawlerRepository {
   constructor(private readonly prisma: PrismaService) { }
 
+  findEnabledPowerups() {
+    return this.prisma.brawlerPowerupDefinition.findMany({
+      where: { enabled: true },
+      orderBy: [{ spawnWeight: 'desc' }, { id: 'asc' }],
+    });
+  }
+
   findActiveHeroes(): Promise<BrawlerHero[]> {
     return this.prisma.brawlerHero.findMany({
       where: { isActive: true },
@@ -48,6 +55,7 @@ export class BrawlerRepository {
     venueId?: string;
     partyId?: string;
     participants: SessionParticipantInput[];
+    config?: Prisma.InputJsonValue;
   }) {
     return this.prisma.gameSession.create({
       data: {
@@ -55,6 +63,8 @@ export class BrawlerRepository {
         status: GameSessionStatus.PENDING,
         venueId: params.venueId,
         partyId: params.partyId,
+        configVersion: 1,
+        ...(params.config ? { config: params.config } : {}),
         participants: {
           create: params.participants.map((p) => ({
             playerId: p.playerId,
@@ -83,6 +93,39 @@ export class BrawlerRepository {
         participants: true,
         brawlerSession: true,
       },
+    });
+  }
+
+  async recordPowerupPicked(params: {
+    sessionId: string;
+    actorParticipantId: string;
+    atMs: number;
+    payload?: Prisma.InputJsonValue;
+  }) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.gameEvent.create({
+        data: {
+          sessionId: params.sessionId,
+          gameType: GameType.BRAWLER,
+          eventType: 'POWERUP_PICKED' as GameEventType,
+          atMs: params.atMs,
+          actorParticipantId: params.actorParticipantId,
+          payload: params.payload,
+        },
+      });
+
+      await tx.brawlerParticipantStats.upsert({
+        where: { participantId: params.actorParticipantId },
+        create: {
+          participantId: params.actorParticipantId,
+          powerupsPicked: 1,
+          powerupsUsed: 1,
+        },
+        update: {
+          powerupsPicked: { increment: 1 },
+          powerupsUsed: { increment: 1 },
+        },
+      });
     });
   }
 

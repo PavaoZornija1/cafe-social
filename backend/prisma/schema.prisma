@@ -1164,6 +1164,45 @@ enum BrawlerPhase {
   SUDDEN_DEATH
 }
 
+enum BrawlerPowerupEffectType {
+  /// Multiply hero move speed by `magnitude` (e.g. 1.25).
+  MOVE_SPEED_MULT
+  /// Multiply hero attack damage by `magnitude` (e.g. 1.4).
+  ATTACK_DMG_MULT
+  /// Multiply hero jump velocity/height by `magnitude` (e.g. 1.2).
+  JUMP_MULT
+  /// Multiply dash speed by `magnitude` (e.g. 1.25).
+  DASH_SPEED_MULT
+  /// Multiply dash cooldown by `magnitude` (e.g. 0.75 = faster cooldown).
+  DASH_COOLDOWN_MULT
+}
+
+/// Server-authoritative power-up definitions (tunable without redeploy).
+/// Runtime spawned pickups / active buffs are match-scoped and should remain in memory.
+model BrawlerPowerupDefinition {
+  /// Stable slug id (e.g. "speed_boost").
+  id String @id
+
+  displayName String
+  description String?
+
+  effectType BrawlerPowerupEffectType
+  /// Numeric effect strength; interpretation depends on `effectType`.
+  magnitude Float
+  durationMs Int
+
+  /// Spawn selection weight (higher = more frequent).
+  spawnWeight Int @default(100)
+  enabled     Boolean @default(true)
+
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enabled])
+  @@index([effectType])
+}
+
 model GameSession {
   id          String            @id @default(uuid())
   gameType    GameType
