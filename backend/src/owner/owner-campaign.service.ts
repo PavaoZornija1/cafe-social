@@ -1,9 +1,10 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CampaignStatus } from '@prisma/client';
+import { CampaignStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
 
@@ -131,5 +132,85 @@ export class OwnerCampaignService {
       });
       throw e;
     }
+  }
+
+  private async assertCampaignInVenue(venueId: string, campaignId: string) {
+    const c = await this.prisma.venueCampaign.findFirst({
+      where: { id: campaignId, venueId },
+    });
+    if (!c) throw new NotFoundException('Campaign not found');
+    return c;
+  }
+
+  private async assertBindingEntityInVenue(
+    venueId: string,
+    entityType: string,
+    entityId: string,
+  ) {
+    switch (entityType) {
+      case 'CHALLENGE': {
+        const row = await this.prisma.challenge.findFirst({
+          where: { id: entityId, venueId },
+        });
+        if (!row) throw new BadRequestException('Challenge not found for this venue');
+        break;
+      }
+      case 'VENUE_PERK': {
+        const row = await this.prisma.venuePerk.findFirst({
+          where: { id: entityId, venueId },
+        });
+        if (!row) throw new BadRequestException('Perk not found for this venue');
+        break;
+      }
+      case 'VENUE_OFFER': {
+        const row = await this.prisma.venueOffer.findFirst({
+          where: { id: entityId, venueId },
+        });
+        if (!row) throw new BadRequestException('Offer not found for this venue');
+        break;
+      }
+      default:
+        throw new BadRequestException('Unknown entityType');
+    }
+  }
+
+  async listBindings(venueId: string, campaignId: string) {
+    await this.assertCampaignInVenue(venueId, campaignId);
+    return this.prisma.venueCampaignBinding.findMany({
+      where: { campaignId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async addBinding(
+    venueId: string,
+    campaignId: string,
+    entityType: string,
+    entityId: string,
+  ) {
+    await this.assertCampaignInVenue(venueId, campaignId);
+    const et = entityType.trim();
+    const eid = entityId.trim();
+    await this.assertBindingEntityInVenue(venueId, et, eid);
+    try {
+      return await this.prisma.venueCampaignBinding.create({
+        data: { campaignId, entityType: et, entityId: eid },
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        throw new ConflictException('This binding already exists');
+      }
+      throw e;
+    }
+  }
+
+  async removeBinding(venueId: string, campaignId: string, bindingId: string) {
+    await this.assertCampaignInVenue(venueId, campaignId);
+    const row = await this.prisma.venueCampaignBinding.findFirst({
+      where: { id: bindingId, campaignId },
+    });
+    if (!row) throw new NotFoundException('Binding not found');
+    await this.prisma.venueCampaignBinding.delete({ where: { id: bindingId } });
+    return { ok: true };
   }
 }

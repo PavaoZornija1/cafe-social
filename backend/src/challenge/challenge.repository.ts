@@ -1,15 +1,18 @@
 import { Injectable } from '@nestjs/common';
-import type { Challenge, ChallengeProgress } from '@prisma/client';
+import type { ChallengeProgress } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class ChallengeRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  findByVenueId(venueId: string): Promise<Challenge[]> {
+  findByVenueId(venueId: string) {
     return this.prisma.challenge.findMany({
       where: { venueId },
       orderBy: { createdAt: 'asc' },
+      include: {
+        rewardPerk: { select: { id: true, title: true } },
+      },
     });
   }
 
@@ -36,6 +39,7 @@ export class ChallengeRepository {
     resetsWeekly: boolean;
     activeFrom: Date | null;
     activeTo: Date | null;
+    rewardPerkId: string | null;
   } | null> {
     return this.prisma.challenge.findUnique({
       where: { id: challengeId },
@@ -48,6 +52,7 @@ export class ChallengeRepository {
         resetsWeekly: true,
         activeFrom: true,
         activeTo: true,
+        rewardPerkId: true,
       },
     });
   }

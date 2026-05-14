@@ -8,6 +8,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { normalizeUserEmail } from '../auth/user-email.util';
@@ -37,7 +38,18 @@ export class VenuePerkController {
     return this.perks.listPublicTeasersForVenue(venueId, player.id);
   }
 
+  @Get(':venueId/perks/my-rewards')
+  async listMyRewards(
+    @CurrentUser() user: unknown,
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+  ) {
+    const player = await this.players.findOrCreateByEmail(this.email(user));
+    return this.perks.listMyRewardsForVenue(venueId, player.id);
+  }
+
   @Post(':venueId/perks/redeem')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ redeem: { limit: 20, ttl: 60000 } })
   async redeem(
     @CurrentUser() user: unknown,
     @Param('venueId', new ParseUUIDPipe()) venueId: string,

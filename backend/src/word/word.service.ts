@@ -9,12 +9,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PlayerService } from '../player/player.service';
 import { SubscriptionRepository } from '../venue/subscription.repository';
 import { VenuePlayLimitService } from '../venue/venue-play-limit.service';
+import { VenuePlayBudgetService } from '../venue/venue-play-budget.service';
 import { VenueService } from '../venue/venue.service';
 import { WordRepository } from './word.repository';
 import { wordToPublicHints, type WordPublicHint } from './word-hint.util';
 import { normalizeGuess } from './word-match.util';
 import type { CreateSoloWordSessionDto } from './dto/create-solo-word-session.dto';
 import type { CoopGuessDto } from './dto/coop-guess.dto';
+import type { WordSessionPassDto } from './dto/word-session-pass.dto';
 import { GameXpAwardService } from '../stats/game-xp-award.service';
 
 const SOLO_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
@@ -28,6 +30,7 @@ export class WordService {
     private readonly subscriptions: SubscriptionRepository,
     private readonly venues: VenueService,
     private readonly venuePlayLimit: VenuePlayLimitService,
+    private readonly venuePlayBudget: VenuePlayBudgetService,
     private readonly gameXp: GameXpAwardService,
   ) {}
 
@@ -94,6 +97,15 @@ export class WordService {
     });
 
     if (!globalPlay && dto.venueId?.trim()) {
+      const sub = await this.subscriptions.isActiveSubscriber(player.id);
+      if (!sub) {
+        await this.venuePlayBudget.assertCanStartVenuePlayAtVenueWithCoords(
+          player.id,
+          dto.venueId.trim(),
+          dto.latitude!,
+          dto.longitude!,
+        );
+      }
       await this.venuePlayLimit.beginSoloWord(player.id, dto.venueId.trim());
     }
 
@@ -227,7 +239,11 @@ export class WordService {
     if (nextIdx >= row.wordIds.length) {
       await this.prisma.soloWordSession.update({
         where: { id: sessionId },
-        data: { wordIndex: nextIdx, finishedAt: new Date() },
+        data: {
+          wordIndex: nextIdx,
+          finishedAt: new Date(),
+          wordsSolved: { increment: 1 },
+        },
       });
       void this.gameXp.tryAwardSoloWordDeckComplete(sessionId);
       return {
@@ -244,11 +260,72 @@ export class WordService {
 
     await this.prisma.soloWordSession.update({
       where: { id: sessionId },
-      data: { wordIndex: nextIdx },
+      data: { wordIndex: nextIdx, wordsSolved: { increment: 1 } },
     });
 
     return {
       correct: true,
+      finished: false,
+      wordIndex: nextIdx,
+      targetWordCount: row.wordIds.length,
+      currentWord: wordToPublicHints(nextW),
+    };
+  }
+
+  /** Skip the current word (timer / give up). Deck-complete XP only if every word was solved correctly. */
+  async soloPass(email: string, sessionId: string, dto: WordSessionPassDto) {
+    const player = await this.players.findOrCreateByEmail(email);
+    const row = await this.loadSoloSessionForPlayer(sessionId, player.id);
+
+    if (row.finishedAt) {
+      throw new BadRequestException('session already finished');
+    }
+
+    if (row.venueId) {
+      await this.assertSoloPlayAllowed({
+        playerId: player.id,
+        language: row.language,
+        globalPlay: row.globalPlay,
+        venueId: row.venueId ?? undefined,
+        latitude: dto.latitude,
+        longitude: dto.longitude,
+      });
+    }
+
+    if (row.wordIndex >= row.wordIds.length) {
+      throw new BadRequestException('already completed deck');
+    }
+
+    const wordId = row.wordIds[row.wordIndex]!;
+    const word = await this.words.findWordById(wordId);
+    if (!word) throw new BadRequestException('word missing');
+
+    const nextIdx = row.wordIndex + 1;
+    if (nextIdx >= row.wordIds.length) {
+      await this.prisma.soloWordSession.update({
+        where: { id: sessionId },
+        data: { wordIndex: nextIdx, finishedAt: new Date() },
+      });
+      void this.gameXp.tryAwardSoloWordDeckComplete(sessionId);
+      return {
+        passed: true,
+        finished: true,
+        wordIndex: nextIdx,
+        targetWordCount: row.wordIds.length,
+        currentWord: null,
+      };
+    }
+
+    const nextW = await this.words.findWordById(row.wordIds[nextIdx]!);
+    if (!nextW) throw new BadRequestException('word missing');
+
+    await this.prisma.soloWordSession.update({
+      where: { id: sessionId },
+      data: { wordIndex: nextIdx },
+    });
+
+    return {
+      passed: true,
       finished: false,
       wordIndex: nextIdx,
       targetWordCount: row.wordIds.length,

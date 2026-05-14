@@ -54,6 +54,8 @@ type VenueChallenge = {
     progressCount: number;
     isCompleted: boolean;
     resetsWeekly?: boolean;
+    rewardPerkId: string | null;
+    rewardTitle: string | null;
 };
 
 type VenuePublicOffer = {
@@ -415,6 +417,16 @@ export default function HomeScreen({ navigation }: Props) {
         }
     };
 
+    const showFirstVisitGuide = Boolean(
+        detectedVenue && access?.canEnterVenueContext && access?.visitedBefore === false,
+    );
+    const featuredOffer = publicCard?.featuredOffer;
+    const showFeaturedOfferCard = Boolean(
+        detectedVenue &&
+            featuredOffer &&
+            (featuredOffer.title?.trim() || featuredOffer.body?.trim()),
+    );
+
     const challengeLine =
         locked
             ? venueAdminLocked
@@ -500,9 +512,16 @@ export default function HomeScreen({ navigation }: Props) {
                                         <Text style={styles.venueRowMeta}>{t('home.detectingVenue')}</Text>
                                     </View>
                                 ) : venueError ? (
-                                    <Text style={styles.venueRowError} numberOfLines={2}>
-                                        {venueError}
-                                    </Text>
+                                    <View>
+                                        <Text style={styles.venueRowError} numberOfLines={2}>
+                                            {venueError}
+                                        </Text>
+                                        {!isLikelyNetworkFailure(new Error(venueError)) ? (
+                                            <Text style={styles.venueRowMeta} numberOfLines={2}>
+                                                {t('home.venueErrorLocationHint')}
+                                            </Text>
+                                        ) : null}
+                                    </View>
                                 ) : detectedVenue ? (
                                     <Text style={styles.venueRowName} numberOfLines={1}>
                                         {detectedVenue.name}
@@ -604,6 +623,109 @@ export default function HomeScreen({ navigation }: Props) {
                             {challengeLine}
                         </Text>
                     </View>
+
+                    {showFeaturedOfferCard ? (
+                        <View style={styles.featuredOfferCard}>
+                            <Text style={styles.featuredOfferKicker}>{t('home.featuredOfferVenueKicker')}</Text>
+                            {featuredOffer!.title ? (
+                                <Text style={styles.featuredOfferTitle} numberOfLines={2}>
+                                    {featuredOffer!.title}
+                                </Text>
+                            ) : null}
+                            {featuredOffer!.body ? (
+                                <Text style={styles.featuredOfferBody} numberOfLines={3}>
+                                    {featuredOffer!.body}
+                                </Text>
+                            ) : null}
+                            {featuredOffer!.endsAt ? (
+                                <Text style={styles.featuredOfferEnds}>
+                                    {t('home.featuredOfferEnds', { date: featuredOffer!.endsAt!.slice(0, 10) })}
+                                </Text>
+                            ) : null}
+                            <View style={styles.featuredOfferActions}>
+                                <Pressable
+                                    onPress={() => navigation.navigate('RewardsHub')}
+                                    style={({ pressed }) => [
+                                        styles.featuredOfferBtn,
+                                        pressed && styles.featuredOfferBtnPressed,
+                                    ]}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t('home.featuredOfferRewardsCta')}
+                                >
+                                    <Text style={styles.featuredOfferBtnText}>
+                                        {t('home.featuredOfferRewardsCta')}
+                                    </Text>
+                                </Pressable>
+                                {access?.canEnterVenueContext && detectedVenue ? (
+                                    <Pressable
+                                        onPress={() =>
+                                            navigation.navigate('RedeemPerk', { venueId: detectedVenue.id })
+                                        }
+                                        style={({ pressed }) => [
+                                            styles.featuredOfferBtnSecondary,
+                                            pressed && styles.featuredOfferBtnPressed,
+                                        ]}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={t('home.linkRedeemPerk')}
+                                    >
+                                        <Text style={styles.featuredOfferBtnSecondaryText}>
+                                            {t('home.linkRedeemPerk')}
+                                        </Text>
+                                    </Pressable>
+                                ) : null}
+                            </View>
+                        </View>
+                    ) : null}
+
+                    {showFirstVisitGuide ? (
+                        <View style={styles.startHereCard}>
+                            <Text style={styles.startHereTitle}>{t('home.startHereTitle')}</Text>
+                            <Text style={styles.startHereSubtitle}>{t('home.startHereSubtitle')}</Text>
+                            <View style={styles.startHereRow}>
+                                <Pressable
+                                    onPress={() => navigation.navigate('DailyWord')}
+                                    style={({ pressed }) => [
+                                        styles.startHereChip,
+                                        pressed && styles.startHereChipPressed,
+                                    ]}
+                                >
+                                    <Text style={styles.startHereChipText}>{t('home.startDailyWord')}</Text>
+                                </Pressable>
+                                <Pressable
+                                    onPress={() => {
+                                        if (!detectedVenue?.id) return;
+                                        const activeChallenge =
+                                            venueChallenges.find((c) => !c.isCompleted) ?? venueChallenges[0];
+                                        navigation.navigate('ChooseGame', {
+                                            venueId: detectedVenue.id,
+                                            challengeId: activeChallenge?.id,
+                                        });
+                                    }}
+                                    style={({ pressed }) => [
+                                        styles.startHereChip,
+                                        pressed && styles.startHereChipPressed,
+                                    ]}
+                                >
+                                    <Text style={styles.startHereChipText}>{t('home.startQuickPlay')}</Text>
+                                </Pressable>
+                                <Pressable
+                                    onPress={() =>
+                                        navigation.navigate('WordLobby', {
+                                            venueId: detectedVenue!.id,
+                                            challengeId: venueChallenges.find((c) => !c.isCompleted)?.id,
+                                        })
+                                    }
+                                    style={({ pressed }) => [
+                                        styles.startHereChip,
+                                        pressed && styles.startHereChipPressed,
+                                    ]}
+                                >
+                                    <Text style={styles.startHereChipText}>{t('home.startWordRooms')}</Text>
+                                </Pressable>
+                            </View>
+                            <Text style={styles.startHereSocialHint}>{t('home.startSocialHint')}</Text>
+                        </View>
+                    ) : null}
 
                     <View style={styles.playAreaWrap}>
                         <View style={styles.playColumn}>
@@ -837,6 +959,21 @@ export default function HomeScreen({ navigation }: Props) {
                                     styles.shortcutBtn,
                                     styles.shortcutBtnGrid,
                                     pressed && styles.shortcutBtnPressed,
+                                ]}
+                                onPress={() => navigation.navigate('RewardsHub')}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('home.linkRewardsHub')}
+                            >
+                                <Ionicons name="gift-outline" size={18} color={colors.honey} />
+                                <Text style={styles.shortcutLabel} numberOfLines={1}>
+                                    {t('home.linkRewardsHub')}
+                                </Text>
+                            </Pressable>
+                            <Pressable
+                                style={({ pressed }) => [
+                                    styles.shortcutBtn,
+                                    styles.shortcutBtnGrid,
+                                    pressed && styles.shortcutBtnPressed,
                                     !detectedVenue && styles.shortcutBtnDisabled,
                                 ]}
                                 disabled={!detectedVenue}
@@ -1036,6 +1173,66 @@ function createStyles(colors: AppColors) {
     },
     challengeStripTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
     challengeStripText: { color: colors.textSecondary, fontSize: 11, marginTop: 4, lineHeight: 15 },
+    featuredOfferCard: {
+        marginTop: 10,
+        paddingVertical: 12,
+        paddingHorizontal: 12,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: colors.honey,
+        backgroundColor: colors.surface,
+    },
+    featuredOfferKicker: {
+        color: colors.honeyDark,
+        fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 0.4,
+        textTransform: 'uppercase',
+    },
+    featuredOfferTitle: { color: colors.text, fontSize: 15, fontWeight: '900', marginTop: 6 },
+    featuredOfferBody: { color: colors.textSecondary, fontSize: 12, marginTop: 6, lineHeight: 17 },
+    featuredOfferEnds: { color: colors.textMuted, fontSize: 10, marginTop: 8 },
+    featuredOfferActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+    featuredOfferBtn: {
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 10,
+        backgroundColor: colors.primary,
+    },
+    featuredOfferBtnSecondary: {
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.bgElevated,
+    },
+    featuredOfferBtnPressed: { opacity: 0.88 },
+    featuredOfferBtnText: { color: colors.textInverse, fontSize: 12, fontWeight: '800' },
+    featuredOfferBtnSecondaryText: { color: colors.link, fontSize: 12, fontWeight: '800' },
+    startHereCard: {
+        marginTop: 10,
+        paddingVertical: 12,
+        paddingHorizontal: 12,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.bgElevated,
+    },
+    startHereTitle: { color: colors.text, fontSize: 14, fontWeight: '900' },
+    startHereSubtitle: { color: colors.textSecondary, fontSize: 11, marginTop: 4, lineHeight: 15 },
+    startHereRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+    startHereChip: {
+        paddingVertical: 8,
+        paddingHorizontal: 10,
+        borderRadius: 999,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    startHereChipPressed: { opacity: 0.9 },
+    startHereChipText: { color: colors.text, fontSize: 12, fontWeight: '800' },
+    startHereSocialHint: { color: colors.textMuted, fontSize: 10, marginTop: 10, lineHeight: 14 },
     playAreaWrap: {
         flex: 1,
         minHeight: 0,

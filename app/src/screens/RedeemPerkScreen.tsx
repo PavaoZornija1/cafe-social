@@ -12,10 +12,16 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiPost } from '../lib/api';
-import { fetchVenuePerkTeasers, type VenuePerkPublicTeaser } from '../lib/venuePerksApi';
+import {
+  fetchMyVenueRewards,
+  fetchVenuePerkTeasers,
+  type VenuePerkPublicTeaser,
+  type VenueRedeemableReward,
+} from '../lib/venuePerksApi';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
@@ -42,6 +48,7 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
   const [busy, setBusy] = useState(false);
   const [lastOk, setLastOk] = useState<RedeemOk | null>(null);
   const [teasers, setTeasers] = useState<VenuePerkPublicTeaser[]>([]);
+  const [myRewards, setMyRewards] = useState<VenueRedeemableReward[]>([]);
   const [loadingTeasers, setLoadingTeasers] = useState(true);
 
   useEffect(() => {
@@ -63,8 +70,14 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
           setTeasers([]);
           return;
         }
-        const list = await fetchVenuePerkTeasers(venue.id, token);
-        if (!cancelled) setTeasers(list);
+        const [list, mine] = await Promise.all([
+          fetchVenuePerkTeasers(venue.id, token),
+          fetchMyVenueRewards(venue.id, token),
+        ]);
+        if (!cancelled) {
+          setTeasers(list);
+          setMyRewards(mine);
+        }
       } catch {
         if (!cancelled) setTeasers([]);
       } finally {
@@ -118,8 +131,12 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
       setLastOk(res);
       setCode('');
       try {
-        const list = await fetchVenuePerkTeasers(venueId, token);
+        const [list, mine] = await Promise.all([
+          fetchVenuePerkTeasers(venueId, token),
+          fetchMyVenueRewards(venueId, token),
+        ]);
         setTeasers(list);
+        setMyRewards(mine);
       } catch {
         /* ignore */
       }
@@ -160,6 +177,28 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
                 {p.fullyRedeemed && !p.redeemedByYou ? (
                   <Text style={styles.teaserBadgeMuted}>{t('perk.fullyRedeemedLabel')}</Text>
                 ) : null}
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        {myRewards.length > 0 ? (
+          <View style={styles.teaserSection}>
+            <Text style={styles.teaserSectionTitle}>{t('perk.myRewards')}</Text>
+            {myRewards.map((r) => (
+              <View key={r.redemptionId} style={styles.rewardCard}>
+                <Text style={styles.teaserTitle}>{r.perkTitle}</Text>
+                <Text style={styles.teaserBody}>
+                  {t('perk.rewardStatus')}: {r.status} · {t('perk.rewardExpires')} {new Date(r.expiresAt).toISOString().slice(0, 10)}
+                </Text>
+                {r.status === 'REDEEMABLE' ? (
+                  <View style={styles.qrWrap}>
+                    <QRCode value={r.qrPayload} size={140} />
+                  </View>
+                ) : null}
+                <Text style={styles.teaserMeta}>
+                  {t('perk.staffVerificationCode')}: {r.staffVerificationCode}
+                </Text>
               </View>
             ))}
           </View>
@@ -278,6 +317,21 @@ function createStyles(colors: AppColors) {
   teaserMeta: { color: '#fbbf24', marginTop: 8, fontSize: 12, fontWeight: '700' },
   teaserBadge: { color: '#4ade80', marginTop: 8, fontSize: 12, fontWeight: '800' },
   teaserBadgeMuted: { color: colors.textMuted, marginTop: 8, fontSize: 12, fontWeight: '700' },
+  rewardCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: 14,
+    padding: 14,
+  },
+  qrWrap: {
+    marginTop: 10,
+    marginBottom: 10,
+    alignSelf: 'flex-start',
+    backgroundColor: '#fff',
+    padding: 8,
+    borderRadius: 8,
+  },
 
     });
 }

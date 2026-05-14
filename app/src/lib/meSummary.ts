@@ -6,6 +6,12 @@ export type MeSummaryDto = {
   /** Absolute XP threshold for the next tier (e.g. 800 → Silver, 2000 → Gold); omitted at Gold. */
   nextTierXpThreshold?: number | null;
   nextTierName?: string | null;
+  /** Global competitive rating (Elo-style); not tied to XP tier. */
+  competitiveRankRating?: number;
+  /** Ranked word versus ladder only. */
+  wordRankRating?: number;
+  /** Ranked brawler ladder only. */
+  brawlerRankRating?: number;
   completedChallenges: number;
   venuesUnlocked: number;
   discoverable?: boolean;

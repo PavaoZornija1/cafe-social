@@ -72,11 +72,11 @@
   },
   "partnerSubscriptions": {
     "title": "Suscripción y facturación",
-    "lead": "La facturación es por organización. Puedes suscribirte en la app con el Payment Element de Stripe o usar el Checkout alojado; los webhooks actualizan el estado.",
+    "lead": "La facturación es por organización. Inicia la suscripción dentro de este portal con Stripe Payment Element y luego gestiona facturas y métodos de pago desde el portal de cliente de Stripe.",
     "backVenues": "← Locales y panel",
     "sectionStripe": "Facturación Stripe",
     "sectionHowItWorks": "Cómo funciona",
-    "stepCheckout": "«Suscribirse en esta app» abre el formulario integrado (Stripe Elements); «Pagar en stripe.com» abre el Checkout alojado.",
+    "stepCheckout": "Usa «Suscribirse en esta app» para completar la tarjeta sin salir del portal (Stripe Elements).",
     "stepPortal": "Con la facturación activa, usa «Abrir portal de cliente Stripe» para facturas, métodos de pago y cambios de plan.",
     "stripeExplainer": "Facturas y cambios de plan van por el portal seguro de Stripe. Cafe Social no guarda números completos de tarjeta.",
     "noOrgs": "Tus locales aún no están en una organización. Entonces verás aquí la suscripción y la prueba.",
@@ -85,7 +85,7 @@
     "trialEnds": "Fin de prueba",
     "renews": "Renovación / fin de periodo",
     "subscribeTitle": "Empezar o renovar suscripción",
-    "subscribeHint": "Servidor: STRIPE_PARTNER_PRICE_ID y STRIPE_PUBLISHABLE_KEY para pago en app. Opcional NEXT_PUBLIC_STRIPE_PARTNER_PRICE_ID en esta app.",
+    "subscribeHint": "Requiere STRIPE_PARTNER_PRICE_ID en servidor y STRIPE_PUBLISHABLE_KEY para pago en app. Opcional NEXT_PUBLIC_STRIPE_PARTNER_PRICE_ID en admin.",
     "subscribeEmbeddedCta": "Suscribirse en esta app",
     "subscribeHostedCta": "Pagar en stripe.com",
     "subscribeCta": "Pagar en stripe.com",
@@ -215,5 +215,26 @@
     "empty": "Aún no hay locales.",
     "loadErrorBackSuper": "Plataforma",
     "loadErrorBackPartner": "Locales del socio"
+  },
+  "staffRedemptions": {
+    "backVenues": "← Mis locales",
+    "title": "Verificación de códigos canjeados",
+    "leadStart": "Sesión iniciada como personal. Verifica el",
+    "codeLabel": "código de 8 caracteres",
+    "leadEnd": "tras el canje; debe aparecer en esta lista UTC del día antes de entregar el beneficio.",
+    "openDashboard": "Abrir panel de socio",
+    "dashboardHint": "para revisar reportes de moderación, apelaciones y bloqueos (requiere rol MANAGER u OWNER).",
+    "dateLabel": "Fecha (UTC, AAAA-MM-DD)",
+    "refresh": "Actualizar",
+    "newestFirst": "más reciente primero",
+    "emptyDay": "No hay canjes para este día.",
+    "statusActive": "Activo",
+    "statusVoided": "Anulado",
+    "columns": {
+      "code": "Código",
+      "redeemed": "Canjeado",
+      "perk": "Beneficio",
+      "status": "Estado"
+    }
   }
 }

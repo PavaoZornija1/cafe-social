@@ -46,6 +46,7 @@ export default function OnboardingScreen({ navigation }: Props) {
 
   const [phase, setPhase] = useState<'loading' | 'staff' | 'player'>('loading');
   const [page, setPage] = useState(0);
+  const [locationRequestBusy, setLocationRequestBusy] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const width = Dimensions.get('window').width;
 
@@ -154,12 +155,17 @@ export default function OnboardingScreen({ navigation }: Props) {
   );
 
   const requestLocationThenFinish = useCallback(async () => {
+    setLocationRequestBusy(true);
     try {
-      await Location.requestForegroundPermissionsAsync();
+      try {
+        await Location.requestForegroundPermissionsAsync();
+      } catch {
+        /* user denied or error — still leave onboarding */
+      }
+      await finishPlayer();
     } catch {
-      /* user denied or error — still leave onboarding */
+      setLocationRequestBusy(false);
     }
-    await finishPlayer();
   }, [finishPlayer]);
 
   const handleLanguage = useCallback(async (code: AppLanguage) => {
@@ -262,22 +268,10 @@ export default function OnboardingScreen({ navigation }: Props) {
           </View>
         </View>
 
-        {/* 4 — Location permission */}
+        {/* 4 — Location copy only; actions live in footer to avoid horizontal ScrollView eating taps */}
         <View style={[styles.page, { width }]}>
           <Text style={styles.slideTitle}>{t('onboarding.locationTitle')}</Text>
           <Text style={styles.slideBody}>{t('onboarding.locationBody')}</Text>
-          <Pressable
-            style={({ pressed }) => [styles.primaryBtn, pressed && styles.primaryBtnPressed]}
-            onPress={() => void requestLocationThenFinish()}
-          >
-            <Text style={styles.primaryBtnText}>{t('onboarding.enableLocation')}</Text>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.secondaryBtn, pressed && styles.secondaryBtnPressed]}
-            onPress={() => void finishPlayer()}
-          >
-            <Text style={styles.secondaryBtnText}>{t('onboarding.notNow')}</Text>
-          </Pressable>
         </View>
       </ScrollView>
 
@@ -294,7 +288,35 @@ export default function OnboardingScreen({ navigation }: Props) {
           >
             <Text style={styles.primaryBtnText}>{t('onboarding.next')}</Text>
           </Pressable>
-        ) : null}
+        ) : (
+          <View style={styles.locationFooterActions}>
+            <Pressable
+              disabled={locationRequestBusy}
+              style={({ pressed }) => [
+                styles.primaryBtn,
+                (pressed || locationRequestBusy) && styles.primaryBtnPressed,
+                locationRequestBusy && styles.primaryBtnDisabled,
+              ]}
+              onPress={() => void requestLocationThenFinish()}
+            >
+              {locationRequestBusy ? (
+                <ActivityIndicator color={colors.textInverse} />
+              ) : (
+                <Text style={styles.primaryBtnText}>{t('onboarding.enableLocation')}</Text>
+              )}
+            </Pressable>
+            <Pressable
+              disabled={locationRequestBusy}
+              style={({ pressed }) => [
+                styles.secondaryBtnFooter,
+                pressed && styles.secondaryBtnPressed,
+              ]}
+              onPress={() => void finishPlayer()}
+            >
+              <Text style={styles.secondaryBtnText}>{t('onboarding.notNow')}</Text>
+            </Pressable>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -381,12 +403,25 @@ function createStyles(colors: AppColors) {
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
   },
   primaryBtnPressed: { opacity: 0.9 },
+  primaryBtnDisabled: { opacity: 0.75 },
   primaryBtnText: { color: colors.textInverse, fontSize: 16, fontWeight: '600' },
   secondaryBtn: {
     marginTop: 12,
     paddingVertical: 12,
+    alignItems: 'center',
+  },
+  /** Spacing below primary on location step (footer, outside ScrollView). */
+  locationFooterActions: {
+    marginTop: 20,
+    gap: 10,
+    width: '100%',
+  },
+  secondaryBtnFooter: {
+    paddingVertical: 14,
     alignItems: 'center',
   },
   secondaryBtnPressed: { opacity: 0.85 },

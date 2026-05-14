@@ -589,7 +589,13 @@ export function useVenueChallengesQuery(
     queryKey: queryKeys.admin.challenges(venueId ?? ""),
     queryFn: () =>
       portalFetch<
-        { id: string; title: string; activeFrom: string | null; activeTo: string | null }[]
+        {
+          id: string;
+          title: string;
+          activeFrom: string | null;
+          activeTo: string | null;
+          rewardPerkId: string | null;
+        }[]
       >(getToken, `/admin/venues/${venueId}/challenges`, { method: "GET" }),
     enabled: Boolean(enabled && venueId),
   });
@@ -633,6 +639,36 @@ export function useOwnerVenuesListQuery(
   });
 }
 
+export type OwnerOrganizationElementsSubscriptionSetup = {
+  publishableKey: string;
+  clientSecret: string | null;
+  subscriptionId: string;
+  subscriptionStatus: string;
+};
+
+export function useOwnerOrganizationElementsSubscriptionSetupQuery(
+  getToken: () => Promise<string | null>,
+  organizationId: string | null,
+  publicPriceId: string | undefined,
+  enabled: boolean,
+) {
+  const priceKey = publicPriceId?.trim() ?? "";
+  return useQuery({
+    queryKey: queryKeys.owner.orgElementsSubscriptionSetup(organizationId ?? "", priceKey),
+    queryFn: () => {
+      const p = new URLSearchParams();
+      if (publicPriceId?.trim()) p.set("priceId", publicPriceId.trim());
+      const qs = p.toString();
+      return ownerJson<OwnerOrganizationElementsSubscriptionSetup>(
+        getToken,
+        `/owner/organizations/${organizationId}/stripe/elements-subscription-setup${qs ? `?${qs}` : ""}`,
+        { method: "GET" },
+      );
+    },
+    enabled: Boolean(enabled && organizationId),
+  });
+}
+
 export function useStaffRedemptionsQuery(
   venueId: string | undefined,
   dateYmd: string,
@@ -649,12 +685,14 @@ export function useStaffRedemptionsQuery(
         redemptions: {
           redemptionId: string;
           staffVerificationCode: string;
-          redeemedAt: string;
+          issuedAt: string;
+          redeemedAt: string | null;
+          expiresAt: string;
+          status: string;
           perkCode: string;
           perkTitle: string;
           voidedAt: string | null;
           voidReason: string | null;
-          staffAcknowledgedAt: string | null;
         }[];
       }>(getToken, `/owner/venues/${venueId}/redemptions?${q}`, { method: "GET" });
     },
@@ -717,6 +755,15 @@ export type OwnerVenueCampaignRow = {
   pushSentCount: number;
   sentAt: string | null;
   lastError: string | null;
+  createdAt: string;
+};
+
+
+export type OwnerCampaignBindingRow = {
+  id: string;
+  campaignId: string;
+  entityType: string;
+  entityId: string;
   createdAt: string;
 };
 
@@ -1202,6 +1249,71 @@ export function useOwnerSendCampaignMutation(
   });
 }
 
+
+export function useOwnerCampaignBindingsQuery(
+  venueId: string | undefined,
+  campaignId: string | undefined,
+  getToken: () => Promise<string | null>,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: queryKeys.owner.venueCampaignBindings(venueId ?? "", campaignId ?? ""),
+    queryFn: () =>
+      ownerJson<OwnerCampaignBindingRow[]>(
+        getToken,
+        `/owner/venues/${venueId}/campaigns/${campaignId}/bindings`,
+        { method: "GET" },
+      ),
+    enabled: Boolean(enabled && venueId && campaignId),
+  });
+}
+
+export function useOwnerAddCampaignBindingMutation(
+  venueId: string | undefined,
+  campaignId: string | undefined,
+  getToken: () => Promise<string | null>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { entityType: string; entityId: string }) =>
+      ownerJson<OwnerCampaignBindingRow>(
+        getToken,
+        `/owner/venues/${venueId}/campaigns/${campaignId}/bindings`,
+        { method: "POST", body: JSON.stringify(body) },
+      ),
+    onSuccess: () => {
+      if (venueId && campaignId) {
+        void qc.invalidateQueries({
+          queryKey: queryKeys.owner.venueCampaignBindings(venueId, campaignId),
+        });
+      }
+    },
+  });
+}
+
+export function useOwnerDeleteCampaignBindingMutation(
+  venueId: string | undefined,
+  campaignId: string | undefined,
+  getToken: () => Promise<string | null>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (bindingId: string) =>
+      ownerJson<unknown>(
+        getToken,
+        `/owner/venues/${venueId}/campaigns/${campaignId}/bindings/${bindingId}`,
+        { method: "DELETE" },
+      ),
+    onSuccess: () => {
+      if (venueId && campaignId) {
+        void qc.invalidateQueries({
+          queryKey: queryKeys.owner.venueCampaignBindings(venueId, campaignId),
+        });
+      }
+    },
+  });
+}
+
 export function useOwnerCreateStaffInviteMutation(
   venueId: string | undefined,
   getToken: () => Promise<string | null>,
@@ -1427,40 +1539,6 @@ export function useOwnerOrganizationCheckoutMutation(getToken: () => Promise<str
   });
 }
 
-export type OwnerElementsSubscriptionSetup = {
-  publishableKey: string;
-  clientSecret: string | null;
-  subscriptionId: string;
-  subscriptionStatus: string;
-};
-
-/** One-shot POST to create an incomplete Stripe subscription + PaymentIntent for Payment Element. */
-export function useOwnerOrganizationElementsSubscriptionSetupQuery(
-  getToken: () => Promise<string | null>,
-  organizationId: string | null,
-  priceIdOverride: string | undefined,
-  enabled: boolean,
-) {
-  const priceKey = priceIdOverride?.trim() ?? "";
-  return useQuery({
-    queryKey: ["owner", "organizations", organizationId, "elements-subscription", priceKey] as const,
-    queryFn: () =>
-      ownerJson<OwnerElementsSubscriptionSetup>(
-        getToken,
-        `/owner/organizations/${organizationId}/stripe/elements-subscription`,
-        {
-          method: "POST",
-          body: JSON.stringify(priceKey ? { priceId: priceKey } : {}),
-          headers: { "Content-Type": "application/json" },
-        },
-      ),
-    enabled: Boolean(enabled && organizationId),
-    staleTime: 0,
-    gcTime: 0,
-    retry: false,
-  });
-}
-
 /** For super-admin org detail — loads all venue rows for link checkboxes (paged on the server). */
 export function useAdminVenuesForOrgLinkQuery(
   getToken: () => Promise<string | null>,
@@ -1559,7 +1637,17 @@ export function usePatchChallengeMutation(getToken: () => Promise<string | null>
       body,
     }: {
       id: string;
-      body: { activeFrom: string | null; activeTo: string | null };
+      body: {
+        activeFrom?: string | null;
+        activeTo?: string | null;
+        rewardPerkId?: string | null;
+        title?: string;
+        description?: string | null;
+        rewardVenueSpecific?: boolean;
+        locationRequired?: boolean;
+        targetCount?: number;
+        resetsWeekly?: boolean;
+      };
     }) =>
       portalFetch(getToken, `/admin/challenges/${id}`, {
         method: "PATCH",

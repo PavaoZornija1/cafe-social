@@ -10,17 +10,20 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useStaffRedemptionsQuery } from "@/lib/queries";
 
 type Row = {
   redemptionId: string;
   staffVerificationCode: string;
-  redeemedAt: string;
+  issuedAt: string;
+  redeemedAt: string | null;
+  expiresAt: string;
+  status: string;
   perkCode: string;
   perkTitle: string;
   voidedAt: string | null;
   voidReason: string | null;
-  staffAcknowledgedAt: string | null;
 };
 
 const colHelper = createColumnHelper<Row>();
@@ -34,6 +37,7 @@ function todayUtcYmd(): string {
 }
 
 export default function StaffRedemptionsPage() {
+  const { t } = useTranslation();
   const { venueId } = useParams<{ venueId: string }>();
   const { isLoaded, getToken } = useAuth();
   const [date, setDate] = useState(todayUtcYmd);
@@ -45,18 +49,18 @@ export default function StaffRedemptionsPage() {
   const columns = useMemo(
     () => [
       colHelper.accessor("staffVerificationCode", {
-        header: "Code",
+        header: t("admin.staffRedemptions.columns.code"),
         cell: (c) => (
           <span className="font-mono text-amber-900 text-lg font-bold">{c.getValue()}</span>
         ),
       }),
-      colHelper.accessor("redeemedAt", {
-        header: "Redeemed",
+      colHelper.accessor("issuedAt", {
+        header: t("admin.staffRedemptions.columns.redeemed"),
         cell: (c) => <span className="text-slate-600 text-xs">{c.getValue()}</span>,
       }),
       colHelper.display({
         id: "perk",
-        header: "Perk",
+        header: t("admin.staffRedemptions.columns.perk"),
         cell: ({ row }) => (
           <span>
             {row.original.perkCode} — {row.original.perkTitle}
@@ -65,16 +69,16 @@ export default function StaffRedemptionsPage() {
       }),
       colHelper.display({
         id: "void",
-        header: "Status",
+        header: t("admin.staffRedemptions.columns.status"),
         cell: ({ row }) =>
           row.original.voidedAt ? (
-            <span className="text-red-600 text-xs">Voided {row.original.voidedAt}</span>
+            <span className="text-red-600 text-xs">{t("admin.staffRedemptions.statusVoided")} {row.original.voidedAt}</span>
           ) : (
-            <span className="text-emerald-700 text-xs">Active</span>
+            <span className="text-emerald-700 text-xs">{t("admin.staffRedemptions.statusActive")}</span>
           ),
       }),
     ],
-    [],
+    [t],
   );
 
   const table = useReactTable({
@@ -86,28 +90,27 @@ export default function StaffRedemptionsPage() {
   return (
     <div className="bg-slate-50 text-slate-900 p-6 max-w-4xl">
       <Link href="/owner/venues" className="text-brand text-sm">
-        ← My venues
+        {t("admin.staffRedemptions.backVenues")}
       </Link>
-      <h1 className="text-xl font-bold mt-4 mb-1">Today&apos;s redemptions</h1>
+      <h1 className="text-xl font-bold mt-4 mb-1">{t("admin.staffRedemptions.title")}</h1>
       <p className="text-xs text-slate-500 mb-4 font-mono">{venueId}</p>
       <p className="text-sm text-slate-600 mb-4">
-        Signed in with your staff account. Match the guest&apos;s{" "}
-        <strong className="text-slate-800">8-character code</strong> after they redeem — it must
-        appear on this list for the selected UTC date.
+        {t("admin.staffRedemptions.leadStart")} {" "}
+        <strong className="text-slate-800">{t("admin.staffRedemptions.codeLabel")}</strong>{" "}
+        {t("admin.staffRedemptions.leadEnd")}
       </p>
       <p className="text-sm text-slate-600 mb-4">
         <Link
           href={`/owner/venues/${venueId}`}
           className="text-brand font-medium underline-offset-2 hover:underline"
         >
-          Open the partner dashboard
+          {t("admin.staffRedemptions.openDashboard")}
         </Link>{" "}
-        for this venue to triage reports, appeals, and bans (same sign-in; needs MANAGER or OWNER
-        role on the venue).
+        {t("admin.staffRedemptions.dashboardHint")}
       </p>
       <div className="space-y-3 border border-slate-200 rounded-lg p-3 mb-4 max-w-lg">
         <label className="block text-sm">
-          Date (UTC, YYYY-MM-DD)
+          {t("admin.staffRedemptions.dateLabel")}
           <input
             type="text"
             className="mt-1 w-full bg-white border border-slate-300 rounded px-2 py-1 font-mono"
@@ -121,7 +124,7 @@ export default function StaffRedemptionsPage() {
           disabled={q.isFetching}
           className="w-full bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 rounded py-2 font-semibold"
         >
-          {q.isFetching ? "Loading…" : "Refresh"}
+          {q.isFetching ? t("common.loading") : t("admin.staffRedemptions.refresh")}
         </button>
       </div>
       {q.isError && q.error instanceof Error ? (
@@ -131,10 +134,10 @@ export default function StaffRedemptionsPage() {
         <div>
           <h2 className="font-semibold text-slate-800">{q.data.venueName}</h2>
           <p className="text-xs text-slate-500 mb-2">
-            {q.data.date} UTC · newest first
+            {q.data.date} UTC · {t("admin.staffRedemptions.newestFirst")}
           </p>
           {rows.length === 0 ? (
-            <p className="text-slate-500 text-sm">No redemptions for this day.</p>
+            <p className="text-slate-500 text-sm">{t("admin.staffRedemptions.emptyDay")}</p>
           ) : (
             <div className="rounded-xl border border-slate-200 bg-white overflow-x-auto">
               <table className="min-w-full text-sm">
@@ -165,7 +168,7 @@ export default function StaffRedemptionsPage() {
           )}
         </div>
       ) : q.isPending ? (
-        <p className="text-slate-600">Loading…</p>
+        <p className="text-slate-600">{t("common.loading")}</p>
       ) : null}
     </div>
   );

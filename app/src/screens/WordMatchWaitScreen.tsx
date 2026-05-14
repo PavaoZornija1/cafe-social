@@ -25,6 +25,7 @@ type MatchState = {
   status: string;
   mode: 'coop' | 'versus';
   difficulty: string;
+  ranked?: boolean;
   venueId?: string | null;
   hostPlayerId: string;
   inviteCode: string | null;
@@ -32,6 +33,7 @@ type MatchState = {
   deckLanguage?: string;
   deckCategory?: string | null;
   participants: { playerId: string | null; username: string; isYou: boolean }[];
+  snapshotRev?: number | null;
 };
 
 export default function WordMatchWaitScreen({ navigation, route }: Props) {
@@ -47,6 +49,7 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
     sessionId: initialSessionId,
     wordCount = 5,
     wordCategory,
+    ranked: rankedParam,
   } = route.params ?? {};
   const { getToken, isLoaded } = useAuth();
   const getTokenRef = useRef(getToken);
@@ -112,6 +115,7 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
           mode,
         };
         if (wordCategory) body.category = wordCategory;
+        if (mode === 'versus' && rankedParam) body.ranked = true;
         const res = await apiPost<{
           sessionId: string;
           inviteCode: string | null;
@@ -141,6 +145,7 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
     i18n.language,
     wordCount,
     wordCategory,
+    rankedParam,
   ]);
 
   const fetchMatchState = useCallback(async () => {
@@ -184,11 +189,13 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
       mode: matchState.mode,
       matchSessionId: sessionId,
       sessionWordsCount: matchState.targetWordCount,
+      ranked: matchState.mode === 'versus' && matchState.ranked ? true : undefined,
     });
   }, [
     matchState?.status,
     matchState?.difficulty,
     matchState?.mode,
+    matchState?.ranked,
     matchState?.targetWordCount,
     sessionId,
     venueId,
@@ -212,7 +219,13 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
       setStarting(true);
       const token = await getTokenRef.current();
       if (!token) throw new Error(t('qr.notAuthenticated'));
-      await apiPost(`/words/matches/${encodeURIComponent(sessionId)}/start`, {}, token);
+      await apiPost(
+        `/words/matches/${encodeURIComponent(sessionId)}/start`,
+        typeof matchState?.snapshotRev === 'number'
+          ? { ifSnapshotRev: matchState.snapshotRev }
+          : {},
+        token,
+      );
       const s = await apiGet<MatchState>(
         `/words/matches/${encodeURIComponent(sessionId)}/state`,
         token,
@@ -231,7 +244,13 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
         try {
           const token = await getTokenRef.current();
           if (token) {
-            await apiPost(`/words/matches/${encodeURIComponent(sessionId)}/leave`, {}, token);
+            await apiPost(
+              `/words/matches/${encodeURIComponent(sessionId)}/leave`,
+              typeof matchState?.snapshotRev === 'number'
+                ? { ifSnapshotRev: matchState.snapshotRev }
+                : {},
+              token,
+            );
           }
         } catch {
           /* still navigate away */
@@ -297,6 +316,9 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
         <Text style={styles.sub}>
           {mode === 'coop' ? t('wordMatch.waitCoop') : t('wordMatch.waitVersus')}
         </Text>
+        {mode === 'versus' && matchState?.ranked ? (
+          <Text style={styles.rankedBadge}>{t('wordMatch.rankedBadge')}</Text>
+        ) : null}
         {matchState ? (
           <>
             <Text style={styles.deckLang}>
@@ -375,6 +397,17 @@ function createStyles(colors: AppColors) {
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   title: { color: colors.text, fontSize: 22, fontWeight: '900' },
   sub: { color: colors.textMuted, marginTop: 8, fontSize: 14, lineHeight: 20 },
+  rankedBadge: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: colors.honeyMuted,
+    color: colors.honeyDark,
+    fontWeight: '900',
+    fontSize: 12,
+  },
   deckLang: { color: colors.textMuted, marginTop: 6, fontSize: 12, fontWeight: '700' },
   deckMeta: { color: colors.textMuted, marginTop: 4, fontSize: 12 },
   socketBanner: {

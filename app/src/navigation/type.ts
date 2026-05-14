@@ -18,6 +18,18 @@ export type RootStackParamList = {
     DailyWord: undefined;
     ChooseGame: { venueId?: string; challengeId?: string } | undefined;
     BrawlerLobby: { venueId?: string } | undefined;
+    /**
+     * Cross-venue brawler matchmaking queue.
+     * `venueId` is required for venue-presence players; subscribers may queue from anywhere
+     * (omit `venueId` to skip the presence check).
+     */
+    BrawlerVenueQueue: {
+      venueId?: string;
+      brawlerHeroId: string;
+      ranked?: boolean;
+      /** Same tuning as Practice vs bot — forwarded to `BrawlerArena` on match. */
+      heroStats?: BrawlerArenaHeroStats;
+    };
     BrawlerArena: {
       heroId: string;
       venueId?: string;
@@ -29,7 +41,7 @@ export type RootStackParamList = {
         difficulty: 'easy' | 'normal' | 'hard';
       };
     };
-    Challenges: undefined;
+    Challenges: { venueId?: string; venueName?: string } | undefined;
     Leaderboard: undefined;
     Profile: undefined;
     Friends: undefined;
@@ -38,6 +50,7 @@ export type RootStackParamList = {
     PartyDetail: { partyId: string };
     RedeemInvite: { token?: string } | undefined;
     RedeemPerk: { venueId?: string } | undefined;
+    RewardsHub: undefined;
     PeopleHere: { venueId: string; venueName?: string };
     ReportPlayer: {
         venueId: string;
@@ -49,6 +62,20 @@ export type RootStackParamList = {
     MyVenueReports: undefined;
     QrScan: { venueId?: string };
     WordLobby: { venueId?: string; challengeId?: string };
+    /**
+     * Cross-venue matchmaking queue (auto-pairs into a new word room).
+     * `venueId` is required for venue-presence players; subscribers may queue from anywhere
+     * (omit `venueId` to skip the presence check).
+     */
+    WordVenueQueue: {
+      venueId?: string;
+      challengeId?: string;
+      mode: 'coop' | 'versus';
+      difficulty: 'easy' | 'normal' | 'hard';
+      wordCount: number;
+      wordCategory?: string;
+      ranked?: boolean;
+    };
     WordMatchJoin: { venueId?: string; challengeId?: string };
     WordMatchWait: {
       venueId?: string;
@@ -60,6 +87,8 @@ export type RootStackParamList = {
       /** Host create only — passed to POST /words/matches */
       wordCount?: number;
       wordCategory?: string;
+      /** Versus only — ranked match (rating changes on finish). */
+      ranked?: boolean;
     };
     WordGame: {
       venueId?: string;
@@ -70,6 +99,8 @@ export type RootStackParamList = {
       sessionWordsCount?: number;
       /** Solo — filters POST /words/session/start */
       wordCategory?: string;
+      /** From server state for versus ranked. */
+      ranked?: boolean;
     };
     StaffVenues: undefined;
     StaffRedemptions: {

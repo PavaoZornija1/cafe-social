@@ -9,6 +9,7 @@ type WordMatchState = {
   status: string;
   mode: 'coop' | 'versus';
   difficulty: string;
+  ranked?: boolean;
   venueId?: string | null;
   targetWordCount: number;
   deckCategory?: string | null;
@@ -96,6 +97,7 @@ export async function navigateWordMatchFromPush(
   const words = state.targetWordCount ?? 5;
 
   const wordCategory = state.deckCategory ?? undefined;
+  const ranked = state.mode === 'versus' && state.ranked ? true : undefined;
 
   if (state.status === 'PENDING') {
     navigationRef.navigate('WordMatchWait', {
@@ -106,6 +108,7 @@ export async function navigateWordMatchFromPush(
       sessionId,
       wordCount: words,
       wordCategory,
+      ranked,
     });
     return;
   }
@@ -118,6 +121,7 @@ export async function navigateWordMatchFromPush(
       matchSessionId: sessionId,
       sessionWordsCount: words,
       wordCategory,
+      ranked,
     });
     return;
   }
@@ -130,5 +134,6 @@ export async function navigateWordMatchFromPush(
     sessionId,
     wordCount: words,
     wordCategory,
+    ranked,
   });
 }

@@ -10,7 +10,6 @@ import { isPartnerOrgBillingActive } from "@/lib/partnerBillingStatus";
 import {
   queryKeys,
   useOwnerOrganizationBillingPortalMutation,
-  useOwnerOrganizationCheckoutMutation,
   useOwnerVenuesListQuery,
 } from "@/lib/queries";
 
@@ -62,12 +61,9 @@ function PartnerSubscriptionsInner() {
   const { getToken, isLoaded } = useAuth();
   const venuesQ = useOwnerVenuesListQuery(getToken, Boolean(isLoaded));
   const portalMut = useOwnerOrganizationBillingPortalMutation(getToken);
-  const checkoutMut = useOwnerOrganizationCheckoutMutation(getToken);
   const [portalErr, setPortalErr] = useState<string | null>(null);
-  const [checkoutErr, setCheckoutErr] = useState<string | null>(null);
 
   const billingFlash = searchParams.get("billing");
-  const publicPriceId = process.env.NEXT_PUBLIC_STRIPE_PARTNER_PRICE_ID?.trim() ?? "";
 
   useEffect(() => {
     if (billingFlash === "success") {
@@ -108,26 +104,11 @@ function PartnerSubscriptionsInner() {
 
   const openPortal = async (organizationId: string) => {
     setPortalErr(null);
-    setCheckoutErr(null);
     try {
       const { url } = await portalMut.mutateAsync(organizationId);
       window.location.href = url;
     } catch (e) {
       setPortalErr((e as Error).message);
-    }
-  };
-
-  const openCheckout = async (organizationId: string) => {
-    setPortalErr(null);
-    setCheckoutErr(null);
-    try {
-      const { url } = await checkoutMut.mutateAsync({
-        organizationId,
-        priceId: publicPriceId || undefined,
-      });
-      window.location.href = url;
-    } catch (e) {
-      setCheckoutErr((e as Error).message);
     }
   };
 
@@ -183,11 +164,6 @@ function PartnerSubscriptionsInner() {
         {portalErr ? (
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
             {portalErr}
-          </div>
-        ) : null}
-        {checkoutErr ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-            {checkoutErr}
           </div>
         ) : null}
 
@@ -271,40 +247,23 @@ function PartnerSubscriptionsInner() {
                         >
                           {t("admin.partnerSubscriptions.subscribeEmbeddedCta")}
                         </Link>
-                        <button
-                          type="button"
-                          disabled={checkoutMut.isPending}
-                          onClick={() => void openCheckout(org.id)}
-                          className="inline-flex rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50 transition-colors"
-                        >
-                          {checkoutMut.isPending
-                            ? t("common.loading")
-                            : t("admin.partnerSubscriptions.subscribeHostedCta")}
-                        </button>
                       </div>
                     </div>
                   ) : null}
 
                   <div className="flex flex-wrap gap-3 items-center">
-                    {billingActive ? (
-                      <button
-                        type="button"
-                        disabled={portalMut.isPending}
-                        onClick={() => void openPortal(org.id)}
-                        className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-brand-foreground shadow-md shadow-brand/20 hover:bg-brand-hover disabled:opacity-50 transition-colors"
-                      >
-                        {t("admin.partnerSubscriptions.openStripePortal")}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={portalMut.isPending}
-                        onClick={() => void openPortal(org.id)}
-                        className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50 transition-colors"
-                      >
-                        {t("admin.partnerSubscriptions.openStripePortal")}
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      disabled={portalMut.isPending}
+                      onClick={() => void openPortal(org.id)}
+                      className={
+                        billingActive
+                          ? "rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-brand-foreground shadow-md shadow-brand/20 hover:bg-brand-hover disabled:opacity-50 transition-colors"
+                          : "rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                      }
+                    >
+                      {t("admin.partnerSubscriptions.openStripePortal")}
+                    </button>
                     {org.billingPortalUrl ? (
                       <a
                         href={org.billingPortalUrl}

@@ -26,11 +26,11 @@
   },
   "partnerSubscriptions": {
     "title": "Pretplata i naplata",
-    "lead": "Naplata platforme je po organizaciji. Pretplatite se u aplikaciji putem Stripe Payment Elementa ili koristite hostani Checkout — webhookovi ažuriraju status.",
+    "lead": "Naplata platforme je po organizaciji. Pretplatu pokrenite unutar ovog portala putem Stripe Payment Elementa, a račune i načine plaćanja nakon toga vodite kroz Stripe korisnički portal.",
     "backVenues": "← Lokacije i nadzorna ploča",
     "sectionStripe": "Stripe naplata",
     "sectionHowItWorks": "Kako naplata funkcionira",
-    "stepCheckout": "„Pretplati se u ovoj aplikaciji“ otvara ugrađeni obrazac (Stripe Elements); „Plati na stripe.com“ otvara hostani Checkout.",
+    "stepCheckout": "Koristite „Pretplati se u ovoj aplikaciji“ za unos kartice bez napuštanja portala (Stripe Elements).",
     "stepPortal": "Kad je naplata aktivna, koristite „Otvori Stripe korisnički portal“ za račune, načine plaćanja i promjene plana.",
     "stripeExplainer": "Računi i promjene plana idu preko sigurnog Stripe portala. Cafe Social ne pohranjuje pune brojeve kartica.",
     "noOrgs": "Vaše lokacije još nisu povezane s organizacijom. Tada će se ovdje pojaviti pretplata i probno razdoblje.",
@@ -39,7 +39,7 @@
     "trialEnds": "Kraj proba",
     "renews": "Obnova / kraj razdoblja",
     "subscribeTitle": "Započni ili obnovi pretplatu",
-    "subscribeHint": "Poslužitelj: STRIPE_PARTNER_PRICE_ID i STRIPE_PUBLISHABLE_KEY za plaćanje u aplikaciji. Opcionalno NEXT_PUBLIC_STRIPE_PARTNER_PRICE_ID u ovoj aplikaciji.",
+    "subscribeHint": "Potrebni su STRIPE_PARTNER_PRICE_ID na serveru i STRIPE_PUBLISHABLE_KEY za plaćanje u aplikaciji. Opcionalno NEXT_PUBLIC_STRIPE_PARTNER_PRICE_ID u admin aplikaciji.",
     "subscribeEmbeddedCta": "Pretplati se u ovoj aplikaciji",
     "subscribeHostedCta": "Plati na stripe.com",
     "subscribeCta": "Plati na stripe.com",
@@ -169,5 +169,26 @@
     "empty": "Još nema lokacija.",
     "loadErrorBackSuper": "Platforma",
     "loadErrorBackPartner": "Partnerske lokacije"
+  },
+  "staffRedemptions": {
+    "backVenues": "← Moje lokacije",
+    "title": "Provjera kodova otkupa",
+    "leadStart": "Prijavljeni ste kao osoblje. Usporedite",
+    "codeLabel": "kod od 8 znakova",
+    "leadEnd": "nakon otkupa; mora biti na ovoj UTC listi dana prije izdavanja pogodnosti.",
+    "openDashboard": "Otvori partnersku nadzornu ploču",
+    "dashboardHint": "za pregled prijava moderacije, žalbi i zabrana (potrebna MANAGER ili OWNER uloga).",
+    "dateLabel": "Datum (UTC, GGGG-MM-DD)",
+    "refresh": "Osvježi",
+    "newestFirst": "najnovije prvo",
+    "emptyDay": "Nema otkupa za ovaj dan.",
+    "statusActive": "Aktivno",
+    "statusVoided": "Poništeno",
+    "columns": {
+      "code": "Kod",
+      "redeemed": "Otkup",
+      "perk": "Pogodnost",
+      "status": "Status"
+    }
   }
 }

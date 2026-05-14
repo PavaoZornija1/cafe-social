@@ -46,6 +46,9 @@ export default function WordMatchJoinScreen({ navigation, route }: Props) {
         sessionId: string;
         mode: 'coop' | 'versus';
         difficulty: string;
+        ranked?: boolean;
+        targetWordCount: number;
+        deckCategory?: string | null;
       }>('/words/matches/join', {
         inviteCode: trimmed,
         latitude: coords?.lat,
@@ -58,6 +61,9 @@ export default function WordMatchJoinScreen({ navigation, route }: Props) {
         difficulty: res.difficulty as 'easy' | 'normal' | 'hard',
         create: false,
         sessionId: res.sessionId,
+        wordCount: res.targetWordCount,
+        wordCategory: res.deckCategory ?? undefined,
+        ranked: res.mode === 'versus' && res.ranked ? true : undefined,
       });
     } catch (e) {
       setError((e as Error).message || t('wordMatch.joinFailed'));

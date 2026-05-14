@@ -41,6 +41,7 @@ import { OwnerRedemptionActionsService } from './owner-redemption-actions.servic
 import { PlayerService } from '../player/player.service';
 import { VenueReceiptService } from '../receipt/venue-receipt.service';
 import { CreateOwnerCampaignDto } from './dto/create-owner-campaign.dto';
+import { CreateOwnerCampaignBindingDto } from './dto/create-owner-campaign-binding.dto';
 import { ReviewReceiptDto } from './dto/review-receipt.dto';
 import { VoidRedemptionDto } from './dto/void-redemption.dto';
 import { PartnerOnboardingDto } from './dto/partner-onboarding.dto';
@@ -398,30 +399,6 @@ export class OwnerController {
     return this.stripePartnerBilling.createPartnerBillingPortalSession(
       organizationId,
       'partner-subscriptions',
-    );
-  }
-
-  @Post('organizations/:organizationId/stripe/checkout-session')
-  @UseGuards(OrganizationStaffGuard)
-  partnerStripeCheckout(
-    @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
-    @Body() body: StripePartnerCheckoutDto,
-  ) {
-    return this.stripePartnerBilling.createPartnerCheckoutSession(organizationId, {
-      priceId: body.priceId,
-      returnKind: 'partner-subscriptions',
-    });
-  }
-
-  @Post('organizations/:organizationId/stripe/elements-subscription')
-  @UseGuards(OrganizationStaffGuard)
-  partnerStripeElementsSubscription(
-    @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
-    @Body() body: StripePartnerCheckoutDto,
-  ) {
-    return this.stripePartnerBilling.createPartnerEmbeddedSubscriptionClientSecret(
-      organizationId,
-      { priceId: body.priceId },
     );
   }
 

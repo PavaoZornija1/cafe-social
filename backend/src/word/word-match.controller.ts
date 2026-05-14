@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   ParseUUIDPipe,
   Post,
@@ -9,14 +10,22 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { normalizeUserEmail } from '../auth/user-email.util';
 import { PlayerService } from '../player/player.service';
 import { WordMatchService } from './word-match.service';
 import { CreateWordMatchDto } from './dto/create-word-match.dto';
+import {
+  EnqueueWordMatchQueueDto,
+  LeaveWordMatchQueueDto,
+} from './dto/enqueue-word-match-queue.dto';
 import { JoinWordMatchDto } from './dto/join-word-match.dto';
 import { CoopGuessDto } from './dto/coop-guess.dto';
+import { MatchPassDto } from './dto/match-pass.dto';
+import { WordMatchIfRevDto } from './dto/word-match-if-rev.dto';
+import { resolveIfSnapshotRev } from '../game-runtime/snapshot-rev.util';
 
 @Controller('words/matches')
 @UseGuards(JwtAuthGuard)
@@ -43,12 +52,37 @@ export class WordMatchController {
     return this.match.joinByCode(this.email(user), dto);
   }
 
+  @Post('queue/enqueue')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ enqueue: { limit: 30, ttl: 60000 } })
+  queueEnqueue(@CurrentUser() user: unknown, @Body() dto: EnqueueWordMatchQueueDto) {
+    return this.match.enqueueVenueWordMatch(this.email(user), dto);
+  }
+
+  @Get('queue/me')
+  queueMe(@CurrentUser() user: unknown, @Query('venueId') venueId?: string) {
+    // venueId optional: subscribers can queue without a venue; others may also
+    // omit it to look up whichever in-flight queue row they currently have.
+    return this.match.getVenueQueueStatus(this.email(user), venueId);
+  }
+
+  @Post('queue/leave')
+  queueLeave(@CurrentUser() user: unknown, @Body() dto: LeaveWordMatchQueueDto) {
+    return this.match.leaveVenueWordQueue(this.email(user), dto.venueId);
+  }
+
   @Post(':sessionId/start')
   start(
     @CurrentUser() user: unknown,
     @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Headers('if-match') ifMatch: string | undefined,
+    @Body() meta: WordMatchIfRevDto,
   ) {
-    return this.match.start(this.email(user), sessionId);
+    return this.match.start(
+      this.email(user),
+      sessionId,
+      resolveIfSnapshotRev(ifMatch, meta.ifSnapshotRev),
+    );
   }
 
   @Get(':sessionId/state')
@@ -83,33 +117,57 @@ export class WordMatchController {
   coopGuess(
     @CurrentUser() user: unknown,
     @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Headers('if-match') ifMatch: string | undefined,
     @Body() dto: CoopGuessDto,
   ) {
-    return this.match.coopGuess(this.email(user), sessionId, dto);
+    return this.match.coopGuess(this.email(user), sessionId, dto, ifMatch);
+  }
+
+  @Post(':sessionId/coop-pass')
+  coopPass(
+    @CurrentUser() user: unknown,
+    @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Headers('if-match') ifMatch: string | undefined,
+    @Body() dto: MatchPassDto,
+  ) {
+    return this.match.coopPass(this.email(user), sessionId, dto, ifMatch);
   }
 
   @Post(':sessionId/versus-guess')
   versusGuess(
     @CurrentUser() user: unknown,
     @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Headers('if-match') ifMatch: string | undefined,
     @Body() dto: CoopGuessDto,
   ) {
-    return this.match.versusGuess(this.email(user), sessionId, dto);
+    return this.match.versusGuess(this.email(user), sessionId, dto, ifMatch);
   }
 
   @Post(':sessionId/leave')
   leave(
     @CurrentUser() user: unknown,
     @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Headers('if-match') ifMatch: string | undefined,
+    @Body() meta: WordMatchIfRevDto,
   ) {
-    return this.match.leave(this.email(user), sessionId);
+    return this.match.leave(
+      this.email(user),
+      sessionId,
+      resolveIfSnapshotRev(ifMatch, meta.ifSnapshotRev),
+    );
   }
 
   @Post(':sessionId/rematch')
   rematch(
     @CurrentUser() user: unknown,
     @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Headers('if-match') ifMatch: string | undefined,
+    @Body() meta: WordMatchIfRevDto,
   ) {
-    return this.match.rematch(this.email(user), sessionId);
+    return this.match.rematch(
+      this.email(user),
+      sessionId,
+      resolveIfSnapshotRev(ifMatch, meta.ifSnapshotRev),
+    );
   }
 }

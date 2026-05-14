@@ -16,6 +16,7 @@ type SessionParticipantInput = {
   brawlerHeroId?: string;
   characterSnapshot?: string;
   heroSnapshot?: Prisma.InputJsonValue;
+  displayNameSnapshot?: string;
 };
 
 @Injectable()
@@ -54,8 +55,8 @@ export class BrawlerRepository {
   createSession(params: {
     venueId?: string;
     partyId?: string;
-    participants: SessionParticipantInput[];
     config?: Prisma.InputJsonValue;
+    participants: SessionParticipantInput[];
   }) {
     return this.prisma.gameSession.create({
       data: {
@@ -63,8 +64,7 @@ export class BrawlerRepository {
         status: GameSessionStatus.PENDING,
         venueId: params.venueId,
         partyId: params.partyId,
-        configVersion: 1,
-        ...(params.config ? { config: params.config } : {}),
+        ...(params.config !== undefined ? { config: params.config } : {}),
         participants: {
           create: params.participants.map((p) => ({
             playerId: p.playerId,
@@ -73,6 +73,7 @@ export class BrawlerRepository {
             brawlerHeroId: p.brawlerHeroId,
             characterSnapshot: p.characterSnapshot,
             heroSnapshot: p.heroSnapshot,
+            displayNameSnapshot: p.displayNameSnapshot,
           })),
         },
         brawlerSession: {

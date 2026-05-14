@@ -14,6 +14,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { computeTierProgress } from '../lib/xp-tier.util';
 import { utcDayKeyDaysAgo, utcWeekDayKeyRange } from '../lib/engagement-dates';
 import { orderedPlayerPair } from '../common/player-pair';
+import { staffVerificationCodeFromRedemptionId } from '../lib/redemption-staff-code';
+import { buildStaffRewardQrPayload } from '../lib/reward-claim-qr';
 
 @Injectable()
 export class PlayerService {
@@ -81,6 +83,12 @@ export class PlayerService {
     tier: string;
     nextTierXpThreshold: number | null;
     nextTierName: string | null;
+    /** Global competitive rating (Elo-style); independent of XP / tier. */
+    competitiveRankRating: number;
+    /** Ranked word versus ladder only. */
+    wordRankRating: number;
+    /** Ranked brawler ladder only. */
+    brawlerRankRating: number;
     completedChallenges: number;
     venuesUnlocked: number;
     discoverable: boolean;
@@ -111,6 +119,9 @@ export class PlayerService {
       tier: tierLabel,
       nextTierXpThreshold,
       nextTierName,
+      competitiveRankRating: player.competitiveRankRating,
+      wordRankRating: player.wordRankRating,
+      brawlerRankRating: player.brawlerRankRating,
       completedChallenges,
       venuesUnlocked,
       discoverable: player.discoverable,
@@ -186,7 +197,7 @@ export class PlayerService {
     const horizon = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
     const rows = await this.prisma.venuePerkRedemption.findMany({
       where: { playerId: player.id },
-      orderBy: { redeemedAt: 'desc' },
+      orderBy: { issuedAt: 'desc' },
       include: {
         perk: {
           select: {
@@ -204,7 +215,7 @@ export class PlayerService {
 
     const items = rows.map((r) => {
       const voided = r.voidedAt != null;
-      const perkActiveTo = r.perk.activeTo;
+      const perkActiveTo = r.expiresAt;
       const msToExpiry =
         !voided && perkActiveTo && perkActiveTo.getTime() > now.getTime()
           ? perkActiveTo.getTime() - now.getTime()
@@ -220,7 +231,7 @@ export class PlayerService {
         !voided && perkActiveTo != null && perkActiveTo.getTime() <= now.getTime();
       return {
         id: r.id,
-        redeemedAt: r.redeemedAt.toISOString(),
+        redeemedAt: (r.redeemedAt ?? r.issuedAt).toISOString(),
         voided,
         venueId: r.venueId,
         venueName: r.venue.name,
@@ -243,6 +254,49 @@ export class PlayerService {
       expiringSoon: items.filter((i) => i.expiringSoon),
       items,
     };
+  }
+
+  /** Cross-venue staff QR claims (same shape as per-venue my-rewards + venue labels). */
+  async listMyRewardClaimsHub(email: string) {
+    const player = await this.findOrCreateByEmail(email);
+    const nowMs = Date.now();
+    const rows = await this.prisma.venuePerkRedemption.findMany({
+      where: { playerId: player.id },
+      orderBy: { issuedAt: 'desc' },
+      take: 200,
+      include: {
+        perk: { select: { id: true, code: true, title: true, subtitle: true } },
+        venue: { select: { id: true, name: true } },
+      },
+    });
+
+    const items = rows.map((r) => {
+      const voided = r.voidedAt != null;
+      const computedStatus = voided
+        ? 'VOIDED'
+        : r.status === 'REDEEMABLE' && r.expiresAt.getTime() <= nowMs
+          ? 'EXPIRED'
+          : r.status;
+      return {
+        redemptionId: r.id,
+        venueId: r.venueId,
+        venueName: r.venue.name,
+        perkId: r.perk.id,
+        perkCode: r.perk.code,
+        perkTitle: r.perk.title,
+        perkSubtitle: r.perk.subtitle,
+        status: computedStatus,
+        issuedAt: r.issuedAt.toISOString(),
+        redeemedAt: r.redeemedAt?.toISOString() ?? null,
+        expiresAt: r.expiresAt.toISOString(),
+        staffVerificationCode: staffVerificationCodeFromRedemptionId(r.id),
+        qrPayload: buildStaffRewardQrPayload(r.id),
+      };
+    });
+
+    const activeRedeemable = items.filter((i) => i.status === 'REDEEMABLE').length;
+
+    return { wallet: { activeRedeemable }, items };
   }
 
   async updateMeSettings(email: string, dto: UpdateMeSettingsDto): Promise<Player> {

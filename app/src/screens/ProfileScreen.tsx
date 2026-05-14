@@ -203,6 +203,12 @@ export default function ProfileScreen({ navigation }: Props) {
               {sharing ? '…' : t('profile.shareFriendLink')}
             </Text>
           </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.linkBtn, pressed && styles.linkBtnPressed]}
+            onPress={() => navigation.navigate('RewardsHub')}
+          >
+            <Text style={styles.linkBtnText}>{t('profile.openRewardsHub')}</Text>
+          </Pressable>
         </View>
 
         {loading ? (
@@ -220,6 +226,26 @@ export default function ProfileScreen({ navigation }: Props) {
             <View style={styles.row}>
               <Text style={styles.label}>{t('profile.tier')}</Text>
               <Text style={styles.value}>{summary.tier}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.label}>{t('profile.ratingGlobal')}</Text>
+              <Text style={styles.value}>
+                {summary.competitiveRankRating != null
+                  ? String(summary.competitiveRankRating)
+                  : '—'}
+              </Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.label}>{t('profile.ratingWord')}</Text>
+              <Text style={styles.value}>
+                {summary.wordRankRating != null ? String(summary.wordRankRating) : '—'}
+              </Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.label}>{t('profile.ratingBrawler')}</Text>
+              <Text style={styles.value}>
+                {summary.brawlerRankRating != null ? String(summary.brawlerRankRating) : '—'}
+              </Text>
             </View>
             <View style={styles.row}>
               <Text style={styles.label}>{t('profile.completedChallenges')}</Text>

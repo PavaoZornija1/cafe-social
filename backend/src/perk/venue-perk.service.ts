@@ -9,6 +9,7 @@ import { VenueService } from '../venue/venue.service';
 import { VenueModerationService } from '../venue/venue-moderation.service';
 import { VenueFunnelService } from '../venue/venue-funnel.service';
 import { staffVerificationCodeFromRedemptionId } from '../lib/redemption-staff-code';
+import { buildStaffRewardQrPayload } from '../lib/reward-claim-qr';
 
 export type VenuePerkPublicTeaserDto = {
   id: string;
@@ -18,6 +19,20 @@ export type VenuePerkPublicTeaserDto = {
   requiresQrUnlock: boolean;
   fullyRedeemed: boolean;
   redeemedByYou: boolean;
+};
+
+export type VenueRedeemableRewardDto = {
+  redemptionId: string;
+  perkId: string;
+  perkCode: string;
+  perkTitle: string;
+  perkSubtitle: string | null;
+  status: string;
+  issuedAt: string;
+  redeemedAt: string | null;
+  expiresAt: string;
+  staffVerificationCode: string;
+  qrPayload: string;
 };
 
 @Injectable()
@@ -81,6 +96,42 @@ export class VenuePerkService {
     return raw.trim().toUpperCase().replace(/\s+/g, '');
   }
 
+  async listMyRewardsForVenue(
+    venueId: string,
+    playerId: string,
+  ): Promise<VenueRedeemableRewardDto[]> {
+    const rows = await this.prisma.venuePerkRedemption.findMany({
+      where: { venueId, playerId },
+      include: {
+        perk: { select: { id: true, code: true, title: true, subtitle: true } },
+      },
+      orderBy: { issuedAt: 'desc' },
+      take: 200,
+    });
+    const nowMs = Date.now();
+    return rows.map((r) => {
+      const voided = r.voidedAt != null;
+      const computedStatus = voided
+        ? 'VOIDED'
+        : r.status === 'REDEEMABLE' && r.expiresAt.getTime() <= nowMs
+          ? 'EXPIRED'
+          : r.status;
+      return {
+        redemptionId: r.id,
+        perkId: r.perk.id,
+        perkCode: r.perk.code,
+        perkTitle: r.perk.title,
+        perkSubtitle: r.perk.subtitle,
+        status: computedStatus,
+        issuedAt: r.issuedAt.toISOString(),
+        redeemedAt: r.redeemedAt?.toISOString() ?? null,
+        expiresAt: r.expiresAt.toISOString(),
+        staffVerificationCode: staffVerificationCodeFromRedemptionId(r.id),
+        qrPayload: buildStaffRewardQrPayload(r.id),
+      };
+    });
+  }
+
   async redeem(params: {
     playerId: string;
     venueId: string;
@@ -137,13 +188,18 @@ export class VenuePerkService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      const existing = await tx.venuePerkRedemption.findUnique({
+      const nowTx = new Date();
+      const activeExisting = await tx.venuePerkRedemption.findFirst({
         where: {
-          perkId_playerId: { perkId: perk.id, playerId: params.playerId },
+          perkId: perk.id,
+          playerId: params.playerId,
+          voidedAt: null,
+          status: 'REDEEMABLE',
+          expiresAt: { gt: nowTx },
         },
       });
-      if (existing) {
-        throw new ConflictException('You already redeemed this perk');
+      if (activeExisting) {
+        throw new ConflictException('You already have an active claim for this perk');
       }
 
       const refreshed = await tx.venuePerk.findUnique({ where: { id: perk.id } });
@@ -160,6 +216,8 @@ export class VenuePerkService {
           perkId: perk.id,
           playerId: params.playerId,
           venueId: params.venueId,
+          status: 'REDEEMABLE',
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         },
       });
 
@@ -174,7 +232,11 @@ export class VenuePerkService {
         title: perk.title,
         subtitle: perk.subtitle,
         body: perk.body,
-        redeemedAt: redemption.redeemedAt.toISOString(),
+        issuedAt: redemption.issuedAt.toISOString(),
+        redeemedAt: redemption.redeemedAt?.toISOString() ?? null,
+        expiresAt: redemption.expiresAt.toISOString(),
+        status: redemption.status,
+        qrPayload: buildStaffRewardQrPayload(redemption.id),
       };
       return out;
     }).then((out) => {

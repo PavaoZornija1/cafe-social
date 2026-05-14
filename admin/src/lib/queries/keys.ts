@@ -37,6 +37,8 @@ export const queryKeys = {
     venueRedemptions: (venueId: string, dateYmd: string) =>
       ["owner", "venues", venueId, "redemptions", dateYmd] as const,
     venueCampaigns: (venueId: string) => ["owner", "venues", venueId, "campaigns"] as const,
+    venueCampaignBindings: (venueId: string, campaignId: string) =>
+      ["owner", "venues", venueId, "campaigns", campaignId, "bindings"] as const,
     venueReceipts: (venueId: string) => ["owner", "venues", venueId, "receipts"] as const,
     venueReceipt: (venueId: string, receiptId: string) =>
       ["owner", "venues", venueId, "receipts", receiptId] as const,
@@ -56,5 +58,7 @@ export const queryKeys = {
       ["owner", "venues", venueId, "moderation", "staff-summary"] as const,
     orgAnalytics: (organizationId: string, days: number, from?: string, to?: string) =>
       ["owner", "organizations", organizationId, "analytics", days, from ?? "", to ?? ""] as const,
+    orgElementsSubscriptionSetup: (organizationId: string, priceId: string) =>
+      ["owner", "organizations", organizationId, "stripe", "elements-subscription-setup", priceId] as const,
   },
 } as const;

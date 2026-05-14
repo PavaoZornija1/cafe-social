@@ -4,12 +4,13 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import type { Challenge, ChallengeProgress } from '@prisma/client';
+import type { ChallengeProgress } from '@prisma/client';
 import { PlayerService } from '../player/player.service';
 import { VenueService } from '../venue/venue.service';
 import { ChallengeRepository } from './challenge.repository';
 import { PlayerVenueStatsRepository } from '../stats/player-venue-stats.repository';
 import { VenueModerationService } from '../venue/venue-moderation.service';
+import { PlayerRewardGrantService } from '../reward/player-reward-grant.service';
 import { isoWeekKeyUTC } from '../lib/week-key';
 import { isChallengeActiveWindow } from '../lib/challenge-window';
 
@@ -23,6 +24,8 @@ export type VenueChallengeDto = {
   progressCount: number;
   isCompleted: boolean;
   resetsWeekly: boolean;
+  rewardPerkId: string | null;
+  rewardTitle: string | null;
 };
 
 @Injectable()
@@ -33,6 +36,7 @@ export class ChallengeService {
     private readonly venueStats: PlayerVenueStatsRepository,
     private readonly venues: VenueService,
     private readonly moderation: VenueModerationService,
+    private readonly rewardGrants: PlayerRewardGrantService,
   ) {}
 
   async getVenueChallengesForPlayer(venueId: string, email: string): Promise<VenueChallengeDto[]> {
@@ -55,7 +59,7 @@ export class ChallengeService {
 
     const weekKey = isoWeekKeyUTC();
 
-    return challengeRows.map((c: Challenge) => {
+    return challengeRows.map((c) => {
       const p = progressByChallengeId.get(c.id);
       let progressCount = p?.progressCount ?? 0;
       let isCompleted = !!p?.completedAt;
@@ -76,6 +80,8 @@ export class ChallengeService {
         progressCount,
         isCompleted,
         resetsWeekly: c.resetsWeekly,
+        rewardPerkId: c.rewardPerkId,
+        rewardTitle: c.rewardPerk?.title ?? null,
       };
     });
   }
@@ -162,6 +168,17 @@ export class ChallengeService {
       periodKey: challenge.resetsWeekly ? weekKey : undefined,
     });
 
+    if (newlyCompleted && challenge.rewardPerkId) {
+      await this.rewardGrants.tryIssueChallengePerkGrant({
+        playerId: player.id,
+        venueId: challenge.venueId,
+        challengeId,
+        perkId: challenge.rewardPerkId,
+        resetsWeekly: challenge.resetsWeekly,
+        weekKey: challenge.resetsWeekly ? weekKey : undefined,
+      });
+    }
+
     const xpGain = increment * 10 + (newlyCompleted ? 50 : 0);
     await this.venueStats.addVenueXp(player.id, challenge.venueId, xpGain);
 
@@ -172,4 +189,3 @@ export class ChallengeService {
     };
   }
 }
-

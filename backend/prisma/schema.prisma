@@ -108,6 +108,8 @@ model Venue {
   playerVenueStats PlayerVenueStats[]
   challenges       Challenge[]
   gameSessions         GameSession[]
+  wordMatchQueueEntries   WordMatchQueueEntry[]
+  brawlerMatchQueueEntries BrawlerMatchQueueEntry[]
   playerGameVenueStats PlayerGameVenueStats[]
   feedEvents       VenueFeedEvent[]
   perks            VenuePerk[]
@@ -115,9 +117,13 @@ model Venue {
   visitDays        PlayerVenueVisitDay[]
   venuePlayDays    PlayerVenuePlayDay[]
   venuePlayCountedGames PlayerVenuePlayCountedGame[]
+  venueActivePlayBudgetDays PlayerVenueActivePlayBudgetDay[]
+  venueActivePlaySessions   PlayerVenueActivePlaySession[]
+  venuePlayBudgetIapGrants  VenuePlayBudgetIapGrant[]
   staffMembers     VenueStaff[]
   staffInvites     VenueStaffInvite[]
   campaigns        VenueCampaign[]
+  playerRewardGrants PlayerRewardGrant[]
   receiptSubmissions VenueReceiptSubmission[]
 
   /// Rate-limits marketing “send nudge now” from admin (see `VenueNudgeAdminService`).
@@ -342,9 +348,24 @@ model VenueCampaign {
   updatedAt       DateTime       @updatedAt
 
   venue Venue                @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  sends VenueCampaignSend[]
+  sends   VenueCampaignSend[]
+  bindings VenueCampaignBinding[]
 
   @@index([venueId])
+}
+
+/// Compositional links for a campaign (challenges, perks, offers). Metadata only — no automation runner yet.
+model VenueCampaignBinding {
+  id         String   @id @default(uuid())
+  campaignId String
+  entityType String
+  entityId   String
+  createdAt  DateTime @default(now())
+
+  campaign VenueCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, entityType, entityId])
+  @@index([campaignId])
 }
 
 model VenueCampaignSend {
@@ -449,6 +470,13 @@ model Player {
   /// XP from global / off-venue wins (tier uses venue XP sum + this). Venue leaderboards stay venue-only.
   bonusXp Int @default(0)
 
+  /// Global competitive rating (Elo-style); independent of XP / tier. Updated on every ranked match (any mode).
+  competitiveRankRating Int @default(1500)
+  /// Ranked word (versus) ladder only.
+  wordRankRating Int @default(1500)
+  /// Ranked brawler ladder only (future).
+  brawlerRankRating Int @default(1500)
+
   lastPresenceVenueId String?
   lastPresenceAt      DateTime?
 
@@ -487,7 +515,11 @@ model Player {
   venueVisitDays   PlayerVenueVisitDay[]
   venuePlayDays    PlayerVenuePlayDay[]
   venuePlayCountedGames PlayerVenuePlayCountedGame[]
+  venueActivePlayBudgetDays PlayerVenueActivePlayBudgetDay[]
+  venueActivePlaySessions   PlayerVenueActivePlaySession[]
+  venuePlayBudgetIapGrants  VenuePlayBudgetIapGrant[]
   perkRedemptions  VenuePerkRedemption[] @relation("RedemptionGuest")
+  rewardGrants     PlayerRewardGrant[]
   offerRedemptions VenueOfferRedemption[]
 
   reportsFiled     VenuePlayerReport[] @relation("VenueReportReporter")
@@ -495,6 +527,9 @@ model Player {
   bansReceived     VenuePlayerBan[]    @relation("VenueBanSubject")
   bansIssued       VenuePlayerBan[]    @relation("VenueBanCreatedBy")
   funnelEvents     VenueFunnelEvent[]
+
+  wordMatchQueueEntries   WordMatchQueueEntry[]
+  brawlerMatchQueueEntries BrawlerMatchQueueEntry[]
 
   venueStaff VenueStaff[]
   staffInvitesSent VenueStaffInvite[] @relation("StaffInviteSentBy")
@@ -597,6 +632,63 @@ model PlayerVenuePlayCountedGame {
 
   @@unique([playerId, gameSessionId, kind])
   @@index([playerId, dayKey])
+}
+
+/// Per UTC day per venue: **active play seconds** consumed + IAP bonus pool (free tier stamina).
+model PlayerVenueActivePlayBudgetDay {
+  playerId   String
+  venueId    String
+  dayKey     String
+  /// Seconds of active play charged while in geofence (free allowance + IAP bonus).
+  consumedActiveSeconds    Int @default(0)
+  /// Extra seconds granted via in-app purchase today at this venue (UTC day).
+  iapBonusSecondsRemaining Int @default(0)
+  updatedAt DateTime @updatedAt
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, venueId, dayKey])
+  @@index([venueId, dayKey])
+  @@index([playerId, dayKey])
+}
+
+/// Server-side “active play” interval for stamina ticks (geofence re-checked each tick).
+model PlayerVenueActivePlaySession {
+  id        String @id @default(uuid())
+  playerId  String
+  venueId   String
+  dayKey    String
+  /// solo_word | word_match | brawler
+  kind      String
+  gameSessionId     String?
+  soloWordSessionId String?
+  startedAt  DateTime @default(now())
+  lastTickAt DateTime @default(now())
+  endedAt    DateTime?
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, endedAt])
+  @@index([playerId, lastTickAt])
+}
+
+/// Idempotent log: one RevenueCat non-subscription transaction grants bonus seconds once.
+model VenuePlayBudgetIapGrant {
+  id                  String   @id @default(uuid())
+  playerId            String
+  venueId             String
+  dayKey              String
+  productId           String
+  storeTransactionId  String   @unique
+  grantedSeconds      Int
+  createdAt           DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, createdAt])
 }
 
 /// Partner funnel analytics: guest journey at a venue (`detect` has null playerId).
@@ -730,6 +822,8 @@ model VenuePerk {
 
   venue       Venue                 @relation(fields: [venueId], references: [id], onDelete: Cascade)
   redemptions VenuePerkRedemption[]
+  rewardGrants PlayerRewardGrant[]
+  challengesWithReward Challenge[] @relation("ChallengeRewardPerk")
 
   @@index([venueId])
 }
@@ -739,26 +833,60 @@ model VenuePerkRedemption {
   perkId     String
   playerId   String
   venueId    String
-  redeemedAt DateTime @default(now())
+  /// Lifecycle: REDEEMABLE | REDEEMED | EXPIRED | VOIDED | LOCKED
+  status     String   @default("REDEEMABLE")
+  /// Claims expire by default after 7 days from issue.
+  expiresAt  DateTime
+  issuedAt   DateTime @default(now())
+  redeemedAt DateTime?
 
-  staffAcknowledgedAt           DateTime?
-  staffAcknowledgedByPlayerId   String?
-  voidedAt                      DateTime?
-  voidReason                    String?
-  voidedByPlayerId              String?
+  redeemedByPlayerId String?
+  voidedAt           DateTime?
+  voidReason         String?
+  voidedByPlayerId   String?
 
-  perk                 VenuePerk @relation(fields: [perkId], references: [id], onDelete: Cascade)
-  venue                Venue     @relation("VenuePerkRedemptionVenue", fields: [venueId], references: [id], onDelete: Cascade)
-  player               Player    @relation("RedemptionGuest", fields: [playerId], references: [id], onDelete: Cascade)
-  staffAcknowledgedBy  Player?   @relation("RedemptionStaffAck", fields: [staffAcknowledgedByPlayerId], references: [id], onDelete: SetNull)
-  voidedBy             Player?   @relation("RedemptionStaffVoid", fields: [voidedByPlayerId], references: [id], onDelete: SetNull)
+  perk        VenuePerk @relation(fields: [perkId], references: [id], onDelete: Cascade)
+  venue       Venue     @relation("VenuePerkRedemptionVenue", fields: [venueId], references: [id], onDelete: Cascade)
+  player      Player    @relation("RedemptionGuest", fields: [playerId], references: [id], onDelete: Cascade)
+  redeemedBy  Player?   @relation("RedemptionStaffAck", fields: [redeemedByPlayerId], references: [id], onDelete: SetNull)
+  voidedBy    Player?   @relation("RedemptionStaffVoid", fields: [voidedByPlayerId], references: [id], onDelete: SetNull)
 
-  @@unique([perkId, playerId])
+  playerRewardGrantId String? @unique
+  playerRewardGrant   PlayerRewardGrant? @relation(fields: [playerRewardGrantId], references: [id], onDelete: SetNull)
+
+  @@index([perkId, playerId])
   @@index([playerId])
   @@index([venueId])
+  @@index([status])
+  @@index([expiresAt])
   @@index([voidedAt])
 
   expiryReminderLogs PerkExpiryReminderLog[]
+}
+
+/// Orchestrated reward issuance; optional 1:1 `VenuePerkRedemption` for staff QR fulfillment.
+model PlayerRewardGrant {
+  id               String   @id @default(uuid())
+  playerId         String
+  venueId          String
+  /// PERK for staff-redeemable QR claims today.
+  kind             String
+  perkId           String?
+  /// e.g. CHALLENGE, CAMPAIGN — compositional; automations reuse the same issuer.
+  sourceType       String
+  sourceId         String?
+  idempotencyKey   String   @unique
+  status           String   @default("ACTIVE")
+  issuedAt         DateTime @default(now())
+
+  player    Player              @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue     Venue               @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  perk      VenuePerk?          @relation(fields: [perkId], references: [id], onDelete: SetNull)
+  redemption VenuePerkRedemption?
+
+  @@index([playerId])
+  @@index([venueId])
+  @@index([sourceType, sourceId])
 }
 
 /// Expo push notification token (one row per device token; reassigned on login).
@@ -1014,6 +1142,8 @@ model SoloWordSession {
   createdAt  DateTime      @default(now())
   expiresAt  DateTime
   finishedAt DateTime?
+  /// Correct guesses only (skips/timeouts do not increment). Used for deck-complete XP.
+  wordsSolved Int @default(0)
   /// Set once when deck-complete XP has been granted.
   winXpAwarded Boolean @default(false)
 
@@ -1098,6 +1228,9 @@ model Challenge {
   activeFrom DateTime?
   activeTo   DateTime?
 
+  rewardPerkId String?
+  rewardPerk   VenuePerk? @relation("ChallengeRewardPerk", fields: [rewardPerkId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1105,6 +1238,7 @@ model Challenge {
   progress ChallengeProgress[]
 
   @@index([venueId])
+  @@index([rewardPerkId])
 }
 
 /// Per-player progress for a challenge.
@@ -1219,6 +1353,8 @@ model GameSession {
   endedAt     DateTime?
   /// Set once when win XP has been granted for this finished session (idempotency).
   winXpAwardedAt DateTime?
+  /// Set once competitive rank deltas have been applied for this session (idempotency; any ranked mode).
+  rankAwardedAt DateTime?
   /// Winner stored at participant level (supports bots + non-player entities).
   winnerParticipantId String?
   createdAt   DateTime          @default(now())
@@ -1400,12 +1536,78 @@ model BrawlerParticipantStats {
   @@index([ringOuts])
 }
 
+enum WordMatchQueueStatus {
+  WAITING
+  MATCHED
+  CANCELLED
+}
+
+enum WordMatchQueueMode {
+  COOP
+  VERSUS
+}
+
+enum BrawlerMatchQueueStatus {
+  WAITING
+  MATCHED
+  CANCELLED
+}
+
+/// Venue-only brawler matchmaking: same venue + casual/ranked bucket pairs into a 1v1 room (auto-started).
+model BrawlerMatchQueueEntry {
+  id               String                 @id @default(uuid())
+  /// Null when an active subscriber queues from outside any venue (cross-venue matchmaking pool).
+  venueId          String?
+  playerId         String
+  ranked           Boolean                @default(false)
+  brawlerHeroId    String?
+  status           BrawlerMatchQueueStatus @default(WAITING)
+  matchedSessionId String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  venue  Venue?  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([ranked, status, createdAt], map: "BrawlerMatchQueueEntry_bucket_idx")
+  @@index([playerId, status], map: "BrawlerMatchQueueEntry_player_status_idx")
+  @@index([venueId, status], map: "BrawlerMatchQueueEntry_venue_status_idx")
+}
+
+/// Cross-venue matchmaking pool: same rules bucket pairs into a new word room (2 players, auto-started).
+/// Each entry records the player's own venue (or null for active subscribers queueing from outside any venue).
+model WordMatchQueueEntry {
+  id               String               @id @default(uuid())
+  /// Null when an active subscriber queues from outside any venue.
+  venueId          String?
+  playerId         String
+  mode             WordMatchQueueMode
+  difficulty       String
+  wordCount        Int
+  language         String
+  category         WordCategory?
+  ranked           Boolean              @default(false)
+  status           WordMatchQueueStatus @default(WAITING)
+  matchedSessionId String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  venue  Venue?  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([mode, difficulty, wordCount, language, category, ranked, status, createdAt], map: "WordMatchQueueEntry_bucket_idx")
+  @@index([playerId, status], map: "WordMatchQueueEntry_player_status_idx")
+  @@index([venueId, status], map: "WordMatchQueueEntry_venue_status_idx")
+}
+
 model WordSession {
   sessionId            String @id
   roundCount           Int    @default(1)
   language             String @default("en")
   /// Co-op: shared progress index into the ordered word list (server-authoritative).
   sharedWordIndex      Int    @default(0)
+  /// Co-op: count of words solved correctly (skips do not increment). Must equal deck size for a win.
+  wordsSolvedCount     Int    @default(0)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
   session              GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)

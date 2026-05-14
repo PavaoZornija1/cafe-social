@@ -51,5 +51,9 @@ export class FinalizeBrawlerSessionDto {
   @ValidateNested({ each: true })
   @Type(() => FinalizeBrawlerParticipantDto)
   participants!: FinalizeBrawlerParticipantDto[];
+
+  @IsOptional()
+  @IsInt()
+  ifSnapshotRev?: number;
 }
 

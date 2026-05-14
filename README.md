@@ -1,6 +1,13 @@
 # Cafe Social
 
-**Location-aware social gaming for cafés and other physical venues.** Players unlock challenges and games when they’re at a partner venue (geofenced). This repo is the Cafe Social monorepo: **NestJS + Prisma** backend and **Expo (React Native)** mobile app.
+**Location-aware social gaming for cafés and other physical venues.** Players unlock challenges and games when they’re at a partner venue (geofenced). This repo is the Cafe Social monorepo: **NestJS + Prisma** 
+backend and **Expo (React Native)** mobile app.
+
+## Startup
+
+npm run start:dev
+npm run dev
+npx expo run:ios --device
 
 ## Repo layout
 
@@ -133,11 +140,11 @@ If **`expo run:ios`** / **`xcodebuild`** fails with **“No profiles for `com.�
 1. **Use the workspace** — Open **`app/ios/CafeSocial.xcworkspace`** (not `.xcodeproj`).
 2. **Xcode → Settings → Accounts** — Add your **Apple ID** (free or paid developer).
 3. **Target `CafeSocial` → Signing & Capabilities** — Turn on **Automatically manage signing**, pick your **Team**. If the bundle ID isn’t registered yet, Xcode will offer to create it.
-4. **CLI from the repo** — After the account works in Xcode once, you can try:
+4. **CLI from the repo** — After the account works in Xcode once, build to the device with:
    ```bash
-   cd app && npx expo run:ios --device -- -allowProvisioningUpdates
+   cd app && npm run ios:device
    ```
-   (`npm run ios:device` if you use the script in `app/package.json`.)
+   (Same as `npx expo run:ios --device`.) Do **not** append `-- -allowProvisioningUpdates`: Expo’s CLI parses `-allowProvisioningUpdates` as short flags and treats **`-p`** as **Metro `--port`**, which causes `option requires argument … -p`. Expo already passes **`-allowProvisioningUpdates`** to **xcodebuild** when it resolves a **development team** for device builds.
 5. **Wrong team in git** — If `DEVELOPMENT_TEAM` in `ios/…/project.pbxproj` is **not** your team, change it in Xcode (or replace with your 10-character Team ID from [developer.apple.com](https://developer.apple.com/account)).
 6. **Simulator (no device profile)** — For quick JS/native iteration without a physical device profile:
    ```bash

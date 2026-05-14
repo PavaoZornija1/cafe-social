@@ -81,6 +81,15 @@ Za vas to znači: **digitalni kanal** koji može podstaknuti ponovne posjete, du
 
 ---
 
+## 7. Digitalni alati u partnerskom portalu (kratko)
+
+- **ROI na prvi pogled:** zaslon „Analytics“ sada prikazuje usporedbu s prethodnim istim UTC razdobljem (posjetitelji, otkupi, stopa posjet–otkup, udjel ponovnih posjetitelja, broj poslanih kampanjskih push poruka).  
+- **Predlošci kampanja:** gumbi koji u skicu ubace naslov i tekst obavijesti (prilagodite brendu prije slanja).  
+- **Playbook u portalu:** kratka lista (geozona, test QR-a, perkovi, poster, osoblje) usklađena s ovim prilogom.  
+- **Redoslijed narudžbe (push):** copy se može vezati za **tip lokala** u CMS-u (super admin), inače vrijede zadane platforme poruke.
+
+---
+
 **Kontakt:** _________________________  
 
 Srdačan pozdrav,  

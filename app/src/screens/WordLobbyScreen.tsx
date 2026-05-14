@@ -1,7 +1,10 @@
+import { useAuth } from '@clerk/expo';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { apiGet } from '../lib/api';
+import type { MeSummaryDto } from '../lib/meSummary';
 import type { RootStackParamList } from '../navigation/type';
 import { toApiWordLanguage } from '../lib/wordDeckLanguage';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -29,10 +32,35 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
   const { venueId, challengeId } = route.params ?? {};
   const [difficulty, setDifficulty] = useState<Difficulty>('easy');
   const [playKind, setPlayKind] = useState<PlayKind>('solo');
+  /** Versus only: ranked affects rating (casual does not). */
+  const [versusRanked, setVersusRanked] = useState(false);
   const [wordCount, setWordCount] = useState<number>(5);
   const [wordCategory, setWordCategory] = useState<(typeof WORD_CATEGORY_KEYS)[number] | null>(
     null,
   );
+
+  const { isLoaded, getToken } = useAuth();
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
+  const [subscriptionActive, setSubscriptionActive] = useState(false);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = await getTokenRef.current();
+        if (!token) return;
+        const summary = await apiGet<MeSummaryDto>('/players/me/summary', token);
+        if (!cancelled) setSubscriptionActive(Boolean(summary.subscriptionActive));
+      } catch {
+        // Non-blocking — without a known sub, we just hide the global CTA.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded]);
 
   const difficultyLabel = useMemo(() => {
     if (difficulty === 'easy') return t('wordLobby.easyDesc');
@@ -65,6 +93,33 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
       create: true,
       wordCount,
       wordCategory: wordCategory ?? undefined,
+      ranked: playKind === 'versus' && versusRanked ? true : undefined,
+    });
+  };
+
+  const onQueueAtVenue = () => {
+    if (!venueId) return;
+    if (playKind !== 'coop' && playKind !== 'versus') return;
+    navigation.navigate('WordVenueQueue', {
+      venueId,
+      challengeId,
+      mode: playKind,
+      difficulty,
+      wordCount,
+      wordCategory: wordCategory ?? undefined,
+      ranked: playKind === 'versus' && versusRanked ? true : undefined,
+    });
+  };
+
+  const onQueueAnywhere = () => {
+    if (playKind !== 'coop' && playKind !== 'versus') return;
+    navigation.navigate('WordVenueQueue', {
+      challengeId,
+      mode: playKind,
+      difficulty,
+      wordCount,
+      wordCategory: wordCategory ?? undefined,
+      ranked: playKind === 'versus' && versusRanked ? true : undefined,
     });
   };
 
@@ -109,6 +164,37 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
               ? t('wordLobby.modeCoopHint')
               : t('wordLobby.modeVersusHint')}
         </Text>
+
+        {playKind === 'versus' ? (
+          <>
+            <Text style={styles.sectionTitle}>{t('wordLobby.versusMatchTypeTitle')}</Text>
+            <View style={styles.segmentRow}>
+              <Pressable
+                onPress={() => setVersusRanked(false)}
+                style={({ pressed }) => [
+                  styles.segment,
+                  pressed && styles.segmentPressed,
+                  !versusRanked && styles.segmentActive,
+                ]}
+              >
+                <Text style={styles.segmentText}>{t('wordLobby.versusCasual')}</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setVersusRanked(true)}
+                style={({ pressed }) => [
+                  styles.segment,
+                  pressed && styles.segmentPressed,
+                  versusRanked && styles.segmentActive,
+                ]}
+              >
+                <Text style={styles.segmentText}>{t('wordLobby.versusRanked')}</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.modeHint}>
+              {versusRanked ? t('wordLobby.versusRankedHint') : t('wordLobby.versusCasualHint')}
+            </Text>
+          </>
+        ) : null}
 
         <Text style={styles.sectionTitle}>{t('wordLobby.deckLengthTitle')}</Text>
         <View style={styles.chipRow}>
@@ -200,6 +286,21 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
           </Text>
         </Pressable>
 
+        {venueId && (playKind === 'coop' || playKind === 'versus') ? (
+          <Pressable onPress={onQueueAtVenue} style={styles.queueBtn}>
+            <Text style={styles.queueBtnText}>{t('wordLobby.queueAtVenue')}</Text>
+          </Pressable>
+        ) : null}
+
+        {subscriptionActive && (playKind === 'coop' || playKind === 'versus') ? (
+          <>
+            <Pressable onPress={onQueueAnywhere} style={styles.queueBtn}>
+              <Text style={styles.queueBtnText}>{t('wordLobby.queueAnywhere')}</Text>
+            </Pressable>
+            <Text style={styles.modeHint}>{t('wordLobby.queueAnywhereHint')}</Text>
+          </>
+        ) : null}
+
         <Pressable
           onPress={() => navigation.navigate('WordMatchJoin', { venueId, challengeId })}
           style={styles.secondary}
@@ -267,6 +368,16 @@ function createStyles(colors: AppColors) {
     alignItems: 'center',
   },
   playBtnText: { color: colors.textInverse, fontWeight: '900', fontSize: 16 },
+  queueBtn: {
+    marginTop: 12,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.honey,
+  },
+  queueBtnText: { color: colors.honeyDark, fontWeight: '900', fontSize: 15 },
   secondary: {
     marginTop: 14,
     paddingVertical: 12,

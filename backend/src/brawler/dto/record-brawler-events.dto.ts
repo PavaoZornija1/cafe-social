@@ -37,5 +37,9 @@ export class RecordBrawlerEventsDto {
   @ValidateNested({ each: true })
   @Type(() => BrawlerEventInputDto)
   events!: BrawlerEventInputDto[];
+
+  @IsOptional()
+  @IsInt()
+  ifSnapshotRev?: number;
 }
 

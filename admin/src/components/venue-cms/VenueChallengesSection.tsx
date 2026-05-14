@@ -9,13 +9,18 @@ import {
 } from "@tanstack/react-table";
 import { useEffect, useMemo, useState } from "react";
 import { ConfirmModal } from "@/components/ConfirmModal";
-import { usePatchChallengeMutation, useVenueChallengesQuery } from "@/lib/queries";
+import {
+  usePatchChallengeMutation,
+  useVenueChallengesQuery,
+  useVenuePerksQuery,
+} from "@/lib/queries";
 
 type Ch = {
   id: string;
   title: string;
   activeFrom: string | null;
   activeTo: string | null;
+  rewardPerkId: string | null;
 };
 
 const colHelper = createColumnHelper<Ch>();
@@ -40,6 +45,7 @@ export function VenueChallengesSection({
   variant = "page",
 }: Props) {
   const q = useVenueChallengesQuery(venueId, getToken, enabled && Boolean(venueId));
+  const perksQ = useVenuePerksQuery(venueId, getToken, enabled && Boolean(venueId));
   const patchMut = usePatchChallengeMutation(getToken, venueId);
   const [edits, setEdits] = useState<Record<string, { from: string; to: string }>>({});
   const [saveChallenge, setSaveChallenge] = useState<{
@@ -71,6 +77,38 @@ export function VenueChallengesSection({
             <div className="text-xs font-mono text-slate-500">{info.row.original.id}</div>
           </div>
         ),
+      }),
+      colHelper.display({
+        id: "reward",
+        header: "Completion reward",
+        cell: ({ row }) => {
+          const r = row.original;
+          const perks = perksQ.data ?? [];
+          return (
+            <label className="flex min-w-[200px] max-w-[320px] flex-col gap-1">
+              <span className={fieldLbl}>Perk issued on complete</span>
+              <select
+                className={fieldDt}
+                disabled={patchMut.isPending || perksQ.isPending}
+                value={r.rewardPerkId ?? ""}
+                onChange={async (e) => {
+                  const v = e.target.value;
+                  await patchMut.mutateAsync({
+                    id: r.id,
+                    body: { rewardPerkId: v === "" ? null : v },
+                  });
+                }}
+              >
+                <option value="">None</option>
+                {perks.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.title} ({p.code})
+                  </option>
+                ))}
+              </select>
+            </label>
+          );
+        },
       }),
       colHelper.display({
         id: "window",
@@ -130,7 +168,7 @@ export function VenueChallengesSection({
         },
       }),
     ],
-    [edits, patchMut.isPending],
+    [edits, patchMut.isPending, perksQ.data, perksQ.isPending],
   );
 
   const table = useReactTable({
@@ -238,7 +276,7 @@ export function VenueChallengesSection({
               {table.getRowModel().rows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={2}
+                    colSpan={3}
                     className="border-t border-slate-100 px-3 py-6 text-center text-sm text-slate-500"
                   >
                     No challenges for this venue.

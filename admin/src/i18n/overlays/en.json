@@ -72,11 +72,11 @@
   },
   "partnerSubscriptions": {
     "title": "Subscriptions & billing",
-    "lead": "Platform billing is per organization. Subscribe in-app with Stripe’s Payment Element, or use hosted Checkout — card numbers never touch our servers; Stripe webhooks update your org status.",
+    "lead": "Platform billing is per organization. Start your subscription inside this portal with Stripe Payment Element, then manage invoices and payment methods from Stripe customer portal.",
     "backVenues": "← Venues & dashboard",
     "sectionStripe": "Stripe billing",
     "sectionHowItWorks": "How billing works",
-    "stepCheckout": "Use “Subscribe in this app” for an embedded card form (Stripe Elements), or “Pay on Stripe’s site” for hosted Checkout.",
+    "stepCheckout": "Use “Subscribe in this app” to complete card setup without leaving the portal (Stripe Elements).",
     "stepPortal": "After billing is active, use “Open Stripe customer portal” for invoices, payment methods, and plan changes.",
     "stripeExplainer": "Invoices, payment history, and plan changes are handled in Stripe’s secure customer portal. We do not store full card numbers in Cafe Social.",
     "noOrgs": "None of your venues are linked to an organization yet. Once they are, subscription and trial status will appear here.",
@@ -215,5 +215,26 @@
     "empty": "No venues yet.",
     "loadErrorBackSuper": "Platform",
     "loadErrorBackPartner": "Partner venues"
+  },
+  "staffRedemptions": {
+    "backVenues": "← My venues",
+    "title": "Redeem code verification",
+    "leadStart": "Signed in with a staff account. Match the guest's",
+    "codeLabel": "8-character code",
+    "leadEnd": "after redeeming; it must appear on this UTC day list before you hand over the perk.",
+    "openDashboard": "Open the partner dashboard",
+    "dashboardHint": "for this venue to review moderation reports, appeals, and bans (requires MANAGER or OWNER role).",
+    "dateLabel": "Date (UTC, YYYY-MM-DD)",
+    "refresh": "Refresh",
+    "newestFirst": "newest first",
+    "emptyDay": "No redemption records for this day.",
+    "statusActive": "Active",
+    "statusVoided": "Voided",
+    "columns": {
+      "code": "Code",
+      "redeemed": "Redeemed",
+      "perk": "Perk",
+      "status": "Status"
+    }
   }
 }

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { InboxKind, InboxStatus } from '@prisma/client';
+import { $Enums, InboxKind, type InboxStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -17,13 +17,13 @@ export class PlayerInboxService {
         recipientId: params.recipientId,
         actorId: params.actorId,
         kind: InboxKind.FRIEND_REQUEST,
-        status: InboxStatus.PENDING,
+        status: $Enums.InboxStatus.PENDING,
         friendshipId: params.friendshipId,
       },
       update: {
         recipientId: params.recipientId,
         actorId: params.actorId,
-        status: InboxStatus.PENDING,
+        status: $Enums.InboxStatus.PENDING,
         resolvedAt: null,
       },
     });
@@ -31,7 +31,7 @@ export class PlayerInboxService {
 
   async resolveFriendRequestInbox(
     friendshipId: string,
-    status: InboxStatus.ACCEPTED | InboxStatus.DECLINED | InboxStatus.CANCELLED,
+    status: Extract<InboxStatus, 'ACCEPTED' | 'DECLINED' | 'CANCELLED'>,
   ): Promise<void> {
     await this.prisma.playerInboxItem.updateMany({
       where: { friendshipId },
@@ -50,13 +50,13 @@ export class PlayerInboxService {
         recipientId: params.recipientId,
         actorId: params.actorId,
         kind: InboxKind.PARTY_INVITE,
-        status: InboxStatus.PENDING,
+        status: $Enums.InboxStatus.PENDING,
         partyInviteId: params.partyInviteId,
       },
       update: {
         recipientId: params.recipientId,
         actorId: params.actorId,
-        status: InboxStatus.PENDING,
+        status: $Enums.InboxStatus.PENDING,
         resolvedAt: null,
       },
     });
@@ -64,7 +64,7 @@ export class PlayerInboxService {
 
   async resolvePartyInviteInbox(
     partyInviteId: string,
-    status: InboxStatus.ACCEPTED | InboxStatus.DECLINED,
+    status: Extract<InboxStatus, 'ACCEPTED' | 'DECLINED'>,
   ): Promise<void> {
     await this.prisma.playerInboxItem.updateMany({
       where: { partyInviteId },

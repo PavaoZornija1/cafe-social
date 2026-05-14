@@ -15,11 +15,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ownerFetch } from "@/lib/portalApi";
 import { PORTAL_VENUE_CONTEXT_EVENT } from "@/lib/portalVenueContext";
 import { OwnerAnalyticsCharts } from "@/components/OwnerAnalyticsCharts";
+import { OwnerAnalyticsRoiSnapshot } from "@/components/OwnerAnalyticsRoiSnapshot";
 import { PartnerReadOnlyBanner } from "@/components/PartnerReadOnlyBanner";
 import { partnerVenueMutationsBlockedReason } from "@/lib/partnerVenueReadOnly";
 import {
   invalidateOwnerVenuePartnerQueries,
   ownerAnalyticsQueryString,
+  type OwnerCampaignBindingRow,
   type OwnerReceiptSummary,
   type OwnerStaffInviteRow,
   type OwnerVenueCampaignRow,
@@ -37,6 +39,9 @@ import {
   useOwnerVenueGeofenceDwellQuery,
   useOwnerVenueModerationAuditQuery,
   useOwnerVenueModerationBansQuery,
+  useOwnerAddCampaignBindingMutation,
+  useOwnerCampaignBindingsQuery,
+  useOwnerDeleteCampaignBindingMutation,
   useOwnerVenueCampaignsQuery,
   useOwnerVenueReceiptsQuery,
   useOwnerVenueModerationReportsQuery,
@@ -47,6 +52,11 @@ import {
   useOwnerVoidRedemptionMutation,
   useStaffRedemptionsQuery,
 } from "@/lib/queries";
+import { CAMPAIGN_COPY_TEMPLATES } from "@/lib/campaignCopyTemplates";
+import {
+  previousComparisonUtcRange,
+  resolveFrontendAnalyticsPeriod,
+} from "@/lib/analyticsPeriodClient";
 
 type VenueMetaRow = {
   role: "EMPLOYEE" | "MANAGER" | "OWNER";
@@ -72,12 +82,14 @@ type VenueMetaRow = {
 type RedemptionRow = {
   redemptionId: string;
   staffVerificationCode: string;
-  redeemedAt: string;
+  issuedAt: string;
+  redeemedAt: string | null;
+  expiresAt: string;
+  status: string;
   perkCode: string;
   perkTitle: string;
   voidedAt: string | null;
   voidReason: string | null;
-  staffAcknowledgedAt: string | null;
 };
 
 function todayUtc(): string {
@@ -100,6 +112,106 @@ const perkCol = createColumnHelper<{
 }>();
 const dayCountCol = createColumnHelper<{ day: string; count: number }>();
 const hourCol = createColumnHelper<{ hour: number; count: number }>();
+
+const CAMPAIGN_BINDING_TYPES = ["CHALLENGE", "VENUE_PERK", "VENUE_OFFER"] as const;
+
+function CampaignBindingsEditor({
+  venueId,
+  campaignId,
+  getToken,
+  readOnlyDisabled,
+}: {
+  venueId: string;
+  campaignId: string;
+  getToken: () => Promise<string | null>;
+  readOnlyDisabled: boolean;
+}) {
+  const bindingsQ = useOwnerCampaignBindingsQuery(venueId, campaignId, getToken, true);
+  const addMut = useOwnerAddCampaignBindingMutation(venueId, campaignId, getToken);
+  const delMut = useOwnerDeleteCampaignBindingMutation(venueId, campaignId, getToken);
+  const [entityType, setEntityType] = useState<(typeof CAMPAIGN_BINDING_TYPES)[number]>(
+    "CHALLENGE",
+  );
+  const [entityId, setEntityId] = useState("");
+
+  const rows = bindingsQ.data ?? [];
+
+  return (
+    <div className="border-t border-slate-200 bg-slate-50 p-4 space-y-3 text-sm">
+      <p className="text-xs text-slate-600">
+        Metadata links for this campaign (challenges, perks, offers at this venue). No automation
+        runs on these yet.
+      </p>
+      {bindingsQ.isPending ? <p className="text-slate-500">Loading bindings…</p> : null}
+      {bindingsQ.isError && bindingsQ.error instanceof Error ? (
+        <p className="text-red-700 text-xs">{bindingsQ.error.message}</p>
+      ) : null}
+      {rows.length === 0 && !bindingsQ.isPending ? (
+        <p className="text-xs text-slate-500">No bindings.</p>
+      ) : null}
+      <ul className="space-y-1">
+        {rows.map((b: OwnerCampaignBindingRow) => (
+          <li
+            key={b.id}
+            className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-800"
+          >
+            <span>
+              <span className="font-medium">{b.entityType}</span>{" "}
+              <code className="bg-white px-1 rounded border border-slate-200">{b.entityId}</code>
+            </span>
+            <button
+              type="button"
+              disabled={readOnlyDisabled || delMut.isPending}
+              className="text-red-700 hover:underline disabled:opacity-50"
+              onClick={() => void delMut.mutateAsync(b.id)}
+            >
+              Remove
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="flex flex-wrap gap-2 items-end pt-2 border-t border-slate-200">
+        <label className="text-xs text-slate-600 flex flex-col gap-1">
+          Type
+          <select
+            className="border border-slate-300 rounded px-2 py-1 text-sm bg-white"
+            value={entityType}
+            disabled={readOnlyDisabled}
+            onChange={(e) =>
+              setEntityType(e.target.value as (typeof CAMPAIGN_BINDING_TYPES)[number])
+            }
+          >
+            {CAMPAIGN_BINDING_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-xs text-slate-600 flex flex-col gap-1 min-w-[200px] flex-1">
+          Entity UUID
+          <input
+            className="border border-slate-300 rounded px-2 py-1 text-sm bg-white font-mono"
+            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+            value={entityId}
+            disabled={readOnlyDisabled}
+            onChange={(e) => setEntityId(e.target.value.trim())}
+          />
+        </label>
+        <button
+          type="button"
+          disabled={readOnlyDisabled || addMut.isPending || !entityId}
+          className="bg-brand text-white text-sm px-3 py-2 rounded-lg disabled:opacity-50"
+          onClick={() => {
+            void addMut.mutateAsync({ entityType, entityId }).then(() => setEntityId(""));
+          }}
+        >
+          Add binding
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function OwnerVenueDetailPage() {
   const params = useParams();
@@ -126,6 +238,7 @@ export default function OwnerVenueDetailPage() {
   const [appealNotifyPlayer, setAppealNotifyPlayer] = useState<Record<string, boolean>>({});
   const [reportDismissNotes, setReportDismissNotes] = useState<Record<string, string>>({});
   const [auditOpen, setAuditOpen] = useState(false);
+  const [bindingsCampaignId, setBindingsCampaignId] = useState<string | null>(null);
 
   const STAFF_NOTE_TEMPLATES = [
     "Reviewed — no policy violation found.",
@@ -187,6 +300,23 @@ export default function OwnerVenueDetailPage() {
     Boolean(isLoaded && metaRow && canAnalytics),
     analyticsFromYmd.trim() || undefined,
     analyticsToYmd.trim() || undefined,
+  );
+  const analyticsComparisonRange = useMemo(() => {
+    const cur = resolveFrontendAnalyticsPeriod(
+      days,
+      analyticsFromYmd.trim() || undefined,
+      analyticsToYmd.trim() || undefined,
+    );
+    return previousComparisonUtcRange(cur.startDay, cur.endDay);
+  }, [days, analyticsFromYmd, analyticsToYmd]);
+
+  const analyticsPrevQ = useOwnerVenueAnalyticsQuery(
+    venueId,
+    days,
+    getToken,
+    Boolean(isLoaded && metaRow && canAnalytics),
+    analyticsComparisonRange.from,
+    analyticsComparisonRange.to,
   );
   const geofenceDwellQ = useOwnerVenueGeofenceDwellQuery(
     venueId,
@@ -370,7 +500,7 @@ export default function OwnerVenueDetailPage() {
           <span className="font-mono text-amber-900">{c.getValue()}</span>
         ),
       }),
-      redemptionCol.accessor("redeemedAt", {
+      redemptionCol.accessor("issuedAt", {
         header: "Time (UTC)",
         cell: (c) => (
           <span className="text-slate-600">{new Date(c.getValue()).toISOString()}</span>
@@ -391,11 +521,7 @@ export default function OwnerVenueDetailPage() {
         header: "Status",
         cell: ({ row }) => (
           <span className="text-xs text-slate-500">
-            {row.original.voidedAt
-              ? "Voided"
-              : row.original.staffAcknowledgedAt
-                ? "Ack"
-                : "—"}
+            {row.original.status}
           </span>
         ),
       }),
@@ -411,7 +537,7 @@ export default function OwnerVenueDetailPage() {
                   readOnlyDisabled ||
                   ackMut.isPending ||
                   voidMut.isPending ||
-                  !!row.original.staffAcknowledgedAt
+                  row.original.status === "REDEEMED"
                 }
                 onClick={() => void ackMut.mutateAsync(row.original.redemptionId)}
                 className="text-xs text-brand text-left disabled:opacity-50"
@@ -522,8 +648,25 @@ export default function OwnerVenueDetailPage() {
             <span className="text-xs text-slate-500">Sent</span>
           ),
       }),
+      campaignCol.display({
+        id: "bindings",
+        header: "",
+        cell: ({ row }) => (
+          <button
+            type="button"
+            className="text-sm text-brand"
+            onClick={() =>
+              setBindingsCampaignId((prev) =>
+                prev === row.original.id ? null : row.original.id,
+              )
+            }
+          >
+            {bindingsCampaignId === row.original.id ? "Hide bindings" : "Bindings"}
+          </button>
+        ),
+      }),
     ],
-    [readOnlyDisabled, sendCampMut],
+    [readOnlyDisabled, sendCampMut, bindingsCampaignId],
   );
 
   const campaignTable = useReactTable({
@@ -798,29 +941,44 @@ export default function OwnerVenueDetailPage() {
               </Link>
             </p>
           ) : null}
-          {isOwner && orgBilling?.billingPortalUrl && !hidePartnerFinancialUi ? (
-            <p className="text-sm mt-2">
-              <a
-                href={orgBilling.billingPortalUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-emerald-700 hover:underline"
-              >
-                Subscription / billing portal →
-              </a>
-              <span className="text-slate-500 ml-2">
-                {orgBilling.platformBillingPlan ?? "—"} · {orgBilling.platformBillingStatus}
-                {orgBilling.platformBillingRenewsAt
-                  ? ` · renews ${orgBilling.platformBillingRenewsAt.slice(0, 10)}`
-                  : ""}
-                {orgBilling.platformBillingStatus === "ACTIVE_CANCELING"
-                  ? " · ends at period end"
-                  : ""}
-                {orgBilling.platformBillingStatus === "CANCELED"
-                  ? " · contact support to restore organization billing"
-                  : ""}
-              </span>
-            </p>
+          {isOwner && orgBilling && !hidePartnerFinancialUi ? (
+            <>
+              {orgBilling.billingPortalUrl ? (
+                <p className="text-sm mt-2">
+                  <a
+                    href={orgBilling.billingPortalUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-emerald-700 hover:underline"
+                  >
+                    Subscription / billing portal →
+                  </a>
+                  <span className="text-slate-500 ml-2">
+                    {orgBilling.platformBillingPlan ?? "—"} · {orgBilling.platformBillingStatus}
+                    {orgBilling.platformBillingRenewsAt
+                      ? ` · renews ${orgBilling.platformBillingRenewsAt.slice(0, 10)}`
+                      : ""}
+                    {orgBilling.platformBillingStatus === "ACTIVE_CANCELING"
+                      ? " · ends at period end"
+                      : ""}
+                    {orgBilling.platformBillingStatus === "CANCELED"
+                      ? " · contact support to restore organization billing"
+                      : ""}
+                  </span>
+                </p>
+              ) : (
+                <p className="text-sm mt-2 text-slate-500">
+                  Billing portal URL not configured — contact support to connect Stripe customer portal.
+                </p>
+              )}
+              <p className="text-xs text-slate-600 max-w-2xl mt-2 leading-relaxed">
+                <strong>Commercial clarity:</strong> the organization subscription covers partner portal
+                access and venue features. In-app <strong>guest</strong> subscriptions and optional
+                play-time top-ups are billed by the app stores to the Cafe Social product account (not
+                shared with venues unless separately contracted). Your contract defines venue fees;
+                this portal shows Stripe org status only.
+              </p>
+            </>
           ) : null}
         </div>
         <UserButton />
@@ -837,6 +995,48 @@ export default function OwnerVenueDetailPage() {
           </div>
         )}
         {readOnlyMessage ? <PartnerReadOnlyBanner message={readOnlyMessage} /> : null}
+
+        {canAnalytics && metaRow && (
+          <section className="border border-emerald-200 rounded-xl p-4 space-y-3 bg-emerald-50/40">
+            <h2 className="text-lg font-medium text-slate-900">Partner playbook</h2>
+            <p className="text-sm text-slate-700">
+              Short checklist to go live with QR, staff, and a first campaign. Full printable brief:{" "}
+              <code className="text-xs bg-white/80 px-1 rounded border border-emerald-200">
+                docs/prilog-za-partnera-cafe-social.md
+              </code>{" "}
+              in the repo.
+            </p>
+            <ol className="list-decimal list-inside text-sm text-slate-700 space-y-1.5">
+              <li>
+                <strong>Geofence</strong> — draw once in the CMS (super admin) so detection matches your
+                floor.
+              </li>
+              <li>
+                <strong>Test QR / deep link</strong> — scan or open{" "}
+                <code className="text-xs bg-white/80 px-1 rounded break-all">
+                  cafesocial://unlock?venueId={venueId}
+                </code>{" "}
+                on a phone with the app installed.
+              </li>
+              <li>
+                <strong>Sample perks & challenges</strong> — publish one simple perk staff can honour and
+                one weekly challenge in the CMS.
+              </li>
+              <li>
+                <strong>Poster copy</strong> — use the partner brief wording for table tents; point guests
+                to the app + your venue context.
+              </li>
+              <li>
+                <strong>Staff shift</strong> — one person owns redemption verification; managers can void
+                with reason (audit trail below).
+              </li>
+            </ol>
+            <p className="text-xs text-slate-600">
+              Order-nudge push copy is driven by venue type templates in the CMS when set; otherwise
+              platform defaults apply.
+            </p>
+          </section>
+        )}
 
         {canAnalytics && metaRow && (
           <section>
@@ -925,6 +1125,12 @@ export default function OwnerVenueDetailPage() {
                     ? ` · Venue TZ: ${analytics.analyticsTimeZone}`
                     : ""}
                 </p>
+                <OwnerAnalyticsRoiSnapshot
+                  current={analytics}
+                  previous={analyticsPrevQ.data}
+                  previousLoading={analyticsPrevQ.isLoading}
+                  campaigns={campaignsQ.data ?? []}
+                />
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-sm text-slate-600">Active redemptions</p>
@@ -1204,6 +1410,14 @@ export default function OwnerVenueDetailPage() {
         {canAnalytics && metaRow && (
           <section className="border border-slate-200 rounded-xl p-4 space-y-4">
             <h2 className="text-lg font-medium">Moderation</h2>
+            <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-slate-800">
+              <p className="font-medium text-slate-900">Trust &amp; safety without extra tooling</p>
+              <p className="text-xs text-slate-700 mt-1">
+                Player reports, venue bans, and ban appeals stay in this portal — bans block play and
+                redemptions here only. Use dismiss when no action is needed; audit log below captures
+                staff actions for accountability.
+              </p>
+            </div>
             <p className="text-xs text-slate-500">
               Open player reports and venue bans. Banning blocks play and redemptions at this
               location. Dismiss clears a report without banning.
@@ -1714,6 +1928,32 @@ export default function OwnerVenueDetailPage() {
               Push to players who visited this venue in the last N UTC days. Only sends to accounts
               with partner marketing on and not in total privacy (server-side).
             </p>
+            <p className="text-xs text-slate-600">
+              <strong>Order nudge</strong> (after dwell) uses optional per-venue overrides in the CMS, else
+              templates matched to this venue&apos;s <strong>venue types</strong> (super admin), else
+              platform defaults.
+            </p>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-medium text-slate-700 mb-2">Suggested copy (apply to draft)</p>
+              <div className="flex flex-wrap gap-2">
+                {CAMPAIGN_COPY_TEMPLATES.map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    disabled={readOnlyDisabled}
+                    onClick={() => {
+                      campaignForm.setFieldValue("name", tpl.name);
+                      campaignForm.setFieldValue("title", tpl.title);
+                      campaignForm.setFieldValue("body", tpl.body);
+                      campaignForm.setFieldValue("segmentDays", tpl.segmentDays);
+                    }}
+                    className="text-xs border border-slate-300 rounded-full px-3 py-1 bg-white hover:bg-slate-100 disabled:opacity-50"
+                  >
+                    {tpl.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <form
               className="grid gap-2 sm:grid-cols-2"
               onSubmit={(e) => {
@@ -1783,22 +2023,33 @@ export default function OwnerVenueDetailPage() {
               {campaigns.length === 0 ? (
                 <p className="p-4 text-slate-500 text-sm">No campaigns yet.</p>
               ) : (
-                <table className="w-full text-sm">
-                  <tbody>
-                    {campaignTable.getRowModel().rows.map((row) => (
-                      <tr
-                        key={row.id}
-                        className="border-b border-slate-200 last:border-0 bg-brand-light/60"
-                      >
-                        {row.getVisibleCells().map((cell) => (
-                          <td key={cell.id} className="p-3">
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <>
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {campaignTable.getRowModel().rows.map((row) => (
+                        <tr
+                          key={row.id}
+                          className="border-b border-slate-200 last:border-0 bg-brand-light/60"
+                        >
+                          {row.getVisibleCells().map((cell) => (
+                            <td key={cell.id} className="p-3">
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {bindingsCampaignId ? (
+                    <CampaignBindingsEditor
+                      key={bindingsCampaignId}
+                      venueId={venueId}
+                      campaignId={bindingsCampaignId}
+                      getToken={getToken}
+                      readOnlyDisabled={readOnlyDisabled}
+                    />
+                  ) : null}
+                </>
               )}
             </div>
           </section>
@@ -1903,7 +2154,13 @@ export default function OwnerVenueDetailPage() {
 
         {redemptionsPayload && metaRow && (
           <section>
-            <h2 className="text-lg font-medium mb-4">Perk redemptions</h2>
+            <h2 className="text-lg font-medium mb-2">Perk redemptions</h2>
+            <p className="text-sm text-slate-600 mb-4 max-w-2xl">
+              Each redemption shows a <strong>staff verification code</strong> — match it before
+              honouring the perk. Managers and owners can <strong>void</strong> with a reason (row greys
+              out; exports and analytics reflect voids). This gives a simple fraud-resistant audit trail
+              without spreadsheets.
+            </p>
             {canAnalytics && (
               <div className="mb-4 flex flex-wrap items-center gap-2">
                 <input

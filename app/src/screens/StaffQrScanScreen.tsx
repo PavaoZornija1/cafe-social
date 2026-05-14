@@ -2,6 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
 import React, { useCallback, useState, useMemo } from 'react';
 import {
+  Alert,
   Platform,
   Pressable,
   SafeAreaView,
@@ -14,6 +15,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { parseStaffVerificationFromQr } from '../lib/staffQr';
+import { scanAndRedeemStaffReward } from '../lib/ownerStaffApi';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 
@@ -23,7 +25,7 @@ export default function StaffQrScanScreen({ navigation, route }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
-  const { isLoaded } = useAuth();
+  const { isLoaded, getToken } = useAuth();
   const { venueId, venueName } = route.params;
   const [permission, requestPermission] = useCameraPermissions();
   const [scanEnabled, setScanEnabled] = useState(true);
@@ -44,6 +46,25 @@ export default function StaffQrScanScreen({ navigation, route }: Props) {
     [navigation, venueId, venueName],
   );
 
+  const scanRedeem = useCallback(
+    async (code: string) => {
+      if (!isLoaded) return;
+      const token = await getToken();
+      if (!token) {
+        setError(t('staff.signInFirst'));
+        return;
+      }
+      try {
+        await scanAndRedeemStaffReward(token, venueId, code);
+        Alert.alert(t('staff.scanSuccessTitle'), t('staff.scanSuccessBody'));
+        goMatch(code);
+      } catch (e) {
+        setError((e as Error).message ?? t('staff.loadFailed'));
+      }
+    },
+    [getToken, goMatch, isLoaded, t, venueId],
+  );
+
   const onBarcodeScanned = useCallback(
     ({ data }: { data: string }) => {
       if (!scanEnabled) return;
@@ -51,12 +72,12 @@ export default function StaffQrScanScreen({ navigation, route }: Props) {
       if (code) {
         setScanEnabled(false);
         setError(null);
-        goMatch(code);
+        void scanRedeem(code);
       } else {
         setError(t('staff.qrUnrecognized'));
       }
     },
-    [scanEnabled, goMatch, t],
+    [scanEnabled, scanRedeem, t],
   );
 
   const applyManual = () => {
@@ -66,7 +87,7 @@ export default function StaffQrScanScreen({ navigation, route }: Props) {
       setError(t('staff.codeInvalid'));
       return;
     }
-    goMatch(code);
+    void scanRedeem(code);
   };
 
   return (

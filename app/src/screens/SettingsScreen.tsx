@@ -29,6 +29,8 @@ import {
   isRevenueCatNativeConfigured,
   pickPrimaryPackage,
 } from '../lib/revenuecat';
+import { getVenuePlayBudgetIapCatalog } from '../lib/venuePlayBudgetCatalog';
+import { promptVenuePlayTimePurchaseDialog } from '../lib/venuePlayBudgetPurchaseUi';
 import { SUBSCRIPTION_MANAGE_URL } from '../lib/subscriptionUrl';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
@@ -401,6 +403,15 @@ export default function SettingsScreen({ navigation }: Props) {
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.subscription')}</Text>
         <Text style={styles.hint}>{t('settings.subscriptionHint')}</Text>
+        {!subscriptionActive ? (
+          <View style={styles.card}>
+            <Text style={styles.sectionInnerLabel}>{t('settings.subscriptionBenefitsTitle')}</Text>
+            <Text style={[styles.cardText, { color: colors.text }]}>• {t('settings.subscriptionBenefitPlay')}</Text>
+            <Text style={[styles.cardText, { color: colors.text }]}>• {t('settings.subscriptionBenefitParties')}</Text>
+            <Text style={[styles.cardText, { color: colors.text }]}>• {t('settings.subscriptionBenefitGlobal')}</Text>
+            <Text style={[styles.cardTextMuted, { marginTop: 8 }]}>{t('settings.subscriptionBenefitFootnote')}</Text>
+          </View>
+        ) : null}
         {(rcNative && Platform.OS !== 'web') || SUBSCRIPTION_MANAGE_URL ? (
           <Text style={styles.paywallLead}>{t('settings.subscriptionPaywallLead')}</Text>
         ) : null}
@@ -504,6 +515,38 @@ export default function SettingsScreen({ navigation }: Props) {
           ) : null}
         </View>
 
+        {Platform.OS !== 'web' &&
+        rcNative &&
+        getVenuePlayBudgetIapCatalog().length > 0 &&
+        !subscriptionActive ? (
+          <>
+            <Text style={[styles.sectionLabel, styles.sectionSpacer]}>
+              {t('settings.venuePlayBudgetSection')}
+            </Text>
+            <Text style={styles.hint}>{t('settings.venuePlayBudgetHint')}</Text>
+            <View style={styles.card}>
+              <Text style={styles.cardText}>{t('settings.venuePlayBudgetLead')}</Text>
+              <Text style={[styles.cardText, { marginTop: 10 }]}>{t('settings.venuePlayBudgetFairPlay')}</Text>
+              <Pressable
+                disabled={rcBusy || privacyLoading}
+                style={({ pressed }) => [
+                  styles.linkRow,
+                  pressed && styles.actionRowPressed,
+                  (rcBusy || privacyLoading) && styles.actionRowDisabled,
+                ]}
+                onPress={() =>
+                  void promptVenuePlayTimePurchaseDialog({
+                    t,
+                    getToken: () => getTokenRef.current(),
+                  })
+                }
+              >
+                <Text style={styles.linkText}>{t('settings.venuePlayBudgetBuy')}</Text>
+              </Pressable>
+            </View>
+          </>
+        ) : null}
+
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.account')}</Text>
         <View style={styles.card}>
           <Text style={styles.cardText}>{t('settings.accountHint')}</Text>
@@ -590,6 +633,7 @@ function createStyles(colors: AppColors) {
   sectionLabel: { color: colors.text, fontSize: 14, fontWeight: '900', marginTop: 8 },
   sectionSpacer: { marginTop: 22 },
   hint: { color: colors.textMuted, fontSize: 12, marginTop: 6, lineHeight: 18 },
+  sectionInnerLabel: { color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 8 },
   langList: { marginTop: 12, gap: 8 },
   langRow: {
     flexDirection: 'row',

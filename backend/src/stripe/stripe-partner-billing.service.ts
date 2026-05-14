@@ -413,10 +413,18 @@ export class StripePartnerBillingService {
     });
     if (!org) throw new NotFoundException('Organization not found');
 
-    if (isPayingPartnerOrg(org.platformBillingStatus)) {
-      throw new BadRequestException(
-        'This organization already has active platform billing',
-      );
+    const billingSt = org.platformBillingStatus.trim().toUpperCase();
+    if (
+      billingSt === 'ACTIVE' ||
+      billingSt === 'TRIALING' ||
+      billingSt === 'ACTIVE_CANCELING'
+    ) {
+      return {
+        publishableKey,
+        clientSecret: null,
+        subscriptionId: org.stripeSubscriptionId ?? '',
+        subscriptionStatus: billingSt === 'TRIALING' ? 'trialing' : 'active',
+      };
     }
 
     const priceId =

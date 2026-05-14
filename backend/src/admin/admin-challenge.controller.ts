@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -27,6 +28,8 @@ class AdminPatchChallengeDto {
   resetsWeekly?: boolean;
   activeFrom?: string | null;
   activeTo?: string | null;
+  /** Set to `null` to clear. Must reference a perk for the same venue as the challenge. */
+  rewardPerkId?: string | null;
 }
 
 @Controller('admin')
@@ -63,6 +66,17 @@ export class AdminChallengeController {
     });
     if (!row) throw new NotFoundException('Challenge not found');
     this.cmsAccess.assertVenueInScope(scope, row.venueId);
+
+    if (dto.rewardPerkId !== undefined && dto.rewardPerkId !== null) {
+      const perk = await this.prisma.venuePerk.findFirst({
+        where: { id: dto.rewardPerkId, venueId: row.venueId },
+        select: { id: true },
+      });
+      if (!perk) {
+        throw new BadRequestException('rewardPerkId must be a perk belonging to this challenge venue');
+      }
+    }
+
     return this.prisma.challenge.update({
       where: { id },
       data: {
@@ -80,6 +94,7 @@ export class AdminChallengeController {
         ...(dto.activeTo !== undefined && {
           activeTo: dto.activeTo ? new Date(dto.activeTo) : null,
         }),
+        ...(dto.rewardPerkId !== undefined && { rewardPerkId: dto.rewardPerkId }),
       },
     });
   }
