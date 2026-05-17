@@ -14,15 +14,12 @@ import {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import LottieView from 'lottie-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BruiserSpriteView, type BruiserSpriteAnim } from '../components/BruiserSpriteView';
+import { HeroSpriteView, type HeroSpriteAnim } from '../components/HeroSpriteView';
 import { VirtualJoystick } from '../components/VirtualJoystick';
 import {
-  BRUISER_ANIM,
-  BRUISER_ARENA_HERO_ID,
-  BRUISER_FRAME_PX,
-  BRUISER_HIT_ANCHOR_OFFSET_X,
-  BRUISER_HIT_FINE_OFFSET_SHEET_PX,
-} from '../brawler/bruiserSpritesheet';
+  getHeroSpriteConfig,
+  isArenaSpriteHero,
+} from '../brawler/heroSpritesheets';
 import {
   buildArenaPlatforms,
   HERO_FEET_EMBED_FLOATING_PLATFORM_PX,
@@ -110,8 +107,6 @@ const BASE_MOVE_SPEED_PX = 260;
 const GRAVITY = 2200;
 const JUMP_VELOCITY = -640;
 const GROUND_STRIP_H = 40;
-/** Hero scale (~25% smaller than prior 1.65). */
-const SPRITE_SCALE = 1.65 * 0.75;
 const WALK_FRAME_MS = 140;
 
 const DUMMY_W = 52;
@@ -446,6 +441,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     ],
   );
 
+  const heroSprite = useMemo(() => getHeroSpriteConfig(heroId), [heroId]);
+  const heroSpriteLiveRef = useRef(heroSprite);
+  heroSpriteLiveRef.current = heroSprite;
+
   const playerX = useRef(0);
   const playerY = useRef(0);
   const dummiesRef = useRef<Dummy[]>([]);
@@ -474,8 +473,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const dmgFloatsRef = useRef<DmgFloat[]>([]);
   const dmgFloatIdRef = useRef(1);
 
-  const bodyW = BRUISER_FRAME_PX.w * SPRITE_SCALE;
-  const bodyH = BRUISER_FRAME_PX.h * SPRITE_SCALE;
+  const spriteScale = heroSprite?.displayScale ?? 1.65 * 0.75;
+  const bodyW = (heroSprite?.framePx.w ?? 64) * spriteScale;
+  const bodyH = (heroSprite?.framePx.h ?? 64) * spriteScale;
 
   const FEET_W = bodyW * 0.22;
 
@@ -525,7 +525,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const dashHitAppliedRef = useRef(false);
 
   const [, setRenderTick] = useState(0);
-  const spriteAnimRef = useRef<BruiserSpriteAnim>('idle');
+  const spriteAnimRef = useRef<HeroSpriteAnim>('idle');
   const walkFrameRef = useRef(0);
   const walkAccum = useRef(0);
   const lastSpawnKey = useRef({
@@ -901,7 +901,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   ]);
 
   useEffect(() => {
-    if (heroId !== BRUISER_ARENA_HERO_ID) {
+    if (!isArenaSpriteHero(heroId)) {
       navigation.replace('BrawlerLobby', { venueId: route.params.venueId });
     }
   }, [heroId, navigation, route.params.venueId]);
@@ -1242,6 +1242,22 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       }
 
       attackTimeLeft.current = Math.max(0, attackTimeLeft.current - dt);
+
+      if (attackTimeLeft.current > 0) {
+        const cfg = heroSpriteLiveRef.current;
+        const strip =
+          facing.current === 'right'
+            ? cfg?.anim.attackRight
+            : cfg?.anim.attackLeft;
+        if (strip && strip.frameCount > 0) {
+          const elapsed = ATTACK_DURATION_S - attackTimeLeft.current;
+          const t = Math.min(1, Math.max(0, elapsed / ATTACK_DURATION_S));
+          hitFrameRef.current = Math.min(
+            strip.frameCount - 1,
+            Math.floor(t * strip.frameCount),
+          );
+        }
+      }
 
       // Dummies: respawn / flash / knockback (runs every frame)
       let dummiesChanged = false;
@@ -1829,7 +1845,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
       prevPlayerY.current = playerY.current;
 
-      let nextAnim: BruiserSpriteAnim = 'idle';
+      let nextAnim: HeroSpriteAnim = 'idle';
       if (attacking) nextAnim = 'hit';
       else if (dashing) nextAnim = 'dash';
       else if (!onGround.current) nextAnim = 'jump';
@@ -1841,7 +1857,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         if (walkAccum.current >= WALK_FRAME_MS) {
           walkAccum.current %= WALK_FRAME_MS;
           walkFrameRef.current =
-            (walkFrameRef.current + 1) % BRUISER_ANIM.walkRight.frameCount;
+            (walkFrameRef.current + 1) %
+            (heroSpriteLiveRef.current?.anim.walkRight.frameCount ?? 6);
         }
       } else {
         walkAccum.current = 0;
@@ -1885,10 +1902,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   );
   const attackingNow = spriteAnimRef.current === 'hit';
   const hitFineSheetPx = attackingNow
-    ? BRUISER_HIT_FINE_OFFSET_SHEET_PX[facing.current]
+    ? (heroSprite?.hitFineOffsetSheetPx[facing.current] ?? 0)
     : 0;
   const hitDrawOffsetX =
-    (BRUISER_HIT_ANCHOR_OFFSET_X + hitFineSheetPx) * SPRITE_SCALE;
+    ((heroSprite?.hitAnchorOffsetX ?? 0) + hitFineSheetPx) * spriteScale;
 
   const dashReady = dashCooldownLeft.current <= 0 && dashTimeLeft.current <= 0;
 
@@ -2140,13 +2157,16 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
                 },
               ]}
             >
-              <BruiserSpriteView
-                anim={spriteAnimRef.current}
-                walkFrame={walkFrameRef.current}
-                hitFrame={hitFrameRef.current}
-                facing={facing.current}
-                scale={SPRITE_SCALE}
-              />
+              {heroSprite ? (
+                <HeroSpriteView
+                  config={heroSprite}
+                  anim={spriteAnimRef.current}
+                  walkFrame={walkFrameRef.current}
+                  hitFrame={hitFrameRef.current}
+                  facing={facing.current}
+                  scale={spriteScale}
+                />
+              ) : null}
             </View>
 
           {enemiesRef.current.map((e, idx) => {

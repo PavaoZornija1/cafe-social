@@ -179,7 +179,7 @@
     "loadHeroesFailed": "Helden konnten nicht geladen werden.",
     "startSessionFailed": "Brawler-Session konnte nicht gestartet werden.",
     "heroGateTitle": "Arena",
-    "heroGateBody": "Laufen/Springen ist vorerst nur mit Blaze (Bruiser-Sprites) spielbar. Wähle Blaze.",
+    "heroGateBody": "Laufen/Springen ist vorerst nur mit Gorgon, Tariel, Vespera und Ignis spielbar. Wähle einen davon.",
     "queueRankTitle": "Matchmaking am Ort",
     "queueCasual": "Casual",
     "queueRanked": "Ranked",

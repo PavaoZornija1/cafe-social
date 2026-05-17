@@ -179,7 +179,7 @@
     "loadHeroesFailed": "Nije moguće učitati heroje.",
     "startSessionFailed": "Nije moguće pokrenuti Brawler sesiju.",
     "heroGateTitle": "Arena",
-    "heroGateBody": "Kretanje/skok trenutačno je samo za Blaze (bruiser spriteovi). Odaberi Blaze.",
+    "heroGateBody": "Kretanje/skok trenutačno je samo za Gorgona, Tariel, Vesperu i Ignisa. Odaberi jednog od njih.",
     "queueRankTitle": "Matchmaking na lokalu",
     "queueCasual": "Casual",
     "queueRanked": "Ranked",

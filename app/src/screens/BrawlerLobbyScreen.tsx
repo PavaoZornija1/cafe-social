@@ -15,7 +15,7 @@ import {
 import { apiGet, apiPost } from '../lib/api';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
-import { BRUISER_ARENA_HERO_ID } from '../brawler/bruiserSpritesheet';
+import { isArenaSpriteHero } from '../brawler/heroSpritesheets';
 import type { BrawlerArenaHeroStats, RootStackParamList } from '../navigation/type';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
@@ -127,7 +127,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
     if (!selectedHeroId) return;
     if (!isLoaded) return;
 
-    if (selectedHeroId !== BRUISER_ARENA_HERO_ID) {
+    if (!isArenaSpriteHero(selectedHeroId)) {
       Alert.alert(
         t('brawlerLobby.heroGateTitle'),
         t('brawlerLobby.heroGateBody'),
@@ -196,7 +196,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
 
   const onQueueAtVenue = () => {
     if (!venueId || !selectedHeroId) return;
-    if (selectedHeroId !== BRUISER_ARENA_HERO_ID) {
+    if (!isArenaSpriteHero(selectedHeroId)) {
       Alert.alert(t('brawlerLobby.heroGateTitle'), t('brawlerLobby.heroGateBody'));
       return;
     }
@@ -219,7 +219,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
 
   const onQueueAnywhere = () => {
     if (!selectedHeroId) return;
-    if (selectedHeroId !== BRUISER_ARENA_HERO_ID) {
+    if (!isArenaSpriteHero(selectedHeroId)) {
       Alert.alert(t('brawlerLobby.heroGateTitle'), t('brawlerLobby.heroGateBody'));
       return;
     }
@@ -241,7 +241,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
 
   const onStartSolo = () => {
     if (!selectedHeroId) return;
-    if (selectedHeroId !== BRUISER_ARENA_HERO_ID) {
+    if (!isArenaSpriteHero(selectedHeroId)) {
       Alert.alert(t('brawlerLobby.heroGateTitle'), t('brawlerLobby.heroGateBody'));
       return;
     }

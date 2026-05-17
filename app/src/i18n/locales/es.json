@@ -179,7 +179,7 @@
     "loadHeroesFailed": "No se pudieron cargar los héroes.",
     "startSessionFailed": "No se pudo iniciar la sesión de Brawler.",
     "heroGateTitle": "Arena",
-    "heroGateBody": "Por ahora mover/saltar solo está disponible con Blaze (sprites bruiser). Elige Blaze.",
+    "heroGateBody": "Por ahora mover/saltar solo está disponible con Gorgon, Tariel, Vespera e Ignis. Elige uno de ellos.",
     "queueRankTitle": "Matchmaking en el local",
     "queueCasual": "Casual",
     "queueRanked": "Ranked",

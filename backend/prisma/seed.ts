@@ -787,7 +787,7 @@ async function main() {
   const brawlerHeroes = [
     {
       id: 'hero_blaze',
-      name: 'Blaze',
+      name: 'Gorgon',
       isActive: true,
       archetype: 'Bruiser',
       avatarImageUrl: 'https://cdn.playvibe.gg/heroes/blaze/avatar.webp',
@@ -815,9 +815,9 @@ async function main() {
     },
     {
       id: 'hero_frost',
-      name: 'Frost',
+      name: 'Ignis',
       isActive: true,
-      archetype: 'Controller',
+      archetype: 'Mage',
       avatarImageUrl: 'https://cdn.playvibe.gg/heroes/frost/avatar.webp',
       portraitImageUrl: 'https://cdn.playvibe.gg/heroes/frost/portrait.webp',
       spriteSheetUrl: 'https://cdn.playvibe.gg/heroes/frost/spritesheet.webp',
@@ -836,7 +836,7 @@ async function main() {
     },
     {
       id: 'hero_bolt',
-      name: 'Bolt',
+      name: 'Vespera',
       isActive: true,
       archetype: 'Assassin',
       avatarImageUrl: 'https://cdn.playvibe.gg/heroes/bolt/avatar.webp',
@@ -878,7 +878,7 @@ async function main() {
     },
     {
       id: 'hero_rift',
-      name: 'Rift',
+      name: 'Tariel',
       isActive: true,
       archetype: 'Tank',
       avatarImageUrl: 'https://cdn.playvibe.gg/heroes/rift/avatar.webp',
