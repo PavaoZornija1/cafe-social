@@ -134,6 +134,98 @@ async function seedVenueTaxonomy(client: PrismaClient) {
   }
 }
 
+async function seedBrawlerPowerups(client: PrismaClient) {
+  const defs: Array<{
+    id: string;
+    displayName: string;
+    description: string;
+    effectType:
+      | 'MOVE_SPEED_MULT'
+      | 'ATTACK_DMG_MULT'
+      | 'JUMP_MULT'
+      | 'DASH_SPEED_MULT'
+      | 'DASH_COOLDOWN_MULT';
+    magnitude: number;
+    durationMs: number;
+    spawnWeight: number;
+    enabled: boolean;
+    version: number;
+  }> = [
+    {
+      id: 'speed_boost',
+      displayName: 'Haste',
+      description: 'Move faster for a short time.',
+      effectType: 'MOVE_SPEED_MULT',
+      magnitude: 1.25,
+      durationMs: 9000,
+      spawnWeight: 110,
+      enabled: true,
+      version: 1,
+    },
+    {
+      id: 'attack_boost',
+      displayName: 'Berserk',
+      description: 'Deal more damage for a short time.',
+      effectType: 'ATTACK_DMG_MULT',
+      magnitude: 1.35,
+      durationMs: 8000,
+      spawnWeight: 95,
+      enabled: true,
+      version: 1,
+    },
+    {
+      id: 'jump_boost',
+      displayName: 'Spring',
+      description: 'Jump higher for a short time.',
+      effectType: 'JUMP_MULT',
+      magnitude: 1.2,
+      durationMs: 10000,
+      spawnWeight: 100,
+      enabled: true,
+      version: 1,
+    },
+    {
+      id: 'dash_boost',
+      displayName: 'Afterburn',
+      description: 'Dash faster for a short time.',
+      effectType: 'DASH_SPEED_MULT',
+      magnitude: 1.25,
+      durationMs: 8000,
+      spawnWeight: 80,
+      enabled: true,
+      version: 1,
+    },
+    {
+      id: 'dash_cooldown_boost',
+      displayName: 'Flow',
+      description: 'Dash more often for a short time.',
+      effectType: 'DASH_COOLDOWN_MULT',
+      magnitude: 0.75,
+      durationMs: 9000,
+      spawnWeight: 70,
+      enabled: true,
+      version: 1,
+    },
+  ];
+
+  for (const d of defs) {
+    await client.brawlerPowerupDefinition.upsert({
+      where: { id: d.id },
+      update: {
+        displayName: d.displayName,
+        description: d.description,
+        effectType: d.effectType,
+        magnitude: d.magnitude,
+        durationMs: d.durationMs,
+        spawnWeight: d.spawnWeight,
+        enabled: d.enabled,
+        version: d.version,
+      },
+      create: d,
+    });
+  }
+}
+
 async function linkVenueVenueTypes(
   client: PrismaClient,
   venueId: string,
@@ -556,6 +648,8 @@ async function main() {
     },
   ];
 
+  await seedBrawlerPowerups(prisma);
+
   for (const word of words) {
     await prisma.word.upsert({
       where: { text_language: { text: word.text, language: 'en' } },
@@ -693,7 +787,7 @@ async function main() {
   const brawlerHeroes = [
     {
       id: 'hero_blaze',
-      name: 'Blaze',
+      name: 'Gorgon',
       isActive: true,
       archetype: 'Bruiser',
       avatarImageUrl: 'https://cdn.playvibe.gg/heroes/blaze/avatar.webp',
@@ -721,9 +815,9 @@ async function main() {
     },
     {
       id: 'hero_frost',
-      name: 'Frost',
+      name: 'Ignis',
       isActive: true,
-      archetype: 'Controller',
+      archetype: 'Mage',
       avatarImageUrl: 'https://cdn.playvibe.gg/heroes/frost/avatar.webp',
       portraitImageUrl: 'https://cdn.playvibe.gg/heroes/frost/portrait.webp',
       spriteSheetUrl: 'https://cdn.playvibe.gg/heroes/frost/spritesheet.webp',
@@ -742,7 +836,7 @@ async function main() {
     },
     {
       id: 'hero_bolt',
-      name: 'Bolt',
+      name: 'Vespera',
       isActive: true,
       archetype: 'Assassin',
       avatarImageUrl: 'https://cdn.playvibe.gg/heroes/bolt/avatar.webp',
@@ -784,7 +878,7 @@ async function main() {
     },
     {
       id: 'hero_rift',
-      name: 'Rift',
+      name: 'Tariel',
       isActive: true,
       archetype: 'Tank',
       avatarImageUrl: 'https://cdn.playvibe.gg/heroes/rift/avatar.webp',

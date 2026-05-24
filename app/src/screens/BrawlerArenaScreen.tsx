@@ -11,17 +11,15 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import LottieView from 'lottie-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BruiserSpriteView, type BruiserSpriteAnim } from '../components/BruiserSpriteView';
+import { HeroSpriteView, type HeroSpriteAnim } from '../components/HeroSpriteView';
 import { VirtualJoystick } from '../components/VirtualJoystick';
 import {
-  BRUISER_ANIM,
-  BRUISER_ARENA_HERO_ID,
-  BRUISER_FRAME_PX,
-  BRUISER_HIT_ANCHOR_OFFSET_X,
-  BRUISER_HIT_FINE_OFFSET_SHEET_PX,
-} from '../brawler/bruiserSpritesheet';
+  getHeroSpriteConfig,
+  isArenaSpriteHero,
+} from '../brawler/heroSpritesheets';
 import {
   buildArenaPlatforms,
   HERO_FEET_EMBED_FLOATING_PLATFORM_PX,
@@ -80,13 +78,35 @@ const ACTION_CIRCLE_SIZE = 66;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BrawlerArena'>;
 
+type BrawlerPowerupDef = {
+  id: string;
+  displayName: string;
+  description?: string | null;
+  effectType:
+    | 'MOVE_SPEED_MULT'
+    | 'ATTACK_DMG_MULT'
+    | 'JUMP_MULT'
+    | 'DASH_SPEED_MULT'
+    | 'DASH_COOLDOWN_MULT';
+  magnitude: number;
+  durationMs: number;
+  spawnWeight: number;
+  version?: number;
+};
+
+type SpawnedPowerup = {
+  spawnId: string;
+  powerupId: string;
+  x: number;
+  y: number;
+  r: number;
+};
+
 /** Walk speed when DB `moveSpeed` multiplier is 1.0 (legacy arena tuning). */
 const BASE_MOVE_SPEED_PX = 260;
 const GRAVITY = 2200;
 const JUMP_VELOCITY = -640;
 const GROUND_STRIP_H = 40;
-/** Hero scale (~25% smaller than prior 1.65). */
-const SPRITE_SCALE = 1.65 * 0.75;
 const WALK_FRAME_MS = 140;
 
 const DUMMY_W = 52;
@@ -127,6 +147,10 @@ const ATTACK_DURATION_S = 0.28;
 const DASH_DURATION_S = 0.18;
 const DASH_SPEED = 560;
 
+const POWERUP_SPAWN_INTERVAL_S = 6.5;
+const POWERUP_MAX_ON_MAP = 3;
+const POWERUP_PICKUP_RADIUS_PX = 28;
+
 /** Used when `heroStats` is omitted (deep link / older callers). Matches prior hardcoded arena. */
 const FALLBACK_ARENA_HERO_STATS: BrawlerArenaHeroStats = {
   baseHp: 100,
@@ -157,9 +181,12 @@ const MARGIN_SCREEN = 20;
 const JOYSTICK_SIZE = 124;
 
 const PRE_MATCH_COUNTDOWN_S = 5;
-const DEFAULT_MATCH_PHASE_CHAOS_END_S = 45;
-const DEFAULT_MATCH_PHASE_ENDGAME_END_S = 60;
-const DEFAULT_MATCH_MAX_S = 75;
+// Phase timing (seconds):
+// - Chaos now runs 15s longer than before (45s → 60s).
+// - Endgame and Sudden Death keep their previous 15s each.
+const DEFAULT_MATCH_PHASE_CHAOS_END_S = 60;
+const DEFAULT_MATCH_PHASE_ENDGAME_END_S = 75;
+const DEFAULT_MATCH_MAX_S = 90;
 
 function formatMatchClock(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
@@ -176,6 +203,12 @@ function matchPhaseLabelDyn(
   if (elapsed >= endgameEndS) return 'Sudden Death';
   if (elapsed >= chaosEndS) return 'Endgame';
   return 'Chaos';
+}
+
+function matchPhaseMods(elapsed: number, chaosEndS: number, endgameEndS: number) {
+  if (elapsed >= endgameEndS) return { enemySpeed: 1.35, contactDmg: 1.35 };
+  if (elapsed >= chaosEndS) return { enemySpeed: 1.15, contactDmg: 1.15 };
+  return { enemySpeed: 1.0, contactDmg: 1.0 };
 }
 
 /** Hit, Dash, Jump — degrees from +X axis (CCW); center is bottom-right of arc box. */
@@ -408,6 +441,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     ],
   );
 
+  const heroSprite = useMemo(() => getHeroSpriteConfig(heroId), [heroId]);
+  const heroSpriteLiveRef = useRef(heroSprite);
+  heroSpriteLiveRef.current = heroSprite;
+
   const playerX = useRef(0);
   const playerY = useRef(0);
   const dummiesRef = useRef<Dummy[]>([]);
@@ -436,8 +473,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const dmgFloatsRef = useRef<DmgFloat[]>([]);
   const dmgFloatIdRef = useRef(1);
 
-  const bodyW = BRUISER_FRAME_PX.w * SPRITE_SCALE;
-  const bodyH = BRUISER_FRAME_PX.h * SPRITE_SCALE;
+  const spriteScale = heroSprite?.displayScale ?? 1.65 * 0.75;
+  const bodyW = (heroSprite?.framePx.w ?? 64) * spriteScale;
+  const bodyH = (heroSprite?.framePx.h ?? 64) * spriteScale;
 
   const FEET_W = bodyW * 0.22;
 
@@ -462,6 +500,24 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const hitQueued = useRef(false);
   const dashQueued = useRef(false);
 
+  // Used to explicitly allow simultaneous recognition between joystick pan + action taps.
+  const [joystickGesture, setJoystickGesture] = useState<unknown | null>(null);
+
+  const powerupDefsRef = useRef<BrawlerPowerupDef[]>([]);
+  const powerupsOnMapRef = useRef<SpawnedPowerup[]>([]);
+  const powerupSpawnAccumRef = useRef(0);
+  const powerupPickedPendingRef = useRef<Set<string>>(new Set());
+
+  const activeBuffsRef = useRef<
+    Array<{
+      powerupId: string;
+      effectType: BrawlerPowerupDef['effectType'];
+      magnitude: number;
+      startedAtMs: number;
+      endsAtMs: number;
+    }>
+  >([]);
+
   const attackTimeLeft = useRef(0);
   const dashTimeLeft = useRef(0);
   const dashCooldownLeft = useRef(0);
@@ -469,7 +525,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const dashHitAppliedRef = useRef(false);
 
   const [, setRenderTick] = useState(0);
-  const spriteAnimRef = useRef<BruiserSpriteAnim>('idle');
+  const spriteAnimRef = useRef<HeroSpriteAnim>('idle');
   const walkFrameRef = useRef(0);
   const walkAccum = useRef(0);
   const lastSpawnKey = useRef({
@@ -521,6 +577,11 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
             endgameDurationMs: number;
             suddenDeathMaxMs: number;
           } | null;
+          config?: {
+            brawler?: {
+              powerups?: BrawlerPowerupDef[];
+            };
+          } | null;
         }>(`/brawler/sessions/${encodeURIComponent(sessionId)}`, token);
         if (cancelled) return;
         if (typeof session.snapshotRev === 'number') {
@@ -528,6 +589,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         }
         const parts = session.participants ?? [];
         participantsRef.current = parts;
+        powerupDefsRef.current = session.config?.brawler?.powerups ?? [];
         const humanOnly = parts.filter((p) => p.playerId && !p.isBot);
         const hasBot = parts.some((p) => p.isBot);
         if (humanOnly.length === 2 && !hasBot) {
@@ -564,6 +626,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         setTrackedSessionReady(true);
         playerKillsRef.current = 0;
         playerDeathsRef.current = 0;
+        powerupsOnMapRef.current = [];
+        powerupSpawnAccumRef.current = 0;
+        powerupPickedPendingRef.current = new Set();
+        activeBuffsRef.current = [];
         bump();
       } catch (e) {
         if (!cancelled) {
@@ -835,7 +901,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   ]);
 
   useEffect(() => {
-    if (heroId !== BRUISER_ARENA_HERO_ID) {
+    if (!isArenaSpriteHero(heroId)) {
       navigation.replace('BrawlerLobby', { venueId: route.params.venueId });
     }
   }, [heroId, navigation, route.params.venueId]);
@@ -1034,15 +1100,164 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       const plats = platformsRef.current;
       const prevY = prevPlayerY.current;
 
+      const phaseMods = matchPhaseMods(
+        matchClockRef.current,
+        matchChaosEndSRef.current,
+        matchEndgameEndSRef.current,
+      );
+
+      const nowMs = Math.floor(matchClockRef.current * 1000);
+
+      // Power-ups: expire local buff state (server remains source of truth for pickups).
+      if (activeBuffsRef.current.length > 0) {
+        const before = activeBuffsRef.current.length;
+        activeBuffsRef.current = activeBuffsRef.current.filter((b) => b.endsAtMs > nowMs);
+        if (activeBuffsRef.current.length !== before) bump();
+      }
+
+      // Power-ups: spawn simple pickups locally (no realtime yet).
+      if (
+        controlsLive &&
+        arenaReady &&
+        powerupDefsRef.current.length > 0 &&
+        powerupsOnMapRef.current.length < POWERUP_MAX_ON_MAP
+      ) {
+        powerupSpawnAccumRef.current += dt;
+        if (powerupSpawnAccumRef.current >= POWERUP_SPAWN_INTERVAL_S) {
+          powerupSpawnAccumRef.current = 0;
+          const defs = powerupDefsRef.current;
+          const totalW = defs.reduce((acc, d) => acc + Math.max(0, d.spawnWeight || 0), 0);
+          let pick = defs[0]!;
+          if (totalW > 0) {
+            let r = Math.random() * totalW;
+            for (const d of defs) {
+              r -= Math.max(0, d.spawnWeight || 0);
+              if (r <= 0) {
+                pick = d;
+                break;
+              }
+            }
+          }
+
+          const spawnId = `${nowMs}-${Math.floor(Math.random() * 1e9)}`;
+          const pad = 44;
+          const x = pad + Math.random() * Math.max(1, worldW - pad * 2);
+          const y = pad + Math.random() * Math.max(1, worldH - pad * 2.2);
+          powerupsOnMapRef.current = [
+            ...powerupsOnMapRef.current,
+            { spawnId, powerupId: pick.id, x, y, r: POWERUP_PICKUP_RADIUS_PX },
+          ];
+          bump();
+        }
+      }
+
+      // Power-ups: pickup check (hero center vs pickup). Auto-apply via server endpoint.
+      if (
+        controlsLive &&
+        sessionIdLiveRef.current &&
+        powerupsOnMapRef.current.length > 0 &&
+        participantsRef.current.length > 0
+      ) {
+        const human = participantsRef.current.find((p) => !p.isBot);
+        if (human) {
+          const hx = playerX.current + bodyW / 2;
+          const hy = playerY.current + bodyH / 2;
+          const pending = powerupPickedPendingRef.current;
+          for (const pu of powerupsOnMapRef.current) {
+            if (pending.has(pu.spawnId)) continue;
+            if (Math.hypot(hx - pu.x, hy - pu.y) > pu.r) continue;
+            pending.add(pu.spawnId);
+            void (async () => {
+              try {
+                const token = await getTokenRef.current();
+                if (!token) throw new Error('Not authenticated');
+                const res = await apiPost<{
+                  applied: boolean;
+                  reason?: string;
+                  spawnId: string;
+                  powerupId?: string;
+                  effectType?: BrawlerPowerupDef['effectType'];
+                  magnitude?: number;
+                  startedAtMs?: number;
+                  endsAtMs?: number;
+                }>(
+                  `/brawler/sessions/${encodeURIComponent(sessionIdLiveRef.current!)}/powerups/pick`,
+                  {
+                    atMs: nowMs,
+                    actorParticipantId: human.id,
+                    spawnId: pu.spawnId,
+                    powerupId: pu.powerupId,
+                    x: Math.round(pu.x),
+                    y: Math.round(pu.y),
+                  },
+                  token,
+                );
+
+                if (res.applied || res.reason === 'ALREADY_PICKED') {
+                  powerupsOnMapRef.current = powerupsOnMapRef.current.filter(
+                    (p) => p.spawnId !== pu.spawnId,
+                  );
+                }
+
+                if (res.applied && res.effectType && typeof res.magnitude === 'number') {
+                  const started =
+                    typeof res.startedAtMs === 'number' ? res.startedAtMs : nowMs;
+                  const ends = typeof res.endsAtMs === 'number' ? res.endsAtMs : nowMs + 5000;
+                  const buffs = activeBuffsRef.current;
+                  const idx = buffs.findIndex((b) => b.powerupId === pu.powerupId);
+                  const next = {
+                    powerupId: pu.powerupId,
+                    effectType: res.effectType,
+                    magnitude: res.magnitude,
+                    startedAtMs: started,
+                    endsAtMs: ends,
+                  };
+                  activeBuffsRef.current = idx >= 0 ? buffs.map((b, i) => (i === idx ? next : b)) : [...buffs, next];
+                }
+              } catch {
+                // allow retry
+              } finally {
+                powerupPickedPendingRef.current.delete(pu.spawnId);
+                bump();
+              }
+            })();
+            break;
+          }
+        }
+      }
+
       dashCooldownLeft.current = Math.max(0, dashCooldownLeft.current - dt);
 
       const wasDashing = dashTimeLeft.current > 0;
       dashTimeLeft.current = Math.max(0, dashTimeLeft.current - dt);
       if (wasDashing && dashTimeLeft.current <= 0) {
-        dashCooldownLeft.current = heroCombat.dashCooldownS;
+        const dashCooldownMul = activeBuffsRef.current.reduce(
+          (mul, b) =>
+            b.endsAtMs > nowMs && b.effectType === 'DASH_COOLDOWN_MULT'
+              ? mul * b.magnitude
+              : mul,
+          1,
+        );
+        dashCooldownLeft.current = heroCombat.dashCooldownS * dashCooldownMul;
       }
 
       attackTimeLeft.current = Math.max(0, attackTimeLeft.current - dt);
+
+      if (attackTimeLeft.current > 0) {
+        const cfg = heroSpriteLiveRef.current;
+        const strip =
+          facing.current === 'right'
+            ? cfg?.anim.attackRight
+            : cfg?.anim.attackLeft;
+        if (strip && strip.frameCount > 0) {
+          const elapsed = ATTACK_DURATION_S - attackTimeLeft.current;
+          const t = Math.min(1, Math.max(0, elapsed / ATTACK_DURATION_S));
+          hitFrameRef.current = Math.min(
+            strip.frameCount - 1,
+            Math.floor(t * strip.frameCount),
+          );
+        }
+      }
 
       // Dummies: respawn / flash / knockback (runs every frame)
       let dummiesChanged = false;
@@ -1167,7 +1382,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
               // Horizontal: patrol clamps/reverses only when not being knocked.
               const knocked = Math.abs(e.knockVx) > 1;
               if (!knocked && e.onGround) {
-                e.x += e.vx * dt;
+                e.x += e.vx * phaseMods.enemySpeed * dt;
                 if (e.x <= xMin) {
                   e.x = xMin;
                   e.vx = Math.abs(e.vx);
@@ -1177,7 +1392,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
                 }
               } else {
                 // Knockback can push it off the platform edge.
-                e.x += (e.vx + e.knockVx) * dt;
+                e.x += (e.vx * phaseMods.enemySpeed + e.knockVx) * dt;
               }
 
               // Gravity + landing (enemy falls if pushed off).
@@ -1261,6 +1476,34 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
       const dashing = dashTimeLeft.current > 0;
       const attacking = attackTimeLeft.current > 0;
+
+      const buffsNow = activeBuffsRef.current;
+      const moveSpeedMul = buffsNow.reduce(
+        (mul, b) =>
+          b.endsAtMs > nowMs && b.effectType === 'MOVE_SPEED_MULT'
+            ? mul * b.magnitude
+            : mul,
+        1,
+      );
+      const attackMul = buffsNow.reduce(
+        (mul, b) =>
+          b.endsAtMs > nowMs && b.effectType === 'ATTACK_DMG_MULT'
+            ? mul * b.magnitude
+            : mul,
+        1,
+      );
+      const jumpMul = buffsNow.reduce(
+        (mul, b) =>
+          b.endsAtMs > nowMs && b.effectType === 'JUMP_MULT' ? mul * b.magnitude : mul,
+        1,
+      );
+      const dashSpeedMul = buffsNow.reduce(
+        (mul, b) =>
+          b.endsAtMs > nowMs && b.effectType === 'DASH_SPEED_MULT'
+            ? mul * b.magnitude
+            : mul,
+        1,
+      );
 
       // Dash damage: one hit per dash, enemy first, then dummies.
       if (dashing && !dashHitAppliedRef.current) {
@@ -1356,7 +1599,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
               ? playerX.current + bodyW + ATTACK_HIT_FORWARD
               : playerX.current - hitW - ATTACK_HIT_FORWARD;
 
-          const dmg = heroCombat.attackDamage;
+          const dmg = Math.max(1, Math.round(heroCombat.attackDamage * attackMul));
 
           // Priority: hit enemy first if overlapping, else hit a dummy.
           const dir = facing.current === 'right' ? 1 : -1;
@@ -1427,11 +1670,11 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
       if (dashing) {
         const dir = facing.current === 'right' ? 1 : -1;
-        vx.current = dir * DASH_SPEED;
+        vx.current = dir * DASH_SPEED * dashSpeedMul;
       } else if (!attacking) {
         const jx = joyRef.current.x;
         if (Math.abs(jx) > 0.02) {
-          vx.current = jx * heroCombat.moveSpeedPx;
+          vx.current = jx * heroCombat.moveSpeedPx * moveSpeedMul;
           facing.current = jx < 0 ? 'left' : 'right';
         } else {
           vx.current *= Math.pow(0.2, dt * 10);
@@ -1451,7 +1694,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       const feetX = playerX.current + (bodyW - FEET_W) / 2;
 
       if (jumpQueued.current && onGround.current && !attacking) {
-        vy.current = JUMP_VELOCITY;
+        vy.current = JUMP_VELOCITY * jumpMul;
         onGround.current = false;
         jumpQueued.current = false;
       }
@@ -1556,7 +1799,11 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
           if (touchingEnemy) {
             const heroHpBefore = heroHpRef.current;
-            heroHpRef.current = Math.max(0, heroHpRef.current - difficultyTuning.contactDmg);
+            heroHpRef.current = Math.max(
+              0,
+              heroHpRef.current -
+                Math.round(difficultyTuning.contactDmg * phaseMods.contactDmg),
+            );
             heroIFramesLeftRef.current = HERO_IFRAMES_S;
             // Light knockback away from enemy to make hits readable.
             const dir =
@@ -1598,7 +1845,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
       prevPlayerY.current = playerY.current;
 
-      let nextAnim: BruiserSpriteAnim = 'idle';
+      let nextAnim: HeroSpriteAnim = 'idle';
       if (attacking) nextAnim = 'hit';
       else if (dashing) nextAnim = 'dash';
       else if (!onGround.current) nextAnim = 'jump';
@@ -1610,7 +1857,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         if (walkAccum.current >= WALK_FRAME_MS) {
           walkAccum.current %= WALK_FRAME_MS;
           walkFrameRef.current =
-            (walkFrameRef.current + 1) % BRUISER_ANIM.walkRight.frameCount;
+            (walkFrameRef.current + 1) %
+            (heroSpriteLiveRef.current?.anim.walkRight.frameCount ?? 6);
         }
       } else {
         walkAccum.current = 0;
@@ -1654,10 +1902,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   );
   const attackingNow = spriteAnimRef.current === 'hit';
   const hitFineSheetPx = attackingNow
-    ? BRUISER_HIT_FINE_OFFSET_SHEET_PX[facing.current]
+    ? (heroSprite?.hitFineOffsetSheetPx[facing.current] ?? 0)
     : 0;
   const hitDrawOffsetX =
-    (BRUISER_HIT_ANCHOR_OFFSET_X + hitFineSheetPx) * SPRITE_SCALE;
+    ((heroSprite?.hitAnchorOffsetX ?? 0) + hitFineSheetPx) * spriteScale;
 
   const dashReady = dashCooldownLeft.current <= 0 && dashTimeLeft.current <= 0;
 
@@ -1880,6 +2128,25 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
               />
             </View>
 
+            {powerupsOnMapRef.current.map((p) => (
+              <View
+                key={p.spawnId}
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  left: p.x - p.r,
+                  top: p.y - p.r,
+                  width: p.r * 2,
+                  height: p.r * 2,
+                  borderRadius: p.r,
+                  backgroundColor: 'rgba(34, 211, 238, 0.30)',
+                  borderWidth: 2,
+                  borderColor: '#22d3ee',
+                  zIndex: 3,
+                }}
+              />
+            ))}
+
             <View
               style={[
                 styles.playerWrap,
@@ -1890,13 +2157,16 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
                 },
               ]}
             >
-              <BruiserSpriteView
-                anim={spriteAnimRef.current}
-                walkFrame={walkFrameRef.current}
-                hitFrame={hitFrameRef.current}
-                facing={facing.current}
-                scale={SPRITE_SCALE}
-              />
+              {heroSprite ? (
+                <HeroSpriteView
+                  config={heroSprite}
+                  anim={spriteAnimRef.current}
+                  walkFrame={walkFrameRef.current}
+                  hitFrame={hitFrameRef.current}
+                  facing={facing.current}
+                  scale={spriteScale}
+                />
+              ) : null}
             </View>
 
           {enemiesRef.current.map((e, idx) => {
@@ -2038,6 +2308,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
                   stickRef={joyRef}
                   size={JOYSTICK_SIZE}
                   enabled={controlsLive}
+                  onGestureReady={setJoystickGesture}
                 />
               </View>
             </View>
@@ -2048,64 +2319,43 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
               ]}
               pointerEvents="box-none"
             >
-              <Pressable
-                style={({ pressed }) => [
-                  styles.ctrlCircleHit,
-                  styles.ctrlCircleAbsolute,
-                  {
-                    left: ACTION_ARC_LAYOUT[0]!.left,
-                    top: ACTION_ARC_LAYOUT[0]!.top,
-                  },
-                  !controlsLive && styles.ctrlBtnDisabled,
-                  pressed && styles.ctrlPressed,
-                ]}
-                disabled={!controlsLive}
-                onPress={() => {
+              <ActionTapButton
+                kind="hit"
+                enabled={controlsLive}
+                label="Hit"
+                left={ACTION_ARC_LAYOUT[0]!.left}
+                top={ACTION_ARC_LAYOUT[0]!.top}
+                joystickGesture={joystickGesture}
+                onTap={() => {
                   hitQueued.current = true;
                 }}
-              >
-                <View style={styles.ctrlCircleGloss} pointerEvents="none" />
-                <Text style={styles.ctrlCircleLabel}>Hit</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.ctrlCircleDash,
-                  styles.ctrlCircleAbsolute,
-                  {
-                    left: ACTION_ARC_LAYOUT[1]!.left,
-                    top: ACTION_ARC_LAYOUT[1]!.top,
-                  },
-                  (!controlsLive || !dashReady) && styles.ctrlBtnDisabled,
-                  pressed && styles.ctrlPressed,
-                ]}
-                disabled={!controlsLive || !dashReady}
-                onPress={() => {
+                styles={styles}
+              />
+              <ActionTapButton
+                kind="dash"
+                enabled={controlsLive && dashReady}
+                label="Dash"
+                subLabel={!dashReady ? 'CD' : undefined}
+                left={ACTION_ARC_LAYOUT[1]!.left}
+                top={ACTION_ARC_LAYOUT[1]!.top}
+                joystickGesture={joystickGesture}
+                onTap={() => {
                   dashQueued.current = true;
                 }}
-              >
-                <View style={styles.ctrlCircleGloss} pointerEvents="none" />
-                <Text style={styles.ctrlCircleLabel}>Dash</Text>
-                {!dashReady && <Text style={styles.ctrlCircleSub}>CD</Text>}
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.ctrlCircleJump,
-                  styles.ctrlCircleAbsolute,
-                  {
-                    left: ACTION_ARC_LAYOUT[2]!.left,
-                    top: ACTION_ARC_LAYOUT[2]!.top,
-                  },
-                  !controlsLive && styles.ctrlBtnDisabled,
-                  pressed && styles.ctrlPressed,
-                ]}
-                disabled={!controlsLive}
-                onPress={() => {
+                styles={styles}
+              />
+              <ActionTapButton
+                kind="jump"
+                enabled={controlsLive}
+                label="Jump"
+                left={ACTION_ARC_LAYOUT[2]!.left}
+                top={ACTION_ARC_LAYOUT[2]!.top}
+                joystickGesture={joystickGesture}
+                onTap={() => {
                   jumpQueued.current = true;
                 }}
-              >
-                <View style={styles.ctrlCircleGloss} pointerEvents="none" />
-                <Text style={styles.ctrlCircleLabel}>Jump</Text>
-              </Pressable>
+                styles={styles}
+              />
             </View>
           </View>
 
@@ -2425,6 +2675,73 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         </View>
       ) : null}
     </View>
+  );
+}
+
+function ActionTapButton({
+  kind,
+  enabled,
+  label,
+  subLabel,
+  left,
+  top,
+  joystickGesture,
+  onTap,
+  styles,
+}: {
+  kind: 'hit' | 'dash' | 'jump';
+  enabled: boolean;
+  label: string;
+  subLabel?: string;
+  left: number;
+  top: number;
+  joystickGesture: unknown | null;
+  onTap: () => void;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const [pressed, setPressed] = useState(false);
+
+  const tap = useMemo(() => {
+    let g = Gesture.Tap()
+      .enabled(enabled)
+      .runOnJS(true)
+      .maxDuration(600)
+      .onBegin(() => setPressed(true))
+      .onFinalize(() => setPressed(false))
+      .onEnd((_e, success) => {
+        if (success && enabled) onTap();
+      });
+    if (joystickGesture) {
+      // Ensure true multi-touch: allow tap while joystick pan is active.
+      g = g.simultaneousWithExternalGesture(joystickGesture as never);
+    }
+    return g;
+  }, [enabled, joystickGesture, onTap]);
+
+  const baseStyle =
+    kind === 'hit'
+      ? styles.ctrlCircleHit
+      : kind === 'dash'
+        ? styles.ctrlCircleDash
+        : styles.ctrlCircleJump;
+
+  return (
+    <GestureDetector gesture={tap}>
+      <View
+        accessibilityRole="button"
+        style={[
+          baseStyle,
+          styles.ctrlCircleAbsolute,
+          { left, top },
+          !enabled && styles.ctrlBtnDisabled,
+          pressed && styles.ctrlPressed,
+        ]}
+      >
+        <View style={styles.ctrlCircleGloss} pointerEvents="none" />
+        <Text style={styles.ctrlCircleLabel}>{label}</Text>
+        {subLabel ? <Text style={styles.ctrlCircleSub}>{subLabel}</Text> : null}
+      </View>
+    </GestureDetector>
   );
 }
 

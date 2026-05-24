@@ -1,9 +1,11 @@
+import 'react-native-gesture-handler';
 import { ClerkProvider } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
 import * as WebBrowser from 'expo-web-browser';
 import type { LinkingOptions } from '@react-navigation/native';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import './src/lib/venueGeofenceTask';
 import AppNavigation from './src/navigation/AppNavigation';
@@ -35,9 +37,11 @@ const linking: LinkingOptions<RootStackParamList> = {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AppBoot linking={linking} />
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <AppBoot linking={linking} />
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
 
