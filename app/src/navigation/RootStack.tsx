@@ -13,6 +13,7 @@ import LeaderboardScreen from "../screens/LeaderboardScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import FriendsScreen from "../screens/FriendsScreen";
 import SettingsScreen from "../screens/SettingsScreen";
+import MemberCardScreen from "../screens/MemberCardScreen";
 import QrScanScreen from "../screens/QrScanScreen";
 import WordLobbyScreen from "../screens/WordLobbyScreen";
 import WordVenueQueueScreen from "../screens/WordVenueQueueScreen";
@@ -71,6 +72,7 @@ export default function RootStack() {
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="Friends" component={FriendsScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
+            <Stack.Screen name="MemberCard" component={MemberCardScreen} />
             <Stack.Screen name="Parties" component={PartiesScreen} />
             <Stack.Screen name="PartyDetail" component={PartyDetailScreen} />
             <Stack.Screen name="RedeemInvite" component={RedeemInviteScreen} />

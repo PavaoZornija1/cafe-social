@@ -46,6 +46,7 @@ export type RootStackParamList = {
     Profile: undefined;
     Friends: undefined;
     Settings: undefined;
+    MemberCard: undefined;
     Parties: undefined;
     PartyDetail: { partyId: string };
     RedeemInvite: { token?: string } | undefined;

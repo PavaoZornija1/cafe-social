@@ -745,13 +745,13 @@ export default function HomeScreen({ navigation }: Props) {
                             >
                                 <Text style={styles.playText}>{t('home.play')}</Text>
                             </AnimatedPressable>
-                            {!loadingVenue && !gamesPlayable ? (
+                            {/* !loadingVenue && !gamesPlayable ? (
                                 <View style={styles.playLockedBlock}>
                                     <Text style={styles.playLockedHint}>
                                         {needsExplicitCheckIn
                                             ? t('home.playLockedExplicitCheckIn')
                                             : t('home.playLockedHint')}
-                                    </Text>
+                                    </Text> 
                                     <View style={styles.playLockedLinks}>
                                         {needsExplicitCheckIn ? (
                                             <Pressable
@@ -804,7 +804,7 @@ export default function HomeScreen({ navigation }: Props) {
                                         </Pressable>
                                     </View>
                                 </View>
-                            ) : null}
+                            ) : null} */}
                         </View>
                     </View>
 

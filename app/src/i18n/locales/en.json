@@ -74,8 +74,18 @@
     "staffBody": "Verify guest perk redemptions and scan staff QR codes. Open Settings → Venue staff (staff mode) anytime.",
     "staffHint": "If you play as a guest too, your player tips live in the main app — staff tools stay under Settings."
   },
+  "memberCard": {
+    "title": "My member QR",
+    "lead": "Show this code at the till so staff can record your visit and loyalty points. It stays the same for your account.",
+    "scanHint": "Staff scan this with the partner app — works offline once loaded on this device.",
+    "loadError": "Could not load your member card.",
+    "offlineHint": "Showing your saved card — connect to refresh if you recently registered.",
+    "offlineNoCache": "Connect once to load your personal QR, then it works offline."
+  },
   "settings": {
     "title": "Settings",
+    "openMemberCard": "My member QR code",
+    "memberCardHint": "Personal code assigned when you sign up — scanned by staff at partner stores.",
     "language": "Language",
     "languageHint": "Applies immediately. Saved on this device.",
     "about": "About",
@@ -231,7 +241,9 @@
     "scanQr": "Scan QR",
     "emptyDay": "No redemptions for this day.",
     "scanTitle": "Scan staff code",
-    "scanSubtitle": "QR may contain the 8-character staff code or a redemption id. You can also type the code below.",
+    "scanSubtitle": "Scan a guest member QR (loyalty card) or a perk redemption code. You can also paste a code below.",
+    "memberScanSuccessTitle": "Member checked in",
+    "memberScanSuccessBody": "{{name}}’s visit was recorded for today.",
     "manualCode": "Or enter code",
     "manualPlaceholder": "AB12CD34",
     "findOnList": "Find on list",

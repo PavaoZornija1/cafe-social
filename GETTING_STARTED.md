@@ -32,7 +32,8 @@ cp .env.example .env
 #   DATABASE_URL=postgres://USER:PASSWORD@localhost:5432/cafe-social
 #   CLERK_SECRET_KEY=sk_test_...
 # Optional but useful:
-#   CLERK_AUTHORIZED_PARTIES=http://localhost:3000
+#   CLERK_AUTHORIZED_PARTIES=http://localhost:3000,http://localhost:3001
+#   (include the exact origin shown in the browser when you open the admin portal)
 #   REDIS_URL=redis://127.0.0.1:6379
 # Optional — queue bot-fill (casual matchmaking). Defaults: 10s wait, 1s word bot tick.
 #   WORD_QUEUE_BOT_FILL_AFTER_MS=10000
@@ -110,10 +111,12 @@ npx expo install i18next react-i18next expo-localization \
 ### Run on the iOS Simulator (fastest iteration)
 
 ```bash
-npx expo run:ios --simulator
-# or
 npm run ios:sim
+# same as:
+npx expo run:ios
 ```
+
+Expo SDK 54+ no longer accepts `--simulator`; omitting `-d` / `--device` builds for the iOS Simulator by default.
 
 ### Run on a physical iPhone (`--device`)
 

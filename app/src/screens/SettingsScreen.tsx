@@ -547,6 +547,16 @@ export default function SettingsScreen({ navigation }: Props) {
           </>
         ) : null}
 
+        <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('memberCard.title')}</Text>
+        <Text style={styles.hint}>{t('settings.memberCardHint')}</Text>
+        <Pressable
+          style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+          onPress={() => navigation.navigate('MemberCard')}
+        >
+          <Text style={styles.actionRowText}>{t('settings.openMemberCard')}</Text>
+          <Text style={styles.actionRowChev}>›</Text>
+        </Pressable>
+
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.account')}</Text>
         <View style={styles.card}>
           <Text style={styles.cardText}>{t('settings.accountHint')}</Text>

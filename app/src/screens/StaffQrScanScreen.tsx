@@ -14,8 +14,9 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
+import { parseMemberTokenFromQr } from '../lib/parseMemberCardQr';
 import { parseStaffVerificationFromQr } from '../lib/staffQr';
-import { scanAndRedeemStaffReward } from '../lib/ownerStaffApi';
+import { scanAndRedeemStaffReward, scanMemberCardAtVenue } from '../lib/ownerStaffApi';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 
@@ -46,6 +47,28 @@ export default function StaffQrScanScreen({ navigation, route }: Props) {
     [navigation, venueId, venueName],
   );
 
+  const scanMemberCard = useCallback(
+    async (qrPayload: string) => {
+      if (!isLoaded) return;
+      const token = await getToken();
+      if (!token) {
+        setError(t('staff.signInFirst'));
+        return;
+      }
+      try {
+        const res = await scanMemberCardAtVenue(token, venueId, qrPayload);
+        Alert.alert(
+          t('staff.memberScanSuccessTitle'),
+          t('staff.memberScanSuccessBody', { name: res.username }),
+        );
+        navigation.goBack();
+      } catch (e) {
+        setError((e as Error).message ?? t('staff.loadFailed'));
+      }
+    },
+    [getToken, isLoaded, navigation, t, venueId],
+  );
+
   const scanRedeem = useCallback(
     async (code: string) => {
       if (!isLoaded) return;
@@ -68,6 +91,12 @@ export default function StaffQrScanScreen({ navigation, route }: Props) {
   const onBarcodeScanned = useCallback(
     ({ data }: { data: string }) => {
       if (!scanEnabled) return;
+      if (parseMemberTokenFromQr(data)) {
+        setScanEnabled(false);
+        setError(null);
+        void scanMemberCard(data);
+        return;
+      }
       const code = parseStaffVerificationFromQr(data);
       if (code) {
         setScanEnabled(false);
@@ -77,11 +106,15 @@ export default function StaffQrScanScreen({ navigation, route }: Props) {
         setError(t('staff.qrUnrecognized'));
       }
     },
-    [scanEnabled, scanRedeem, t],
+    [scanEnabled, scanMemberCard, scanRedeem, t],
   );
 
   const applyManual = () => {
     setError(null);
+    if (parseMemberTokenFromQr(manual)) {
+      void scanMemberCard(manual);
+      return;
+    }
     const code = parseStaffVerificationFromQr(manual);
     if (!code) {
       setError(t('staff.codeInvalid'));

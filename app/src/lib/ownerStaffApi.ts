@@ -57,6 +57,20 @@ export function scanAndRedeemStaffReward(
   );
 }
 
+export type MemberScanResult = {
+  playerId: string;
+  username: string;
+  visitDayKey: string;
+};
+
+export function scanMemberCardAtVenue(token: string, venueId: string, qrPayload: string) {
+  return apiPost<MemberScanResult>(
+    `/owner/venues/${encodeURIComponent(venueId)}/member-scan`,
+    { qrPayload },
+    token,
+  );
+}
+
 export type StaffModerationSummary = {
   openReportsCount: number;
   activeBansCount: number;

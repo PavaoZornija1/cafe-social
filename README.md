@@ -5,8 +5,8 @@ backend and **Expo (React Native)** mobile app.
 
 ## Startup
 
-npm run start:dev
-npm run dev
+npm run start:dev -> app
+npm run dev -> admin
 npx expo run:ios --device
 
 ## Repo layout
@@ -14,7 +14,8 @@ npx expo run:ios --device
 | Path | Description |
 |------|-------------|
 | `backend/` | NestJS API (`/api`), PostgreSQL via Prisma, Clerk JWT auth |
-| `app/` | Expo SDK 54 app (iOS/Android), Clerk, React Navigation |
+| `app/` | Expo SDK 54 app (iOS/Android), Clerk, React Navigation — full venue gaming + social |
+| `app-loyalty/` | Same backend, **loyalty-only** Expo app (perks, offers, QR, receipts, map, staff tools — no games) |
 | `admin/` | **Next.js 15** partner portal (**Clerk** only): **super admins** (`Player.platformRole`) get full CMS (venues, words, challenges, perks); **OWNER / MANAGER / EMPLOYEE** get venue dashboards, campaigns, receipts, JWT **staff redemptions** (`/staff/[venueId]`) |
 
 ## What’s implemented
@@ -109,6 +110,25 @@ npm run start:dev      # default http://localhost:3005/api
 
 **Optional Redis** (multi-instance Socket.IO): `REDIS_URL=redis://127.0.0.1:6379` — e.g. `docker run -p 6379:6379 redis:7-alpine`.
 
+## Loyalty app setup (`app-loyalty/`)
+
+Same API and Clerk project as `app/`, but a **slim client** for retail loyalty (perks, offers, receipts, partner map, staff redemptions) without games, parties, or word-match flows.
+
+```bash
+cd app-loyalty
+cp .env.example .env     # same EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY + EXPO_PUBLIC_API_URL as app/
+npm install
+npx expo start
+# or: npx expo run:ios
+```
+
+- **URL scheme**: `loyaltysocial://` (QR payloads may also use `cafesocial://` for shared venue codes).
+- **Bundle ID** (dev): `com.pavaozornija.loyaltysocial.devclient` — register in Apple Developer / Clerk authorized parties if needed.
+- **Location & nudges**: Same geofence detect + dwell-based **partner marketing** pushes as the main app (`VenuePresenceHeartbeat`, background geofence task). Tapping a nudge opens **QR scan** for that store.
+- **Offline check-in**: QR / barcode scan at the till is saved locally and synced via `POST /venue-context/:venueId/register` when the network returns.
+- **Partner directory**: **Partner programs** screen groups venues by organization (e.g. retail chains); map pins include `organizationName` from the API.
+- **Member QR**: Each player gets a personal loyalty QR on sign-up (`GET /players/me/member-card`). Staff scan it at the till (`POST /owner/venues/:venueId/member-scan`) to record the visit day. Shown under **Settings → My member QR** in both apps (cached offline in app-loyalty).
+
 ## App setup
 
 ```bash
@@ -148,7 +168,7 @@ If **`expo run:ios`** / **`xcodebuild`** fails with **“No profiles for `com.�
 5. **Wrong team in git** — If `DEVELOPMENT_TEAM` in `ios/…/project.pbxproj` is **not** your team, change it in Xcode (or replace with your 10-character Team ID from [developer.apple.com](https://developer.apple.com/account)).
 6. **Simulator (no device profile)** — For quick JS/native iteration without a physical device profile:
    ```bash
-   cd app && npx expo run:ios --simulator
+   cd app && npx expo run:ios
    ```
 
 ### iOS troubleshooting (location / native modules)
