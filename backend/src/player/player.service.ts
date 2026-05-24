@@ -16,6 +16,11 @@ import { utcDayKeyDaysAgo, utcWeekDayKeyRange } from '../lib/engagement-dates';
 import { orderedPlayerPair } from '../common/player-pair';
 import { staffVerificationCodeFromRedemptionId } from '../lib/redemption-staff-code';
 import { buildStaffRewardQrPayload } from '../lib/reward-claim-qr';
+import { generateMemberQrToken } from '../lib/generate-member-qr-token';
+import {
+  buildMemberCardDeepLink,
+  buildMemberCardQrPayload,
+} from '../lib/member-card-qr';
 
 @Injectable()
 export class PlayerService {
@@ -38,15 +43,44 @@ export class PlayerService {
 
   async findOrCreateByEmail(email: string): Promise<Player> {
     const existing = await this.players.findByEmail(email);
-    if (existing) return existing;
+    if (existing) return this.ensureMemberQrToken(existing);
 
     // Simple default username for new accounts.
     // Can be expanded later once we store more user profile data.
     const username = email.split('@')[0] || 'player';
-    return this.players.create({
+    const created = await this.players.create({
       email,
       username,
     });
+    return created;
+  }
+
+  /** Ensures legacy rows have a member QR token (post-migration safety). */
+  private async ensureMemberQrToken(player: Player): Promise<Player> {
+    if (player.memberQrToken?.trim()) return player;
+    return this.players.update(player.id, {
+      memberQrToken: generateMemberQrToken(),
+    });
+  }
+
+  async getMeMemberCard(email: string): Promise<{
+    playerId: string;
+    username: string;
+    memberQrToken: string;
+    qrPayload: string;
+    deepLinkCafeSocial: string;
+    deepLinkLoyaltySocial: string;
+  }> {
+    const player = await this.ensureMemberQrToken(await this.findOrCreateByEmail(email));
+    const token = player.memberQrToken;
+    return {
+      playerId: player.id,
+      username: player.username,
+      memberQrToken: token,
+      qrPayload: buildMemberCardQrPayload(token),
+      deepLinkCafeSocial: buildMemberCardDeepLink(token, 'cafesocial'),
+      deepLinkLoyaltySocial: buildMemberCardDeepLink(token, 'loyaltysocial'),
+    };
   }
 
   findAll(): Promise<Player[]> {

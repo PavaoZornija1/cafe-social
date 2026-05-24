@@ -62,6 +62,7 @@ import { PushModule } from '../push/push.module';
     VenuePlayBudgetService,
     SubscriptionRepository,
     PlayerVenueRepository,
+    PlayerVenueCheckInRepository,
   ],
 })
 export class VenueModule {}

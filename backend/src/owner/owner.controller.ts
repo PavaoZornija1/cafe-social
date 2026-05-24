@@ -36,6 +36,8 @@ import { CreateStaffInviteDto } from '../venue-staff/dto/create-staff-invite.dto
 import { AcceptStaffInviteDto } from '../venue-staff/dto/accept-staff-invite.dto';
 import { OwnerAnalyticsService } from './owner-analytics.service';
 import { StaffRedemptionsService } from '../staff/staff-redemptions.service';
+import { PlayerMemberScanService } from '../staff/player-member-scan.service';
+import { ScanMemberCardDto } from './dto/scan-member-card.dto';
 import { OwnerCampaignService } from './owner-campaign.service';
 import { OwnerRedemptionActionsService } from './owner-redemption-actions.service';
 import { PlayerService } from '../player/player.service';
@@ -84,6 +86,7 @@ export class OwnerController {
     private readonly staffInvites: VenueStaffInviteService,
     private readonly analytics: OwnerAnalyticsService,
     private readonly staffRedemptions: StaffRedemptionsService,
+    private readonly memberScan: PlayerMemberScanService,
     private readonly campaigns: OwnerCampaignService,
     private readonly redemptionActions: OwnerRedemptionActionsService,
     private readonly receipts: VenueReceiptService,
@@ -806,6 +809,19 @@ export class OwnerController {
       actorRole: membership.role,
     });
     return { ok: true };
+  }
+
+  @Post('venues/:venueId/member-scan')
+  @UseGuards(VenueStaffGuard)
+  @MinVenueRole(VenueStaffRole.EMPLOYEE)
+  scanMemberCard(
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+    @Body() dto: ScanMemberCardDto,
+  ) {
+    return this.memberScan.scanMemberCardAtVenue({
+      venueId,
+      qrPayload: dto.qrPayload,
+    });
   }
 
   @Get('venues/:venueId/redemptions')

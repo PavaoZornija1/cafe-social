@@ -448,6 +448,8 @@ model Player {
   id       String @id @default(uuid())
   email    String @unique
   username String @unique
+  /// Stable token encoded in the member loyalty QR (assigned at registration).
+  memberQrToken String @unique
 
   /// Cafe Social operators: full CMS + any venue via portal (Clerk JWT).
   platformRole PlatformRole @default(NONE)

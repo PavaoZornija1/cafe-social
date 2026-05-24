@@ -11,7 +11,7 @@ export class VenueFunnelService {
   safeLog(params: {
     venueId: string;
     playerId?: string | null;
-    kind: 'detect' | 'enter' | 'play' | 'redeem';
+    kind: 'detect' | 'enter' | 'play' | 'redeem' | 'member_scan';
   }): void {
     void this.prisma.venueFunnelEvent
       .create({

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { Player, Prisma } from '@prisma/client';
+import { generateMemberQrToken } from '../lib/generate-member-qr-token';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -7,7 +8,19 @@ export class PlayerRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   create(data: Prisma.PlayerCreateInput): Promise<Player> {
-    return this.prisma.player.create({ data });
+    return this.prisma.player.create({
+      data: {
+        ...data,
+        memberQrToken:
+          typeof data.memberQrToken === 'string' && data.memberQrToken.trim()
+            ? data.memberQrToken.trim()
+            : generateMemberQrToken(),
+      },
+    });
+  }
+
+  findByMemberQrToken(memberQrToken: string): Promise<Player | null> {
+    return this.prisma.player.findUnique({ where: { memberQrToken } });
   }
 
   findAll(): Promise<Player[]> {

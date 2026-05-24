@@ -205,6 +205,8 @@ export class VenueService {
         country: true,
         isPremium: true,
         geofencePolygon: true,
+        organizationId: true,
+        organization: { select: { id: true, name: true } },
         venueVenueTypes: {
           select: { venueType: { select: { code: true } } },
         },
@@ -251,6 +253,8 @@ export class VenueService {
       city: string | null;
       country: string | null;
       isPremium: boolean;
+      organizationId: string | null;
+      organizationName: string | null;
       geofencePolygon: unknown | null;
       venueTypeCodes: string[];
       hasActiveOffer: boolean;
@@ -285,6 +289,8 @@ export class VenueService {
         city: r.city,
         country: r.country,
         isPremium: r.isPremium,
+        organizationId: r.organizationId,
+        organizationName: r.organization?.name ?? null,
         geofencePolygon: r.geofencePolygon,
         venueTypeCodes: codes,
         hasActiveOffer: hasOffer,

@@ -48,6 +48,14 @@ export class PlayerController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('me/member-card')
+  meMemberCard(@CurrentUser() user: unknown) {
+    const email = this.normalizeEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    return this.playerService.getMeMemberCard(email);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('me/summary')
   meSummary(@CurrentUser() user: unknown) {
     const email = this.normalizeEmail(user);
