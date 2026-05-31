@@ -1,9 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ProximityArrivalService } from './proximity-arrival.service';
 
 @Injectable()
 export class GeofenceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly proximityArrival: ProximityArrivalService,
+  ) {}
 
   async recordEvent(params: {
     playerId: string;
@@ -43,6 +47,14 @@ export class GeofenceService {
         clientDedupeKey: dedupe,
       },
     });
+
+    if (kind === 'enter') {
+      void this.proximityArrival.trySendOnEnter({
+        playerId: params.playerId,
+        venueId: params.venueId,
+      });
+    }
+
     return { id: row.id };
   }
 }

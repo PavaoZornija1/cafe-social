@@ -14,6 +14,7 @@ import { ExpoPushRegistrar } from '../components/ExpoPushRegistrar';
 import RevenueCatIdentitySync from '../components/RevenueCatIdentitySync';
 import { NotificationNavigationEffect } from '../components/NotificationNavigationEffect';
 import { VenuePresenceHeartbeat } from '../components/VenuePresenceHeartbeat';
+import { ProximityGeofenceSyncEffect } from '../components/ProximityGeofenceSyncEffect';
 import { useAppTheme } from '../theme/ThemeContext';
 import { navigationRef } from './navigationRef';
 import { resolvePostAuthTarget } from './resolvePostAuthTarget';
@@ -88,6 +89,7 @@ export default function AppNavigation({ linking }: Props) {
       <NotificationNavigationEffect />
       <RevenueCatIdentitySync />
       <VenuePresenceHeartbeat />
+      <ProximityGeofenceSyncEffect />
       <ExpoPushRegistrar />
       <StatusBar style="dark" />
       <RootStack />

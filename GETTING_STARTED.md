@@ -2,6 +2,7 @@
 
 A short, opinionated checklist to bring the whole monorepo up locally.
 For deep API / feature docs see `README.md`. For AI/agent context see `CURSOR.md`.
+For **venue pilot operations** (offers, challenges, proximity, staff flows) see [`PILOT_PLAYBOOK.md`](./PILOT_PLAYBOOK.md).
 
 ## Prerequisites
 

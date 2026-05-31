@@ -10,6 +10,7 @@ import {
     Platform,
     Pressable,
     SafeAreaView,
+    ScrollView,
     StyleSheet,
     Text,
     View,
@@ -18,15 +19,89 @@ import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiGet, apiPost } from '../lib/api';
 import { setBackgroundApiToken } from '../lib/backgroundApiToken';
-import { syncVenueGeofenceMonitoring } from '../lib/venueGeofenceTask';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { syncOnboardingFromServerSummary } from '../lib/onboardingStorage';
 import { buildVenueAccessQuery, fetchDetectedVenue } from '../lib/venueDetectClient';
+import type { Coordinates } from '../lib/locationForDetect';
 import { isLikelyNetworkFailure } from '../lib/isNetworkError';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+function daysUntilExpiry(iso: string): number {
+    const ms = new Date(iso).getTime() - Date.now();
+    return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
+}
+
+type RetentionActionRowProps = {
+    icon: React.ComponentProps<typeof Ionicons>['name'];
+    title: string;
+    subtitle: string;
+    onPress: () => void;
+    accessibilityLabel: string;
+    accent?: boolean;
+    badge?: string;
+    colors: AppColors;
+    styles: {
+        retentionActionRow: object;
+        retentionActionRowAccent: object;
+        retentionCardPressed: object;
+        retentionActionIcon: object;
+        retentionActionIconAccent: object;
+        retentionActionText: object;
+        retentionActionTitleRow: object;
+        retentionActionTitle: object;
+        retentionActionBadge: object;
+        retentionActionBadgeText: object;
+        retentionActionSubtitle: object;
+    };
+};
+
+function RetentionActionRow({
+    icon,
+    title,
+    subtitle,
+    onPress,
+    accessibilityLabel,
+    accent,
+    badge,
+    colors,
+    styles,
+}: RetentionActionRowProps) {
+    return (
+        <Pressable
+            onPress={onPress}
+            style={({ pressed }) => [
+                styles.retentionActionRow,
+                accent && styles.retentionActionRowAccent,
+                pressed && styles.retentionCardPressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={accessibilityLabel}
+        >
+            <View style={[styles.retentionActionIcon, accent && styles.retentionActionIconAccent]}>
+                <Ionicons name={icon} size={18} color={accent ? colors.honeyDark : colors.honey} />
+            </View>
+            <View style={styles.retentionActionText}>
+                <View style={styles.retentionActionTitleRow}>
+                    <Text style={styles.retentionActionTitle} numberOfLines={1}>
+                        {title}
+                    </Text>
+                    {badge ? (
+                        <View style={styles.retentionActionBadge}>
+                            <Text style={styles.retentionActionBadgeText}>{badge}</Text>
+                        </View>
+                    ) : null}
+                </View>
+                <Text style={styles.retentionActionSubtitle} numberOfLines={2}>
+                    {subtitle}
+                </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+        </Pressable>
+    );
+}
 
 type Venue = { id: string; name: string; isPremium: boolean; locked?: boolean };
 type VenueAccess = {
@@ -90,6 +165,39 @@ type VenuePublicCard = {
     requiresExplicitCheckIn?: boolean;
 };
 
+type VenueRedeemableReward = {
+    redemptionId: string;
+    perkTitle: string;
+    status: string;
+    expiresAt: string;
+};
+
+type VenueFeedItem = {
+    id: string;
+    kind: string;
+    title: string;
+    subtitle: string | null;
+    actorUsername: string | null;
+    createdAt: string;
+};
+
+type VenueEngagement = {
+    visitsThisWeek: number;
+    distinctVenuesVisitedLast30Days: number;
+    badges: string[];
+    atVenue?: {
+        visitDaysLast30Days: number;
+        visitDaysThisWeek: number;
+    };
+};
+
+type VenueDailyWordState = {
+    solved: boolean;
+    streak: number;
+    attempts: number;
+    maxAttempts: number;
+};
+
 export default function HomeScreen({ navigation }: Props) {
     const { colors } = useAppTheme();
     const styles = useMemo(() => createStyles(colors), [colors]);
@@ -113,6 +221,12 @@ export default function HomeScreen({ navigation }: Props) {
     const [meSummary, setMeSummary] = useState<MeSummaryDto | null>(null);
     const [loadingSummary, setLoadingSummary] = useState(false);
     const [publicCard, setPublicCard] = useState<VenuePublicCard | null>(null);
+    const [detectCoords, setDetectCoords] = useState<Coordinates | null>(null);
+    const [venueEngagement, setVenueEngagement] = useState<VenueEngagement | null>(null);
+    const [venueRewards, setVenueRewards] = useState<VenueRedeemableReward[]>([]);
+    const [venueFeed, setVenueFeed] = useState<VenueFeedItem[]>([]);
+    const [venueDailyWord, setVenueDailyWord] = useState<VenueDailyWordState | null>(null);
+    const [loadingRetention, setLoadingRetention] = useState(false);
 
     const scale = useRef(new Animated.Value(1)).current;
     const unlockPulse = useRef(new Animated.Value(1)).current;
@@ -234,6 +348,7 @@ export default function HomeScreen({ navigation }: Props) {
                 const { venue, coords } = await fetchDetectedVenue();
                 if (cancelled) return;
                 setDetectedVenue(venue);
+                setDetectCoords(coords);
 
                 if (!venue) {
                     setAccess(null);
@@ -298,45 +413,6 @@ export default function HomeScreen({ navigation }: Props) {
     }, [detectedVenue?.id]);
 
     useEffect(() => {
-        if (Platform.OS === 'web') return;
-        let cancelled = false;
-
-        async function run() {
-            if (!detectedVenue?.id || !publicCard?.geofence) {
-                await syncVenueGeofenceMonitoring(null);
-                return;
-            }
-            const g = publicCard.geofence;
-            if (
-                typeof g.latitude !== 'number' ||
-                typeof g.longitude !== 'number' ||
-                typeof g.radiusMeters !== 'number'
-            ) {
-                await syncVenueGeofenceMonitoring(null);
-                return;
-            }
-            if (cancelled) return;
-            await syncVenueGeofenceMonitoring({
-                venueId: detectedVenue.id,
-                latitude: g.latitude,
-                longitude: g.longitude,
-                radiusMeters: g.radiusMeters,
-            });
-        }
-
-        void run();
-        return () => {
-            cancelled = true;
-            void syncVenueGeofenceMonitoring(null);
-        };
-    }, [
-        detectedVenue?.id,
-        publicCard?.geofence?.latitude,
-        publicCard?.geofence?.longitude,
-        publicCard?.geofence?.radiusMeters,
-    ]);
-
-    useEffect(() => {
         let cancelled = false;
 
         async function run() {
@@ -378,6 +454,84 @@ export default function HomeScreen({ navigation }: Props) {
             cancelled = true;
         };
     }, [access?.canEnterVenueContext, detectedVenue?.id, isLoaded]);
+
+    const loadRetention = useCallback(async () => {
+        if (!detectedVenue?.id || !access?.canEnterVenueContext || !isLoaded) {
+            setVenueEngagement(null);
+            setVenueRewards([]);
+            setVenueFeed([]);
+            setVenueDailyWord(null);
+            return;
+        }
+
+        setLoadingRetention(true);
+        try {
+            const token = await getTokenRef.current();
+            if (!token) return;
+
+            const venueId = detectedVenue.id;
+            const engagementQs = `?venueId=${encodeURIComponent(venueId)}`;
+            const dailyQs = new URLSearchParams({
+                scope: 'venue',
+                venueId,
+            });
+            if (detectCoords) {
+                dailyQs.set('lat', String(detectCoords.lat));
+                dailyQs.set('lng', String(detectCoords.lng));
+            }
+
+            const [engagement, rewards, feed, daily] = await Promise.all([
+                apiGet<VenueEngagement>(`/players/me/engagement${engagementQs}`, token).catch(
+                    () => null,
+                ),
+                apiGet<VenueRedeemableReward[]>(
+                    `/venue-context/${encodeURIComponent(venueId)}/perks/my-rewards`,
+                    token,
+                ).catch(() => [] as VenueRedeemableReward[]),
+                apiGet<VenueFeedItem[]>(
+                    `/social/venues/${encodeURIComponent(venueId)}/feed?limit=3`,
+                    token,
+                ).catch(() => [] as VenueFeedItem[]),
+                detectCoords
+                    ? apiGet<VenueDailyWordState>(
+                          `/words/daily?${dailyQs.toString()}`,
+                          token,
+                      ).catch(() => null)
+                    : Promise.resolve(null),
+            ]);
+
+            setVenueEngagement(engagement);
+            setVenueRewards(Array.isArray(rewards) ? rewards : []);
+            setVenueFeed(Array.isArray(feed) ? feed : []);
+            setVenueDailyWord(
+                daily
+                    ? {
+                          solved: daily.solved,
+                          streak: daily.streak,
+                          attempts: daily.attempts,
+                          maxAttempts: daily.maxAttempts,
+                      }
+                    : null,
+            );
+        } finally {
+            setLoadingRetention(false);
+        }
+    }, [
+        access?.canEnterVenueContext,
+        detectCoords,
+        detectedVenue?.id,
+        isLoaded,
+    ]);
+
+    useFocusEffect(
+        useCallback(() => {
+            void loadRetention();
+        }, [loadRetention]),
+    );
+
+    useEffect(() => {
+        void loadRetention();
+    }, [loadRetention]);
 
     useEffect(() => {
         let cancelled = false;
@@ -427,6 +581,32 @@ export default function HomeScreen({ navigation }: Props) {
             (featuredOffer.title?.trim() || featuredOffer.body?.trim()),
     );
 
+    const activeChallenge = useMemo(
+        () => venueChallenges.find((c) => !c.isCompleted) ?? venueChallenges[0] ?? null,
+        [venueChallenges],
+    );
+
+    const redeemableRewards = useMemo(
+        () => venueRewards.filter((r) => r.status === 'REDEEMABLE'),
+        [venueRewards],
+    );
+
+    const primaryRedeemable = useMemo(() => {
+        if (redeemableRewards.length === 0) return null;
+        return [...redeemableRewards].sort(
+            (a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime(),
+        )[0]!;
+    }, [redeemableRewards]);
+
+    const challengeProgressPct = useMemo(() => {
+        if (!activeChallenge || activeChallenge.targetCount <= 0) return 0;
+        return Math.min(1, activeChallenge.progressCount / activeChallenge.targetCount);
+    }, [activeChallenge]);
+
+    const showRetentionStack = Boolean(
+        detectedVenue && access?.canEnterVenueContext && !loadingVenue && !venueError,
+    );
+
     const challengeLine =
         locked
             ? venueAdminLocked
@@ -436,17 +616,17 @@ export default function HomeScreen({ navigation }: Props) {
                   : t('home.unlockToStart')
             : loadingChallenges
                 ? t('home.loadingChallenge')
-                : venueChallenges[0]
-                    ? venueChallenges[0].resetsWeekly
+                : activeChallenge
+                    ? activeChallenge.resetsWeekly
                         ? t('home.challengeProgressWeekly', {
-                            title: venueChallenges[0].title,
-                            current: venueChallenges[0].progressCount,
-                            target: venueChallenges[0].targetCount,
+                            title: activeChallenge.title,
+                            current: activeChallenge.progressCount,
+                            target: activeChallenge.targetCount,
                         })
                         : t('home.challengeProgress', {
-                            title: venueChallenges[0].title,
-                            current: venueChallenges[0].progressCount,
-                            target: venueChallenges[0].targetCount,
+                            title: activeChallenge.title,
+                            current: activeChallenge.progressCount,
+                            target: activeChallenge.targetCount,
                         })
                     : t('home.noChallenges');
 
@@ -617,14 +797,263 @@ export default function HomeScreen({ navigation }: Props) {
                 </View>
 
                 <View style={styles.body}>
-                    <View style={styles.challengeStrip}>
-                        <Text style={styles.challengeStripTitle}>{t('home.challengeTitle')}</Text>
-                        <Text style={styles.challengeStripText} numberOfLines={2}>
-                            {challengeLine}
-                        </Text>
-                    </View>
+                    <ScrollView
+                        style={styles.bodyScroll}
+                        contentContainerStyle={styles.bodyScrollContent}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                    >
+                        {showRetentionStack ? (
+                            <View style={styles.venuePanel}>
+                                <Pressable
+                                    onPress={() =>
+                                        detectedVenue &&
+                                        navigation.navigate('VenueHub', {
+                                            venueId: detectedVenue.id,
+                                            venueName: detectedVenue.name,
+                                        })
+                                    }
+                                    style={({ pressed }) => [
+                                        styles.venuePanelHeader,
+                                        pressed && styles.retentionCardPressed,
+                                    ]}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t('home.retentionPanelHubA11y', {
+                                        name: detectedVenue?.name ?? '',
+                                    })}
+                                >
+                                    <View style={styles.venuePanelHeaderText}>
+                                        <Text style={styles.venuePanelKicker}>
+                                            {t('home.retentionPanelKicker')}
+                                        </Text>
+                                        <Text style={styles.venuePanelTitle} numberOfLines={1}>
+                                            {detectedVenue?.name}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.venuePanelHeaderLink}>
+                                        <Text style={styles.venuePanelHubLink}>
+                                            {t('home.retentionPanelHub')}
+                                        </Text>
+                                        <Ionicons name="chevron-forward" size={14} color={colors.honeyDark} />
+                                    </View>
+                                </Pressable>
 
-                    {showFeaturedOfferCard ? (
+                                {venueEngagement?.atVenue || loadingRetention ? (
+                                    <View style={styles.venueStatPills}>
+                                        <View style={styles.venueStatPill}>
+                                            <Text style={styles.venueStatPillValue}>
+                                                {loadingRetention && !venueEngagement
+                                                    ? '…'
+                                                    : venueEngagement?.atVenue?.visitDaysThisWeek ?? 0}
+                                            </Text>
+                                            <Text style={styles.venueStatPillLabel}>
+                                                {t('home.venueVisitDaysWeekLabel')}
+                                            </Text>
+                                        </View>
+                                        <View style={styles.venueStatPillDivider} />
+                                        <View style={styles.venueStatPill}>
+                                            <Text style={styles.venueStatPillValue}>
+                                                {loadingRetention && !venueEngagement
+                                                    ? '…'
+                                                    : venueEngagement?.atVenue?.visitDaysLast30Days ?? 0}
+                                            </Text>
+                                            <Text style={styles.venueStatPillLabel}>
+                                                {t('home.venueVisitDays30dLabel')}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                ) : null}
+
+                                {loadingChallenges && !activeChallenge ? (
+                                    <View style={styles.venuePanelChallenge}>
+                                        <ActivityIndicator color={colors.primary} size="small" />
+                                    </View>
+                                ) : activeChallenge ? (
+                                    <View style={styles.venuePanelChallenge}>
+                                        <View style={styles.venuePanelChallengeHead}>
+                                            <Ionicons name="trophy-outline" size={16} color={colors.honey} />
+                                            <Text style={styles.venuePanelChallengeTitle}>
+                                                {t('home.challengeTitle')}
+                                            </Text>
+                                        </View>
+                                        <Text style={styles.venuePanelChallengeBody} numberOfLines={2}>
+                                            {challengeLine}
+                                        </Text>
+                                        {activeChallenge.rewardTitle ? (
+                                            <Text style={styles.venuePanelChallengeReward} numberOfLines={1}>
+                                                {t('home.challengeRewardHint', {
+                                                    reward: activeChallenge.rewardTitle,
+                                                })}
+                                            </Text>
+                                        ) : null}
+                                        {activeChallenge.targetCount > 0 ? (
+                                            <View style={styles.challengeProgressTrack}>
+                                                <View
+                                                    style={[
+                                                        styles.challengeProgressFill,
+                                                        {
+                                                            width: `${Math.round(challengeProgressPct * 100)}%`,
+                                                        },
+                                                    ]}
+                                                />
+                                            </View>
+                                        ) : null}
+                                        {!activeChallenge.isCompleted ? (
+                                            <Pressable
+                                                onPress={handlePlay}
+                                                style={({ pressed }) => [
+                                                    styles.venuePanelChallengeCta,
+                                                    pressed && styles.retentionCardPressed,
+                                                ]}
+                                                accessibilityRole="button"
+                                                accessibilityLabel={t('home.challengeContinueCta')}
+                                            >
+                                                <Text style={styles.venuePanelChallengeCtaText}>
+                                                    {t('home.challengeContinueCta')}
+                                                </Text>
+                                            </Pressable>
+                                        ) : null}
+                                    </View>
+                                ) : null}
+
+                                {primaryRedeemable || venueDailyWord ? (
+                                <View style={styles.venuePanelActions}>
+                                    {primaryRedeemable ? (
+                                        <RetentionActionRow
+                                            icon="pricetag"
+                                            accent
+                                            title={t('home.unredeemedPerkTitle')}
+                                            subtitle={
+                                                redeemableRewards.length === 1
+                                                    ? daysUntilExpiry(primaryRedeemable.expiresAt) <= 3
+                                                        ? t('home.unredeemedPerkExpiring', {
+                                                              title: primaryRedeemable.perkTitle,
+                                                              days: daysUntilExpiry(
+                                                                  primaryRedeemable.expiresAt,
+                                                              ),
+                                                          })
+                                                        : primaryRedeemable.perkTitle
+                                                    : t('home.unredeemedPerkCount', {
+                                                          count: redeemableRewards.length,
+                                                      })
+                                            }
+                                            badge={
+                                                redeemableRewards.length > 1
+                                                    ? String(redeemableRewards.length)
+                                                    : undefined
+                                            }
+                                            onPress={() =>
+                                                detectedVenue &&
+                                                navigation.navigate('RedeemPerk', {
+                                                    venueId: detectedVenue.id,
+                                                })
+                                            }
+                                            accessibilityLabel={t('home.unredeemedPerkA11y')}
+                                            colors={colors}
+                                            styles={styles}
+                                        />
+                                    ) : null}
+
+                                    {venueDailyWord ? (
+                                        <RetentionActionRow
+                                            icon="calendar"
+                                            title={t('home.venueDailyWordTitle')}
+                                            subtitle={
+                                                venueDailyWord.solved
+                                                    ? t('home.venueDailyWordSolved', {
+                                                          streak: venueDailyWord.streak,
+                                                      })
+                                                    : t('home.venueDailyWordOpen', {
+                                                          streak: venueDailyWord.streak,
+                                                          attempts: venueDailyWord.attempts,
+                                                          max: venueDailyWord.maxAttempts,
+                                                      })
+                                            }
+                                            badge={
+                                                venueDailyWord.streak > 0
+                                                    ? t('home.venueDailyWordStreakBadge', {
+                                                          n: venueDailyWord.streak,
+                                                      })
+                                                    : undefined
+                                            }
+                                            onPress={() => navigation.navigate('DailyWord')}
+                                            accessibilityLabel={t('home.venueDailyWordA11y')}
+                                            colors={colors}
+                                            styles={styles}
+                                        />
+                                    ) : null}
+                                </View>
+                                ) : null}
+
+                                {venueFeed.length > 0 ? (
+                                    <View style={styles.venuePanelFeed}>
+                                        <Text style={styles.venuePanelFeedTitle}>
+                                            {t('home.venueFeedTitle')}
+                                        </Text>
+                                        {venueFeed.slice(0, 2).map((ev) => (
+                                            <Text
+                                                key={ev.id}
+                                                style={styles.venuePanelFeedLine}
+                                                numberOfLines={1}
+                                            >
+                                                {ev.actorUsername
+                                                    ? t('home.venueFeedActor', {
+                                                          user: ev.actorUsername,
+                                                          action: ev.subtitle ?? ev.title,
+                                                      })
+                                                    : ev.title}
+                                            </Text>
+                                        ))}
+                                    </View>
+                                ) : null}
+
+                                {loadingRetention &&
+                                !venueEngagement &&
+                                !activeChallenge &&
+                                !primaryRedeemable &&
+                                !venueDailyWord ? (
+                                    <ActivityIndicator
+                                        color={colors.primary}
+                                        size="small"
+                                        style={styles.venuePanelLoader}
+                                    />
+                                ) : null}
+
+                                {!loadingRetention &&
+                                !loadingChallenges &&
+                                !activeChallenge &&
+                                !primaryRedeemable &&
+                                !venueDailyWord &&
+                                venueFeed.length === 0 ? (
+                                    <View style={styles.venuePanelEmptyHint}>
+                                        <Text style={styles.venuePanelEmptyHintText}>
+                                            {t('home.retentionPanelEmpty')}
+                                        </Text>
+                                    </View>
+                                ) : null}
+                            </View>
+                        ) : (
+                            <View style={styles.challengeStrip}>
+                                <Text style={styles.challengeStripTitle}>{t('home.challengeTitle')}</Text>
+                                <Text style={styles.challengeStripText} numberOfLines={2}>
+                                    {challengeLine}
+                                </Text>
+                                {activeChallenge && activeChallenge.targetCount > 0 && !locked ? (
+                                    <View style={styles.challengeProgressTrack}>
+                                        <View
+                                            style={[
+                                                styles.challengeProgressFill,
+                                                {
+                                                    width: `${Math.round(challengeProgressPct * 100)}%`,
+                                                },
+                                            ]}
+                                        />
+                                    </View>
+                                ) : null}
+                            </View>
+                        )}
+
+                        {showFeaturedOfferCard ? (
                         <View style={styles.featuredOfferCard}>
                             <Text style={styles.featuredOfferKicker}>{t('home.featuredOfferVenueKicker')}</Text>
                             {featuredOffer!.title ? (
@@ -726,6 +1155,7 @@ export default function HomeScreen({ navigation }: Props) {
                             <Text style={styles.startHereSocialHint}>{t('home.startSocialHint')}</Text>
                         </View>
                     ) : null}
+                    </ScrollView>
 
                     <View style={styles.playAreaWrap}>
                         <View style={styles.playColumn}>
@@ -1162,6 +1592,14 @@ function createStyles(colors: AppColors) {
         width: '100%',
         justifyContent: 'flex-start',
     },
+    bodyScroll: {
+        flexShrink: 1,
+        flexGrow: 0,
+        maxHeight: '46%',
+    },
+    bodyScrollContent: {
+        paddingBottom: 6,
+    },
     challengeStrip: {
         flexShrink: 0,
         backgroundColor: colors.surface,
@@ -1173,6 +1611,220 @@ function createStyles(colors: AppColors) {
     },
     challengeStripTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
     challengeStripText: { color: colors.textSecondary, fontSize: 11, marginTop: 4, lineHeight: 15 },
+    challengeProgressTrack: {
+        marginTop: 8,
+        height: 5,
+        borderRadius: 3,
+        backgroundColor: colors.bgElevated,
+        overflow: 'hidden',
+    },
+    challengeProgressFill: {
+        height: '100%',
+        borderRadius: 3,
+        backgroundColor: colors.primary,
+    },
+    venuePanel: {
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: 16,
+        overflow: 'hidden',
+    },
+    venuePanelHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+        backgroundColor: colors.bgElevated,
+    },
+    venuePanelHeaderText: { flex: 1, minWidth: 0 },
+    venuePanelKicker: {
+        color: colors.honeyDark,
+        fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 0.35,
+        textTransform: 'uppercase',
+    },
+    venuePanelTitle: {
+        color: colors.text,
+        fontSize: 15,
+        fontWeight: '900',
+        marginTop: 2,
+    },
+    venuePanelHeaderLink: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 2,
+        flexShrink: 0,
+    },
+    venuePanelHubLink: {
+        color: colors.honeyDark,
+        fontSize: 11,
+        fontWeight: '800',
+    },
+    venueStatPills: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+    },
+    venueStatPill: { flex: 1, alignItems: 'center' },
+    venueStatPillValue: {
+        color: colors.primary,
+        fontSize: 18,
+        fontWeight: '900',
+    },
+    venueStatPillLabel: {
+        color: colors.textMuted,
+        fontSize: 10,
+        fontWeight: '700',
+        marginTop: 2,
+        textTransform: 'uppercase',
+        letterSpacing: 0.2,
+    },
+    venueStatPillDivider: {
+        width: 1,
+        height: 28,
+        backgroundColor: colors.border,
+    },
+    venuePanelChallenge: {
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+        gap: 6,
+    },
+    venuePanelChallengeHead: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    venuePanelChallengeTitle: {
+        color: colors.text,
+        fontSize: 12,
+        fontWeight: '900',
+    },
+    venuePanelChallengeBody: {
+        color: colors.textSecondary,
+        fontSize: 11,
+        lineHeight: 15,
+    },
+    venuePanelChallengeReward: {
+        color: colors.honeyDark,
+        fontSize: 11,
+        fontWeight: '700',
+    },
+    venuePanelChallengeCta: {
+        alignSelf: 'flex-start',
+        marginTop: 2,
+        paddingVertical: 6,
+        paddingHorizontal: 10,
+        borderRadius: 8,
+        backgroundColor: colors.honeyMuted,
+    },
+    venuePanelChallengeCtaText: {
+        color: colors.honeyDark,
+        fontSize: 11,
+        fontWeight: '800',
+    },
+    venuePanelActions: {
+        paddingVertical: 4,
+        paddingHorizontal: 8,
+        gap: 4,
+    },
+    retentionActionRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        paddingVertical: 10,
+        paddingHorizontal: 8,
+        borderRadius: 12,
+    },
+    retentionActionRowAccent: {
+        backgroundColor: colors.honeyMuted,
+    },
+    retentionActionIcon: {
+        width: 34,
+        height: 34,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.bgElevated,
+    },
+    retentionActionIconAccent: {
+        backgroundColor: colors.surface,
+    },
+    retentionActionText: { flex: 1, minWidth: 0 },
+    retentionActionTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    retentionActionTitle: {
+        color: colors.text,
+        fontSize: 12,
+        fontWeight: '900',
+        flexShrink: 1,
+    },
+    retentionActionBadge: {
+        paddingVertical: 2,
+        paddingHorizontal: 6,
+        borderRadius: 999,
+        backgroundColor: colors.primaryMuted,
+    },
+    retentionActionBadgeText: {
+        color: colors.primaryDark,
+        fontSize: 10,
+        fontWeight: '800',
+    },
+    retentionActionSubtitle: {
+        color: colors.textSecondary,
+        fontSize: 11,
+        marginTop: 2,
+        lineHeight: 15,
+    },
+    retentionCardPressed: { opacity: 0.92 },
+    venuePanelFeed: {
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+        backgroundColor: colors.bgElevated,
+    },
+    venuePanelFeedTitle: {
+        color: colors.textMuted,
+        fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 0.3,
+        textTransform: 'uppercase',
+        marginBottom: 6,
+    },
+    venuePanelFeedLine: {
+        color: colors.textSecondary,
+        fontSize: 11,
+        lineHeight: 16,
+        marginTop: 2,
+    },
+    venuePanelLoader: {
+        paddingVertical: 12,
+    },
+    venuePanelEmptyHint: {
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+    },
+    venuePanelEmptyHintText: {
+        color: colors.textMuted,
+        fontSize: 11,
+        lineHeight: 15,
+        textAlign: 'center',
+    },
     featuredOfferCard: {
         marginTop: 10,
         paddingVertical: 12,
@@ -1235,7 +1887,7 @@ function createStyles(colors: AppColors) {
     startHereSocialHint: { color: colors.textMuted, fontSize: 10, marginTop: 10, lineHeight: 14 },
     playAreaWrap: {
         flex: 1,
-        minHeight: 0,
+        minHeight: 112,
         width: '100%',
         justifyContent: 'center',
         alignItems: 'center',

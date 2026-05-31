@@ -196,10 +196,17 @@ export class PlayerService {
   }
 
   /** Visits & lightweight badges from `PlayerVenueVisitDay`. */
-  async getMeEngagement(email: string): Promise<{
+  async getMeEngagement(
+    email: string,
+    venueId?: string,
+  ): Promise<{
     visitsThisWeek: number;
     distinctVenuesVisitedLast30Days: number;
     badges: string[];
+    atVenue?: {
+      visitDaysLast30Days: number;
+      visitDaysThisWeek: number;
+    };
   }> {
     const player = await this.findOrCreateByEmail(email);
     const { start, end } = utcWeekDayKeyRange();
@@ -222,7 +229,26 @@ export class PlayerService {
     if (visitsThisWeek >= 3) badges.push('regular_this_week');
     if (distinctVenuesVisitedLast30Days >= 2) badges.push('venue_explorer');
 
-    return { visitsThisWeek, distinctVenuesVisitedLast30Days, badges };
+    let atVenue: { visitDaysLast30Days: number; visitDaysThisWeek: number } | undefined;
+    if (venueId) {
+      const visitDaysLast30Days = await this.prisma.playerVenueVisitDay.count({
+        where: {
+          playerId: player.id,
+          venueId,
+          dayKey: { gte: sinceMonth },
+        },
+      });
+      const visitDaysThisWeek = await this.prisma.playerVenueVisitDay.count({
+        where: {
+          playerId: player.id,
+          venueId,
+          dayKey: { gte: start, lte: end },
+        },
+      });
+      atVenue = { visitDaysLast30Days, visitDaysThisWeek };
+    }
+
+    return { visitsThisWeek, distinctVenuesVisitedLast30Days, badges, atVenue };
   }
 
   async listMyPerkRedemptions(email: string) {

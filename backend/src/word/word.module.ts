@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { WordController } from './word.controller';
 import { WordService } from './word.service';
 import { WordRepository } from './word.repository';
@@ -9,6 +10,7 @@ import { WordMatchGateway } from './word-match.gateway';
 import { WordMatchCleanupService } from './word-match-cleanup.service';
 import { DailyWordController } from './daily-word.controller';
 import { DailyWordService } from './daily-word.service';
+import { DailyWordStreakAtRiskScheduler } from './daily-word-streak-at-risk.scheduler';
 import { PrismaModule } from '../prisma/prisma.module';
 import { PlayerModule } from '../player/player.module';
 import { AuthModule } from '../auth/auth.module';
@@ -19,6 +21,7 @@ import { StatsModule } from '../stats/stats.module';
 
 @Module({
   imports: [
+    ScheduleModule,
     PrismaModule,
     PlayerModule,
     AuthModule,
@@ -36,6 +39,7 @@ import { StatsModule } from '../stats/stats.module';
     WordMatchGateway,
     WordMatchCleanupService,
     DailyWordService,
+    DailyWordStreakAtRiskScheduler,
   ],
   exports: [WordMatchService],
 })

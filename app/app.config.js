@@ -33,7 +33,7 @@ export default {
         NSLocationWhenInUseUsageDescription:
           'Cafe Social uses your approximate location only to detect when you are inside a partner café’s geofence, so venue games, challenges, and (if you allow them in Settings) partner notifications can apply. Location is not used for continuous tracking in the background for advertising.',
         NSLocationAlwaysAndWhenInUseUsageDescription:
-          'If you allow “Always”, the app can record approximate venue boundary enter/exit events while the app is in the background — for visit analytics and social features — without continuous GPS tracking for ads.',
+          'If you allow “Always”, Cafe Social can notify you when you are near a partner café with an active offer, and record approximate venue enter/exit for visit analytics — without continuous GPS tracking for unrelated ads.',
         UIBackgroundModes: ['location'],
         ...(googleIosUrlScheme && {
           CFBundleURLTypes: [

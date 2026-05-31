@@ -102,6 +102,8 @@ export default function EditVenuePage() {
   const [geoPin, setGeoPin] = useState({ lat: 0, lng: 0 });
   const [geoPolygonDraft, setGeoPolygonDraft] = useState<GeofencePolygonGeoJson | null>(null);
   const [geoDirty, setGeoDirty] = useState(false);
+  const [arrivalRadiusMeters, setArrivalRadiusMeters] = useState(100);
+  const [proximityAlertsEnabled, setProximityAlertsEnabled] = useState(true);
   const geoSeededForRef = useRef<string | null>(null);
   const [pickedOrg, setPickedOrg] = useState<{ id: string; name: string } | null>(null);
 
@@ -165,6 +167,8 @@ export default function EditVenuePage() {
           lockReason: value.lockReason?.trim() || null,
           guestPlayDailyGamesLimit,
           requiresExplicitCheckIn: value.requiresExplicitCheckIn,
+          proximityAlertRadiusMeters: arrivalRadiusMeters,
+          proximityAlertsEnabled,
         };
         if (geoDirty) {
           body.latitude = geoPin.lat;
@@ -236,11 +240,14 @@ export default function EditVenuePage() {
     setGeoPin({ lat: data.latitude, lng: data.longitude });
     setGeoPolygonDraft(adminVenueGeofenceToGeoJson(data.geofencePolygon));
     setGeoDirty(false);
+    setArrivalRadiusMeters(data.proximityAlertRadiusMeters ?? 100);
+    setProximityAlertsEnabled(data.proximityAlertsEnabled ?? true);
   }, [venueQ.data, id]);
 
   const onGeoPinChange = useCallback((p: { lat: number; lng: number }) => {
     setGeoPin(p);
     setGeoDirty(true);
+    setArrivalRadiusMeters(100);
   }, []);
 
   const onGeoPolyChange = useCallback((g: GeofencePolygonGeoJson | null) => {
@@ -506,8 +513,8 @@ export default function EditVenuePage() {
               <div>
                 <h2 className="text-sm font-semibold text-slate-900">Location &amp; geofence</h2>
                 <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
-                  Place the pin and draw the play-area polygon. Same workflow as when creating a venue;
-                  geometry is saved with the rest of this form.
+                  Place the pin and draw the play-area polygon. Moving the pin re-centers nearby
+                  alerts (default 100&nbsp;m) — adjust presets or custom radius below before saving.
                 </p>
               </div>
               {v.geofencePolygon ? (
@@ -540,6 +547,10 @@ export default function EditVenuePage() {
               onPinChange={onGeoPinChange}
               onPolygonChange={onGeoPolyChange}
               initialPolygon={adminVenueGeofenceToGeoJson(v.geofencePolygon)}
+              arrivalRadiusMeters={arrivalRadiusMeters}
+              onArrivalRadiusChange={setArrivalRadiusMeters}
+              proximityAlertsEnabled={proximityAlertsEnabled}
+              onProximityAlertsEnabledChange={setProximityAlertsEnabled}
             />
           </div>
         </section>

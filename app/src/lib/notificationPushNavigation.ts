@@ -1,12 +1,18 @@
 import { navigationRef } from '../navigation/navigationRef';
 import { ensureOnboardingCompleteForNavigation } from './onboardingNavigationGate';
 import { openOrderingOrMenu } from './openOrderingLinks';
+import {
+  parseDailyStreakAtRiskPayload,
+  parsePerkExpiryReminderPayload,
+  parseVenueCampaignPayload,
+  parseVenueProximityArrivalPayload,
+} from './partnerMarketingPush';
 import { parseVenueOrderNudgePayload } from './venueNudgePush';
 import { navigateWordMatchFromPush } from './wordMatchPushNavigation';
 
 /**
  * Central entry for notification taps (foreground tap + cold start).
- * Dispatches by `data.type`; keeps word-match flow separate from other push types.
+ * Dispatches by `data.type` / `data.kind`; keeps word-match flow separate from other push types.
  */
 export async function handleNotificationTapNavigation(
   raw: Record<string, unknown>,
@@ -24,6 +30,54 @@ export async function handleNotificationTapNavigation(
           venueId,
           venueName,
           focusAppealId: appealId,
+        });
+      }
+    }
+    return;
+  }
+
+  const streakAtRisk = parseDailyStreakAtRiskPayload(raw);
+  if (streakAtRisk) {
+    if (navigationRef.isReady()) {
+      const ok = await ensureOnboardingCompleteForNavigation(getToken);
+      if (ok) navigationRef.navigate('DailyWord');
+    }
+    return;
+  }
+
+  const perkExpiry = parsePerkExpiryReminderPayload(raw);
+  if (perkExpiry) {
+    if (navigationRef.isReady()) {
+      const ok = await ensureOnboardingCompleteForNavigation(getToken);
+      if (ok) {
+        navigationRef.navigate('RedeemPerk', { venueId: perkExpiry.venueId });
+      }
+    }
+    return;
+  }
+
+  const proximityArrival = parseVenueProximityArrivalPayload(raw);
+  if (proximityArrival) {
+    if (navigationRef.isReady()) {
+      const ok = await ensureOnboardingCompleteForNavigation(getToken);
+      if (ok) {
+        navigationRef.navigate('VenueHub', {
+          venueId: proximityArrival.venueId,
+          venueName: proximityArrival.venueName,
+        });
+      }
+    }
+    return;
+  }
+
+  const campaign = parseVenueCampaignPayload(raw);
+  if (campaign) {
+    if (navigationRef.isReady()) {
+      const ok = await ensureOnboardingCompleteForNavigation(getToken);
+      if (ok) {
+        navigationRef.navigate('VenueHub', {
+          venueId: campaign.venueId,
+          venueName: campaign.venueName,
         });
       }
     }

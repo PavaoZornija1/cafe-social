@@ -16,6 +16,7 @@ import {
 import { haversineKm } from '../lib/haversine-km';
 import type { Polygon as GeoJsonPolygon } from 'geojson';
 import { loadPublicVenueOffersForVenue } from './venue-offer-public.util';
+import { normalizeProximityAlertRadiusMeters, PROXIMITY_ALERT_RADIUS_DEFAULT } from '../lib/proximity-alert-radius';
 
 @Injectable()
 export class VenueService {
@@ -33,6 +34,8 @@ export class VenueService {
       latitude: dto.latitude,
       longitude: dto.longitude,
       geofencePolygon: polygon as unknown as Prisma.InputJsonValue,
+      proximityAlertRadiusMeters: 100,
+      proximityAlertsEnabled: true,
       ...(dto.city !== undefined && { city: dto.city }),
       ...(dto.country !== undefined && { country: dto.country }),
       ...(dto.region !== undefined && { region: dto.region }),
@@ -398,6 +401,8 @@ export class VenueService {
       geofencePolygon: geoRaw,
       venueTypeCodes,
       guestPlayDailyGamesLimit,
+      proximityAlertRadiusMeters,
+      proximityAlertsEnabled,
       ...venueFields
     } = dto;
 
@@ -441,6 +446,13 @@ export class VenueService {
     if (geofenceUpdate !== undefined) adminPatch.geofencePolygon = geofenceUpdate;
     if (guestPlayDailyGamesLimit !== undefined) {
       adminPatch.guestPlayDailyGamesLimit = guestPlayDailyGamesLimit;
+    }
+    if (proximityAlertRadiusMeters !== undefined) {
+      adminPatch.proximityAlertRadiusMeters =
+        normalizeProximityAlertRadiusMeters(proximityAlertRadiusMeters);
+    }
+    if (proximityAlertsEnabled !== undefined) {
+      adminPatch.proximityAlertsEnabled = proximityAlertsEnabled;
     }
 
     if (Object.keys(adminPatch).length > 0) {
@@ -491,11 +503,13 @@ export class VenueService {
       assertPinInsidePolygon(lat, lng, polygon);
       geofenceUpdate = polygon as unknown as Prisma.InputJsonValue;
     }
+    const pinMoved = dto.latitude !== undefined || dto.longitude !== undefined;
     return this.venues.update(id, {
       ...(dto.name !== undefined && { name: dto.name }),
       ...(dto.address !== undefined && { address: dto.address }),
       ...(dto.latitude !== undefined && { latitude: dto.latitude }),
       ...(dto.longitude !== undefined && { longitude: dto.longitude }),
+      ...(pinMoved && { proximityAlertRadiusMeters: PROXIMITY_ALERT_RADIUS_DEFAULT }),
       ...(geofenceUpdate !== undefined && { geofencePolygon: geofenceUpdate }),
       ...(dto.city !== undefined && { city: dto.city }),
       ...(dto.country !== undefined && { country: dto.country }),
@@ -509,6 +523,40 @@ export class VenueService {
         analyticsTimeZone: dto.analyticsTimeZone?.trim() || null,
       }),
     });
+  }
+
+  /**
+   * Nearest partner venues for OS proximity geofence registration (max 20).
+   */
+  async listProximityGeofencesNear(params: {
+    latitude: number;
+    longitude: number;
+    limit?: number;
+  }) {
+    const limit = Math.min(Math.max(params.limit ?? 20, 1), 20);
+    const rows = await this.prisma.venue.findMany({
+      where: { locked: false, proximityAlertsEnabled: true },
+      select: {
+        id: true,
+        name: true,
+        latitude: true,
+        longitude: true,
+        proximityAlertRadiusMeters: true,
+      },
+    });
+
+    return rows
+      .map((v) => ({
+        venueId: v.id,
+        name: v.name,
+        latitude: v.latitude,
+        longitude: v.longitude,
+        radiusMeters: normalizeProximityAlertRadiusMeters(v.proximityAlertRadiusMeters),
+        distanceMeters: distanceToVenuePinMeters(params.latitude, params.longitude, v),
+      }))
+      .sort((a, b) => a.distanceMeters - b.distanceMeters)
+      .slice(0, limit)
+      .map(({ distanceMeters: _d, ...rest }) => rest);
   }
 
   /** Public fields for the mobile app (menu, ordering, offers). */
@@ -529,14 +577,15 @@ export class VenueService {
         city: true,
         country: true,
         region: true,
+        proximityAlertRadiusMeters: true,
       },
     });
     if (!v) throw new NotFoundException(`Venue ${id} not found`);
     const geofenceForClient = {
       latitude: v.latitude,
       longitude: v.longitude,
-      /// Circular region radius for OS geofencing (meters); approximate vs polygon geofence.
-      radiusMeters: 200,
+      /// Circular region radius for OS geofencing (meters); marketing arrival ring from pin.
+      radiusMeters: normalizeProximityAlertRadiusMeters(v.proximityAlertRadiusMeters),
     };
     if (v.locked) {
       return {

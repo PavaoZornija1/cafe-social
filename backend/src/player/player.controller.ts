@@ -65,10 +65,13 @@ export class PlayerController {
 
   @UseGuards(JwtAuthGuard)
   @Get('me/engagement')
-  meEngagement(@CurrentUser() user: unknown) {
+  meEngagement(
+    @CurrentUser() user: unknown,
+    @Query('venueId') venueId?: string,
+  ) {
     const email = this.normalizeEmail(user);
     if (!email) throw new UnauthorizedException('Missing user email');
-    return this.playerService.getMeEngagement(email);
+    return this.playerService.getMeEngagement(email, venueId?.trim() || undefined);
   }
 
   @UseGuards(JwtAuthGuard)

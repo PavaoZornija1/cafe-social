@@ -8,6 +8,7 @@ import { PushModule } from '../push/push.module';
 import { FriendshipService } from './friendship.service';
 import { DiscoveryService } from './discovery.service';
 import { GeofenceService } from './geofence.service';
+import { ProximityArrivalService } from './proximity-arrival.service';
 import { SocialController } from './social.controller';
 import { SocialInboxService } from './social-inbox.service';
 import { PlayerInboxService } from './player-inbox.service';
@@ -20,6 +21,7 @@ import { PlayerInboxService } from './player-inbox.service';
     FriendshipService,
     DiscoveryService,
     GeofenceService,
+    ProximityArrivalService,
     SocialInboxService,
   ],
   exports: [

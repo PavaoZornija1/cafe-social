@@ -8,7 +8,9 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { VenueService } from './venue.service';
 import { CreateVenueDto } from './dto/create-venue.dto';
 import { UpdateVenueDto } from './dto/update-venue.dto';
@@ -62,6 +64,30 @@ export class VenueController {
   globalXpLeaderboard(@Query('limit') limit?: string) {
     const n = limit ? Number(limit) : 50;
     return this.venueService.globalXpLeaderboard(Number.isFinite(n) ? n : 50);
+  }
+
+  /**
+   * Nearest partner arrival rings for background OS geofencing (auth required).
+   * Returns up to 20 venues sorted by distance from lat/lng.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('proximity-geofences/near')
+  proximityGeofencesNear(
+    @Query('lat') latRaw?: string,
+    @Query('lng') lngRaw?: string,
+    @Query('limit') limitRaw?: string,
+  ) {
+    const lat = latRaw !== undefined && latRaw !== '' ? Number(latRaw) : NaN;
+    const lng = lngRaw !== undefined && lngRaw !== '' ? Number(lngRaw) : NaN;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      throw new BadRequestException('lat and lng query params are required');
+    }
+    let limit = 20;
+    if (limitRaw !== undefined && limitRaw !== '') {
+      const n = Number.parseInt(limitRaw, 10);
+      if (Number.isFinite(n)) limit = n;
+    }
+    return this.venueService.listProximityGeofencesNear({ latitude: lat, longitude: lng, limit });
   }
 
   @Get('leaderboard/xp/country/:country')

@@ -5,6 +5,16 @@ import { getBackgroundApiToken } from './backgroundApiToken';
 
 export const VENUE_GEOFENCE_TASK = 'VENUE_GEOFENCE_TASK';
 
+export type ProximityGeofenceRegion = {
+  venueId: string;
+  latitude: number;
+  longitude: number;
+  radiusMeters: number;
+};
+
+const MIN_RADIUS_M = 100;
+const MAX_REGIONS = 20;
+
 if (!TaskManager.isTaskDefined(VENUE_GEOFENCE_TASK)) {
   TaskManager.defineTask(VENUE_GEOFENCE_TASK, async (body) => {
     const { data, error } = body;
@@ -38,6 +48,7 @@ if (!TaskManager.isTaskDefined(VENUE_GEOFENCE_TASK)) {
   });
 }
 
+/** @deprecated Use {@link syncProximityGeofenceRegions} for partner arrival alerts. */
 export async function syncVenueGeofenceMonitoring(
   opts: {
     venueId: string;
@@ -46,6 +57,21 @@ export async function syncVenueGeofenceMonitoring(
     radiusMeters: number;
   } | null,
 ): Promise<void> {
+  if (!opts) {
+    await stopProximityGeofenceMonitoring();
+    return;
+  }
+  await syncProximityGeofenceRegions([
+    {
+      venueId: opts.venueId,
+      latitude: opts.latitude,
+      longitude: opts.longitude,
+      radiusMeters: opts.radiusMeters,
+    },
+  ]);
+}
+
+export async function stopProximityGeofenceMonitoring(): Promise<void> {
   try {
     const started = await Location.hasStartedGeofencingAsync(VENUE_GEOFENCE_TASK);
     if (started) {
@@ -54,34 +80,53 @@ export async function syncVenueGeofenceMonitoring(
   } catch {
     /* ignore */
   }
+}
 
-  if (!opts) return;
-
+export async function requestProximityGeofencePermissions(): Promise<{
+  foregroundGranted: boolean;
+  backgroundGranted: boolean;
+}> {
   const fg = await Location.requestForegroundPermissionsAsync();
-  if (fg.status !== Location.PermissionStatus.GRANTED) return;
-
+  const foregroundGranted = fg.status === Location.PermissionStatus.GRANTED;
+  if (!foregroundGranted) {
+    return { foregroundGranted: false, backgroundGranted: false };
+  }
   try {
     const bg = await Location.requestBackgroundPermissionsAsync();
-    if (bg.status !== Location.PermissionStatus.GRANTED) {
-      /* Region updates may be limited without “Always”; still register for best-effort. */
-    }
+    return {
+      foregroundGranted: true,
+      backgroundGranted: bg.status === Location.PermissionStatus.GRANTED,
+    };
   } catch {
-    /* older platforms / web */
+    return { foregroundGranted: true, backgroundGranted: false };
   }
+}
 
-  const radius = Math.min(Math.max(opts.radiusMeters, 100), 4_000_000);
+/**
+ * Registers up to 20 circular arrival zones (nearest partner venues).
+ * Requires foreground location; background ("Always") improves delivery when the app is not open.
+ */
+export async function syncProximityGeofenceRegions(
+  regions: ProximityGeofenceRegion[],
+): Promise<void> {
+  await stopProximityGeofenceMonitoring();
+
+  if (regions.length === 0) return;
+
+  const perms = await requestProximityGeofencePermissions();
+  if (!perms.foregroundGranted) return;
+
+  const mapped = regions.slice(0, MAX_REGIONS).map((r) => ({
+    identifier: r.venueId,
+    latitude: r.latitude,
+    longitude: r.longitude,
+    radius: Math.min(Math.max(r.radiusMeters, MIN_RADIUS_M), 4_000_000),
+    notifyOnEnter: true,
+    notifyOnExit: true,
+  }));
 
   try {
-    await Location.startGeofencingAsync(VENUE_GEOFENCE_TASK, [
-      {
-        identifier: opts.venueId,
-        latitude: opts.latitude,
-        longitude: opts.longitude,
-        radius,
-        notifyOnEnter: true,
-        notifyOnExit: true,
-      },
-    ]);
+    await Location.startGeofencingAsync(VENUE_GEOFENCE_TASK, mapped);
   } catch {
     /* simulators often lack geofencing */
   }

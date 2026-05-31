@@ -13,6 +13,10 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { CreateVenueDto } from './create-venue.dto';
+import {
+  PROXIMITY_ALERT_RADIUS_MAX,
+  PROXIMITY_ALERT_RADIUS_MIN,
+} from '../../lib/proximity-alert-radius';
 
 export class AdminPatchVenueDto extends PartialType(CreateVenueDto) {
   /** Link venue to an organization; `null` clears. */
@@ -45,4 +49,16 @@ export class AdminPatchVenueDto extends PartialType(CreateVenueDto) {
   @Min(1)
   @Max(999)
   guestPlayDailyGamesLimit?: number | null;
+
+  /** Super-admin only: nearby arrival push ring radius (meters). Owners cannot set this. */
+  @IsOptional()
+  @IsInt()
+  @Min(PROXIMITY_ALERT_RADIUS_MIN)
+  @Max(PROXIMITY_ALERT_RADIUS_MAX)
+  proximityAlertRadiusMeters?: number;
+
+  /** Super-admin only: disable nearby arrival pushes for this venue. */
+  @IsOptional()
+  @IsBoolean()
+  proximityAlertsEnabled?: boolean;
 }

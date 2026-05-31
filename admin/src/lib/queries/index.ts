@@ -92,6 +92,8 @@ export type AdminVenueDetail = {
   requiresExplicitCheckIn?: boolean;
   venueTypes?: AdminVenueTypeRow[];
   guestPlayDailyGamesLimit?: number | null;
+  proximityAlertRadiusMeters?: number;
+  proximityAlertsEnabled?: boolean;
 };
 
 export type AdminVenueOfferRow = {

@@ -81,6 +81,11 @@ export class OwnerCampaignService {
     });
     const playerIds = visitRows.map((r) => r.playerId);
 
+    const venue = await this.prisma.venue.findUnique({
+      where: { id: venueId },
+      select: { name: true },
+    });
+
     await this.prisma.venueCampaign.update({
       where: { id: campaign.id },
       data: {
@@ -98,9 +103,11 @@ export class OwnerCampaignService {
           title: campaign.title,
           body: campaign.body,
           data: {
+            type: 'venue_campaign',
             pushCategory: 'partner_marketing',
             venueId: campaign.venueId,
             campaignId: campaign.id,
+            venueName: venue?.name ?? '',
           },
         },
         { channel: 'partner_marketing' },

@@ -100,6 +100,11 @@ model Venue {
   /// Optional IANA timezone (e.g. `Europe/Zagreb`) for owner analytics hour-of-day buckets. UTC used when null.
   analyticsTimeZone String?
 
+  /// Circular OS geofence radius for “you’re near this venue” marketing pushes (fixed 100 m from pin; not owner-configurable).
+  proximityAlertRadiusMeters Int @default(100)
+  /// When false, venue is excluded from proximity geofence registration and arrival pushes.
+  proximityAlertsEnabled       Boolean @default(true)
+
   offers VenueOffer[]
 
   venueVenueTypes VenueVenueType[]
@@ -139,6 +144,7 @@ model Venue {
   playerBans      VenuePlayerBan[]
   banAppeals      VenueBanAppeal[]
   geofenceEvents  PlayerVenueGeofenceEvent[]
+  proximityArrivalPushLogs ProximityArrivalPushLog[]
   moderationAuditLogs VenueModerationAuditLog[]
   explicitCheckIns    PlayerVenueCheckIn[]
 
@@ -513,6 +519,8 @@ model Player {
 
   dailyWords  PlayerDailyWord[]
   dailyStreaks PlayerDailyStreak[]
+  dailyStreakAtRiskPushLogs DailyStreakAtRiskPushLog[]
+  proximityArrivalPushLogs ProximityArrivalPushLog[]
   soloWordSessions SoloWordSession[]
   venueVisitDays   PlayerVenueVisitDay[]
   venuePlayDays    PlayerVenuePlayDay[]
@@ -1185,6 +1193,33 @@ model PlayerDailyStreak {
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
   @@id([playerId, scopeKey])
+}
+
+/// Idempotent log — at most one streak-at-risk push per player/scope/UTC day.
+model DailyStreakAtRiskPushLog {
+  playerId String
+  scopeKey String
+  dayKey   String
+  sentAt   DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, scopeKey, dayKey])
+  @@index([dayKey])
+}
+
+/// Idempotent log — at most one proximity arrival push per player/venue/UTC day.
+model ProximityArrivalPushLog {
+  playerId String
+  venueId  String
+  dayKey   String
+  sentAt   DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, venueId, dayKey])
+  @@index([playerId, dayKey])
 }
 
 enum VenueFeedEventKind {

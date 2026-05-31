@@ -7,6 +7,10 @@ import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
 
 export type GeofencePolygonGeoJson = { type: "Polygon"; coordinates: number[][][] };
 
+export const ARRIVAL_RADIUS_PRESETS = [50, 100, 200] as const;
+export const ARRIVAL_RADIUS_MIN = 25;
+export const ARRIVAL_RADIUS_MAX = 500;
+
 export type VenueGeofenceMapProps = {
   pin: { lat: number; lng: number };
   onPinChange: (p: { lat: number; lng: number }) => void;
@@ -16,6 +20,11 @@ export type VenueGeofenceMapProps = {
   /** Parent provides its own heading / copy above the map. */
   hideInstructions?: boolean;
   className?: string;
+  /** Super-admin only: marketing arrival ring centered on pin. */
+  arrivalRadiusMeters?: number;
+  onArrivalRadiusChange?: (m: number) => void;
+  proximityAlertsEnabled?: boolean;
+  onProximityAlertsEnabledChange?: (enabled: boolean) => void;
 };
 
 function FixLeafletIcons() {
@@ -153,6 +162,38 @@ function SeedPolygonLayer({
   return null;
 }
 
+function ArrivalCircleLayer({
+  pin,
+  radiusMeters,
+}: {
+  pin: { lat: number; lng: number };
+  radiusMeters: number;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    const circle = L.circle([pin.lat, pin.lng], {
+      radius: radiusMeters,
+      color: "#d97706",
+      weight: 2,
+      fillColor: "#fbbf24",
+      fillOpacity: 0.12,
+      interactive: false,
+    });
+    circle.addTo(map);
+    return () => {
+      map.removeLayer(circle);
+    };
+  }, [map, pin.lat, pin.lng, radiusMeters]);
+
+  return null;
+}
+
+function clampArrivalRadiusMeters(n: number): number {
+  if (!Number.isFinite(n)) return 100;
+  return Math.round(Math.min(ARRIVAL_RADIUS_MAX, Math.max(ARRIVAL_RADIUS_MIN, n)));
+}
+
 function MapInstructionsBold({ children }: { children: ReactNode }) {
   return <strong className="font-semibold text-slate-900">{children}</strong>;
 }
@@ -214,6 +255,10 @@ export default function VenueGeofenceMap({
   initialPolygon,
   hideInstructions = false,
   className = "",
+  arrivalRadiusMeters = 100,
+  onArrivalRadiusChange,
+  proximityAlertsEnabled = true,
+  onProximityAlertsEnabledChange,
 }: VenueGeofenceMapProps) {
   const onDragEnd = useCallback(
     (e: LeafletEvent) => {
@@ -224,9 +269,78 @@ export default function VenueGeofenceMap({
     [onPinChange],
   );
 
+  const showArrivalControls = Boolean(onArrivalRadiusChange);
+  const radius = clampArrivalRadiusMeters(arrivalRadiusMeters);
+  const presetActive = (ARRIVAL_RADIUS_PRESETS as readonly number[]).includes(radius);
+
   return (
     <div className={`space-y-3 ${className}`.trim()}>
       {hideInstructions ? null : <MapInstructions />}
+      {showArrivalControls ? (
+        <div className="rounded-xl border border-amber-200/90 bg-amber-50/80 px-3 py-3 sm:px-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-900/80">
+                Arrival zone (nearby alerts)
+              </p>
+              <p className="mt-1 text-xs leading-snug text-amber-950/80">
+                Circle centered on the pin — players get one offer push per day when they enter this
+                ring. Moving the pin re-centers the ring and resets to 100&nbsp;m (choose presets or
+                custom before save). Super-admin only. Separate from the play-area polygon.
+              </p>
+            </div>
+            {onProximityAlertsEnabledChange ? (
+              <label className="flex items-center gap-2 text-sm font-medium text-amber-950">
+                <input
+                  type="checkbox"
+                  checked={proximityAlertsEnabled}
+                  onChange={(e) => onProximityAlertsEnabledChange(e.target.checked)}
+                  className="rounded border-amber-300 text-amber-700 focus:ring-amber-500"
+                />
+                Enabled
+              </label>
+            ) : null}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {ARRIVAL_RADIUS_PRESETS.map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => onArrivalRadiusChange?.(m)}
+                className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                  radius === m
+                    ? "bg-amber-600 text-white shadow-sm"
+                    : "bg-white text-amber-900 ring-1 ring-amber-200 hover:bg-amber-100"
+                }`}
+              >
+                {m} m
+              </button>
+            ))}
+            <label className="flex items-center gap-2 text-sm text-amber-950">
+              <span className="font-medium">Custom</span>
+              <input
+                type="number"
+                min={ARRIVAL_RADIUS_MIN}
+                max={ARRIVAL_RADIUS_MAX}
+                step={5}
+                value={presetActive ? "" : radius}
+                placeholder={presetActive ? String(radius) : undefined}
+                onChange={(e) => {
+                  const raw = e.target.value.trim();
+                  if (!raw) return;
+                  const n = Number.parseInt(raw, 10);
+                  if (Number.isFinite(n)) onArrivalRadiusChange?.(clampArrivalRadiusMeters(n));
+                }}
+                className="w-20 rounded-lg border border-amber-200 bg-white px-2 py-1.5 text-sm shadow-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+              />
+              <span className="text-xs text-amber-900/70">m</span>
+            </label>
+            <span className="self-center text-xs font-medium text-amber-900/70">
+              {radius} m from pin
+            </span>
+          </div>
+        </div>
+      ) : null}
       <div className="h-[min(400px,50vh)] min-h-[260px] w-full rounded-xl border border-slate-200 overflow-hidden bg-slate-100 shadow-inner ring-1 ring-black/[0.04]">
         <MapContainer
           center={[pin.lat, pin.lng]}
@@ -246,6 +360,9 @@ export default function VenueGeofenceMap({
           />
           <GeomanController onPolygonChange={onPolygonChange} />
           <SeedPolygonLayer initialPolygon={initialPolygon ?? null} />
+          {showArrivalControls && proximityAlertsEnabled ? (
+            <ArrivalCircleLayer pin={pin} radiusMeters={radius} />
+          ) : null}
         </MapContainer>
       </div>
     </div>
