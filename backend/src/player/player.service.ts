@@ -38,6 +38,7 @@ export class PlayerService {
     return this.players.create({
       email: dto.email,
       username: dto.username,
+      memberQrToken: generateMemberQrToken(),
     });
   }
 
@@ -48,11 +49,11 @@ export class PlayerService {
     // Simple default username for new accounts.
     // Can be expanded later once we store more user profile data.
     const username = email.split('@')[0] || 'player';
-    const created = await this.players.create({
+    return this.players.create({
       email,
       username,
+      memberQrToken: generateMemberQrToken(),
     });
-    return created;
   }
 
   /** Ensures legacy rows have a member QR token (post-migration safety). */
