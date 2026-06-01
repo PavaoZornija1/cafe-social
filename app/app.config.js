@@ -63,7 +63,16 @@ export default {
       'expo-secure-store',
       'expo-web-browser',
       'expo-localization',
-      'expo-location',
+      [
+        'expo-location',
+        {
+          locationWhenInUsePermission:
+            'Cafe Social uses your approximate location to detect when you are inside a partner café’s geofence, so venue games, challenges, and (if you allow them in Settings) partner notifications can apply.',
+          locationAlwaysAndWhenInUsePermission:
+            'If you allow “Always”, Cafe Social can notify you when you are near a partner café with an active offer, and record approximate venue enter/exit for visit analytics — without continuous GPS tracking for unrelated ads.',
+          isIosBackgroundLocationEnabled: true,
+        },
+      ],
       [
         'expo-camera',
         {

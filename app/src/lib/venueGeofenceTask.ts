@@ -2,6 +2,7 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { apiPost } from './api';
 import { getBackgroundApiToken } from './backgroundApiToken';
+import { requestAlwaysLocationPermissions } from './locationPermissions';
 
 export const VENUE_GEOFENCE_TASK = 'VENUE_GEOFENCE_TASK';
 
@@ -82,25 +83,8 @@ export async function stopProximityGeofenceMonitoring(): Promise<void> {
   }
 }
 
-export async function requestProximityGeofencePermissions(): Promise<{
-  foregroundGranted: boolean;
-  backgroundGranted: boolean;
-}> {
-  const fg = await Location.requestForegroundPermissionsAsync();
-  const foregroundGranted = fg.status === Location.PermissionStatus.GRANTED;
-  if (!foregroundGranted) {
-    return { foregroundGranted: false, backgroundGranted: false };
-  }
-  try {
-    const bg = await Location.requestBackgroundPermissionsAsync();
-    return {
-      foregroundGranted: true,
-      backgroundGranted: bg.status === Location.PermissionStatus.GRANTED,
-    };
-  } catch {
-    return { foregroundGranted: true, backgroundGranted: false };
-  }
-}
+/** @deprecated Prefer {@link requestAlwaysLocationPermissions} from `./locationPermissions`. */
+export const requestProximityGeofencePermissions = requestAlwaysLocationPermissions;
 
 /**
  * Registers up to 20 circular arrival zones (nearest partner venues).

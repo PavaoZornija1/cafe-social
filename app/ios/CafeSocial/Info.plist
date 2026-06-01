@@ -49,7 +49,13 @@
     <key>NSFaceIDUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your Face ID biometric data.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
-    <string>Cafe Social uses your location to detect when you are at a partner café.</string>
+    <string>Cafe Social uses your approximate location to detect when you are inside a partner café’s geofence, so venue games, challenges, and (if you allow them in Settings) partner notifications can apply.</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>If you allow “Always”, Cafe Social can notify you when you are near a partner café with an active offer, and record approximate venue enter/exit for visit analytics — without continuous GPS tracking for unrelated ads.</string>
+    <key>UIBackgroundModes</key>
+    <array>
+      <string>location</string>
+    </array>
     <key>NSCameraUsageDescription</key>
     <string>Cafe Social uses the camera to scan venue QR codes for unlocking.</string>
     <key>RCTNewArchEnabled</key>

@@ -1,6 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
-import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
@@ -20,6 +19,10 @@ import { LANGUAGE_OPTIONS, type AppLanguage, setAppLanguage } from '../i18n';
 import { apiGet, apiPatch } from '../lib/api';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { registerExpoPushTokenWithBackend } from '../lib/expoPush';
+import {
+  promptOpenSettingsForAlways,
+  requestAlwaysLocationPermissions,
+} from '../lib/locationPermissions';
 import { fetchOwnerVenues } from '../lib/ownerStaffApi';
 import {
   isPlayerOnboardingDone,
@@ -157,16 +160,20 @@ export default function OnboardingScreen({ navigation }: Props) {
   const requestLocationThenFinish = useCallback(async () => {
     setLocationRequestBusy(true);
     try {
-      try {
-        await Location.requestForegroundPermissionsAsync();
-      } catch {
-        /* user denied or error — still leave onboarding */
+      const perms = await requestAlwaysLocationPermissions();
+      if (perms.foregroundGranted && !perms.backgroundGranted) {
+        promptOpenSettingsForAlways(
+          t('settings.locationAlwaysNeededTitle'),
+          t('settings.locationAlwaysNeededBody'),
+          t('settings.locationOpenSettings'),
+          t('onboarding.notNow'),
+        );
       }
       await finishPlayer();
     } catch {
       setLocationRequestBusy(false);
     }
-  }, [finishPlayer]);
+  }, [finishPlayer, t]);
 
   const handleLanguage = useCallback(async (code: AppLanguage) => {
     try {

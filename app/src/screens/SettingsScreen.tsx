@@ -2,6 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth, useClerk } from '@clerk/expo';
 import { useFocusEffect } from '@react-navigation/native';
 import Constants from 'expo-constants';
+import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
@@ -32,6 +33,13 @@ import {
 import { getVenuePlayBudgetIapCatalog } from '../lib/venuePlayBudgetCatalog';
 import { promptVenuePlayTimePurchaseDialog } from '../lib/venuePlayBudgetPurchaseUi';
 import { SUBSCRIPTION_MANAGE_URL } from '../lib/subscriptionUrl';
+import {
+  getLocationPermissionSummary,
+  openAppSettings,
+  promptOpenSettingsForAlways,
+  requestAlwaysLocationPermissions,
+  type LocationPermissionSummary,
+} from '../lib/locationPermissions';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 
@@ -66,6 +74,8 @@ export default function SettingsScreen({ navigation }: Props) {
   const [subscriptionPendingSync, setSubscriptionPendingSync] = useState(false);
   const [subscriptionPendingFollowUp, setSubscriptionPendingFollowUp] = useState(false);
   const [offeringsIssue, setOfferingsIssue] = useState<'none' | 'no_current' | 'no_packages'>('none');
+  const [locationPerms, setLocationPerms] = useState<LocationPermissionSummary | null>(null);
+  const [locationBusy, setLocationBusy] = useState(false);
   const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '—';
   const rcNative = isRevenueCatNativeConfigured();
   const packageOrder = getPreferredPackageOrder();
@@ -142,11 +152,46 @@ export default function SettingsScreen({ navigation }: Props) {
     };
   }, [subscriptionPendingSync, refreshSubscriptionOnly]);
 
+  const refreshLocationPerms = useCallback(async () => {
+    if (Platform.OS === 'web') return;
+    setLocationPerms(await getLocationPermissionSummary());
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       void loadPrivacy();
-    }, [loadPrivacy]),
+      void refreshLocationPerms();
+    }, [loadPrivacy, refreshLocationPerms]),
   );
+
+  const locationStatusKey = (() => {
+    if (!locationPerms) return null;
+    if (locationPerms.hasAlways) return 'settings.locationStatusAlways';
+    if (locationPerms.hasWhenInUse) return 'settings.locationStatusWhenInUse';
+    if (locationPerms.foreground === Location.PermissionStatus.DENIED) {
+      return 'settings.locationStatusDenied';
+    }
+    return 'settings.locationStatusNotDetermined';
+  })();
+
+  const onRequestAlwaysLocation = async () => {
+    if (Platform.OS === 'web') return;
+    setLocationBusy(true);
+    try {
+      const perms = await requestAlwaysLocationPermissions();
+      await refreshLocationPerms();
+      if (perms.foregroundGranted && !perms.backgroundGranted) {
+        promptOpenSettingsForAlways(
+          t('settings.locationAlwaysNeededTitle'),
+          t('settings.locationAlwaysNeededBody'),
+          t('settings.locationOpenSettings'),
+          t('common.cancel'),
+        );
+      }
+    } finally {
+      setLocationBusy(false);
+    }
+  };
 
   const persistPrivacy = async (patch: Partial<MeSummary>) => {
     const token = await getTokenRef.current();
@@ -337,6 +382,29 @@ export default function SettingsScreen({ navigation }: Props) {
           <Text style={[styles.cardText, { marginTop: 12, color: '#9ca3af' }]}>
             {t('settings.locationGeofenceHint')}
           </Text>
+          {Platform.OS !== 'web' && locationStatusKey ? (
+            <Text style={[styles.cardText, { marginTop: 12, color: '#c4b5fd' }]}>
+              {t(locationStatusKey)}
+            </Text>
+          ) : null}
+          {Platform.OS !== 'web' && locationPerms && !locationPerms.hasAlways ? (
+            <Pressable
+              style={[styles.secondaryBtn, locationBusy && styles.btnDisabled]}
+              disabled={locationBusy}
+              onPress={() => void onRequestAlwaysLocation()}
+            >
+              {locationBusy ? (
+                <ActivityIndicator color="#e9d5ff" />
+              ) : (
+                <Text style={styles.secondaryBtnText}>{t('settings.locationEnableAlways')}</Text>
+              )}
+            </Pressable>
+          ) : null}
+          {Platform.OS !== 'web' ? (
+            <Pressable style={styles.linkBtn} onPress={openAppSettings}>
+              <Text style={styles.linkBtnText}>{t('settings.locationOpenSettings')}</Text>
+            </Pressable>
+          ) : null}
         </View>
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.notifications')}</Text>
@@ -696,6 +764,19 @@ function createStyles(colors: AppColors) {
   },
   cardText: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
   cardTextMuted: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
+  secondaryBtn: {
+    marginTop: 14,
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  secondaryBtnText: { color: colors.honey, fontWeight: '800', fontSize: 14 },
+  btnDisabled: { opacity: 0.6 },
+  linkBtn: { marginTop: 10, paddingVertical: 8 },
+  linkBtnText: { color: colors.honeyDark, fontWeight: '700', fontSize: 14 },
   logoutBtn: {
     marginTop: 28,
     backgroundColor: colors.surface,
