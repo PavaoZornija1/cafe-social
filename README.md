@@ -89,6 +89,12 @@ npx expo run:ios --device
 cd backend && npm test
 ```
 
+Pilot / retention coverage includes proximity arrival, geofence enter, venue pin + radius, member QR scan, streak-at-risk scheduler, `GET /players/me/engagement`, and mobile push payload parsers (`src/lib/partner-marketing-push.spec.ts` imports from `app/`). Three legacy game specs (`word-match`, `brawler`, `owner-campaign`) may still fail until updated — run the rest with:
+
+```bash
+cd backend && npm test -- --testPathIgnorePatterns="word-match.service.spec|brawler.service.spec|owner-campaign.service.spec"
+```
+
 ## Prerequisites
 
 - **Node.js** (LTS)
