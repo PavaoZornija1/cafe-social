@@ -219,7 +219,14 @@
     "soloOpponents": "Opponents",
     "soloDifficulty": "Difficulty",
     "soloStartBtn": "Start",
-    "needLocationForStart": "Turn on location and stand inside the venue geofence to start a timed brawler session."
+    "needLocationForStart": "Turn on location and stand inside the venue geofence to start a timed brawler session.",
+    "selectedHeroStats": "Selected hero stats",
+    "statHp": "HP: {{value}}",
+    "statSpeed": "Move speed: {{value}}",
+    "statDash": "Dash cooldown: {{value}}ms",
+    "statAttack": "Attack damage: {{value}}",
+    "statKnockback": "Knockback: {{value}}",
+    "powerupLegendTitle": "Arena power-ups"
   },
   "brawlerMatch": {
     "queueTitle": "Matchmaking",
@@ -234,6 +241,12 @@
     "pvpPlaceholderTitle": "Match found",
     "pvpPlaceholderBody": "You’re paired for a venue brawl. Real-time combat between two phones is not in this build yet — go back to free the room, or play solo / vs bot from the lobby.",
     "backToLobby": "Back to lobby",
+    "heroDeadTitle": "You died",
+    "heroDeadBody": "You're out for this match. Leave to the lobby or stay and watch until the timer ends.",
+    "heroDeadLeave": "Leave to lobby",
+    "heroDeadSpectate": "Stay and spectate",
+    "spectating": "Spectating",
+    "spectatingPanHint": "Drag to move the camera",
     "playTimeExhaustedTitle": "Play time used up",
     "playTimeExhaustedBody": "You’ve used your free active play time at this venue for today (UTC). You can buy more time in the app or come back tomorrow."
   },

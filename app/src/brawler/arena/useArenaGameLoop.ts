@@ -7,7 +7,7 @@ import {
   spawnOnBottomPlatform,
   type PlatformWorld,
 } from '../arenaPlatforms';
-import { matchPhaseMods } from './combat';
+import { computeLavaSurfaceY, matchPhaseMods } from './combat';
 import { aabbOverlap, overlapX } from './collision';
 import {
   ATTACK_DURATION_S,
@@ -43,6 +43,7 @@ import type {
   TrackedParticipant,
 } from './types';
 import type { arenaHeroCombat } from './combat';
+import { pickRandomPowerupSpawnPosition } from './powerupSpawn';
 
 export type ArenaGameLoopConfig = {
   arenaW: number;
@@ -55,6 +56,7 @@ export type ArenaGameLoopConfig = {
   FEET_W: number;
   heroCombat: ReturnType<typeof arenaHeroCombat>;
   heroDeadOpen: boolean;
+  isSpectatingRef: MutableRefObject<boolean>;
   devMatchTimerEnabled: boolean;
   sessionId: string | undefined;
   controlsLive: boolean;
@@ -65,6 +67,8 @@ export type ArenaGameLoopConfig = {
   setHeroDeadOpen: (open: boolean) => void;
   arenaWLiveRef: MutableRefObject<number>;
   arenaInnerHLiveRef: MutableRefObject<number>;
+  worldWLiveRef: MutableRefObject<number>;
+  worldHLiveRef: MutableRefObject<number>;
   sessionIdLiveRef: MutableRefObject<string | undefined>;
   trackedSessionGateRef: MutableRefObject<boolean>;
   devMatchTimerLiveRef: MutableRefObject<boolean>;
@@ -99,8 +103,14 @@ export type ArenaGameLoopConfig = {
   powerupDefsRef: MutableRefObject<BrawlerPowerupDef[]>;
   powerupsOnMapRef: MutableRefObject<SpawnedPowerup[]>;
   powerupSpawnAccumRef: MutableRefObject<number>;
+  arenaServerTickAccumRef: MutableRefObject<number>;
   powerupPickedPendingRef: MutableRefObject<Set<string>>;
   activeBuffsRef: MutableRefObject<ActiveBuff[]>;
+  powerupPickupFlashRef: MutableRefObject<{
+    displayName: string;
+    effectType: ActiveBuff['effectType'];
+    endsAtMs: number;
+  } | null>;
   participantsRef: MutableRefObject<TrackedParticipant[]>;
   getTokenRef: MutableRefObject<() => Promise<string | null>>;
   dashCooldownLeft: MutableRefObject<number>;
@@ -128,6 +138,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
     FEET_W,
     heroCombat,
     heroDeadOpen,
+    isSpectatingRef,
     devMatchTimerEnabled,
     sessionId,
     controlsLive,
@@ -138,6 +149,8 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
     setHeroDeadOpen,
     arenaWLiveRef,
     arenaInnerHLiveRef,
+    worldWLiveRef,
+    worldHLiveRef,
     sessionIdLiveRef,
     trackedSessionGateRef,
     devMatchTimerLiveRef,
@@ -172,8 +185,10 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
     powerupDefsRef,
     powerupsOnMapRef,
     powerupSpawnAccumRef,
+    arenaServerTickAccumRef,
     powerupPickedPendingRef,
     activeBuffsRef,
+    powerupPickupFlashRef,
     participantsRef,
     getTokenRef,
     dashCooldownLeft,
@@ -279,8 +294,8 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
         return;
       }
 
-      // Hero death: freeze inputs and physics while overlay is open.
-      if (heroDeadOpen) {
+      // Hero death: freeze until the player chooses to spectate.
+      if (heroDeadOpen && !isSpectatingRef.current) {
         joyRef.current.x = 0;
         joyRef.current.y = 0;
         jumpQueued.current = false;
@@ -317,13 +332,82 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
         if (activeBuffsRef.current.length !== before) bump();
       }
 
-      // Power-ups: spawn simple pickups locally (no realtime yet).
+      const pickupFlash = powerupPickupFlashRef.current;
+      if (pickupFlash && pickupFlash.endsAtMs <= nowMs) {
+        powerupPickupFlashRef.current = null;
+        bump();
+      }
+
+      const useServerArena = Boolean(sessionIdLiveRef.current);
+
+      // Power-ups: server-authoritative spawns when in a tracked session.
       if (
+        useServerArena &&
+        controlsLive &&
+        arenaReady &&
+        powerupDefsRef.current.length > 0
+      ) {
+          arenaServerTickAccumRef.current += dt;
+        if (arenaServerTickAccumRef.current >= 1) {
+          arenaServerTickAccumRef.current = 0;
+          const sid = sessionIdLiveRef.current!;
+          const tickWorldW = Math.round(worldWLiveRef.current);
+          const tickWorldH = Math.round(worldHLiveRef.current);
+          if (tickWorldW < 100 || tickWorldH < 100) {
+            /* wait for arena layout before server spawns */
+          } else {
+            void (async () => {
+              try {
+                const token = await getTokenRef.current();
+                if (!token) return;
+                const res = await apiPost<{
+                  spawned: boolean;
+                  spawn?: {
+                    spawnId: string;
+                    powerupId: string;
+                    x: number;
+                    y: number;
+                    r?: number;
+                  };
+                }>(
+                  `/brawler/sessions/${encodeURIComponent(sid)}/arena/tick`,
+                  {
+                    atMs: nowMs,
+                    worldW: tickWorldW,
+                    worldH: tickWorldH,
+                  },
+                  token,
+                );
+                if (
+                  res.spawned &&
+                  res.spawn &&
+                  !powerupsOnMapRef.current.some((p) => p.spawnId === res.spawn!.spawnId)
+                ) {
+                  powerupsOnMapRef.current = [
+                    ...powerupsOnMapRef.current,
+                    {
+                      spawnId: res.spawn.spawnId,
+                      powerupId: res.spawn.powerupId,
+                      x: res.spawn.x,
+                      y: res.spawn.y,
+                      r: res.spawn.r ?? POWERUP_PICKUP_RADIUS_PX,
+                    },
+                  ];
+                  bump();
+                }
+              } catch {
+                /* socket / next tick will reconcile */
+              }
+            })();
+          }
+        }
+      } else if (
         controlsLive &&
         arenaReady &&
         powerupDefsRef.current.length > 0 &&
         powerupsOnMapRef.current.length < POWERUP_MAX_ON_MAP
       ) {
+        // Dev / offline arena: local spawns.
         powerupSpawnAccumRef.current += dt;
         if (powerupSpawnAccumRef.current >= POWERUP_SPAWN_INTERVAL_S) {
           powerupSpawnAccumRef.current = 0;
@@ -341,15 +425,21 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
             }
           }
 
-          const spawnId = `${nowMs}-${Math.floor(Math.random() * 1e9)}`;
-          const pad = 44;
-          const x = pad + Math.random() * Math.max(1, worldW - pad * 2);
-          const y = pad + Math.random() * Math.max(1, worldH - pad * 2.2);
-          powerupsOnMapRef.current = [
-            ...powerupsOnMapRef.current,
-            { spawnId, powerupId: pick.id, x, y, r: POWERUP_PICKUP_RADIUS_PX },
-          ];
-          bump();
+          const pos = pickRandomPowerupSpawnPosition(worldW, worldH);
+          if (pos) {
+            const spawnId = `${nowMs}-${Math.floor(Math.random() * 1e9)}`;
+            powerupsOnMapRef.current = [
+              ...powerupsOnMapRef.current,
+              {
+                spawnId,
+                powerupId: pick.id,
+                x: pos.x,
+                y: pos.y,
+                r: POWERUP_PICKUP_RADIUS_PX,
+              },
+            ];
+            bump();
+          }
         }
       }
 
@@ -369,6 +459,32 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
             if (pending.has(pu.spawnId)) continue;
             if (Math.hypot(hx - pu.x, hy - pu.y) > pu.r) continue;
             pending.add(pu.spawnId);
+
+            const def = powerupDefsRef.current.find((d) => d.id === pu.powerupId);
+            powerupsOnMapRef.current = powerupsOnMapRef.current.filter(
+              (p) => p.spawnId !== pu.spawnId,
+            );
+            if (def) {
+              const ends = nowMs + def.durationMs;
+              const buffs = activeBuffsRef.current;
+              const idx = buffs.findIndex((b) => b.powerupId === pu.powerupId);
+              const next: ActiveBuff = {
+                powerupId: pu.powerupId,
+                effectType: def.effectType,
+                magnitude: def.magnitude,
+                startedAtMs: nowMs,
+                endsAtMs: ends,
+              };
+              activeBuffsRef.current =
+                idx >= 0 ? buffs.map((b, i) => (i === idx ? next : b)) : [...buffs, next];
+              powerupPickupFlashRef.current = {
+                displayName: def.displayName,
+                effectType: def.effectType,
+                endsAtMs: nowMs + 2200,
+              };
+            }
+            bump();
+
             void (async () => {
               try {
                 const token = await getTokenRef.current();
@@ -395,29 +511,29 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
                   token,
                 );
 
-                if (res.applied || res.reason === 'ALREADY_PICKED') {
-                  powerupsOnMapRef.current = powerupsOnMapRef.current.filter(
-                    (p) => p.spawnId !== pu.spawnId,
-                  );
-                }
-
-                if (res.applied && res.effectType && typeof res.magnitude === 'number') {
+                if (
+                  res.applied &&
+                  res.effectType &&
+                  typeof res.magnitude === 'number' &&
+                  def
+                ) {
                   const started =
                     typeof res.startedAtMs === 'number' ? res.startedAtMs : nowMs;
                   const ends = typeof res.endsAtMs === 'number' ? res.endsAtMs : nowMs + 5000;
                   const buffs = activeBuffsRef.current;
                   const idx = buffs.findIndex((b) => b.powerupId === pu.powerupId);
-                  const next = {
+                  const next: ActiveBuff = {
                     powerupId: pu.powerupId,
                     effectType: res.effectType,
                     magnitude: res.magnitude,
                     startedAtMs: started,
                     endsAtMs: ends,
                   };
-                  activeBuffsRef.current = idx >= 0 ? buffs.map((b, i) => (i === idx ? next : b)) : [...buffs, next];
+                  activeBuffsRef.current =
+                    idx >= 0 ? buffs.map((b, i) => (i === idx ? next : b)) : [...buffs, next];
                 }
               } catch {
-                // allow retry
+                // allow retry; optimistic state stays until socket/refresh reconciles
               } finally {
                 powerupPickedPendingRef.current.delete(pu.spawnId);
                 bump();
@@ -976,6 +1092,26 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
         onGround.current = supported;
       }
 
+      // Sudden-death lava: feet in lava = permanent death for this match.
+      const lavaSurfaceY = computeLavaSurfaceY(
+        matchClockRef.current,
+        matchEndgameEndSRef.current,
+        matchMaxSRef.current,
+        worldHLiveRef.current,
+      );
+      if (lavaSurfaceY != null && heroHpRef.current > 0) {
+        const feetBottom = playerY.current + bodyH;
+        if (feetBottom >= lavaSurfaceY - 2) {
+          const heroHpBefore = heroHpRef.current;
+          heroHpRef.current = 0;
+          if (heroHpBefore > 0) {
+            playerDeathsRef.current += 1;
+          }
+          setHeroDeadOpen(true);
+          bump();
+        }
+      }
+
       // Enemy contact damage (strict contact collider: inset rectangles).
       if (heroHpRef.current > 0 && heroIFramesLeftRef.current <= 0) {
         const enemies = enemiesRef.current;
@@ -1016,9 +1152,6 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
                 playerDeathsRef.current += 1;
               }
               setHeroDeadOpen(true);
-              if (sessionId) {
-                matchEndedRef.current = true;
-              }
             }
             bump();
           }
@@ -1086,6 +1219,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
     floorY,
     heroCombat,
     heroDeadOpen,
+    isSpectatingRef,
     devMatchTimerEnabled,
     HERO_FEET_EMBED_GROUND_PLATFORM_PX,
     HERO_FEET_EMBED_FLOATING_PLATFORM_PX,

@@ -209,7 +209,14 @@
     "soloOpponents": "Protivnici",
     "soloDifficulty": "Težina",
     "soloStartBtn": "Start",
-    "needLocationForStart": "Uključi lokaciju i uđi u geofence partner lokala da pokreneš Brawler sesiju s evidentiranim vremenom."
+    "needLocationForStart": "Uključi lokaciju i uđi u geofence partner lokala da pokreneš Brawler sesiju s evidentiranim vremenom.",
+    "selectedHeroStats": "Statistike odabranog heroja",
+    "statHp": "HP: {{value}}",
+    "statSpeed": "Brzina kretanja: {{value}}",
+    "statDash": "Dash cooldown: {{value}}ms",
+    "statAttack": "Šteta napada: {{value}}",
+    "statKnockback": "Odbacivanje: {{value}}",
+    "powerupLegendTitle": "Arena power-upi"
   },
   "brawlerMatch": {
     "queueTitle": "Matchmaking",
@@ -224,6 +231,8 @@
     "pvpPlaceholderTitle": "Meč pronađen",
     "pvpPlaceholderBody": "Upareni ste za dvoboj na lokalu. Borba u stvarnom vremenu između dva telefona još nije u ovoj verziji — vrati se da oslobodiš sobu ili igraj solo / vs bot iz lobija.",
     "backToLobby": "Natrag u lobby",
+    "spectating": "Promatranje",
+    "spectatingPanHint": "Povuci prstom za pomicanje kamere",
     "playTimeExhaustedTitle": "Vrijeme igranja potrošeno",
     "playTimeExhaustedBody": "Iskoristio si besplatno aktivno vrijeme u ovom lokalu za danas (UTC). Možeš kupiti više u aplikaciji ili se vratiti sutra."
   },

@@ -19,6 +19,7 @@ import { CreateBrawlerSessionDto } from './dto/create-brawler-session.dto';
 import { RecordBrawlerEventsDto } from './dto/record-brawler-events.dto';
 import { FinalizeBrawlerSessionDto } from './dto/finalize-brawler-session.dto';
 import { PickBrawlerPowerupDto } from './dto/pick-brawler-powerup.dto';
+import { TickBrawlerArenaDto } from './dto/tick-brawler-arena.dto';
 import {
   EnqueueBrawlerMatchQueueDto,
   LeaveBrawlerMatchQueueDto,
@@ -40,6 +41,11 @@ export class BrawlerController {
   @Get('heroes')
   listHeroes() {
     return this.brawler.listHeroes();
+  }
+
+  @Get('powerups')
+  listPowerups() {
+    return this.brawler.listPowerups();
   }
 
   @Post('sessions')
@@ -78,6 +84,19 @@ export class BrawlerController {
     @Body() dto: RecordBrawlerEventsDto,
   ) {
     return this.brawler.recordEvents(sessionId, dto, ifMatch);
+  }
+
+  @Get('sessions/:sessionId/arena/state')
+  getArenaState(@Param('sessionId', new ParseUUIDPipe()) sessionId: string) {
+    return this.brawler.getArenaState(sessionId);
+  }
+
+  @Post('sessions/:sessionId/arena/tick')
+  tickArena(
+    @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Body() dto: TickBrawlerArenaDto,
+  ) {
+    return this.brawler.tickArena(sessionId, dto);
   }
 
   @Post('sessions/:sessionId/powerups/pick')

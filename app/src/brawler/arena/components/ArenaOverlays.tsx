@@ -50,6 +50,57 @@ export function ArenaGameOverOverlay({
   );
 }
 
+type HeroDeadProps = {
+  styles: ArenaStyles;
+  title: string;
+  body: string;
+  leaveLabel: string;
+  spectateLabel: string;
+  onLeaveToLobby: () => void;
+  onSpectate: () => void;
+};
+
+export function ArenaHeroDeadOverlay({
+  styles,
+  title,
+  body,
+  leaveLabel,
+  spectateLabel,
+  onLeaveToLobby,
+  onSpectate,
+}: HeroDeadProps) {
+  return (
+    <View style={styles.gameOverOverlay}>
+      <View style={styles.gameOverCard}>
+        <Text style={styles.gameOverTitle}>{title}</Text>
+        <Text style={styles.gameOverHint}>{body}</Text>
+        <View style={styles.gameOverActions}>
+          <Pressable
+            onPress={onLeaveToLobby}
+            style={({ pressed }) => [
+              styles.gameOverBtn,
+              styles.gameOverBtnSecondary,
+              pressed && styles.gameOverBtnPressed,
+            ]}
+          >
+            <Text style={styles.gameOverBtnSecondaryText}>{leaveLabel}</Text>
+          </Pressable>
+          <Pressable
+            onPress={onSpectate}
+            style={({ pressed }) => [
+              styles.gameOverBtn,
+              styles.gameOverBtnPrimary,
+              pressed && styles.gameOverBtnPressed,
+            ]}
+          >
+            <Text style={styles.gameOverBtnPrimaryText}>{spectateLabel}</Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 type PreMatchProps = {
   styles: ArenaStyles;
   countdown: number;

@@ -7,12 +7,20 @@ import { BrawlerController } from './brawler.controller';
 import { BrawlerService } from './brawler.service';
 import { BrawlerRepository } from './brawler.repository';
 import { BrawlerLiveRedisService } from './brawler-live-redis.service';
+import { BrawlerArenaRedisService } from './brawler-arena-redis.service';
+import { BrawlerGateway } from './brawler.gateway';
 import { StatsModule } from '../stats/stats.module';
 
 @Module({
   imports: [PrismaModule, PlayerModule, AuthModule, VenueModule, StatsModule],
   controllers: [BrawlerController],
-  providers: [BrawlerService, BrawlerRepository, BrawlerLiveRedisService],
+  providers: [
+    BrawlerService,
+    BrawlerRepository,
+    BrawlerLiveRedisService,
+    BrawlerArenaRedisService,
+    BrawlerGateway,
+  ],
   exports: [BrawlerService],
 })
 export class BrawlerModule {}

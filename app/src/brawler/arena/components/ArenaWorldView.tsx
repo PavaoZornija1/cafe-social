@@ -18,10 +18,23 @@ import {
   JOYSTICK_SIZE,
 } from '../constants';
 import type { ArenaStyles } from '../styles';
-import type { Dummy, DmgFloat, Enemy, SpawnedPowerup } from '../types';
+import type { BrawlerPowerupDef, Dummy, DmgFloat, Enemy, SpawnedPowerup } from '../types';
+import {
+  PowerupPickupIcon,
+  powerupEffectTypeFromId,
+} from './PowerupPickupIcon';
 import { ActionTapButton } from './ActionTapButton';
 import { ArenaPlatformArt } from './ArenaPlatformArt';
-import { ArenaGameOverOverlay, ArenaPreMatchOverlay } from './ArenaOverlays';
+import type { MatchPhaseKey } from '../combat';
+import {
+  ArenaGameOverOverlay,
+  ArenaHeroDeadOverlay,
+  ArenaPreMatchOverlay,
+} from './ArenaOverlays';
+import { ArenaPhaseAnnounceOverlay } from './ArenaPhaseAnnounceOverlay';
+import { ArenaHeroStatsHud } from './ArenaHeroStatsHud';
+import type { HeroStatRow } from '../heroStatHighlights';
+import { ArenaSpectatePanLayer } from './ArenaSpectatePanLayer';
 
 type Props = {
   styles: ArenaStyles;
@@ -32,12 +45,17 @@ type Props = {
   arenaInnerH: number;
   camX: number;
   camY: number;
+  spectateCamXRef: React.MutableRefObject<number>;
+  spectateCamYRef: React.MutableRefObject<number>;
+  onSpectateCameraChange: () => void;
   skyW: number;
   skyH: number;
   skyLeft: number;
   skyTop: number;
   platformsWorld: PlatformWorld[];
   powerups: SpawnedPowerup[];
+  powerupDefs: BrawlerPowerupDef[];
+  lavaSurfaceY: number | null;
   px: number;
   py: number;
   hitDrawOffsetX: number;
@@ -68,6 +86,19 @@ type Props = {
   preMatchCeil: number;
   showMatchOverOverlay: boolean;
   showHeroDeadOverlay: boolean;
+  heroDeadTitle: string;
+  heroDeadBody: string;
+  heroDeadLeaveLabel: string;
+  heroDeadSpectateLabel: string;
+  onLeaveToLobbyAfterDeath: () => void;
+  onSpectateAfterDeath: () => void;
+  isSpectating: boolean;
+  spectatingLabel: string;
+  spectatingPanHint: string;
+  phaseAnnounce: { key: MatchPhaseKey; label: string } | null;
+  onPhaseAnnounceDone: () => void;
+  showHeroStatsHud: boolean;
+  heroStatRows: HeroStatRow[];
   onReplay: () => void;
   onExit: () => void;
 };
@@ -81,12 +112,17 @@ export function ArenaWorldView({
   arenaInnerH,
   camX,
   camY,
+  spectateCamXRef,
+  spectateCamYRef,
+  onSpectateCameraChange,
   skyW,
   skyH,
   skyLeft,
   skyTop,
   platformsWorld,
   powerups,
+  powerupDefs,
+  lavaSurfaceY,
   px,
   py,
   hitDrawOffsetX,
@@ -117,45 +153,50 @@ export function ArenaWorldView({
   preMatchCeil,
   showMatchOverOverlay,
   showHeroDeadOverlay,
+  heroDeadTitle,
+  heroDeadBody,
+  heroDeadLeaveLabel,
+  heroDeadSpectateLabel,
+  onLeaveToLobbyAfterDeath,
+  onSpectateAfterDeath,
+  isSpectating,
+  spectatingLabel,
+  spectatingPanHint,
+  phaseAnnounce,
+  onPhaseAnnounceDone,
+  showHeroStatsHud,
+  heroStatRows,
   onReplay,
   onExit,
 }: Props) {
   const arenaReadyHud = arenaW >= 32 && arenaInnerH >= 32;
   const debugHitW = ATTACK_HIT_W;
   const debugHitH = ATTACK_HIT_H;
+  const skyLottie = (
+    left: number,
+    top: number,
+    width: number,
+    height: number,
+    transform?: Array<{ translateX?: number; translateY?: number; scale?: number }>,
+  ) => (
+    <LottieView
+      source={ARENA_SKY_LOTTIE}
+      autoPlay
+      loop
+      resizeMode="cover"
+      style={{
+        position: 'absolute',
+        left,
+        top,
+        width,
+        height,
+        transform,
+      }}
+    />
+  );
 
-  return (
-    <View style={styles.arena} onLayout={onArenaLayout}>
-      <View style={styles.arenaSkyBack} pointerEvents="none">
-        <LottieView
-          source={ARENA_SKY_LOTTIE}
-          autoPlay
-          loop
-          resizeMode="cover"
-          style={{
-            position: 'absolute',
-            left: skyLeft,
-            top: skyTop,
-            width: skyW,
-            height: skyH,
-            transform: [
-              { translateX: -camX * 0.18 },
-              { translateY: -camY * 0.1 },
-            ],
-          }}
-        />
-      </View>
-      <View
-        pointerEvents="none"
-        style={[
-          styles.worldLayer,
-          {
-            width: worldW,
-            height: worldH,
-            transform: [{ translateX: -camX }, { translateY: -camY }],
-          },
-        ]}
-      >
+  const worldEntities = (
+    <>
         <View style={styles.platformBg}>
           <ArenaPlatformArt
             platforms={platformsWorld}
@@ -165,46 +206,50 @@ export function ArenaWorldView({
           />
         </View>
 
-        {powerups.map((p) => (
-          <View
-            key={p.spawnId}
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              left: p.x - p.r,
-              top: p.y - p.r,
-              width: p.r * 2,
-              height: p.r * 2,
-              borderRadius: p.r,
-              backgroundColor: 'rgba(34, 211, 238, 0.30)',
-              borderWidth: 2,
-              borderColor: '#22d3ee',
-              zIndex: 3,
-            }}
-          />
-        ))}
+        {powerups.map((p) => {
+          const iconSize = p.r * 2;
+          const effectType = powerupEffectTypeFromId(p.powerupId, powerupDefs);
+          return (
+            <View
+              key={p.spawnId}
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                left: p.x - p.r,
+                top: p.y - p.r,
+                width: iconSize,
+                height: iconSize,
+                zIndex: 3,
+              }}
+            >
+              <PowerupPickupIcon effectType={effectType} size={iconSize} />
+            </View>
+          );
+        })}
 
-        <View
-          style={[
-            styles.playerWrap,
-            {
-              left: px - hitDrawOffsetX,
-              top: py,
-              zIndex: 5,
-            },
-          ]}
-        >
-          {heroSprite ? (
-            <HeroSpriteView
-              config={heroSprite}
-              anim={spriteAnim}
-              walkFrame={walkFrame}
-              hitFrame={hitFrame}
-              facing={facing}
-              scale={spriteScale}
-            />
-          ) : null}
-        </View>
+        {!isSpectating ? (
+          <View
+            style={[
+              styles.playerWrap,
+              {
+                left: px - hitDrawOffsetX,
+                top: py,
+                zIndex: 5,
+              },
+            ]}
+          >
+            {heroSprite ? (
+              <HeroSpriteView
+                config={heroSprite}
+                anim={spriteAnim}
+                walkFrame={walkFrame}
+                hitFrame={hitFrame}
+                facing={facing}
+                scale={spriteScale}
+              />
+            ) : null}
+          </View>
+        ) : null}
 
         {enemies.map((e, idx) => {
           if (e.hp <= 0 || e.respawnLeft > 0) return null;
@@ -331,6 +376,56 @@ export function ArenaWorldView({
             </Text>
           );
         })}
+
+        {lavaSurfaceY != null ? (
+          <View
+            pointerEvents="none"
+            style={[
+              styles.lavaLayer,
+              {
+                top: lavaSurfaceY,
+                width: worldW,
+                height: Math.max(0, worldH - lavaSurfaceY),
+              },
+            ]}
+          >
+            <View style={styles.lavaCrust} />
+          </View>
+        ) : null}
+    </>
+  );
+
+  return (
+    <ArenaSpectatePanLayer
+      enabled={isSpectating}
+      worldW={worldW}
+      worldH={worldH}
+      arenaW={arenaW}
+      arenaInnerH={arenaInnerH}
+      camXRef={spectateCamXRef}
+      camYRef={spectateCamYRef}
+      onCameraChange={onSpectateCameraChange}
+    >
+      <View style={styles.arena} onLayout={onArenaLayout}>
+        <View style={styles.arenaSkyBack} pointerEvents="none">
+          {skyLottie(skyLeft, skyTop, skyW, skyH, [
+            { translateX: -camX * 0.18 },
+            { translateY: -camY * 0.1 },
+          ])}
+        </View>
+        <View
+          pointerEvents="none"
+          style={[
+            styles.worldLayer,
+            {
+              width: worldW,
+              height: worldH,
+              transform: [{ translateX: -camX }, { translateY: -camY }],
+            },
+          ]}
+        >
+          {worldEntities}
+        </View>
       </View>
 
       <View
@@ -388,8 +483,21 @@ export function ArenaWorldView({
         </View>
       </View>
 
+      {showHeroStatsHud ? (
+        <ArenaHeroStatsHud styles={styles} rows={heroStatRows} />
+      ) : null}
+
       {showPreMatchOverlay ? (
         <ArenaPreMatchOverlay styles={styles} countdown={preMatchCeil} />
+      ) : null}
+
+      {arenaReadyHud && phaseAnnounce && !showPreMatchOverlay ? (
+        <ArenaPhaseAnnounceOverlay
+          styles={styles}
+          phaseKey={phaseAnnounce.key}
+          label={phaseAnnounce.label}
+          onDone={onPhaseAnnounceDone}
+        />
       ) : null}
 
       {arenaReadyHud && showMatchOverOverlay ? (
@@ -402,15 +510,24 @@ export function ArenaWorldView({
         />
       ) : null}
 
+      {arenaReadyHud && isSpectating ? (
+        <View style={styles.spectateBanner} pointerEvents="none">
+          <Text style={styles.spectateBannerText}>{spectatingLabel}</Text>
+          <Text style={styles.spectateBannerHint}>{spectatingPanHint}</Text>
+        </View>
+      ) : null}
+
       {arenaReadyHud && showHeroDeadOverlay ? (
-        <ArenaGameOverOverlay
+        <ArenaHeroDeadOverlay
           styles={styles}
-          title="You died"
-          hint="Replay or exit to the lobby."
-          onReplay={onReplay}
-          onExit={onExit}
+          title={heroDeadTitle}
+          body={heroDeadBody}
+          leaveLabel={heroDeadLeaveLabel}
+          spectateLabel={heroDeadSpectateLabel}
+          onLeaveToLobby={onLeaveToLobbyAfterDeath}
+          onSpectate={onSpectateAfterDeath}
         />
       ) : null}
-    </View>
+    </ArenaSpectatePanLayer>
   );
 }

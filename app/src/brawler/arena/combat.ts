@@ -30,13 +30,26 @@ export function formatMatchClock(seconds: number): string {
   return `${m}:${r.toString().padStart(2, '0')}`;
 }
 
+export type MatchPhaseKey = 'chaos' | 'endgame' | 'sudden_death';
+
+export function matchPhaseKey(
+  elapsed: number,
+  chaosEndS: number,
+  endgameEndS: number,
+): MatchPhaseKey {
+  if (elapsed >= endgameEndS) return 'sudden_death';
+  if (elapsed >= chaosEndS) return 'endgame';
+  return 'chaos';
+}
+
 export function matchPhaseLabelDyn(
   elapsed: number,
   chaosEndS: number,
   endgameEndS: number,
 ): string {
-  if (elapsed >= endgameEndS) return 'Sudden Death';
-  if (elapsed >= chaosEndS) return 'Endgame';
+  const key = matchPhaseKey(elapsed, chaosEndS, endgameEndS);
+  if (key === 'sudden_death') return 'Sudden Death';
+  if (key === 'endgame') return 'Endgame';
   return 'Chaos';
 }
 
@@ -44,4 +57,24 @@ export function matchPhaseMods(elapsed: number, chaosEndS: number, endgameEndS: 
   if (elapsed >= endgameEndS) return { enemySpeed: 1.35, contactDmg: 1.35 };
   if (elapsed >= chaosEndS) return { enemySpeed: 1.15, contactDmg: 1.15 };
   return { enemySpeed: 1.0, contactDmg: 1.0 };
+}
+
+/** Fraction of world height the lava can reach at end of sudden death. */
+export const LAVA_MAX_HEIGHT_FRAC = 0.5;
+
+/**
+ * Top Y of the rising lava surface during sudden death, or `null` before that phase.
+ * Lava grows from the bottom toward {@link LAVA_MAX_HEIGHT_FRAC} of map height.
+ */
+export function computeLavaSurfaceY(
+  elapsedS: number,
+  endgameEndS: number,
+  matchMaxS: number,
+  worldH: number,
+): number | null {
+  if (elapsedS < endgameEndS || worldH <= 0) return null;
+  const suddenSpan = Math.max(0.001, matchMaxS - endgameEndS);
+  const t = Math.min(1, Math.max(0, (elapsedS - endgameEndS) / suddenSpan));
+  const lavaH = t * LAVA_MAX_HEIGHT_FRAC * worldH;
+  return worldH - lavaH;
 }

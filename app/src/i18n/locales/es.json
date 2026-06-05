@@ -209,7 +209,14 @@
     "soloOpponents": "Oponentes",
     "soloDifficulty": "Dificultad",
     "soloStartBtn": "Empezar",
-    "needLocationForStart": "Activa la ubicación y entra en la geovalla del local para iniciar una sesión de Brawler con tiempo registrado."
+    "needLocationForStart": "Activa la ubicación y entra en la geovalla del local para iniciar una sesión de Brawler con tiempo registrado.",
+    "selectedHeroStats": "Estadísticas del héroe elegido",
+    "statHp": "HP: {{value}}",
+    "statSpeed": "Velocidad de movimiento: {{value}}",
+    "statDash": "Enfriamiento del dash: {{value}} ms",
+    "statAttack": "Daño de ataque: {{value}}",
+    "statKnockback": "Empuje: {{value}}",
+    "powerupLegendTitle": "Power-ups de la arena"
   },
   "brawlerMatch": {
     "queueTitle": "Matchmaking",
@@ -224,6 +231,8 @@
     "pvpPlaceholderTitle": "Partida encontrada",
     "pvpPlaceholderBody": "Estás emparejado para un duelo en el local. El combate en tiempo real entre dos móviles aún no está en esta versión — vuelve para liberar la sala, o juega solo / vs bot desde el lobby.",
     "backToLobby": "Volver al lobby",
+    "spectating": "Espectando",
+    "spectatingPanHint": "Arrastra para mover la cámara",
     "playTimeExhaustedTitle": "Tiempo de juego agotado",
     "playTimeExhaustedBody": "Has usado tu tiempo activo gratuito en este local para hoy (UTC). Puedes comprar más tiempo en la app o volver mañana."
   },

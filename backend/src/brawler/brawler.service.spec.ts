@@ -78,6 +78,18 @@ function buildService(opts: {
     findHeroesByIds: jest
       .fn()
       .mockResolvedValue(opts.heroes ?? [{ id: 'hero-1', name: 'Bruiser' }]),
+    findEnabledPowerups: jest.fn().mockResolvedValue([
+      {
+        id: 'speed_boost',
+        displayName: 'Haste',
+        description: 'Move faster for a short time.',
+        effectType: 'MOVE_SPEED_MULT',
+        magnitude: 1.25,
+        durationMs: 9000,
+        spawnWeight: 110,
+        version: 1,
+      },
+    ]),
     findPlayersByIds: jest.fn().mockResolvedValue([player]),
     findActiveHeroes: jest.fn().mockResolvedValue([]),
     findSessionById: opts.findSessionById ?? jest.fn(),
@@ -104,8 +116,25 @@ function buildService(opts: {
     readSession: opts.readSession ?? jest.fn().mockResolvedValue(null),
     removeSnapshot: jest.fn().mockResolvedValue(undefined),
   };
+  const brawlerArena = {
+    readState: jest.fn().mockResolvedValue(null),
+    writeState: jest.fn().mockImplementation(async (s: { rev: number }) => ({ ...s, rev: s.rev + 1 })),
+    initState: jest.fn().mockResolvedValue({
+      v: 1,
+      sessionId: 'session-1',
+      rev: 0,
+      spawns: [],
+      pickedSpawnIds: [],
+      buffsByParticipant: {},
+      lastSpawnAtMs: 0,
+    }),
+    removeState: jest.fn().mockResolvedValue(undefined),
+  };
   const subscriptions = {
     isActiveSubscriber: jest.fn().mockResolvedValue(opts.isSubscriber ?? false),
+  };
+  const events = {
+    emit: jest.fn(),
   };
 
   const svc = new BrawlerService(
@@ -117,7 +146,9 @@ function buildService(opts: {
     venues as never,
     gameXp as never,
     brawlerLive as never,
+    brawlerArena as never,
     subscriptions as never,
+    events as never,
   );
   return {
     svc,
@@ -287,11 +318,13 @@ describe('BrawlerService.tryFillBrawlerQueueWithBot (casual-only)', () => {
       data: {
         gameType: typeof GameType.BRAWLER;
         venueId: string | null;
+        config: { brawler?: { powerups?: Array<{ id: string }> } };
         participants: { create: Array<{ isBot: boolean; brawlerHeroId?: string }> };
       };
     };
     expect(createCall.data.gameType).toBe(GameType.BRAWLER);
     expect(createCall.data.venueId).toBe('venue-1');
+    expect(createCall.data.config?.brawler?.powerups?.length).toBeGreaterThan(0);
     const created = createCall.data.participants.create;
     expect(created).toHaveLength(2);
     expect(created.filter((p) => p.isBot)).toHaveLength(1);

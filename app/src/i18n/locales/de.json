@@ -209,7 +209,14 @@
     "soloOpponents": "Gegner",
     "soloDifficulty": "Schwierigkeit",
     "soloStartBtn": "Start",
-    "needLocationForStart": "Standort einschalten und in der Geofence des Lokals stehen, um eine zeiterfasste Brawler-Session zu starten."
+    "needLocationForStart": "Standort einschalten und in der Geofence des Lokals stehen, um eine zeiterfasste Brawler-Session zu starten.",
+    "selectedHeroStats": "Statistik des gewählten Helden",
+    "statHp": "HP: {{value}}",
+    "statSpeed": "Bewegungsgeschwindigkeit: {{value}}",
+    "statDash": "Dash-Abklingzeit: {{value}} ms",
+    "statAttack": "Angriffsschaden: {{value}}",
+    "statKnockback": "Rückstoß: {{value}}",
+    "powerupLegendTitle": "Arena-Power-ups"
   },
   "brawlerMatch": {
     "queueTitle": "Matchmaking",
@@ -224,6 +231,8 @@
     "pvpPlaceholderTitle": "Match gefunden",
     "pvpPlaceholderBody": "Du bist für ein Venue-Duell gematcht. Echtzeit-Kampf zwischen zwei Telefonen ist in diesem Build noch nicht drin — zurück, um den Raum freizugeben, oder Solo / vs Bot in der Lobby.",
     "backToLobby": "Zurück zur Lobby",
+    "spectating": "Zuschauen",
+    "spectatingPanHint": "Ziehen, um die Kamera zu bewegen",
     "playTimeExhaustedTitle": "Spielzeit aufgebraucht",
     "playTimeExhaustedBody": "Du hast deine kostenlose aktive Spielzeit an diesem Ort für heute (UTC) verbraucht. Du kannst in der App mehr Zeit kaufen oder morgen wiederkommen."
   },

@@ -16,6 +16,8 @@ import { apiGet, apiPost } from '../lib/api';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
 import { isArenaSpriteHero } from '../brawler/heroSpritesheets';
+import { BrawlerPowerupLegend } from '../brawler/components/BrawlerPowerupLegend';
+import type { BrawlerPowerupDef } from '../brawler/arena/types';
 import type { BrawlerArenaHeroStats, RootStackParamList } from '../navigation/type';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
@@ -66,6 +68,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
   /** Venue queue: casual (false) vs ranked (true). */
   const [queueRanked, setQueueRanked] = useState(false);
   const [subscriptionActive, setSubscriptionActive] = useState(false);
+  const [powerups, setPowerups] = useState<BrawlerPowerupDef[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,9 +78,13 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
       try {
         const token = await getTokenRef.current();
         if (!token) throw new Error('Not authenticated');
-        const rows = await apiGet<BrawlerHero[]>('/brawler/heroes', token);
+        const [rows, powerupRows] = await Promise.all([
+          apiGet<BrawlerHero[]>('/brawler/heroes', token),
+          apiGet<BrawlerPowerupDef[]>('/brawler/powerups', token),
+        ]);
         if (cancelled) return;
         setHeroes(rows);
+        setPowerups(powerupRows);
         setSelectedHeroId(rows[0]?.id ?? null);
       } catch (e) {
         if (cancelled) return;
@@ -313,16 +320,30 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
 
         {selectedHero && (
           <View style={styles.statsCard}>
-            <Text style={styles.statsTitle}>Selected Hero Stats</Text>
-            <Text style={styles.statsText}>HP: {selectedHero.baseHp}</Text>
-            <Text style={styles.statsText}>Move Speed: {selectedHero.moveSpeed}</Text>
-            <Text style={styles.statsText}>Dash Cooldown: {selectedHero.dashCooldownMs}ms</Text>
-            <Text style={styles.statsText}>Attack Damage: {selectedHero.attackDamage}</Text>
+            <Text style={styles.statsTitle}>{t('brawlerLobby.selectedHeroStats')}</Text>
             <Text style={styles.statsText}>
-              Knockback: {selectedHero.attackKnockback}
+              {t('brawlerLobby.statHp', { value: selectedHero.baseHp })}
+            </Text>
+            <Text style={styles.statsText}>
+              {t('brawlerLobby.statSpeed', { value: selectedHero.moveSpeed })}
+            </Text>
+            <Text style={styles.statsText}>
+              {t('brawlerLobby.statDash', { value: selectedHero.dashCooldownMs })}
+            </Text>
+            <Text style={styles.statsText}>
+              {t('brawlerLobby.statAttack', { value: selectedHero.attackDamage })}
+            </Text>
+            <Text style={styles.statsText}>
+              {t('brawlerLobby.statKnockback', { value: selectedHero.attackKnockback })}
             </Text>
           </View>
         )}
+
+        <BrawlerPowerupLegend
+          colors={colors}
+          title={t('brawlerLobby.powerupLegendTitle')}
+          powerups={powerups}
+        />
 
         {venueId || subscriptionActive ? (
           <View style={styles.rankCard}>

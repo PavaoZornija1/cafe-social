@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   BrawlerMatchQueueStatus,
   GameSessionStatus,
@@ -29,6 +30,17 @@ import { FinalizeBrawlerSessionDto } from './dto/finalize-brawler-session.dto';
 import { PickBrawlerPowerupDto } from './dto/pick-brawler-powerup.dto';
 import type { EnqueueBrawlerMatchQueueDto } from './dto/enqueue-brawler-match-queue.dto';
 import { BrawlerLiveRedisService } from './brawler-live-redis.service';
+import { BrawlerArenaRedisService } from './brawler-arena-redis.service';
+import {
+  arenaSpawnsForClient,
+  maybeSpawnArenaPowerup,
+} from './brawler-arena.util';
+import type { BrawlerPowerupConfigRow } from './brawler-arena.types';
+import {
+  BRAWLER_ARENA_EVENT,
+  type BrawlerArenaSocketPayload,
+} from './brawler-arena.events';
+import type { TickBrawlerArenaDto } from './dto/tick-brawler-arena.dto';
 import { resolveIfSnapshotRev } from '../game-runtime/snapshot-rev.util';
 
 type BrawlerSessionView = NonNullable<Awaited<ReturnType<BrawlerRepository['findSessionById']>>>;
@@ -37,25 +49,6 @@ export type BrawlerSessionPayload = BrawlerSessionView & { snapshotRev: number |
 
 @Injectable()
 export class BrawlerService {
-  /**
-   * Temporary in-memory state until we add a realtime layer.
-   * Keyed by sessionId.
-   */
-  private readonly pickedSpawnIdsBySession = new Map<string, Set<string>>();
-  private readonly activeBuffsBySession = new Map<
-    string,
-    Map<
-      string,
-      Array<{
-        powerupId: string;
-        effectType: string;
-        magnitude: number;
-        startedAtMs: number;
-        endsAtMs: number;
-      }>
-    >
-  >();
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly brawlerRepo: BrawlerRepository,
@@ -65,8 +58,93 @@ export class BrawlerService {
     private readonly venues: VenueService,
     private readonly gameXp: GameXpAwardService,
     private readonly brawlerLive: BrawlerLiveRedisService,
+    private readonly brawlerArena: BrawlerArenaRedisService,
     private readonly subscriptions: SubscriptionRepository,
+    private readonly events: EventEmitter2,
   ) {}
+
+  private emitArena(payload: BrawlerArenaSocketPayload) {
+    this.events.emit(BRAWLER_ARENA_EVENT, payload);
+  }
+
+  private powerupDefsFromSession(session: { config?: unknown }): BrawlerPowerupConfigRow[] {
+    const config = (session.config ?? {}) as { brawler?: { powerups?: BrawlerPowerupConfigRow[] } };
+    return config?.brawler?.powerups ?? [];
+  }
+
+  private async powerupConfigRows(): Promise<BrawlerPowerupConfigRow[]> {
+    const powerups = await this.brawlerRepo.findEnabledPowerups();
+    return powerups.map((p) => ({
+      id: p.id,
+      displayName: p.displayName,
+      description: p.description,
+      effectType: p.effectType,
+      magnitude: p.magnitude,
+      durationMs: p.durationMs,
+      spawnWeight: p.spawnWeight,
+      version: p.version,
+    }));
+  }
+
+  private async buildSessionConfig(
+    extras: Record<string, unknown>,
+  ): Promise<Prisma.InputJsonValue> {
+    const powerups = await this.powerupConfigRows();
+    return {
+      ...extras,
+      brawler: { powerups },
+    } as Prisma.InputJsonValue;
+  }
+
+  async listPowerups() {
+    return this.powerupConfigRows();
+  }
+
+  async getArenaState(sessionId: string): Promise<BrawlerArenaSocketPayload> {
+    const session = await this.brawlerRepo.findSessionById(sessionId);
+    if (!session) throw new NotFoundException('session not found');
+    const state = (await this.brawlerArena.readState(sessionId)) ?? (await this.brawlerArena.initState(sessionId));
+    return {
+      sessionId,
+      type: 'state',
+      rev: state.rev,
+      spawns: arenaSpawnsForClient(state),
+    };
+  }
+
+  async tickArena(sessionId: string, dto: TickBrawlerArenaDto) {
+    const session = await this.brawlerRepo.findSessionById(sessionId);
+    if (!session) throw new NotFoundException('session not found');
+    if (session.status !== GameSessionStatus.ACTIVE) {
+      throw new BadRequestException('session is not active');
+    }
+
+    const powerupDefs = this.powerupDefsFromSession(session);
+    let state = (await this.brawlerArena.readState(sessionId)) ?? (await this.brawlerArena.initState(sessionId));
+    const spawned = maybeSpawnArenaPowerup({
+      state,
+      atMs: dto.atMs,
+      worldW: dto.worldW,
+      worldH: dto.worldH,
+      powerupDefs,
+    });
+    if (!spawned) {
+      return { spawned: false as const, rev: state.rev };
+    }
+
+    state = await this.brawlerArena.writeState(state);
+    const spawn = {
+      ...spawned,
+      r: arenaSpawnsForClient(state).find((s) => s.spawnId === spawned.spawnId)!.r,
+    };
+    this.emitArena({
+      sessionId,
+      type: 'spawned',
+      rev: state.rev,
+      spawn,
+    });
+    return { spawned: true as const, rev: state.rev, spawn };
+  }
 
   private async syncBrawlerSnapshot(sessionId: string): Promise<void> {
     await this.brawlerLive.refreshSnapshot(sessionId);
@@ -176,22 +254,9 @@ export class BrawlerService {
     }
     const heroById = new Map(heroes.map((h) => [h.id, h]));
 
-    const powerups = await this.brawlerRepo.findEnabledPowerups();
-    const config: Prisma.InputJsonValue = {
-      brawler: {
-        powerups: powerups.map((p) => ({
-          id: p.id,
-          displayName: p.displayName,
-          description: p.description,
-          effectType: p.effectType,
-          magnitude: p.magnitude,
-          durationMs: p.durationMs,
-          spawnWeight: p.spawnWeight,
-          version: p.version,
-        })),
-      },
-      ...(!hasBot && humanCount === 2 ? { ranked: rankedReq } : {}),
-    } as Prisma.InputJsonValue;
+    const config = await this.buildSessionConfig(
+      !hasBot && humanCount === 2 ? { ranked: rankedReq } : {},
+    );
 
     const created = await this.brawlerRepo.createSession({
       venueId: dto.venueId,
@@ -283,6 +348,7 @@ export class BrawlerService {
         }
       }
     }
+    await this.brawlerArena.initState(sessionId);
     await this.syncBrawlerSnapshot(sessionId);
     return {
       ...session,
@@ -316,6 +382,7 @@ export class BrawlerService {
         endedAt: new Date(),
       },
     });
+    await this.brawlerArena.removeState(sessionId);
     await this.syncBrawlerSnapshot(sessionId);
     return {
       ok: true as const,
@@ -392,6 +459,7 @@ export class BrawlerService {
       participants: dto.participants,
     });
     void this.gameXp.tryAwardSessionWinXp(sessionId);
+    await this.brawlerArena.removeState(sessionId);
     await this.syncBrawlerSnapshot(sessionId);
     return {
       ...session,
@@ -504,6 +572,7 @@ export class BrawlerService {
   /** Casual-only queue bot-fill: pair one WAITING row with Chaos Bot (same hero as human). */
   async tryFillBrawlerQueueWithBot(queueEntryId: string): Promise<string | null> {
     let createdSessionId: string | null = null;
+    const powerups = await this.powerupConfigRows();
     await this.prisma.$transaction(async (tx) => {
       const row = await tx.brawlerMatchQueueEntry.findUnique({
         where: { id: queueEntryId },
@@ -545,7 +614,8 @@ export class BrawlerService {
       const config = {
         ranked: false,
         playerVenueIds,
-      } as unknown as Prisma.InputJsonValue;
+        brawler: { powerups },
+      } as Prisma.InputJsonValue;
 
       const session = await tx.gameSession.create({
         data: {
@@ -602,6 +672,7 @@ export class BrawlerService {
 
   private async tryMatchBrawlerQueueBucket(ranked: boolean): Promise<void> {
     let createdSessionId: string | null = null;
+    const powerups = await this.powerupConfigRows();
     await this.prisma.$transaction(async (tx) => {
       // Cross-venue pairing: bucket is rules-based only. Each player is gated to their own
       // venue separately via `playerVenueIds` stamped onto the session config below.
@@ -656,7 +727,8 @@ export class BrawlerService {
       const config = {
         ranked,
         playerVenueIds,
-      } as unknown as Prisma.InputJsonValue;
+        brawler: { powerups },
+      } as Prisma.InputJsonValue;
 
       const session = await tx.gameSession.create({
         data: {
@@ -737,6 +809,7 @@ export class BrawlerService {
       if (!venueId) continue;
       await this.venuePlayLimit.beginBrawler(p.playerId, venueId, sessionId);
     }
+    await this.brawlerArena.initState(sessionId);
     await this.syncBrawlerSnapshot(sessionId);
   }
 
@@ -752,17 +825,20 @@ export class BrawlerService {
       throw new BadRequestException('actorParticipantId is not in this session');
     }
 
-    const pickedSet =
-      this.pickedSpawnIdsBySession.get(sessionId) ?? new Set<string>();
-    if (pickedSet.has(dto.spawnId)) {
+    let state = (await this.brawlerArena.readState(sessionId)) ?? (await this.brawlerArena.initState(sessionId));
+    if (state.pickedSpawnIds.includes(dto.spawnId)) {
       return { applied: false, reason: 'ALREADY_PICKED' as const };
     }
 
-    const config = (session.config ?? {}) as any;
-    const powerups: any[] = config?.brawler?.powerups ?? [];
+    const powerups = this.powerupDefsFromSession(session);
     const def = powerups.find((p) => p?.id === dto.powerupId);
     if (!def) {
       throw new BadRequestException('powerupId is not allowed in this session');
+    }
+
+    const spawnOnMap = state.spawns.find((s) => s.spawnId === dto.spawnId);
+    if (!spawnOnMap || spawnOnMap.powerupId !== dto.powerupId) {
+      throw new BadRequestException('spawnId is not on the map');
     }
 
     const durationMs = Number(def.durationMs);
@@ -775,32 +851,28 @@ export class BrawlerService {
       throw new BadRequestException('invalid powerup definition magnitude');
     }
 
-    pickedSet.add(dto.spawnId);
-    this.pickedSpawnIdsBySession.set(sessionId, pickedSet);
-
     const endsAtMs = dto.atMs + durationMs;
-    const byParticipant =
-      this.activeBuffsBySession.get(sessionId) ?? new Map<string, any[]>();
-    const buffs = byParticipant.get(dto.actorParticipantId) ?? [];
-
-    // Stacking rule (simple): if same powerup is active, refresh its end time.
+    const buffs = state.buffsByParticipant[dto.actorParticipantId] ?? [];
     const existing = buffs.find((b) => b.powerupId === dto.powerupId);
-    if (existing) {
-      existing.startedAtMs = dto.atMs;
-      existing.endsAtMs = endsAtMs;
-      existing.magnitude = magnitude;
-      existing.effectType = effectType;
-    } else {
-      buffs.push({
-        powerupId: dto.powerupId,
-        effectType,
-        magnitude,
-        startedAtMs: dto.atMs,
-        endsAtMs,
-      });
-    }
-    byParticipant.set(dto.actorParticipantId, buffs);
-    this.activeBuffsBySession.set(sessionId, byParticipant);
+    const nextBuff = {
+      powerupId: dto.powerupId,
+      effectType,
+      magnitude,
+      startedAtMs: dto.atMs,
+      endsAtMs,
+    };
+    state = {
+      ...state,
+      spawns: state.spawns.filter((s) => s.spawnId !== dto.spawnId),
+      pickedSpawnIds: [...state.pickedSpawnIds, dto.spawnId],
+      buffsByParticipant: {
+        ...state.buffsByParticipant,
+        [dto.actorParticipantId]: existing
+          ? buffs.map((b) => (b.powerupId === dto.powerupId ? nextBuff : b))
+          : [...buffs, nextBuff],
+      },
+    };
+    state = await this.brawlerArena.writeState(state);
 
     await this.brawlerRepo.createEvents(sessionId, [
       {
@@ -818,6 +890,21 @@ export class BrawlerService {
         } as Prisma.InputJsonValue,
       },
     ]);
+
+    this.emitArena({
+      sessionId,
+      type: 'picked',
+      rev: state.rev,
+      picked: {
+        spawnId: dto.spawnId,
+        actorParticipantId: dto.actorParticipantId,
+        powerupId: dto.powerupId,
+        effectType,
+        magnitude,
+        startedAtMs: dto.atMs,
+        endsAtMs,
+      },
+    });
 
     return {
       applied: true,
