@@ -193,8 +193,14 @@ export class SocialController {
         {
           title: 'Friend request',
           body: `${p.username} wants to connect on Cafe Social`,
-          data: { kind: 'friend_request', fromPlayerId: p.id },
+          channelId: 'social',
+          data: {
+            kind: 'friend_request',
+            pushCategory: 'social',
+            fromPlayerId: p.id,
+          },
         },
+        { channel: 'social' },
       );
     }
     return { created: result.created };
@@ -223,8 +229,14 @@ export class SocialController {
         {
           title: 'Friend request',
           body: `${p.username} wants to connect on Cafe Social`,
-          data: { kind: 'friend_request', fromPlayerId: p.id },
+          channelId: 'social',
+          data: {
+            kind: 'friend_request',
+            pushCategory: 'social',
+            fromPlayerId: p.id,
+          },
         },
+        { channel: 'social' },
       );
     }
     return {

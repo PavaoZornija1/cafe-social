@@ -71,6 +71,7 @@ import { getHeroSpriteConfig, isArenaSpriteHero } from '../brawler/heroSpriteshe
 import type { RootStackParamList } from '../navigation/type';
 import { applyArenaSocketEvent } from '../brawler/arena/arenaRealtime';
 import { apiGet, apiPost } from '../lib/api';
+import { emitPlatformQuestProgressChanged } from '../lib/platformQuestEvents';
 import { useBrawlerSocket } from '../lib/useBrawlerSocket';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { useVenueActivePlayBudgetSync } from '../lib/useVenueActivePlayBudgetSync';
@@ -144,7 +145,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     enabled: Boolean(routeVenueId && sessionId && !subscriptionActive && trackedSessionReady),
     onBudgetExhausted: () => {
       Alert.alert(t('brawlerMatch.playTimeExhaustedTitle'), t('brawlerMatch.playTimeExhaustedBody'), [
-        { text: 'OK', onPress: () => navigationRef.current.replace('Home') },
+        { text: 'OK', onPress: () => navigationRef.current.replace('MainTabs') },
       ]);
     },
   });
@@ -532,6 +533,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           };
         });
         setResultsOverlay({ title: 'Match results', scoreboard });
+        emitPlatformQuestProgressChanged();
       } catch (e) {
         finalizeStartedRef.current = false;
         Alert.alert('Finalize failed', (e as Error).message || 'Unknown error');

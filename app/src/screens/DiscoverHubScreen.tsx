@@ -108,7 +108,7 @@ export default function DiscoverHubScreen({ navigation }: Props) {
 
                 <Pressable
                     style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
-                    onPress={() => navigation.navigate('PartnerVenuesMap')}
+                    onPress={() => navigation.navigate('MainTabs', { screen: 'VenuesTab' })}
                     accessibilityRole="button"
                     accessibilityLabel={t('discoverHub.openMap')}
                 >

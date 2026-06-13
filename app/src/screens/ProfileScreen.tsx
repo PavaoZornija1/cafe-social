@@ -1,7 +1,7 @@
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useAuth } from '@clerk/expo';
+import { useAuth, useUser } from '@clerk/expo';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useRef, useState, useMemo } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,15 +13,21 @@ import {
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import type { RootStackParamList } from '../navigation/type';
+
+import MeProfileHeader from '../components/me/MeProfileHeader';
+import MeQuickActions, { type MeQuickAction } from '../components/me/MeQuickActions';
+import { Card } from '../components/ui';
+import type { AppNavigationProps } from '../navigation/screenProps';
+import { useIsTabRoot } from '../navigation/useIsTabRoot';
 import { apiGet } from '../lib/api';
-import { createAndShareFriendInviteLink } from '../lib/friendInviteShare';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { syncOnboardingFromServerSummary } from '../lib/onboardingStorage';
+import { createAndShareFriendInviteLink } from '../lib/friendInviteShare';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
+import { radii, spacing } from '../theme/tokens';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
+type Props = AppNavigationProps;
 
 type PerkRedemptionItem = {
   id: string;
@@ -45,9 +51,11 @@ type PerkRedemptionsPayload = {
 };
 
 export default function ProfileScreen({ navigation }: Props) {
+  const isTabRoot = useIsTabRoot('MeTab');
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
+  const { user } = useUser();
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
@@ -57,6 +65,11 @@ export default function ProfileScreen({ navigation }: Props) {
   const [perkPayload, setPerkPayload] = useState<PerkRedemptionsPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+
+  const displayName =
+    user?.firstName ||
+    user?.primaryEmailAddress?.emailAddress ||
+    t('home.guestName');
 
   const load = useCallback(async () => {
     if (!isLoaded) return;
@@ -141,256 +154,213 @@ export default function ProfileScreen({ navigation }: Props) {
     }
   };
 
-  const formatRedeemed = (iso: string) => {
-    try {
-      const d = new Date(iso);
-      return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-    } catch {
-      return iso;
-    }
-  };
+  const quickActions = useMemo((): MeQuickAction[] => {
+    return [
+      {
+        key: 'quests',
+        label: t('profile.openQuestHub'),
+        icon: 'gift',
+        tint: colors.primary,
+        onPress: () => navigation.navigate('RewardsHub'),
+      },
+      {
+        key: 'perks',
+        label: t('profile.openPerkWallet'),
+        icon: 'qr-code',
+        tint: colors.xp,
+        onPress: () => navigation.navigate('PerkWallet'),
+      },
+      {
+        key: 'member',
+        label: t('profile.openMemberCard'),
+        icon: 'card',
+        tint: '#16A34A',
+        onPress: () => navigation.navigate('MemberCard'),
+      },
+      {
+        key: 'invite',
+        label: sharing ? '…' : t('profile.shareFriendLink'),
+        icon: 'share-social',
+        tint: colors.accentPink,
+        onPress: () => void shareFriendLink(),
+      },
+    ];
+  }, [colors, navigation, sharing, t]);
 
   const wallet = perkPayload?.wallet;
   const expiringSoon = perkPayload?.expiringSoon ?? [];
   const redemptionItems = perkPayload?.items ?? [];
 
-  const renderPerkLine = (row: PerkRedemptionItem) => (
-    <View key={row.id} style={styles.listItem}>
-      <Text style={styles.listTitle}>{row.perkTitle}</Text>
-      {row.perkSubtitle ? <Text style={styles.listSub}>{row.perkSubtitle}</Text> : null}
-      <Text style={styles.venueLine}>{t('profile.venueLine', { name: row.venueName })}</Text>
-      <View style={styles.badgeRow}>
-        {row.voided ? (
-          <Text style={styles.badgeVoid}>{t('profile.voidedBadge')}</Text>
-        ) : row.expired ? (
-          <Text style={styles.badgeExpired}>{t('profile.expiredBadge')}</Text>
-        ) : row.expiringSoon && row.daysUntilExpiry != null ? (
-          <Text style={styles.badgeExpiring}>
-            {t('profile.expiringBadge', { days: row.daysUntilExpiry })}
-          </Text>
-        ) : null}
-      </View>
-      <Text style={styles.listMeta}>
-        {t('profile.redeemedAt', { when: formatRedeemed(row.redeemedAt) })} · {row.perkCode}
-      </Text>
-    </View>
-  );
+  const statRows = summary
+    ? [
+        { label: t('profile.ratingGlobal'), value: summary.competitiveRankRating ?? '—' },
+        { label: t('profile.ratingWord'), value: summary.wordRankRating ?? '—' },
+        { label: t('profile.ratingBrawler'), value: summary.brawlerRankRating ?? '—' },
+        { label: t('profile.completedChallenges'), value: summary.completedChallenges },
+        { label: t('profile.venuesUnlocked'), value: summary.venuesUnlocked },
+      ]
+    : [];
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
+      {!isTabRoot ? (
         <Pressable onPress={() => navigation.goBack()} style={styles.back}>
-          <Text style={styles.backText}>{t('common.back')}</Text>
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>{t('profile.title')}</Text>
-      </View>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.subtitle}>{t('profile.subtitle')}</Text>
+      ) : null}
 
-        <View style={styles.linkRow}>
-          <Pressable
-            style={({ pressed }) => [styles.linkBtn, pressed && styles.linkBtnPressed]}
-            onPress={() => navigation.navigate('Friends')}
-          >
-            <Text style={styles.linkBtnText}>{t('profile.openFriends')}</Text>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.linkBtn, pressed && styles.linkBtnPressed]}
-            onPress={() => void shareFriendLink()}
-            disabled={sharing}
-          >
-            <Text style={styles.linkBtnText}>
-              {sharing ? '…' : t('profile.shareFriendLink')}
-            </Text>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.linkBtn, pressed && styles.linkBtnPressed]}
-            onPress={() => navigation.navigate('RewardsHub')}
-          >
-            <Text style={styles.linkBtnText}>{t('profile.openRewardsHub')}</Text>
-          </Pressable>
-        </View>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {loading && !summary ? (
+          <ActivityIndicator color={colors.primary} style={styles.loader} />
+        ) : null}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator color="#a78bfa" />
-          </View>
-        ) : error ? (
-          <Text style={styles.error}>{error}</Text>
-        ) : summary ? (
-          <View style={styles.card}>
-            <View style={styles.row}>
-              <Text style={styles.label}>{t('profile.xp')}</Text>
-              <Text style={styles.value}>{summary.xp}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>{t('profile.tier')}</Text>
-              <Text style={styles.value}>{summary.tier}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>{t('profile.ratingGlobal')}</Text>
-              <Text style={styles.value}>
-                {summary.competitiveRankRating != null
-                  ? String(summary.competitiveRankRating)
-                  : '—'}
-              </Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>{t('profile.ratingWord')}</Text>
-              <Text style={styles.value}>
-                {summary.wordRankRating != null ? String(summary.wordRankRating) : '—'}
-              </Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>{t('profile.ratingBrawler')}</Text>
-              <Text style={styles.value}>
-                {summary.brawlerRankRating != null ? String(summary.brawlerRankRating) : '—'}
-              </Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>{t('profile.completedChallenges')}</Text>
-              <Text style={styles.value}>{summary.completedChallenges}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>{t('profile.venuesUnlocked')}</Text>
-              <Text style={styles.value}>{summary.venuesUnlocked}</Text>
-            </View>
-          </View>
+        {summary ? (
+          <MeProfileHeader
+            colors={colors}
+            displayName={displayName}
+            avatarUrl={user?.imageUrl}
+            tier={summary.tier}
+            xp={summary.xp}
+            nextTierName={summary.nextTierName}
+            nextTierXp={summary.nextTierXpThreshold}
+            onSettings={() => navigation.navigate('Settings')}
+          />
         ) : null}
 
+        <MeQuickActions colors={colors} actions={quickActions} />
+
         {wallet ? (
-          <View style={[styles.card, styles.walletCard]}>
-            <Text style={styles.sectionTitle}>{t('profile.walletTitle')}</Text>
-            <Text style={styles.walletStat}>
-              {t('profile.walletActive', { count: wallet.activeRedemptions })}
-            </Text>
-          </View>
+          <Pressable
+            onPress={() => navigation.navigate('PerkWallet')}
+            style={({ pressed }) => [styles.walletCard, pressed && styles.pressed]}
+          >
+            <View>
+              <Text style={styles.walletTitle}>{t('profile.walletTitle')}</Text>
+              <Text style={styles.walletStat}>
+                {t('profile.walletActive', { count: wallet.activeRedemptions })}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+          </Pressable>
+        ) : null}
+
+        {statRows.length > 0 ? (
+          <Card style={styles.statsCard}>
+            <Text style={styles.sectionTitle}>{t('profile.statsTitle')}</Text>
+            {statRows.map((row) => (
+              <View key={row.label} style={styles.statRow}>
+                <Text style={styles.statLabel}>{row.label}</Text>
+                <Text style={styles.statValue}>{String(row.value)}</Text>
+              </View>
+            ))}
+          </Card>
         ) : null}
 
         {expiringSoon.length > 0 ? (
           <>
             <Text style={styles.sectionTitle}>{t('profile.expiringSoonTitle')}</Text>
             <Text style={styles.sectionHint}>{t('profile.expiringSoonHint')}</Text>
-            <View style={styles.list}>{expiringSoon.map(renderPerkLine)}</View>
+            {expiringSoon.slice(0, 3).map((row) => (
+              <Card key={row.id} style={styles.perkItem}>
+                <Text style={styles.perkTitle}>{row.perkTitle}</Text>
+                <Text style={styles.perkVenue}>{row.venueName}</Text>
+              </Card>
+            ))}
           </>
         ) : null}
 
         <Text style={styles.sectionTitle}>{t('profile.recentPerksTitle')}</Text>
-        <Text style={styles.sectionHint}>{t('profile.recentPerksHint')}</Text>
-        {loading ? null : redemptionItems.length === 0 ? (
+        {!loading && redemptionItems.length === 0 ? (
           <Text style={styles.muted}>{t('profile.recentPerksEmpty')}</Text>
         ) : (
-          <View style={styles.list}>
-            {redemptionItems.slice(0, 40).map(renderPerkLine)}
-          </View>
+          redemptionItems.slice(0, 5).map((row) => (
+            <Card key={row.id} style={styles.perkItem}>
+              <Text style={styles.perkTitle}>{row.perkTitle}</Text>
+              {row.venueName ? (
+                <Text style={styles.perkVenue}>{row.venueName}</Text>
+              ) : null}
+            </Card>
+          ))
         )}
+
+        {redemptionItems.length > 5 ? (
+          <Pressable onPress={() => navigation.navigate('PerkWallet')} style={styles.seeAll}>
+            <Text style={styles.seeAllText}>{t('profile.seeAllPerks')}</Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-
 function createStyles(colors: AppColors) {
-    return StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 4,
-  },
-  back: {
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    backgroundColor: colors.surface,
-  },
-  backText: { color: colors.textSecondary, fontWeight: '600' },
-  headerTitle: { color: colors.text, fontSize: 22, fontWeight: '800', flex: 1 },
-  scroll: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 32 },
-  subtitle: { color: colors.textMuted, marginTop: 8, fontSize: 14, lineHeight: 20 },
-  linkRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
-  linkBtn: {
-    flexGrow: 1,
-    minWidth: '45%',
-    backgroundColor: colors.surface,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-  },
-  linkBtnPressed: { opacity: 0.88 },
-  linkBtnText: { color: colors.textSecondary, fontWeight: '700', fontSize: 14 },
-  center: { paddingVertical: 24, alignItems: 'center' },
-  error: { color: colors.error, marginTop: 12 },
-  card: {
-    marginTop: 20,
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  walletCard: { marginTop: 16 },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  label: { color: colors.textSecondary, fontSize: 14 },
-  value: { color: colors.text, fontSize: 15, fontWeight: '600' },
-  sectionTitle: { color: colors.textSecondary, fontSize: 16, fontWeight: '700', marginTop: 24 },
-  sectionHint: { color: colors.textMuted, fontSize: 13, marginTop: 6, lineHeight: 18 },
-  walletStat: { color: colors.honeyDark, fontSize: 15, fontWeight: '600', marginTop: 8 },
-  list: { marginTop: 12, gap: 4 },
-  listItem: {
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  listTitle: { color: colors.text, fontWeight: '700', fontSize: 16 },
-  listSub: { color: colors.textSecondary, marginTop: 4, fontSize: 14 },
-  venueLine: { color: '#818cf8', marginTop: 6, fontSize: 13, fontWeight: '600' },
-  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
-  badgeExpiring: {
-    color: '#fbbf24',
-    fontSize: 12,
-    fontWeight: '700',
-    backgroundColor: colors.warningBg,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  badgeExpired: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
-    backgroundColor: colors.bgElevated,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  badgeVoid: {
-    color: colors.error,
-    fontSize: 12,
-    fontWeight: '600',
-    backgroundColor: '#450a0a',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  listMeta: { color: colors.textMuted, marginTop: 8, fontSize: 12 },
-  muted: { color: colors.textMuted, marginTop: 8 },
-
-    });
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.bg },
+    back: {
+      marginLeft: spacing.xl,
+      marginTop: spacing.sm,
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    scroll: {
+      paddingHorizontal: spacing.xl,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.xxl,
+      gap: spacing.lg,
+    },
+    loader: { marginVertical: spacing.xxl },
+    error: { color: colors.error, fontSize: 14 },
+    walletCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.primaryMuted,
+      borderRadius: radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.primary,
+      padding: spacing.lg,
+    },
+    walletTitle: {
+      color: colors.text,
+      fontSize: 15,
+      fontWeight: '800',
+    },
+    walletStat: {
+      color: colors.primaryDark,
+      fontSize: 14,
+      fontWeight: '600',
+      marginTop: 4,
+    },
+    statsCard: { gap: spacing.sm },
+    statRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.sm,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    statLabel: { color: colors.textSecondary, fontSize: 14 },
+    statValue: { color: colors.text, fontSize: 15, fontWeight: '700' },
+    sectionTitle: {
+      color: colors.text,
+      fontSize: 17,
+      fontWeight: '900',
+      marginTop: spacing.sm,
+    },
+    sectionHint: {
+      color: colors.textMuted,
+      fontSize: 13,
+      lineHeight: 18,
+    },
+    perkItem: { marginBottom: spacing.sm },
+    perkTitle: { color: colors.text, fontWeight: '700', fontSize: 15 },
+    perkVenue: { color: colors.primary, marginTop: 4, fontSize: 13, fontWeight: '600' },
+    muted: { color: colors.textMuted, fontSize: 14 },
+    seeAll: { alignSelf: 'flex-start', paddingVertical: spacing.sm },
+    seeAllText: { color: colors.primary, fontWeight: '700', fontSize: 14 },
+    pressed: { opacity: 0.92 },
+  });
 }

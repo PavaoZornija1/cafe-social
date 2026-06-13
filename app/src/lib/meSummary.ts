@@ -18,6 +18,7 @@ export type MeSummaryDto = {
   totalPrivacy?: boolean;
   partnerMarketingPush?: boolean;
   matchActivityPush?: boolean;
+  emailNotifications?: boolean;
   subscriptionActive?: boolean;
   onboardingPlayerCompletedAt?: string | null;
   onboardingStaffCompletedAt?: string | null;

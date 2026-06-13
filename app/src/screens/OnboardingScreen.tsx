@@ -94,7 +94,7 @@ export default function OnboardingScreen({ navigation }: Props) {
         setPhase('player');
         return;
       }
-      navigation.replace('Home');
+      navigation.replace('MainTabs');
     })();
     return () => {
       cancelled = true;
@@ -122,21 +122,21 @@ export default function OnboardingScreen({ navigation }: Props) {
     await markPlayerOnboardingDone();
     await pushOnboardingServer({ playerComplete: true });
     registerPush();
-    navigation.replace('Home');
+    navigation.replace('MainTabs');
   }, [navigation, pushOnboardingServer, registerPush]);
 
   const skipPlayer = useCallback(async () => {
     await markPlayerOnboardingDone();
     await pushOnboardingServer({ playerComplete: true });
     registerPush();
-    navigation.replace('Home');
+    navigation.replace('MainTabs');
   }, [navigation, pushOnboardingServer, registerPush]);
 
   const finishStaff = useCallback(async () => {
     await markStaffIntroComplete();
     await pushOnboardingServer({ staffComplete: true });
     registerPush();
-    navigation.replace('Home');
+    navigation.replace('MainTabs');
   }, [navigation, pushOnboardingServer, registerPush]);
 
   const goPlayerPage = useCallback(

@@ -305,9 +305,9 @@ export class PartyService {
 
     const guest = await this.prisma.player.findUnique({
       where: { id: friendPlayerId },
-      select: { email: true },
+      select: { email: true, emailNotifications: true },
     });
-    if (guest?.email) {
+    if (guest?.email && guest.emailNotifications) {
       void this.email.notifyPartyInvite({
         toEmail: guest.email,
         actorUsername: inviter.username,
@@ -321,8 +321,14 @@ export class PartyService {
       {
         title: 'Party invite',
         body: `${inviter.username} invited you to their party`,
-        data: { kind: 'party_invite', partyId },
+        channelId: 'social',
+        data: {
+          kind: 'party_invite',
+          pushCategory: 'social',
+          partyId,
+        },
       },
+      { channel: 'social' },
     );
 
     return { pendingInvite: true as const };

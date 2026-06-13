@@ -18,6 +18,7 @@ import { PartnerOpsListener } from './partner-ops.listener';
 import { PartnerOnboardingThrottlerFilter } from './partner-onboarding-throttle.filter';
 import { VenueModule } from '../venue/venue.module';
 import { StripeModule } from '../stripe/stripe.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { StripeModule } from '../stripe/stripe.module';
     StaffModule,
     PushModule,
     ReceiptModule,
+    NotificationModule,
     forwardRef(() => StripeModule),
   ],
   controllers: [OwnerController],

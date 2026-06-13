@@ -7,12 +7,14 @@ import {
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
+import { VenueStaffNotificationService } from '../notification/venue-staff-notification.service';
 
 @Injectable()
 export class VenueModerationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly push: PushService,
+    private readonly staffNotify: VenueStaffNotificationService,
   ) {}
 
   async isBanned(venueId: string, playerId: string): Promise<boolean> {
@@ -298,6 +300,11 @@ export class VenueModerationService {
         playerId,
         message: trimmed.slice(0, 2000),
       },
+    });
+    void this.staffNotify.notifyBanAppealCreated({
+      venueId,
+      appealId: row.id,
+      playerId,
     });
     return { id: row.id };
   }

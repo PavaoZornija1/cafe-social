@@ -11,6 +11,7 @@ import { ChallengeRepository } from './challenge.repository';
 import { PlayerVenueStatsRepository } from '../stats/player-venue-stats.repository';
 import { VenueModerationService } from '../venue/venue-moderation.service';
 import { PlayerRewardGrantService } from '../reward/player-reward-grant.service';
+import { XpTierRewardService } from '../reward/xp-tier-reward.service';
 import { isoWeekKeyUTC } from '../lib/week-key';
 import { isChallengeActiveWindow } from '../lib/challenge-window';
 
@@ -37,6 +38,7 @@ export class ChallengeService {
     private readonly venues: VenueService,
     private readonly moderation: VenueModerationService,
     private readonly rewardGrants: PlayerRewardGrantService,
+    private readonly tierRewards: XpTierRewardService,
   ) {}
 
   async getVenueChallengesForPlayer(venueId: string, email: string): Promise<VenueChallengeDto[]> {
@@ -181,6 +183,7 @@ export class ChallengeService {
 
     const xpGain = increment * 10 + (newlyCompleted ? 50 : 0);
     await this.venueStats.addVenueXp(player.id, challenge.venueId, xpGain);
+    await this.tierRewards.syncTierRewards(player.id);
 
     return {
       challengeId: updated.challengeId,

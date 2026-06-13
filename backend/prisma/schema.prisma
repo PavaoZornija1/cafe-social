@@ -469,6 +469,8 @@ model Player {
   partnerMarketingPush Boolean @default(true)
   /// Word-match join/start and similar activity pings.
   matchActivityPush    Boolean @default(true)
+  /// Friend request / party invite emails via Resend (push prefs are separate).
+  emailNotifications   Boolean @default(true)
 
   /// First-time player onboarding completed (app tutorial); survives reinstall when synced from server.
   onboardingPlayerCompletedAt DateTime?
@@ -554,6 +556,7 @@ model Player {
   banAppealsResolved VenueBanAppeal[]           @relation("BanAppealResolvedBy")
   geofenceEvents     PlayerVenueGeofenceEvent[]
   playerVenueCheckIns PlayerVenueCheckIn[]
+  platformQuestClaims PlayerPlatformQuestClaim[]
   blocksCreated      PlayerBlock[]              @relation("Blocker")
   blocksReceived     PlayerBlock[]              @relation("Blocked")
   moderationAudits   VenueModerationAuditLog[]
@@ -834,8 +837,29 @@ model VenuePerk {
   redemptions VenuePerkRedemption[]
   rewardGrants PlayerRewardGrant[]
   challengesWithReward Challenge[] @relation("ChallengeRewardPerk")
+  platformAutomatedRewards PlatformAutomatedReward[]
 
   @@index([venueId])
+}
+
+/// CMS link: stable reward key → venue perk for automated issuance (tiers, quest bundles).
+model PlatformAutomatedReward {
+  id              String   @id @default(uuid())
+  /// e.g. tier.silver, platform_quest.daily.bundle
+  rewardKey       String   @unique
+  perkId          String?
+  /// App copy override; falls back to linked perk title.
+  label           String?
+  /// When set, grant once per player when lifetime XP reaches this threshold.
+  minLifetimeXp   Int?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  perk VenuePerk? @relation(fields: [perkId], references: [id], onDelete: SetNull)
+
+  @@index([perkId])
+  @@index([isActive, minLifetimeXp])
 }
 
 model VenuePerkRedemption {
@@ -1658,4 +1682,18 @@ model WordParticipantStats {
   updatedAt            DateTime @updatedAt
   participant          GameParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
   @@index([correctAnswers])
+}
+
+/// Claim ledger for platform daily/weekly quests (progress derived at read time).
+model PlayerPlatformQuestClaim {
+  playerId  String
+  questKey  String
+  periodKey String
+  xpAwarded Int
+  claimedAt DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, questKey, periodKey])
+  @@index([playerId, periodKey])
 }

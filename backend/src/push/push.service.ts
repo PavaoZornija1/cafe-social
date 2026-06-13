@@ -20,6 +20,8 @@ export type ExpoPushMessage = {
   body: string;
   data?: Record<string, unknown>;
   sound?: 'default' | null;
+  /** Android notification channel (must match app-side channel ids). */
+  channelId?: string;
 };
 
 @Injectable()
@@ -64,7 +66,7 @@ export class PushService {
     playerIds: string[],
     exceptPlayerId: string | undefined,
     message: Omit<ExpoPushMessage, 'to'>,
-    opts?: { channel?: 'partner_marketing' | 'match' },
+    opts?: { channel?: 'partner_marketing' | 'match' | 'social' | 'rewards' },
   ): Promise<void> {
     let targets = exceptPlayerId
       ? playerIds.filter((id) => id !== exceptPlayerId)
@@ -76,7 +78,17 @@ export class PushService {
         select: { id: true },
       });
       targets = rows.map((r) => r.id);
-    } else if (opts?.channel === 'partner_marketing') {
+    } else if (opts?.channel === 'social') {
+      const rows = await this.prisma.player.findMany({
+        where: {
+          id: { in: targets },
+          matchActivityPush: true,
+          totalPrivacy: false,
+        },
+        select: { id: true },
+      });
+      targets = rows.map((r) => r.id);
+    } else if (opts?.channel === 'partner_marketing' || opts?.channel === 'rewards') {
       const rows = await this.prisma.player.findMany({
         where: {
           id: { in: targets },
@@ -108,6 +120,7 @@ export class PushService {
         body: message.body,
         data: expoDataStrings(message.data),
         sound: message.sound ?? 'default',
+        ...(message.channelId ? { channelId: message.channelId } : {}),
       }));
 
       try {

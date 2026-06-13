@@ -19,6 +19,50 @@ export async function handleNotificationTapNavigation(
   getToken: () => Promise<string | null | undefined>,
 ): Promise<void> {
   const kind = typeof raw.kind === 'string' ? raw.kind : undefined;
+  if (kind === 'friend_request') {
+    if (navigationRef.isReady()) {
+      const ok = await ensureOnboardingCompleteForNavigation(getToken);
+      if (ok) {
+        navigationRef.navigate('MainTabs', { screen: 'FriendsTab' });
+      }
+    }
+    return;
+  }
+  if (kind === 'party_invite') {
+    const partyId = typeof raw.partyId === 'string' ? raw.partyId : undefined;
+    if (partyId && navigationRef.isReady()) {
+      const ok = await ensureOnboardingCompleteForNavigation(getToken);
+      if (ok) navigationRef.navigate('PartyDetail', { partyId });
+    }
+    return;
+  }
+  if (kind === 'perk_granted') {
+    const venueId = typeof raw.venueId === 'string' ? raw.venueId : undefined;
+    if (navigationRef.isReady()) {
+      const ok = await ensureOnboardingCompleteForNavigation(getToken);
+      if (ok) {
+        if (venueId) {
+          navigationRef.navigate('RedeemPerk', { venueId });
+        } else {
+          navigationRef.navigate('PerkWallet');
+        }
+      }
+    }
+    return;
+  }
+  if (kind === 'receipt_reviewed') {
+    const venueId = typeof raw.venueId === 'string' ? raw.venueId : undefined;
+    if (navigationRef.isReady()) {
+      const ok = await ensureOnboardingCompleteForNavigation(getToken);
+      if (ok) {
+        navigationRef.navigate('MainTabs', { screen: 'HomeTab' });
+        if (venueId) {
+          navigationRef.navigate('VenueHub', { venueId });
+        }
+      }
+    }
+    return;
+  }
   if (kind === 'ban_appeal_resolved') {
     const venueId = typeof raw.venueId === 'string' ? raw.venueId : undefined;
     const venueName = typeof raw.venueName === 'string' ? raw.venueName : undefined;
@@ -89,7 +133,7 @@ export async function handleNotificationTapNavigation(
     await openOrderingOrMenu(nudge.orderingUrl, nudge.menuUrl);
     if (navigationRef.isReady()) {
       const ok = await ensureOnboardingCompleteForNavigation(getToken);
-      if (ok) navigationRef.navigate('Home');
+      if (ok) navigationRef.navigate('MainTabs', { screen: 'HomeTab' });
     }
     return;
   }

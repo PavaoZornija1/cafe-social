@@ -145,7 +145,7 @@ export default function WordVenueQueueScreen({ navigation, route }: Props) {
       }
       enrolledRef.current = false;
       if (navigation.canGoBack()) navigation.goBack();
-      else navigation.replace('Home');
+      else navigation.replace('MainTabs');
     })();
   };
 

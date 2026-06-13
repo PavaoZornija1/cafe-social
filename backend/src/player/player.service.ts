@@ -11,7 +11,7 @@ import { UpdateMeSettingsDto } from './dto/update-me-settings.dto';
 import { PlayerRepository } from './player.repository';
 import { PlayerVenueStatsRepository } from '../stats/player-venue-stats.repository';
 import { PrismaService } from '../prisma/prisma.service';
-import { computeTierProgress } from '../lib/xp-tier.util';
+import { PlatformAutomatedRewardService } from '../reward/platform-automated-reward.service';
 import { utcDayKeyDaysAgo, utcWeekDayKeyRange } from '../lib/engagement-dates';
 import { orderedPlayerPair } from '../common/player-pair';
 import { staffVerificationCodeFromRedemptionId } from '../lib/redemption-staff-code';
@@ -28,6 +28,7 @@ export class PlayerService {
     private readonly players: PlayerRepository,
     private readonly venueStats: PlayerVenueStatsRepository,
     private readonly prisma: PrismaService,
+    private readonly platformRewards: PlatformAutomatedRewardService,
   ) {}
 
   async create(dto: CreatePlayerDto): Promise<Player> {
@@ -130,6 +131,7 @@ export class PlayerService {
     totalPrivacy: boolean;
     partnerMarketingPush: boolean;
     matchActivityPush: boolean;
+    emailNotifications: boolean;
     subscriptionActive: boolean;
     onboardingPlayerCompletedAt: string | null;
     onboardingStaffCompletedAt: string | null;
@@ -141,7 +143,7 @@ export class PlayerService {
     const venueXpSum = await this.venueStats.sumVenueXpForPlayer(player.id);
     const totalXp = venueXpSum + player.bonusXp;
     const { tierLabel, nextTierXpThreshold, nextTierName } =
-      computeTierProgress(totalXp);
+      await this.platformRewards.computeTierProgress(totalXp);
 
     const subscription = await this.prisma.subscription.findUnique({
       where: { playerId: player.id },
@@ -163,6 +165,7 @@ export class PlayerService {
       totalPrivacy: player.totalPrivacy,
       partnerMarketingPush: player.partnerMarketingPush,
       matchActivityPush: player.matchActivityPush,
+      emailNotifications: player.emailNotifications,
       subscriptionActive,
       onboardingPlayerCompletedAt: player.onboardingPlayerCompletedAt?.toISOString() ?? null,
       onboardingStaffCompletedAt: player.onboardingStaffCompletedAt?.toISOString() ?? null,
@@ -370,6 +373,9 @@ export class PlayerService {
       }),
       ...(dto.matchActivityPush !== undefined && {
         matchActivityPush: dto.matchActivityPush,
+      }),
+      ...(dto.emailNotifications !== undefined && {
+        emailNotifications: dto.emailNotifications,
       }),
     });
   }

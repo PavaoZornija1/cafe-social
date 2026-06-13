@@ -1,45 +1,18 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { AppState, type AppStateStatus } from 'react-native';
+import React, { createContext, useContext } from 'react';
 
 import type { AppColors } from './colors';
-import { paletteMorning } from './palettes';
-import type { DayPhase } from './timeOfDay';
-import { getColorsAt, getDayPhase } from './timeOfDay';
+import { appColors } from './palettes';
 
 type ThemeValue = {
   colors: AppColors;
-  phase: DayPhase;
 };
 
-const ThemeContext = createContext<ThemeValue>({
-  colors: paletteMorning,
-  phase: 'morning',
-});
+const themeValue: ThemeValue = { colors: appColors };
+
+const ThemeContext = createContext<ThemeValue>(themeValue);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    const bump = () => setTick((n) => n + 1);
-    const id = setInterval(bump, 30_000);
-    const sub = AppState.addEventListener('change', (s: AppStateStatus) => {
-      if (s === 'active') bump();
-    });
-    return () => {
-      clearInterval(id);
-      sub.remove();
-    };
-  }, []);
-
-  const value = useMemo<ThemeValue>(() => {
-    const now = new Date();
-    return {
-      colors: getColorsAt(now),
-      phase: getDayPhase(now),
-    };
-  }, [tick]);
-
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return <ThemeContext.Provider value={themeValue}>{children}</ThemeContext.Provider>;
 }
 
 export function useAppTheme(): ThemeValue {

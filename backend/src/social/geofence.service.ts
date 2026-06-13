@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { DiscoveryService } from './discovery.service';
 import { ProximityArrivalService } from './proximity-arrival.service';
 
 @Injectable()
@@ -7,6 +8,7 @@ export class GeofenceService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly proximityArrival: ProximityArrivalService,
+    private readonly discovery: DiscoveryService,
   ) {}
 
   async recordEvent(params: {
@@ -53,8 +55,22 @@ export class GeofenceService {
         playerId: params.playerId,
         venueId: params.venueId,
       });
+      void this.discovery.setPresence(params.playerId, params.venueId);
+    } else {
+      void this.clearPresenceIfStillAtVenue(params.playerId, params.venueId);
     }
 
     return { id: row.id };
+  }
+
+  /** Clears presence on geofence exit only when this venue is still the active stay. */
+  private async clearPresenceIfStillAtVenue(playerId: string, venueId: string): Promise<void> {
+    const player = await this.prisma.player.findUnique({
+      where: { id: playerId },
+      select: { lastPresenceVenueId: true },
+    });
+    if (player?.lastPresenceVenueId === venueId) {
+      await this.discovery.setPresence(playerId, null);
+    }
   }
 }

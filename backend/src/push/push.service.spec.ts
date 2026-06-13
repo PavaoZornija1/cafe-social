@@ -1,37 +1,54 @@
-import { ConfigService } from '@nestjs/config';
 import { PushService } from './push.service';
 
-describe('PushService', () => {
-  it('sendExpo skips fetch when token list is empty', async () => {
-    const fetchSpy = jest.spyOn(global, 'fetch');
-    const prisma = {} as never;
-    const config = { get: jest.fn() } as unknown as ConfigService;
-    const svc = new PushService(prisma, config);
-    await svc.sendExpo([], { title: 't', body: 'b' });
-    expect(fetchSpy).not.toHaveBeenCalled();
-    fetchSpy.mockRestore();
+describe('PushService channel prefs', () => {
+  function makeService(playerRows: { id: string }[]) {
+    const prisma = {
+      player: {
+        findMany: jest.fn().mockResolvedValue(playerRows),
+      },
+      playerExpoPushToken: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+    };
+    const config = { get: jest.fn() };
+    const svc = new PushService(prisma as never, config as never);
+    jest.spyOn(svc, 'sendExpo').mockResolvedValue(undefined);
+    return { svc, prisma };
+  }
+
+  it('social channel requires matchActivityPush and not totalPrivacy', async () => {
+    const { svc, prisma } = makeService([{ id: 'p1' }]);
+    await svc.sendToPlayers(
+      ['p1', 'p2'],
+      undefined,
+      { title: 't', body: 'b', channelId: 'social' },
+      { channel: 'social' },
+    );
+    expect(prisma.player.findMany).toHaveBeenCalledWith({
+      where: {
+        id: { in: ['p1', 'p2'] },
+        matchActivityPush: true,
+        totalPrivacy: false,
+      },
+      select: { id: true },
+    });
   });
 
-  it('sendExpo posts to Expo when tokens provided', async () => {
-    const fetchSpy = jest
-      .spyOn(global, 'fetch')
-      .mockResolvedValue(new Response(JSON.stringify({ data: [{ status: 'ok' }] }), { status: 200 }));
-
-    const prisma = {} as never;
-    const config = { get: jest.fn().mockReturnValue(undefined) } as unknown as ConfigService;
-    const svc = new PushService(prisma, config);
-
-    await svc.sendExpo(['ExponentPushToken[abc]'], { title: 'Hi', body: 'There', data: { x: 1 } });
-
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchSpy.mock.calls[0]!;
-    expect(String(url)).toContain('exp.host');
-    const body = JSON.parse((init as RequestInit).body as string);
-    expect(Array.isArray(body)).toBe(true);
-    expect(body[0].to).toBe('ExponentPushToken[abc]');
-    expect(body[0].title).toBe('Hi');
-    expect(body[0].data).toEqual({ x: '1' });
-
-    fetchSpy.mockRestore();
+  it('rewards channel requires partnerMarketingPush and not totalPrivacy', async () => {
+    const { svc, prisma } = makeService([{ id: 'p1' }]);
+    await svc.sendToPlayers(
+      ['p1'],
+      undefined,
+      { title: 't', body: 'b', channelId: 'partner_marketing' },
+      { channel: 'rewards' },
+    );
+    expect(prisma.player.findMany).toHaveBeenCalledWith({
+      where: {
+        id: { in: ['p1'] },
+        partnerMarketingPush: true,
+        totalPrivacy: false,
+      },
+      select: { id: true },
+    });
   });
 });

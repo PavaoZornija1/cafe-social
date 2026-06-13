@@ -12,7 +12,8 @@ describe('VenueModerationService', () => {
     venueBanAppeal: { findFirst: jest.Mock; create: jest.Mock };
   }) {
     const push = { sendExpo: jest.fn() };
-    return new VenueModerationService(prisma as never, push as never);
+    const staffNotify = { notifyBanAppealCreated: jest.fn() };
+    return new VenueModerationService(prisma as never, push as never, staffNotify as never);
   }
 
   describe('createReport', () => {

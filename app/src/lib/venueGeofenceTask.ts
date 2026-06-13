@@ -88,6 +88,8 @@ export const requestProximityGeofencePermissions = requestAlwaysLocationPermissi
 
 /**
  * Registers up to 20 circular arrival zones (nearest partner venues).
+ * Enter/exit events POST to `/social/me/geofence-event`, which records visit days
+ * and starts dwell-based order nudges even when the app is in the background.
  * Requires foreground location; background ("Always") improves delivery when the app is not open.
  */
 export async function syncProximityGeofenceRegions(

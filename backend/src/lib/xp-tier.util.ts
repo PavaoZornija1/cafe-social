@@ -1,33 +1,18 @@
+import { computeTierProgressFromLadder, type TierProgressDto } from './xp-tier-ladder.util';
 import { XP_TIER_GOLD, XP_TIER_SILVER } from './xp-rewards';
 
-export type TierProgressDto = {
-  tierLabel: string;
-  nextTierXpThreshold: number | null;
-  nextTierName: string | null;
-};
+export type { TierProgressDto };
 
-export function tierLabelFromTotalXp(totalXp: number): string {
-  if (totalXp >= XP_TIER_GOLD) return 'Gold';
-  if (totalXp >= XP_TIER_SILVER) return 'Silver';
-  return 'Bronze';
-}
+/** Default ladder when CMS has no tier rows (local dev / pre-seed). */
+const FALLBACK_LADDER = [
+  { rewardKey: 'tier.base', displayName: 'Bronze', minLifetimeXp: 0 },
+  { rewardKey: 'tier.silver', displayName: 'Silver', minLifetimeXp: XP_TIER_SILVER },
+  { rewardKey: 'tier.gold', displayName: 'Gold', minLifetimeXp: XP_TIER_GOLD },
+];
 
-/** Progress toward the next tier: denominator is the absolute XP needed for that tier. */
+/** @deprecated Use {@link computeTierProgressFromLadder} with CMS ladder. */
 export function computeTierProgress(totalXp: number): TierProgressDto {
-  const tierLabel = tierLabelFromTotalXp(totalXp);
-  if (totalXp >= XP_TIER_GOLD) {
-    return { tierLabel, nextTierXpThreshold: null, nextTierName: null };
-  }
-  if (totalXp >= XP_TIER_SILVER) {
-    return {
-      tierLabel,
-      nextTierXpThreshold: XP_TIER_GOLD,
-      nextTierName: 'Gold',
-    };
-  }
-  return {
-    tierLabel,
-    nextTierXpThreshold: XP_TIER_SILVER,
-    nextTierName: 'Silver',
-  };
+  return computeTierProgressFromLadder(totalXp, FALLBACK_LADDER);
 }
+
+export { computeTierProgressFromLadder };

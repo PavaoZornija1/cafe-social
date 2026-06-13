@@ -1,132 +1,199 @@
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useTranslation } from 'react-i18next';
-import type { RootStackParamList } from '../navigation/type';
+
+import type { AppNavigationProps } from '../navigation/screenProps';
+import { useIsTabRoot } from '../navigation/useIsTabRoot';
 import type { AppColors } from '../theme/colors';
 import { useAppTheme } from '../theme/ThemeContext';
+import { radii, spacing } from '../theme/tokens';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'ChooseGame'>;
+type Props = AppNavigationProps;
 
 export default function ChooseGameScreen({ navigation, route }: Props) {
-    const { colors } = useAppTheme();
-    const styles = useMemo(() => createStyles(colors), [colors]);
-    const { t } = useTranslation();
-    const venueId = route.params?.venueId;
-    const challengeId = route.params?.challengeId;
-    const hasVenueContext = Boolean(venueId);
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useTranslation();
+  const isTabRoot = useIsTabRoot('PlayTab');
+  const params = route.params as { venueId?: string; challengeId?: string } | undefined;
+  const venueId = params?.venueId;
+  const challengeId = params?.challengeId;
+  const hasVenueContext = Boolean(venueId);
 
-    const onOpenWordGame = () => {
-        navigation.navigate('WordLobby', { venueId, challengeId });
-    };
+  return (
+    <SafeAreaView style={styles.safe}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.headerRow}>
+          {!isTabRoot ? (
+            <Pressable
+              onPress={() => navigation.goBack()}
+              style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+            >
+              <Ionicons name="arrow-back" size={22} color={colors.text} />
+            </Pressable>
+          ) : (
+            <View style={styles.iconBtnPlaceholder} />
+          )}
+          <Pressable
+            onPress={() => navigation.navigate('DailyWord')}
+            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+          >
+            <Ionicons name="calendar-outline" size={22} color={colors.textSecondary} />
+          </Pressable>
+        </View>
 
-    const onOpenBrawler = () => {
-        if (!venueId) return;
-        navigation.navigate('BrawlerLobby', { venueId });
-    };
+        <Text style={styles.title}>{t('chooseGame.title')}</Text>
+        <Text style={styles.subtitle}>{t('chooseGame.subtitle')}</Text>
 
-    return (
-        <SafeAreaView style={styles.safe}>
-            <View style={styles.header}>
-                <Pressable onPress={() => navigation.goBack()} style={styles.back}>
-                    <Text style={styles.backText}>{t('common.back')}</Text>
-                </Pressable>
-                <Text style={styles.headerTitle}>{t('chooseGame.title')}</Text>
-            </View>
-            <View style={styles.container}>
-                <Text style={styles.subtitle}>{t('chooseGame.subtitle')}</Text>
-                <Text style={styles.dailyNote}>{t('chooseGame.dailyWordNote')}</Text>
+        <View style={styles.hero}>
+          <Text style={styles.heroTitle}>{t('chooseGame.heroTitle')}</Text>
+          <Text style={styles.heroSub}>
+            {hasVenueContext ? t('chooseGame.heroVenue') : t('chooseGame.heroGlobal')}
+          </Text>
+        </View>
 
-                <Pressable
-                    onPress={onOpenWordGame}
-                    style={({ pressed }) => [styles.card, styles.wordCard, pressed && styles.cardPressed]}
-                >
-                    <Text style={styles.cardEmoji}>🧩</Text>
-                    <View style={styles.cardBody}>
-                        <Text style={styles.cardTitle}>{t('chooseGame.wordTitle')}</Text>
-                        <Text style={styles.cardDescription}>{t('chooseGame.wordDescription')}</Text>
-                        <Text style={styles.cardMeta}>
-                            {hasVenueContext ? t('chooseGame.wordCtaVenue') : t('chooseGame.wordCtaGlobal')}
-                        </Text>
-                    </View>
-                </Pressable>
+        <Pressable
+          onPress={() => navigation.navigate('WordLobby', { venueId, challengeId })}
+          style={({ pressed }) => [styles.card, styles.wordCard, pressed && styles.pressed]}
+        >
+          <View style={[styles.cardIcon, { backgroundColor: colors.primary }]}>
+            <Ionicons name="extension-puzzle" size={26} color={colors.textInverse} />
+          </View>
+          <View style={styles.cardBody}>
+            <Text style={styles.cardTitle}>{t('chooseGame.wordTitle')}</Text>
+            <Text style={styles.cardDescription}>{t('chooseGame.wordDescription')}</Text>
+            <Text style={styles.cardMeta}>
+              {hasVenueContext ? t('chooseGame.wordCtaVenue') : t('chooseGame.wordCtaGlobal')}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={22} color={colors.textMuted} />
+        </Pressable>
 
-                <Pressable
-                    onPress={onOpenBrawler}
-                    disabled={!hasVenueContext}
-                    style={({ pressed }) => [
-                        styles.card,
-                        styles.brawlerCard,
-                        !hasVenueContext && styles.cardDisabled,
-                        pressed && styles.cardPressed,
-                    ]}
-                >
-                    <Text style={styles.cardEmoji}>🥊</Text>
-                    <View style={styles.cardBody}>
-                        <Text style={styles.cardTitle}>{t('chooseGame.brawlerTitle')}</Text>
-                        <Text style={styles.cardDescription}>{t('chooseGame.brawlerDescription')}</Text>
-                        <Text style={styles.cardMeta}>
-                            {hasVenueContext ? t('chooseGame.brawlerCta') : t('chooseGame.brawlerNeedVenue')}
-                        </Text>
-                    </View>
-                </Pressable>
-            </View>
-        </SafeAreaView>
-    );
+        <Pressable
+          onPress={() => venueId && navigation.navigate('BrawlerLobby', { venueId })}
+          disabled={!hasVenueContext}
+          style={({ pressed }) => [
+            styles.card,
+            styles.brawlerCard,
+            !hasVenueContext && styles.cardDisabled,
+            pressed && styles.pressed,
+          ]}
+        >
+          <View style={[styles.cardIcon, { backgroundColor: colors.xp }]}>
+            <Ionicons name="fitness" size={26} color={colors.textInverse} />
+          </View>
+          <View style={styles.cardBody}>
+            <Text style={styles.cardTitle}>{t('chooseGame.brawlerTitle')}</Text>
+            <Text style={styles.cardDescription}>{t('chooseGame.brawlerDescription')}</Text>
+            <Text style={styles.cardMeta}>
+              {hasVenueContext ? t('chooseGame.brawlerCta') : t('chooseGame.brawlerNeedVenue')}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={22} color={colors.textMuted} />
+        </Pressable>
+
+        <Text style={styles.dailyNote}>{t('chooseGame.dailyWordNote')}</Text>
+      </ScrollView>
+    </SafeAreaView>
+  );
 }
 
 function createStyles(colors: AppColors) {
-    return StyleSheet.create({
-        safe: { flex: 1, backgroundColor: colors.bg },
-        header: {
-            paddingHorizontal: 20,
-            paddingTop: 16,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 12,
-            marginBottom: 4,
-        },
-        back: {
-            paddingVertical: 8,
-            paddingHorizontal: 10,
-            borderRadius: 10,
-            backgroundColor: colors.surface,
-        },
-        backText: { color: colors.textSecondary, fontWeight: '600' },
-        headerTitle: { color: colors.text, fontSize: 24, fontWeight: '900', flex: 1 },
-        container: { flex: 1, paddingHorizontal: 20, paddingTop: 12, gap: 14 },
-        subtitle: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginBottom: 4 },
-        dailyNote: { color: colors.textMuted, fontSize: 12, lineHeight: 17, marginBottom: 6 },
-        card: {
-            borderRadius: 18,
-            padding: 16,
-            flexDirection: 'row',
-            gap: 14,
-            alignItems: 'flex-start',
-            borderWidth: 1,
-        },
-        cardDisabled: { opacity: 0.45 },
-        cardPressed: { opacity: 0.92 },
-        wordCard: {
-            backgroundColor: colors.surface,
-            borderColor: colors.primary,
-        },
-        brawlerCard: {
-            backgroundColor: colors.surface,
-            borderColor: colors.success,
-        },
-        cardEmoji: { fontSize: 36, marginTop: 4 },
-        cardBody: { flex: 1, gap: 6 },
-        cardTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
-        cardDescription: { color: colors.textMuted, fontSize: 13, lineHeight: 19 },
-        cardMeta: { color: colors.honey, fontSize: 12, fontWeight: '700', marginTop: 4 },
-        backButton: {
-            marginTop: 'auto',
-            marginBottom: 24,
-            alignSelf: 'flex-start',
-            paddingVertical: 12,
-            paddingHorizontal: 16,
-        },
-        backButtonText: { color: colors.honey, fontWeight: '700', fontSize: 15 },
-    });
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.bg },
+    scroll: {
+      paddingHorizontal: spacing.xl,
+      paddingBottom: spacing.xxl,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingTop: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    iconBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: radii.pill,
+      backgroundColor: colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    iconBtnPlaceholder: { width: 44 },
+    title: {
+      color: colors.text,
+      fontSize: 28,
+      fontWeight: '900',
+      letterSpacing: -0.5,
+    },
+    subtitle: {
+      color: colors.textSecondary,
+      fontSize: 15,
+      lineHeight: 22,
+      marginTop: spacing.sm,
+      marginBottom: spacing.lg,
+    },
+    hero: {
+      backgroundColor: colors.hero,
+      borderRadius: radii.xl,
+      padding: spacing.xl,
+      marginBottom: spacing.lg,
+      gap: spacing.sm,
+    },
+    heroTitle: {
+      color: colors.textInverse,
+      fontSize: 22,
+      fontWeight: '900',
+    },
+    heroSub: {
+      color: colors.textInverse,
+      opacity: 0.9,
+      fontSize: 14,
+      fontWeight: '600',
+      lineHeight: 20,
+    },
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      backgroundColor: colors.surface,
+      borderRadius: radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      padding: spacing.lg,
+      marginBottom: spacing.md,
+    },
+    wordCard: { borderColor: colors.primary },
+    brawlerCard: { borderColor: colors.xp },
+    cardDisabled: { opacity: 0.5 },
+    cardIcon: {
+      width: 52,
+      height: 52,
+      borderRadius: radii.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cardBody: { flex: 1, gap: 4 },
+    cardTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
+    cardDescription: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
+    cardMeta: { color: colors.primary, fontSize: 12, fontWeight: '700', marginTop: 4 },
+    dailyNote: {
+      color: colors.textMuted,
+      fontSize: 12,
+      lineHeight: 17,
+      marginTop: spacing.sm,
+      textAlign: 'center',
+    },
+    pressed: { opacity: 0.92 },
+  });
 }

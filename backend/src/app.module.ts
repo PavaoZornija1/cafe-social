@@ -24,6 +24,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { EmailModule } from './email/email.module';
 import { RedisModule } from './redis/redis.module';
 import { QueueBotModule } from './queue-bot/queue-bot.module';
+import { PlatformQuestModule } from './platform-quest/platform-quest.module';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { QueueBotModule } from './queue-bot/queue-bot.module';
     RevenueCatModule,
     StripeModule,
     QueueBotModule,
+    PlatformQuestModule,
   ],
   controllers: [HealthController],
   providers: [],

@@ -1,11 +1,11 @@
 import { Prisma, PrismaClient, WordCategory } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { polygonFromCenterRadiusMeters } from '../src/venue/geofence';
 import {
   VENUE_NUDGE_TYPES,
   VENUE_TYPE_CODES,
 } from '../src/lib/venue-taxonomy';
 import { seedWordLocales } from './seed-word-locales';
+import { seedPilotVenues } from './seed-pilot-venues';
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -222,23 +222,6 @@ async function seedBrawlerPowerups(client: PrismaClient) {
         version: d.version,
       },
       create: d,
-    });
-  }
-}
-
-async function linkVenueVenueTypes(
-  client: PrismaClient,
-  venueId: string,
-  codes: string[],
-) {
-  const normalized = [...new Set(codes.map((c) => c.trim().toUpperCase()).filter(Boolean))];
-  const types = await client.venueType.findMany({
-    where: { code: { in: normalized } },
-  });
-  await client.venueVenueType.deleteMany({ where: { venueId } });
-  if (types.length > 0) {
-    await client.venueVenueType.createMany({
-      data: types.map((t) => ({ venueId, venueTypeId: t.id })),
     });
   }
 }
@@ -665,122 +648,7 @@ async function main() {
 
   await seedVenueTaxonomy(prisma);
 
-  // Seed a couple of venues so the app can detect a default context.
-  // In v1 detection is placeholder (default venue from DB), so we need at least one row.
-  const SEED_VENUE_GEOFENCE_RADIUS_M = 80;
-  const venues = [
-    {
-      id: '8ac7d2f6-9a5a-4d2b-8f5c-3c7bd3e7d5c1',
-      name: 'Default Café',
-      address: 'Main Street',
-      latitude: 43.8563,
-      longitude: 18.4131,
-      isPremium: false,
-      city: 'Sarajevo',
-      country: 'BA',
-      region: 'Europe',
-    },
-    {
-      id: '1c6e7e2a-2a1d-4f61-9d31-2b5b3c1b0b7a',
-      name: 'Premium Roastery',
-      address: 'Neon District',
-      latitude: 43.8613,
-      longitude: 18.4162,
-      isPremium: true,
-      city: 'Sarajevo',
-      country: 'BA',
-      region: 'Europe',
-    },
-  ];
-
-  for (const v of venues) {
-    const geofencePolygon = polygonFromCenterRadiusMeters(
-      v.latitude,
-      v.longitude,
-      SEED_VENUE_GEOFENCE_RADIUS_M,
-    ) as unknown as Prisma.InputJsonValue;
-    await prisma.venue.upsert({
-      where: { id: v.id },
-      update: {
-        name: v.name,
-        address: v.address,
-        latitude: v.latitude,
-        longitude: v.longitude,
-        geofencePolygon,
-        isPremium: v.isPremium,
-        city: v.city,
-        country: v.country,
-        region: v.region,
-      },
-      create: { ...v, geofencePolygon },
-    });
-  }
-
-  await linkVenueVenueTypes(prisma, venues[0].id, [VENUE_TYPE_CODES.COFFEE_SHOP]);
-  await linkVenueVenueTypes(prisma, venues[1].id, [
-    VENUE_TYPE_CODES.COFFEE_SHOP,
-    VENUE_TYPE_CODES.GAME_SHOP,
-  ]);
-
-  // MVP challenges for the Word Game.
-  // Stable IDs so the seed is idempotent.
-  const challenges = [
-    {
-      id: 'c3c4db0e-1a4a-4e1c-9d0f-9f6a4b5a0d01',
-      venueId: venues[0].id,
-      title: '1 in-venue Word Session',
-      description: 'Complete a Word Game session while at the café.',
-      rewardVenueSpecific: true,
-      locationRequired: true,
-      targetCount: 1,
-      resetsWeekly: false,
-    },
-    {
-      id: 'a7f2a6b9-3b8d-4a1c-8f6b-5d2a1b0c9e02',
-      venueId: venues[0].id,
-      title: 'Play 3 Word Games',
-      description: 'Progress your Word Game streak (works from home).',
-      rewardVenueSpecific: false,
-      locationRequired: false,
-      targetCount: 3,
-      resetsWeekly: false,
-    },
-    {
-      id: 'f1e2d3c4-b5a6-4d7e-8f9a-0b1c2d3e4f5a',
-      venueId: venues[0].id,
-      title: 'Weekly venue sessions',
-      description: 'Complete 5 word sessions at this café during the current week (resets Monday UTC).',
-      rewardVenueSpecific: true,
-      locationRequired: true,
-      targetCount: 5,
-      resetsWeekly: true,
-    },
-  ];
-
-  for (const c of challenges) {
-    await prisma.challenge.upsert({
-      where: { id: c.id },
-      update: {
-        venueId: c.venueId,
-        title: c.title,
-        description: c.description ?? null,
-        rewardVenueSpecific: c.rewardVenueSpecific,
-        locationRequired: c.locationRequired,
-        targetCount: c.targetCount,
-        resetsWeekly: c.resetsWeekly,
-      },
-      create: {
-        id: c.id,
-        venueId: c.venueId,
-        title: c.title,
-        description: c.description ?? null,
-        rewardVenueSpecific: c.rewardVenueSpecific,
-        locationRequired: c.locationRequired,
-        targetCount: c.targetCount,
-        resetsWeekly: c.resetsWeekly,
-      },
-    });
-  }
+  await seedPilotVenues(prisma);
 
   // MVP heroes for Brawler mode.
   // Stable IDs so seed remains idempotent across environments.

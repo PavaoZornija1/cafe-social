@@ -259,7 +259,7 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
       if (navigation.canGoBack()) {
         navigation.goBack();
       } else {
-        navigation.replace('Home');
+        navigation.replace('MainTabs');
       }
     })();
   };

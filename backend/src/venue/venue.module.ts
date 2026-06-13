@@ -21,6 +21,7 @@ import { VenueFunnelService } from './venue-funnel.service';
 import { VenueModerationService } from './venue-moderation.service';
 import { VenuePlayerReportController } from './venue-player-report.controller';
 import { PushModule } from '../push/push.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { PushModule } from '../push/push.module';
     forwardRef(() => PlayerModule),
     AuthModule,
     PushModule,
+    NotificationModule,
   ],
   controllers: [
     VenueController,

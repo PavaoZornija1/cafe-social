@@ -92,10 +92,10 @@ export class FriendshipService {
       }),
       this.prisma.player.findUnique({
         where: { id: targetId },
-        select: { email: true },
+        select: { email: true, emailNotifications: true },
       }),
     ]);
-    if (target?.email && actor) {
+    if (target?.email && target.emailNotifications && actor) {
       void this.email.notifyFriendRequest({
         toEmail: target.email,
         actorUsername: actor.username,

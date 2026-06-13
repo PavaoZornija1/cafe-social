@@ -6,6 +6,8 @@ import {
 import { ReceiptSubmissionStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { VenueService } from '../venue/venue.service';
+import { PlayerNotificationService } from '../notification/player-notification.service';
+import { VenueStaffNotificationService } from '../notification/venue-staff-notification.service';
 
 const MAX_IMAGE_BYTES = 2_500_000;
 
@@ -18,6 +20,8 @@ export class VenueReceiptService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly venues: VenueService,
+    private readonly playerNotify: PlayerNotificationService,
+    private readonly staffNotify: VenueStaffNotificationService,
   ) {}
 
   async submit(params: {
@@ -62,6 +66,11 @@ export class VenueReceiptService {
         retentionUntil: retention,
         status: ReceiptSubmissionStatus.PENDING,
       },
+    });
+    void this.staffNotify.notifyReceiptSubmitted({
+      venueId: params.venueId,
+      submissionId: row.id,
+      playerId: params.playerId,
     });
     return {
       id: row.id,
@@ -124,7 +133,7 @@ export class VenueReceiptService {
       throw new BadRequestException('Already reviewed');
     }
 
-    return this.prisma.venueReceiptSubmission.update({
+    const updated = await this.prisma.venueReceiptSubmission.update({
       where: { id: row.id },
       data: {
         status: params.status as ReceiptSubmissionStatus,
@@ -134,5 +143,12 @@ export class VenueReceiptService {
         reviewedByPlayerId: params.reviewerPlayerId,
       },
     });
+    void this.playerNotify.notifyReceiptReviewed({
+      playerId: row.playerId,
+      venueId: params.venueId,
+      submissionId: row.id,
+      status: params.status,
+    });
+    return updated;
   }
 }

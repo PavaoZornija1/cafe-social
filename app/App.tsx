@@ -6,6 +6,7 @@ import type { LinkingOptions } from '@react-navigation/native';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import './src/lib/venueGeofenceTask';
 import AppNavigation from './src/navigation/AppNavigation';
@@ -38,9 +39,11 @@ const linking: LinkingOptions<RootStackParamList> = {
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider>
-        <AppBoot linking={linking} />
-      </ThemeProvider>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <AppBoot linking={linking} />
+        </ThemeProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

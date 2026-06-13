@@ -18,4 +18,9 @@ export class UpdateMeSettingsDto {
   @IsOptional()
   @IsBoolean()
   matchActivityPush?: boolean;
+
+  /** Friend / party invite emails (Resend). */
+  @IsOptional()
+  @IsBoolean()
+  emailNotifications?: boolean;
 }

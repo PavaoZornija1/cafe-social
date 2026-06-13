@@ -1,6 +1,4 @@
-/**
- * Themed color contract — values come from time-of-day palettes (see `palettes.ts`).
- */
+/** App color contract — values from the fixed palette in `palettes.ts`. */
 export type AppColors = {
   bg: string;
   bgElevated: string;
@@ -15,6 +13,7 @@ export type AppColors = {
   primary: string;
   primaryDark: string;
   primaryMuted: string;
+  /** XP, streaks, progress accents */
   honey: string;
   honeyDark: string;
   honeyMuted: string;
@@ -29,4 +28,11 @@ export type AppColors = {
   hudDark: string;
   hudSurface: string;
   overlay: string;
+  /** Home hero card background */
+  hero: string;
+  heroDark: string;
+  /** Lifetime XP, tier progress, and earn highlights */
+  xp: string;
+  accentPink: string;
+  tabInactive: string;
 };

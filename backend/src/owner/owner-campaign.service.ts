@@ -7,6 +7,7 @@ import {
 import { CampaignStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
+import { VenueStaffNotificationService } from '../notification/venue-staff-notification.service';
 
 function utcDayKey(d: Date): string {
   const y = d.getUTCFullYear();
@@ -20,6 +21,7 @@ export class OwnerCampaignService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly push: PushService,
+    private readonly staffNotify: VenueStaffNotificationService,
   ) {}
 
   list(venueId: string) {
@@ -50,7 +52,11 @@ export class OwnerCampaignService {
     });
   }
 
-  async send(venueId: string, campaignId: string) {
+  async send(
+    venueId: string,
+    campaignId: string,
+    opts?: { sentByEmail?: string | null },
+  ) {
     const campaign = await this.prisma.venueCampaign.findFirst({
       where: { id: campaignId, venueId },
     });
@@ -122,6 +128,13 @@ export class OwnerCampaignService {
           })),
         });
       }
+
+      void this.staffNotify.notifyCampaignSent({
+        venueId,
+        campaignName: campaign.name || campaign.title,
+        recipientCount: playerIds.length,
+        sentByEmail: opts?.sentByEmail,
+      });
 
       return this.prisma.venueCampaign.update({
         where: { id: campaign.id },

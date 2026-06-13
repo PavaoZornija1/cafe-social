@@ -7,10 +7,18 @@ export type BrawlerArenaHeroStats = {
   attackKnockback: number;
 };
 
+export type { MainTabParamList } from './mainTabsRoutes';
+
+import type { NavigatorScreenParams } from '@react-navigation/native';
+import type { MainTabParamList } from './mainTabsRoutes';
+
 export type RootStackParamList = {
     Login: undefined;
     SignUp: undefined;
     Onboarding: undefined;
+    /** Signed-in shell: Home · Play · Venues · Friends · Me */
+    MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
+    /** @deprecated Use MainTabs / HomeTab — kept for gradual migration */
     Home: undefined;
     VenueHub: { venueId: string; venueName?: string };
     DiscoverHub: undefined;
@@ -52,6 +60,7 @@ export type RootStackParamList = {
     RedeemInvite: { token?: string } | undefined;
     RedeemPerk: { venueId?: string } | undefined;
     RewardsHub: undefined;
+    PerkWallet: undefined;
     PeopleHere: { venueId: string; venueName?: string };
     ReportPlayer: {
         venueId: string;

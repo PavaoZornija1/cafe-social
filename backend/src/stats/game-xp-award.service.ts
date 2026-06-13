@@ -5,6 +5,7 @@ import {
   GameType,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { XpTierRewardService } from '../reward/xp-tier-reward.service';
 import { PlayerVenueStatsRepository } from './player-venue-stats.repository';
 import {
   BRAWLER_WIN_XP_MAX,
@@ -52,6 +53,7 @@ export class GameXpAwardService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly venueStats: PlayerVenueStatsRepository,
+    private readonly tierRewards: XpTierRewardService,
   ) {}
 
   private async addXp(playerId: string, venueId: string | null, delta: number): Promise<void> {
@@ -64,6 +66,7 @@ export class GameXpAwardService {
         data: { bonusXp: { increment: delta } },
       });
     }
+    await this.tierRewards.syncTierRewards(playerId);
   }
 
   /**
@@ -326,6 +329,7 @@ export class GameXpAwardService {
         data: { bonusXp: { increment: delta } },
       });
     }
+    await this.tierRewards.syncTierRewards(row.playerId);
   }
 
   /** Daily word first correct solve for that day/scope. */
@@ -357,5 +361,6 @@ export class GameXpAwardService {
         data: { bonusXp: { increment: delta } },
       });
     }
+    await this.tierRewards.syncTierRewards(params.playerId);
   }
 }

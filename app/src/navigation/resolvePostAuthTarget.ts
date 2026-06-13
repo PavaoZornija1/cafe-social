@@ -7,7 +7,7 @@ import {
   syncOnboardingFromServerSummary,
 } from '../lib/onboardingStorage';
 
-export type PostAuthTarget = 'Onboarding' | 'Home';
+export type PostAuthTarget = 'Onboarding' | 'MainTabs';
 
 /**
  * After Clerk sign-in, route to onboarding when player or staff intro is still pending.
@@ -18,7 +18,7 @@ export async function resolvePostAuthTarget(
   getToken: () => Promise<string | null | undefined>,
 ): Promise<PostAuthTarget> {
   const token = await getToken();
-  if (!token) return 'Home';
+  if (!token) return 'MainTabs';
 
   let isStaff = false;
   try {
@@ -44,5 +44,5 @@ export async function resolvePostAuthTarget(
 
   if (isStaff && !staffDone) return 'Onboarding';
   if (!isStaff && !playerDone) return 'Onboarding';
-  return 'Home';
+  return 'MainTabs';
 }

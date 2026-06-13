@@ -23,6 +23,7 @@ import type { RootStackParamList } from '../navigation/type';
 import { LANGUAGE_OPTIONS, type AppLanguage, setAppLanguage } from '../i18n';
 import { apiGet, apiPatch } from '../lib/api';
 import { setBackgroundApiToken } from '../lib/backgroundApiToken';
+import { unregisterExpoPushTokenFromBackend } from '../lib/expoPush';
 import { createAndShareFriendInviteLink } from '../lib/friendInviteShare';
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../lib/legalUrls';
 import {
@@ -50,6 +51,7 @@ type MeSummary = {
   totalPrivacy: boolean;
   partnerMarketingPush: boolean;
   matchActivityPush: boolean;
+  emailNotifications: boolean;
   subscriptionActive?: boolean;
 };
 
@@ -67,6 +69,7 @@ export default function SettingsScreen({ navigation }: Props) {
   const [totalPrivacy, setTotalPrivacy] = useState(false);
   const [partnerMarketingPush, setPartnerMarketingPush] = useState(true);
   const [matchActivityPush, setMatchActivityPush] = useState(true);
+  const [emailNotifications, setEmailNotifications] = useState(true);
   const [privacySaving, setPrivacySaving] = useState(false);
   const [friendLinkBusy, setFriendLinkBusy] = useState(false);
   const [subscriptionActive, setSubscriptionActive] = useState(false);
@@ -110,6 +113,7 @@ export default function SettingsScreen({ navigation }: Props) {
       setTotalPrivacy(s.totalPrivacy);
       setPartnerMarketingPush(s.partnerMarketingPush ?? true);
       setMatchActivityPush(s.matchActivityPush ?? true);
+      setEmailNotifications(s.emailNotifications ?? true);
       active = s.subscriptionActive ?? false;
       setSubscriptionActive(active);
     } catch {
@@ -441,6 +445,19 @@ export default function SettingsScreen({ navigation }: Props) {
                 thumbColor="#f4f4f5"
               />
             </View>
+            <View style={[styles.toggleRow, styles.toggleRowBorder]}>
+              <Text style={styles.toggleLabel}>{t('settings.emailSocialActivity')}</Text>
+              <Switch
+                value={emailNotifications}
+                disabled={privacySaving}
+                onValueChange={(v) => {
+                  setEmailNotifications(v);
+                  void persistPrivacy({ emailNotifications: v });
+                }}
+                trackColor={{ true: '#6d28d9', false: '#374151' }}
+                thumbColor="#f4f4f5"
+              />
+            </View>
             <Text style={styles.pushFootnote}>{t('settings.pushPartnerFootnote')}</Text>
           </View>
         )}
@@ -682,6 +699,7 @@ export default function SettingsScreen({ navigation }: Props) {
             if (busy) return;
             setBusy(true);
             try {
+              await unregisterExpoPushTokenFromBackend(() => getTokenRef.current());
               await setBackgroundApiToken(null);
               await signOut();
               navigation.replace('Login');

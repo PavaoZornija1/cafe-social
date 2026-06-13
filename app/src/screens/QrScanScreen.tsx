@@ -74,7 +74,7 @@ export default function QrScanScreen({ navigation, route }: Props) {
         throw e;
       }
 
-      navigation.replace('Home');
+      navigation.replace('MainTabs');
     } catch (e) {
       setError((e as Error).message || t('qr.unlockError'));
     } finally {

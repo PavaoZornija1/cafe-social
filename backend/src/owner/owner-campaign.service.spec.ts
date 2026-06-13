@@ -7,6 +7,7 @@ import { Test } from '@nestjs/testing';
 import { CampaignStatus, Prisma } from '@prisma/client';
 import { PushService } from '../push/push.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { VenueStaffNotificationService } from '../notification/venue-staff-notification.service';
 import { OwnerCampaignService } from './owner-campaign.service';
 
 describe('OwnerCampaignService', () => {
@@ -29,6 +30,7 @@ describe('OwnerCampaignService', () => {
     venueOffer: { findFirst: jest.Mock };
     venueCampaignSend: { deleteMany: jest.Mock; createMany: jest.Mock };
     playerVenueVisitDay: { findMany: jest.Mock };
+    venue: { findUnique: jest.Mock };
   };
 
   beforeEach(async () => {
@@ -50,15 +52,18 @@ describe('OwnerCampaignService', () => {
       venueOffer: { findFirst: jest.fn() },
       venueCampaignSend: { deleteMany: jest.fn(), createMany: jest.fn() },
       playerVenueVisitDay: { findMany: jest.fn() },
+      venue: { findUnique: jest.fn().mockResolvedValue({ name: 'Test Venue' }) },
     };
 
     const push = { sendToPlayers: jest.fn().mockResolvedValue(undefined) };
+    const staffNotify = { notifyCampaignSent: jest.fn().mockResolvedValue(undefined) };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
         OwnerCampaignService,
         { provide: PrismaService, useValue: prisma },
         { provide: PushService, useValue: push },
+        { provide: VenueStaffNotificationService, useValue: staffNotify },
       ],
     }).compile();
     service = moduleRef.get(OwnerCampaignService);
@@ -266,11 +271,13 @@ describe('OwnerCampaignService', () => {
         .mockResolvedValueOnce({ id: 'c1', status: CampaignStatus.SENDING })
         .mockResolvedValueOnce({ id: 'c1', status: CampaignStatus.COMPLETED });
       const push = { sendToPlayers: jest.fn().mockResolvedValue(undefined) };
+      const staffNotify = { notifyCampaignSent: jest.fn().mockResolvedValue(undefined) };
       const mod = await Test.createTestingModule({
         providers: [
           OwnerCampaignService,
           { provide: PrismaService, useValue: prisma },
           { provide: PushService, useValue: push },
+          { provide: VenueStaffNotificationService, useValue: staffNotify },
         ],
       }).compile();
       await mod.get(OwnerCampaignService).send('v1', 'c1');
@@ -294,11 +301,13 @@ describe('OwnerCampaignService', () => {
         .mockResolvedValueOnce({ ...campaign, status: CampaignStatus.SENDING })
         .mockResolvedValueOnce({ ...campaign, status: CampaignStatus.COMPLETED });
       const push = { sendToPlayers: jest.fn().mockResolvedValue(undefined) };
+      const staffNotify = { notifyCampaignSent: jest.fn().mockResolvedValue(undefined) };
       const mod = await Test.createTestingModule({
         providers: [
           OwnerCampaignService,
           { provide: PrismaService, useValue: prisma },
           { provide: PushService, useValue: push },
+          { provide: VenueStaffNotificationService, useValue: staffNotify },
         ],
       }).compile();
       await mod.get(OwnerCampaignService).send('v1', 'c1');
@@ -330,11 +339,13 @@ describe('OwnerCampaignService', () => {
         .mockResolvedValueOnce({ ...campaign, status: CampaignStatus.COMPLETED });
       prisma.venueCampaignSend.createMany.mockResolvedValue({ count: 2 });
       const push = { sendToPlayers: jest.fn().mockResolvedValue(undefined) };
+      const staffNotify = { notifyCampaignSent: jest.fn().mockResolvedValue(undefined) };
       const mod = await Test.createTestingModule({
         providers: [
           OwnerCampaignService,
           { provide: PrismaService, useValue: prisma },
           { provide: PushService, useValue: push },
+          { provide: VenueStaffNotificationService, useValue: staffNotify },
         ],
       }).compile();
       jest.useFakeTimers();
@@ -371,11 +382,13 @@ describe('OwnerCampaignService', () => {
       prisma.playerVenueVisitDay.findMany.mockResolvedValue([{ playerId: 'p1' }]);
       prisma.venueCampaign.update.mockResolvedValue({});
       const push = { sendToPlayers: jest.fn().mockRejectedValue(new Error('push down')) };
+      const staffNotify = { notifyCampaignSent: jest.fn().mockResolvedValue(undefined) };
       const mod = await Test.createTestingModule({
         providers: [
           OwnerCampaignService,
           { provide: PrismaService, useValue: prisma },
           { provide: PushService, useValue: push },
+          { provide: VenueStaffNotificationService, useValue: staffNotify },
         ],
       }).compile();
       await expect(mod.get(OwnerCampaignService).send('v1', 'c1')).rejects.toThrow('push down');

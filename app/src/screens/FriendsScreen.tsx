@@ -1,7 +1,7 @@
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useRef, useState, useMemo } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,22 +14,27 @@ import {
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import type { RootStackParamList } from '../navigation/type';
+import type { AppNavigationProps } from '../navigation/screenProps';
+import { useIsTabRoot } from '../navigation/useIsTabRoot';
 import { apiDelete, apiGet, apiPost } from '../lib/api';
 import { createAndShareFriendInviteLink } from '../lib/friendInviteShare';
+import {
+  fetchSocialInbox,
+  type SocialInboxPartyInvite,
+  type SocialInboxFriendRequest,
+} from '../lib/socialInboxApi';
+import { useFriendsInboxBadge } from '../context/FriendsInboxBadgeContext';
+import FriendAvatarRow from '../components/friends/FriendAvatarRow';
+import { PrimaryButton } from '../components/ui';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
+import { radii, spacing } from '../theme/tokens';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Friends'>;
+type Props = AppNavigationProps;
 
 type Friend = { id: string; username: string };
 
-type IncomingRow = {
-  id: string;
-  requestedById: string;
-  playerLow: { id: string; username: string };
-  playerHigh: { id: string; username: string };
-};
+type IncomingRow = SocialInboxFriendRequest;
 
 type OutgoingRow = { id: string; target: { id: string; username: string } };
 
@@ -44,6 +49,7 @@ function requesterFromRow(row: IncomingRow): { id: string; username: string } {
 }
 
 export default function FriendsScreen({ navigation }: Props) {
+  const isTabRoot = useIsTabRoot('FriendsTab');
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
@@ -51,9 +57,12 @@ export default function FriendsScreen({ navigation }: Props) {
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
 
+  const { refreshPendingCount } = useFriendsInboxBadge();
+
   const [loading, setLoading] = useState(true);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [incoming, setIncoming] = useState<IncomingRow[]>([]);
+  const [partyInvites, setPartyInvites] = useState<SocialInboxPartyInvite[]>([]);
   const [outgoing, setOutgoing] = useState<OutgoingRow[]>([]);
   const [blocked, setBlocked] = useState<BlockedRow[]>([]);
   const [sharing, setSharing] = useState(false);
@@ -68,29 +77,32 @@ export default function FriendsScreen({ navigation }: Props) {
       if (!token) {
         setFriends([]);
         setIncoming([]);
+        setPartyInvites([]);
         setOutgoing([]);
         return;
       }
-      const [f, inc, out, bl] = await Promise.all([
+      const [inbox, f, bl] = await Promise.all([
+        fetchSocialInbox(token),
         apiGet<Friend[]>('/social/friends', token),
-        apiGet<IncomingRow[]>('/social/friends/incoming', token),
-        apiGet<OutgoingRow[]>('/social/friends/outgoing', token),
         apiGet<BlockedRow[]>('/players/me/blocks', token),
       ]);
       setFriends(f);
-      setIncoming(inc);
-      setOutgoing(out);
+      setIncoming(inbox.friendRequestsIncoming);
+      setPartyInvites(inbox.partyInvitesIncoming);
+      setOutgoing(inbox.friendRequestsOutgoing);
       setBlocked(Array.isArray(bl) ? bl : []);
+      void refreshPendingCount();
     } catch {
       Alert.alert(t('common.error'), t('friends.loadError'));
       setFriends([]);
       setIncoming([]);
+      setPartyInvites([]);
       setOutgoing([]);
       setBlocked([]);
     } finally {
       setLoading(false);
     }
-  }, [isLoaded, t]);
+  }, [isLoaded, t, refreshPendingCount]);
 
   useFocusEffect(
     useCallback(() => {
@@ -203,33 +215,79 @@ export default function FriendsScreen({ navigation }: Props) {
     })();
   };
 
+  const acceptPartyInvite = async (partyId: string) => {
+    const token = await getTokenRef.current();
+    if (!token) return;
+    try {
+      await apiPost(`/parties/${encodeURIComponent(partyId)}/accept-invite`, {}, token);
+      Alert.alert('', t('inbox.partyJoined'));
+      await load();
+      navigation.navigate('PartyDetail', { partyId });
+    } catch (e) {
+      Alert.alert(t('common.error'), (e as Error).message ?? '');
+    }
+  };
+
+  const declinePartyInvite = async (partyId: string) => {
+    const token = await getTokenRef.current();
+    if (!token) return;
+    try {
+      await apiPost(`/parties/${encodeURIComponent(partyId)}/decline-invite`, {}, token);
+      await load();
+    } catch (e) {
+      Alert.alert(t('common.error'), (e as Error).message ?? '');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.back}>
-          <Text style={styles.backText}>{t('common.back')}</Text>
-        </Pressable>
-        <Text style={styles.title}>{t('friends.title')}</Text>
-      </View>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <View style={styles.headerRow}>
+          {!isTabRoot ? (
+            <Pressable
+              onPress={() => navigation.goBack()}
+              style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+            >
+              <Ionicons name="arrow-back" size={22} color={colors.text} />
+            </Pressable>
+          ) : (
+            <View style={styles.iconBtnPlaceholder} />
+          )}
+        </View>
 
-      <View style={styles.toolbar}>
-        <Pressable
-          style={[styles.toolbarBtn, sharing && styles.toolbarBtnDisabled]}
+        <Text style={styles.title}>{t('friends.title')}</Text>
+        <Text style={styles.subtitle}>{t('friends.subtitle')}</Text>
+
+        <View style={styles.quickRow}>
+          <Pressable
+            style={({ pressed }) => [styles.quickTile, pressed && styles.pressed]}
+            onPress={() => navigation.navigate('Parties')}
+            accessibilityRole="button"
+          >
+            <Ionicons name="people-circle-outline" size={24} color={colors.primary} />
+            <Text style={styles.quickLabel}>{t('home.linkParties')}</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.quickTile, pressed && styles.pressed]}
+            onPress={() => navigation.navigate('RedeemInvite', {})}
+            accessibilityRole="button"
+          >
+            <Ionicons name="link-outline" size={24} color={colors.honey} />
+            <Text style={styles.quickLabel}>{t('home.linkRedeemInvite')}</Text>
+          </Pressable>
+        </View>
+
+        <PrimaryButton
+          label={sharing ? '…' : t('friends.inviteShare')}
           disabled={sharing}
           onPress={() => void shareInvite()}
-        >
-          <Text style={styles.toolbarBtnText}>
-            {sharing ? '…' : t('friends.inviteShare')}
-          </Text>
-        </Pressable>
-      </View>
+          buttonStyle={styles.inviteBtn}
+        />
 
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color="#a78bfa" />
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        {loading ? (
+          <ActivityIndicator color={colors.primary} style={styles.loader} />
+        ) : (
+          <>
           <Text style={styles.section}>{t('friends.addByUsername')}</Text>
           <Text style={styles.hint}>{t('friends.addByUsernameHint')}</Text>
           <View style={styles.addRow}>
@@ -244,7 +302,7 @@ export default function FriendsScreen({ navigation }: Props) {
               editable={!requestBusy}
             />
             <Pressable
-              style={[styles.sendBtn, requestBusy && styles.toolbarBtnDisabled]}
+              style={[styles.sendBtn, requestBusy && styles.pressed]}
               disabled={requestBusy}
               onPress={() => void sendByUsername()}
             >
@@ -268,6 +326,38 @@ export default function FriendsScreen({ navigation }: Props) {
                 >
                   <Text style={styles.cancelBtnText}>{t('friends.cancelRequest')}</Text>
                 </Pressable>
+              </View>
+            ))
+          )}
+
+          <Text style={[styles.section, styles.sectionSpacer]}>{t('inbox.sectionPartyInvites')}</Text>
+          {partyInvites.length === 0 ? (
+            <Text style={styles.muted}>{t('friends.noPartyInvites')}</Text>
+          ) : (
+            partyInvites.map((invite) => (
+              <View key={invite.id} style={styles.card}>
+                <Text style={styles.name}>{invite.partyName?.trim() || t('parties.unnamed')}</Text>
+                <Text style={styles.mutedSmall}>
+                  {t('inbox.partyInviteMeta', {
+                    user: invite.invitedBy.username,
+                    current: invite.memberCount,
+                    max: invite.maxMembers,
+                  })}
+                </Text>
+                <View style={styles.incomingActions}>
+                  <Pressable
+                    style={styles.acceptBtn}
+                    onPress={() => void acceptPartyInvite(invite.partyId)}
+                  >
+                    <Text style={styles.acceptBtnText}>{t('inbox.accept')}</Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.declineBtn}
+                    onPress={() => void declinePartyInvite(invite.partyId)}
+                  >
+                    <Text style={styles.declineBtnText}>{t('inbox.decline')}</Text>
+                  </Pressable>
+                </View>
               </View>
             ))
           )}
@@ -310,15 +400,19 @@ export default function FriendsScreen({ navigation }: Props) {
             <Text style={styles.muted}>{t('friends.noFriends')}</Text>
           ) : (
             friends.map((f) => (
-              <View key={f.id} style={styles.friendRow}>
-                <Text style={styles.friendName}>{f.username}</Text>
-                <Pressable
-                  style={styles.blockBtnSmall}
-                  onPress={() => blockPlayer(f.id, f.username)}
-                >
-                  <Text style={styles.blockBtnTextSmall}>{t('friends.block')}</Text>
-                </Pressable>
-              </View>
+              <FriendAvatarRow
+                key={f.id}
+                colors={colors}
+                username={f.username}
+                trailing={
+                  <Pressable
+                    style={styles.blockBtnSmall}
+                    onPress={() => blockPlayer(f.id, f.username)}
+                  >
+                    <Text style={styles.blockBtnTextSmall}>{t('friends.block')}</Text>
+                  </Pressable>
+                }
+              />
             ))
           )}
 
@@ -339,171 +433,172 @@ export default function FriendsScreen({ navigation }: Props) {
               </View>
             ))
           )}
-        </ScrollView>
-      )}
+          </>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 
 function createStyles(colors: AppColors) {
-    return StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 16,
-  },
-  back: {
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    backgroundColor: colors.surface,
-  },
-  backText: { color: colors.textSecondary, fontWeight: '600' },
-  title: { color: colors.text, fontSize: 22, fontWeight: '800', flex: 1 },
-  toolbar: { paddingHorizontal: 24, marginBottom: 12 },
-  toolbarBtn: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.primaryMuted,
-    borderWidth: 1,
-    borderColor: '#4c1d95',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-  },
-  toolbarBtnDisabled: { opacity: 0.6 },
-  toolbarBtnText: { color: colors.honey, fontWeight: '800' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scroll: { paddingHorizontal: 24, paddingBottom: 32 },
-  section: { color: colors.text, fontSize: 16, fontWeight: '900' },
-  sectionSpacer: { marginTop: 28 },
-  muted: { color: colors.textMuted, marginTop: 10, fontSize: 14 },
-  mutedSmall: { color: colors.textMuted, fontWeight: '500', fontSize: 13 },
-  card: {
-    marginTop: 12,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 14,
-    gap: 12,
-  },
-  cardMuted: {
-    marginTop: 12,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 14,
-  },
-  name: { color: colors.text, fontWeight: '700', fontSize: 15 },
-  acceptBtn: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.primary,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 12,
-  },
-  acceptBtnText: { color: colors.textInverse, fontWeight: '800' },
-  friendRow: {
-    marginTop: 10,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  friendName: { color: colors.textSecondary, fontWeight: '700', flex: 1 },
-  incomingActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
-  blockBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    backgroundColor: '#3f1d1d',
-    borderWidth: 1,
-    borderColor: colors.error,
-  },
-  blockBtnText: { color: colors.error, fontWeight: '800', fontSize: 13 },
-  blockBtnSmall: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: '#3f1d1d',
-    borderWidth: 1,
-    borderColor: colors.error,
-  },
-  blockBtnTextSmall: { color: colors.error, fontWeight: '800', fontSize: 12 },
-  blockedRow: {
-    marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 14,
-  },
-  unblockBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: colors.bgElevated,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  unblockBtnText: { color: '#93c5fd', fontWeight: '800', fontSize: 12 },
-  hint: { color: colors.textMuted, fontSize: 13, marginTop: 6, lineHeight: 18 },
-  addRow: { flexDirection: 'row', gap: 10, marginTop: 12, alignItems: 'center' },
-  input: {
-    flex: 1,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: colors.text,
-    fontSize: 16,
-  },
-  sendBtn: {
-    backgroundColor: colors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-  },
-  sendBtnText: { color: colors.textInverse, fontWeight: '800', fontSize: 13 },
-  outRow: {
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 14,
-  },
-  outMain: { flex: 1 },
-  cancelBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: '#3f1d1d',
-    borderWidth: 1,
-    borderColor: colors.error,
-  },
-  cancelBtnText: { color: colors.error, fontWeight: '800', fontSize: 12 },
-
-    });
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.bg },
+    scroll: {
+      paddingHorizontal: spacing.xl,
+      paddingBottom: spacing.xxl,
+      gap: spacing.md,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      paddingTop: spacing.md,
+    },
+    iconBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: radii.pill,
+      backgroundColor: colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    iconBtnPlaceholder: { width: 44 },
+    title: {
+      color: colors.text,
+      fontSize: 28,
+      fontWeight: '900',
+      letterSpacing: -0.5,
+    },
+    subtitle: {
+      color: colors.textSecondary,
+      fontSize: 15,
+      lineHeight: 22,
+    },
+    inviteBtn: { alignSelf: 'stretch', marginVertical: spacing.sm },
+    quickRow: {
+      flexDirection: 'row',
+      gap: spacing.md,
+      marginTop: spacing.sm,
+    },
+    quickTile: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      borderRadius: radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      padding: spacing.lg,
+      gap: spacing.sm,
+      alignItems: 'flex-start',
+    },
+    quickLabel: {
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: '800',
+    },
+    loader: { marginVertical: spacing.xxl },
+    section: { color: colors.text, fontSize: 16, fontWeight: '900', marginTop: spacing.lg },
+    sectionSpacer: { marginTop: spacing.xl },
+    muted: { color: colors.textMuted, fontSize: 14 },
+    mutedSmall: { color: colors.textMuted, fontWeight: '500', fontSize: 13 },
+    hint: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      padding: spacing.lg,
+      gap: spacing.md,
+    },
+    name: { color: colors.text, fontWeight: '700', fontSize: 15 },
+    acceptBtn: {
+      alignSelf: 'flex-start',
+      backgroundColor: colors.primary,
+      paddingVertical: 10,
+      paddingHorizontal: 18,
+      borderRadius: radii.md,
+    },
+    acceptBtnText: { color: colors.textInverse, fontWeight: '800' },
+    blockBtnSmall: {
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      borderRadius: radii.sm,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    blockBtnTextSmall: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
+    addRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+    input: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      borderRadius: radii.lg,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      color: colors.text,
+      fontSize: 16,
+    },
+    sendBtn: {
+      backgroundColor: colors.primary,
+      borderRadius: radii.lg,
+      paddingHorizontal: spacing.lg,
+      justifyContent: 'center',
+    },
+    sendBtnText: { color: colors.textInverse, fontWeight: '800' },
+    outRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      backgroundColor: colors.surface,
+      borderRadius: radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      padding: spacing.lg,
+    },
+    outMain: { flex: 1 },
+    cancelBtn: {
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: radii.sm,
+      backgroundColor: colors.bgElevated,
+    },
+    cancelBtnText: { color: colors.textSecondary, fontWeight: '700', fontSize: 13 },
+    incomingActions: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
+    blockBtn: {
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: radii.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.error,
+    },
+    blockBtnText: { color: colors.error, fontWeight: '700' },
+    declineBtn: {
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: radii.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    declineBtnText: { color: colors.textSecondary, fontWeight: '700' },
+    blockedRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.surface,
+      borderRadius: radii.lg,
+      padding: spacing.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    friendName: { color: colors.text, fontWeight: '700', flex: 1 },
+    unblockBtn: {
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: radii.sm,
+      backgroundColor: colors.primaryMuted,
+    },
+    unblockBtnText: { color: colors.primary, fontWeight: '700', fontSize: 13 },
+    pressed: { opacity: 0.92 },
+  });
 }

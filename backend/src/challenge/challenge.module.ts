@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ChallengeController } from './challenge.controller';
 import { ChallengeRepository } from './challenge.repository';
 import { ChallengeService } from './challenge.service';
@@ -10,7 +10,14 @@ import { VenueModule } from '../venue/venue.module';
 import { RewardModule } from '../reward/reward.module';
 
 @Module({
-  imports: [PrismaModule, PlayerModule, AuthModule, StatsModule, VenueModule, RewardModule],
+  imports: [
+    PrismaModule,
+    PlayerModule,
+    AuthModule,
+    StatsModule,
+    VenueModule,
+    forwardRef(() => RewardModule),
+  ],
   controllers: [ChallengeController],
   providers: [ChallengeRepository, ChallengeService],
 })

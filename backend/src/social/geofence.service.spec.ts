@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
+import { DiscoveryService } from './discovery.service';
 import { ProximityArrivalService } from './proximity-arrival.service';
 import { GeofenceService } from './geofence.service';
 
@@ -12,8 +13,10 @@ describe('GeofenceService', () => {
       findUnique: jest.Mock;
       create: jest.Mock;
     };
+    player: { findUnique: jest.Mock };
   };
   let proximityArrival: { trySendOnEnter: jest.Mock };
+  let discovery: { setPresence: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
@@ -22,14 +25,17 @@ describe('GeofenceService', () => {
         findUnique: jest.fn(),
         create: jest.fn(),
       },
+      player: { findUnique: jest.fn() },
     };
     proximityArrival = { trySendOnEnter: jest.fn().mockResolvedValue(undefined) };
+    discovery = { setPresence: jest.fn().mockResolvedValue(undefined) };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
         GeofenceService,
         { provide: PrismaService, useValue: prisma },
         { provide: ProximityArrivalService, useValue: proximityArrival },
+        { provide: DiscoveryService, useValue: discovery },
       ],
     }).compile();
 
@@ -94,11 +100,13 @@ describe('GeofenceService', () => {
       playerId: 'p1',
       venueId: 'venue-1',
     });
+    expect(discovery.setPresence).toHaveBeenCalledWith('p1', 'venue-1');
   });
 
   it('records exit without proximity arrival push', async () => {
     prisma.venue.findUnique.mockResolvedValue(baseVenue);
     prisma.playerVenueGeofenceEvent.create.mockResolvedValue({ id: 'evt-exit' });
+    prisma.player.findUnique.mockResolvedValue({ lastPresenceVenueId: 'venue-1' });
 
     await service.recordEvent({
       playerId: 'p1',
@@ -107,5 +115,20 @@ describe('GeofenceService', () => {
     });
 
     expect(proximityArrival.trySendOnEnter).not.toHaveBeenCalled();
+    expect(discovery.setPresence).toHaveBeenCalledWith('p1', null);
+  });
+
+  it('exit does not clear presence when player moved to another venue', async () => {
+    prisma.venue.findUnique.mockResolvedValue(baseVenue);
+    prisma.playerVenueGeofenceEvent.create.mockResolvedValue({ id: 'evt-exit' });
+    prisma.player.findUnique.mockResolvedValue({ lastPresenceVenueId: 'venue-2' });
+
+    await service.recordEvent({
+      playerId: 'p1',
+      venueId: 'venue-1',
+      kind: 'exit',
+    });
+
+    expect(discovery.setPresence).not.toHaveBeenCalled();
   });
 });

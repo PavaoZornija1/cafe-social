@@ -19,6 +19,7 @@ import { useWordMatchSocket } from '../lib/useWordMatchSocket';
 import { toApiWordLanguage } from '../lib/wordDeckLanguage';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { useVenueActivePlayBudgetSync } from '../lib/useVenueActivePlayBudgetSync';
+import { emitPlatformQuestProgressChanged } from '../lib/platformQuestEvents';
 import VenuePlayTimeBar from '../components/VenuePlayTimeBar';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
@@ -194,7 +195,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
       if (navigation.canGoBack()) {
         navigation.goBack();
       } else {
-        navigation.replace('Home');
+        navigation.replace('MainTabs');
       }
     })();
   }, [navigation, matchSessionId, matchState?.status]);
@@ -463,7 +464,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
   const finishSession = useCallback(
     async (opts: { claimChallenge: boolean }) => {
       if (!opts.claimChallenge || !challengeId || !venueId) {
-        navigation.replace('Home');
+        navigation.replace('MainTabs');
         return;
       }
 
@@ -483,7 +484,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
       } catch {
         /* ignore */
       } finally {
-        navigation.replace('Home');
+        navigation.replace('MainTabs');
       }
     },
     [navigation, challengeId, venueId],
@@ -605,6 +606,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
           res.finished ? t('wordGame.timeExpiredSoloDone') : t('wordGame.timeExpiredSoloSkip'),
         );
         if (res.finished) {
+          emitPlatformQuestProgressChanged();
           await finishSession({ claimChallenge: false });
         }
         return;
@@ -620,6 +622,12 @@ export default function WordGameScreen({ navigation, route }: Props) {
   useEffect(() => {
     timeUpFiredRef.current = false;
   }, [timerWordKey]);
+
+  useEffect(() => {
+    if (matchState?.status === 'FINISHED') {
+      emitPlatformQuestProgressChanged();
+    }
+  }, [matchState?.status]);
 
   useEffect(() => {
     const mpFinished = matchState?.status === 'FINISHED';
@@ -737,6 +745,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
         if (res.currentWord) setDeck([res.currentWord]);
         setIdx(res.yourScore);
         if (res.finished) {
+          emitPlatformQuestProgressChanged();
           try {
             const s = await apiGet<MatchState>(
               `/words/matches/${encodeURIComponent(matchSessionId)}/state`,
@@ -799,6 +808,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
       if (res.currentWord) setDeck([res.currentWord]);
       setIdx(res.wordIndex);
       if (res.finished) {
+        emitPlatformQuestProgressChanged();
         await finishSession({ claimChallenge: true });
         return;
       }

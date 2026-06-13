@@ -1,7 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -12,105 +13,117 @@ import {
   Text,
   View,
 } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
 import { useTranslation } from 'react-i18next';
-import type { RootStackParamList } from '../navigation/type';
+
+import QuestBundleCard from '../components/rewards/QuestBundleCard';
+import QuestChallengeRow from '../components/rewards/QuestChallengeRow';
+import QuestDetailModal from '../components/rewards/QuestDetailModal';
+import QuestPeriodToggle from '../components/rewards/QuestPeriodToggle';
 import {
-  fetchMyGlobalRewardClaims,
-  type GlobalRewardClaim,
-  type GlobalRewardClaimsPayload,
-} from '../lib/venuePerksApi';
+  claimPlatformQuest,
+  fetchPlatformQuestHub,
+  formatQuestResetCountdown,
+  type PlatformQuestHubPayload,
+  type PlatformQuestRow,
+  type QuestPeriod,
+} from '../lib/platformQuestApi';
+import { subscribePlatformQuestProgressChanged } from '../lib/platformQuestEvents';
+import type { RootStackParamList } from '../navigation/type';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
+import { radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RewardsHub'>;
-
-function statusLabelKey(status: string): string {
-  switch (status) {
-    case 'REDEEMABLE':
-      return 'rewardsHub.statusRedeemable';
-    case 'EXPIRED':
-      return 'rewardsHub.statusExpired';
-    case 'VOIDED':
-      return 'rewardsHub.statusVoided';
-    case 'REDEEMED':
-      return 'rewardsHub.statusRedeemed';
-    default:
-      return 'rewardsHub.statusOther';
-  }
-}
-
-function formatExpiry(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  } catch {
-    return iso.slice(0, 10);
-  }
-}
 
 export default function RewardsHubScreen({ navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
-  const tRef = useRef(t);
-  tRef.current = t;
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
 
+  const [period, setPeriod] = useState<QuestPeriod>('daily');
+  const [hub, setHub] = useState<PlatformQuestHubPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [payload, setPayload] = useState<GlobalRewardClaimsPayload | null>(null);
+  const [claimingKey, setClaimingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedQuest, setSelectedQuest] = useState<PlatformQuestRow | null>(null);
 
-  const fetchRewards = useCallback(async (mode: 'initial' | 'refresh') => {
-    if (!isLoaded) return;
-    if (mode === 'initial') setLoading(true);
-    else setRefreshing(true);
-    setError(null);
-    try {
-      const token = await getTokenRef.current();
-      if (!token) {
-        setPayload(null);
-        return;
+  const load = useCallback(
+    async (mode: 'initial' | 'refresh') => {
+      if (!isLoaded) return;
+      if (mode === 'initial') setLoading(true);
+      else setRefreshing(true);
+      setError(null);
+      try {
+        const token = await getTokenRef.current();
+        if (!token) {
+          setHub(null);
+          return;
+        }
+        const data = await fetchPlatformQuestHub(token, period);
+        setHub(data);
+      } catch {
+        setError(t('questHub.loadError'));
+        setHub(null);
+      } finally {
+        if (mode === 'initial') setLoading(false);
+        else setRefreshing(false);
       }
-      const data = await fetchMyGlobalRewardClaims(token);
-      setPayload(data);
-    } catch {
-      setError(tRef.current('rewardsHub.loadError'));
-      setPayload(null);
-    } finally {
-      if (mode === 'initial') setLoading(false);
-      else setRefreshing(false);
-    }
-  }, [isLoaded]);
+    },
+    [isLoaded, period, t],
+  );
 
   useFocusEffect(
     useCallback(() => {
-      void fetchRewards('initial');
-    }, [fetchRewards]),
+      void load('initial');
+    }, [load]),
   );
 
-  const items: GlobalRewardClaim[] = payload?.items ?? [];
-  const activeN = payload?.wallet.activeRedeemable ?? 0;
+  useEffect(() => {
+    return subscribePlatformQuestProgressChanged(() => {
+      void load('refresh');
+    });
+  }, [load]);
 
-  const { redeemable, history } = useMemo(() => {
-    const r: GlobalRewardClaim[] = [];
-    const h: GlobalRewardClaim[] = [];
-    for (const it of items) {
-      if (it.status === 'REDEEMABLE') r.push(it);
-      else h.push(it);
+  const handleClaim = async (questKey: string) => {
+    const token = await getTokenRef.current();
+    if (!token) return;
+    setClaimingKey(questKey);
+    try {
+      const next = await claimPlatformQuest(token, period, questKey);
+      setHub(next);
+    } catch {
+      setError(t('questHub.claimError'));
+    } finally {
+      setClaimingKey(null);
     }
-    return { redeemable: r, history: h };
-  }, [items]);
+  };
 
-  const onRefresh = useCallback(() => {
-    void fetchRewards('refresh');
-  }, [fetchRewards]);
+  const navigateForQuest = (quest: PlatformQuestRow) => {
+    setSelectedQuest(null);
+    switch (quest.key) {
+      case 'check_in':
+      case 'explore_venues':
+        navigation.navigate('MainTabs', { screen: 'VenuesTab' });
+        break;
+      case 'solve_daily_word':
+        navigation.navigate('DailyWord');
+        break;
+      case 'win_word_rooms':
+        navigation.navigate('WordLobby', {});
+        break;
+      default:
+        navigation.navigate('MainTabs', { screen: 'PlayTab' });
+        break;
+    }
+  };
+
+  const selectedIndex = selectedQuest
+    ? (hub?.quests.findIndex((q) => q.key === selectedQuest.key) ?? 0)
+    : 0;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -119,173 +132,200 @@ export default function RewardsHubScreen({ navigation }: Props) {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={onRefresh}
+            onRefresh={() => void load('refresh')}
             tintColor={colors.primary}
-            title={t('rewardsHub.pullToRefresh')}
           />
         }
       >
-        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backText}>{t('common.back')}</Text>
-        </Pressable>
-        <Text style={styles.title}>{t('rewardsHub.title')}</Text>
-        <Text style={styles.hint}>{t('rewardsHub.subtitle')}</Text>
-        {payload != null && activeN > 0 ? (
-          <Text style={styles.meta}>{t('rewardsHub.activeCount', { n: activeN })}</Text>
-        ) : null}
+        <View style={styles.headerRow}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+          >
+            <Ionicons name="arrow-back" size={22} color={colors.text} />
+          </Pressable>
+          <Pressable
+            onPress={() => navigation.navigate('PerkWallet')}
+            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+            accessibilityLabel={t('questHub.perkWalletA11y')}
+          >
+            <Ionicons name="information-circle-outline" size={22} color={colors.textSecondary} />
+          </Pressable>
+        </View>
+
+        <Text style={styles.title}>{t('questHub.title')}</Text>
+        <Text style={styles.subtitle}>{t('questHub.subtitle')}</Text>
+
+        <View style={styles.toggleRow}>
+          <QuestPeriodToggle
+            colors={colors}
+            period={period}
+            dailyLabel={t('questHub.daily')}
+            weeklyLabel={t('questHub.weekly')}
+            onChange={setPeriod}
+          />
+          {hub ? (
+            <View style={styles.resetPill}>
+              <Ionicons name="refresh-outline" size={14} color={colors.textMuted} />
+              <Text style={styles.resetText}>
+                {t('questHub.resetsIn', { time: formatQuestResetCountdown(hub.resetsInMs) })}
+              </Text>
+            </View>
+          ) : null}
+        </View>
 
         {loading ? (
-          <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
+          <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xxl }} />
         ) : null}
-        {error ? <Text style={styles.err}>{error}</Text> : null}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        {!loading && !error && items.length === 0 ? (
-          <Text style={styles.empty}>{t('rewardsHub.empty')}</Text>
-        ) : null}
-
-        {redeemable.length > 0 ? (
+        {hub ? (
           <>
-            <Text style={styles.sectionTitle}>{t('rewardsHub.sectionReady')}</Text>
-            {redeemable.map((r) => (
-              <RewardClaimCard
-                key={r.redemptionId}
-                r={r}
-                styles={styles}
-                navigation={navigation}
-                showQr
-              />
-            ))}
-          </>
-        ) : null}
+            <QuestBundleCard
+              colors={colors}
+              bundle={hub.bundle}
+              periodLabel={
+                period === 'daily' ? t('questHub.dailyBundleKicker') : t('questHub.weeklyBundleKicker')
+              }
+              completedLabel={t('questHub.completedCount', {
+                current: hub.bundle.completedCount,
+                total: hub.bundle.targetCount,
+              })}
+              remainingLabel={t('questHub.remainingCount', {
+                count: Math.max(0, hub.bundle.targetCount - hub.bundle.completedCount),
+              })}
+              claimLabel={t('questHub.claimBundle', { xp: hub.bundle.xpReward })}
+              claiming={claimingKey === hub.bundle.key}
+              onClaim={() => void handleClaim(hub.bundle.key)}
+            />
 
-        {history.length > 0 ? (
-          <>
-            <Text
-              style={[
-                styles.sectionTitle,
-                redeemable.length > 0 ? styles.sectionTitleSpaced : null,
-              ]}
-            >
-              {t('rewardsHub.sectionHistory')}
-            </Text>
-            {history.map((r) => (
-              <RewardClaimCard
-                key={r.redemptionId}
-                r={r}
-                styles={styles}
-                navigation={navigation}
-                showQr={false}
-              />
-            ))}
+            <View style={styles.listHeader}>
+              <Text style={styles.listTitle}>
+                {period === 'daily' ? t('questHub.todayTitle') : t('questHub.weekTitle')}{' '}
+                <Text style={styles.listCount}>{hub.quests.length} total</Text>
+              </Text>
+              <Text style={styles.availableXp}>
+                {t('questHub.availableXp', { xp: hub.availableXp })}
+              </Text>
+            </View>
+
+            <View style={styles.list}>
+              {hub.quests.map((quest) => (
+                <QuestChallengeRow
+                  key={quest.key}
+                  colors={colors}
+                  quest={quest}
+                  claimLabel={t('questHub.claimCta', { xp: quest.xpReward })}
+                  claimedLabel={t('questHub.claimedCta', { xp: quest.claimedXp ?? quest.xpReward })}
+                  claiming={claimingKey === quest.key}
+                  onPress={() => setSelectedQuest(quest)}
+                  onClaim={() => void handleClaim(quest.key)}
+                />
+              ))}
+            </View>
           </>
         ) : null}
       </ScrollView>
+
+      <QuestDetailModal
+        colors={colors}
+        visible={selectedQuest != null}
+        quest={selectedQuest}
+        questIndex={selectedIndex}
+        questTotal={hub?.quests.length ?? 0}
+        streak={0}
+        playLabel={t('questHub.playCta')}
+        xpRewardLabel={t('questHub.xpReward', { xp: selectedQuest?.xpReward ?? 0 })}
+        onClose={() => setSelectedQuest(null)}
+        onPlay={() => selectedQuest && navigateForQuest(selectedQuest)}
+      />
     </SafeAreaView>
-  );
-}
-
-type RewardClaimCardProps = {
-  r: GlobalRewardClaim;
-  styles: ReturnType<typeof createStyles>;
-  navigation: Props['navigation'];
-  showQr: boolean;
-};
-
-function RewardClaimCard({ r, styles, navigation, showQr }: RewardClaimCardProps) {
-  const { t } = useTranslation();
-  const labelKey = statusLabelKey(r.status);
-  const statusText =
-    labelKey === 'rewardsHub.statusOther'
-      ? t(labelKey, { status: r.status })
-      : t(labelKey);
-
-  return (
-    <View style={styles.card}>
-      <Text style={styles.venueName}>{r.venueName}</Text>
-      <Text style={styles.perkTitle}>{r.perkTitle}</Text>
-      {r.perkSubtitle ? <Text style={styles.perkSub}>{r.perkSubtitle}</Text> : null}
-      <Text style={styles.meta}>
-        {t('perk.rewardStatus')}: {statusText} · {t('perk.rewardExpires')}{' '}
-        {formatExpiry(r.expiresAt)}
-      </Text>
-      {showQr && r.status === 'REDEEMABLE' ? (
-        <View style={styles.qrWrap}>
-          <QRCode value={r.qrPayload} size={140} />
-        </View>
-      ) : null}
-      <Text style={styles.codeLine}>
-        {t('perk.staffVerificationCode')}: {r.staffVerificationCode}
-      </Text>
-      {r.status === 'REDEEMABLE' ? (
-        <Pressable
-          style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
-          onPress={() => navigation.navigate('RedeemPerk', { venueId: r.venueId })}
-        >
-          <Text style={styles.primaryBtnText}>{t('rewardsHub.redeemAtVenue')}</Text>
-        </Pressable>
-      ) : null}
-      <Pressable
-        style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
-        onPress={() =>
-          navigation.navigate('VenueHub', { venueId: r.venueId, venueName: r.venueName })
-        }
-      >
-        <Text style={styles.secondaryBtnText}>{t('rewardsHub.openVenue')}</Text>
-      </Pressable>
-    </View>
   );
 }
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: colors.bg },
-    scroll: { padding: 20, paddingBottom: 40 },
-    backBtn: { alignSelf: 'flex-start', marginBottom: 8 },
-    backText: { color: colors.primary, fontSize: 16 },
-    title: { fontSize: 22, fontWeight: '700', color: colors.text },
-    hint: { marginTop: 6, fontSize: 14, color: colors.textMuted },
-    meta: { marginTop: 8, fontSize: 13, color: colors.textMuted },
-    sectionTitle: {
-      marginTop: 20,
-      fontSize: 15,
-      fontWeight: '700',
-      color: colors.textSecondary,
+    scroll: {
+      paddingHorizontal: spacing.xl,
+      paddingBottom: spacing.xxl,
     },
-    sectionTitleSpaced: { marginTop: 28 },
-    err: { marginTop: 12, color: colors.error, fontSize: 14 },
-    empty: { marginTop: 16, fontSize: 15, color: colors.textMuted },
-    card: {
-      marginTop: 12,
-      padding: 16,
-      borderRadius: 12,
+    headerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingTop: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    iconBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: radii.pill,
       backgroundColor: colors.surface,
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
-    venueName: { fontSize: 12, fontWeight: '600', color: colors.primary, marginBottom: 4 },
-    perkTitle: { fontSize: 17, fontWeight: '600', color: colors.text },
-    perkSub: { marginTop: 4, fontSize: 14, color: colors.textMuted },
-    qrWrap: { alignItems: 'center', marginTop: 12 },
-    codeLine: { marginTop: 10, fontSize: 12, color: colors.textMuted },
-    primaryBtn: {
-      marginTop: 12,
-      alignSelf: 'flex-start',
-      paddingVertical: 10,
-      paddingHorizontal: 16,
-      borderRadius: 8,
-      backgroundColor: colors.primary,
+    title: {
+      color: colors.text,
+      fontSize: 28,
+      fontWeight: '900',
+      letterSpacing: -0.5,
     },
-    primaryBtnText: { color: colors.textInverse, fontSize: 14, fontWeight: '600' },
-    secondaryBtn: {
-      marginTop: 10,
-      alignSelf: 'flex-start',
-      paddingVertical: 8,
-      paddingHorizontal: 14,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.border,
+    subtitle: {
+      color: colors.textSecondary,
+      fontSize: 15,
+      lineHeight: 22,
+      marginTop: spacing.sm,
+      marginBottom: spacing.lg,
     },
-    secondaryBtnText: { color: colors.text, fontSize: 14, fontWeight: '500' },
-    pressed: { opacity: 0.85 },
+    toggleRow: {
+      gap: spacing.md,
+      marginBottom: spacing.lg,
+    },
+    resetPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      alignSelf: 'flex-end',
+    },
+    resetText: {
+      color: colors.textMuted,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    error: {
+      color: colors.error,
+      marginTop: spacing.md,
+      fontSize: 14,
+    },
+    listHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-end',
+      marginTop: spacing.xl,
+      marginBottom: spacing.md,
+      gap: spacing.md,
+    },
+    listTitle: {
+      color: colors.text,
+      fontSize: 13,
+      fontWeight: '800',
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+      flex: 1,
+    },
+    listCount: {
+      color: colors.textMuted,
+      fontWeight: '700',
+      textTransform: 'none',
+    },
+    availableXp: {
+      color: colors.xp,
+      fontSize: 13,
+      fontWeight: '800',
+    },
+    list: { gap: spacing.md },
+    pressed: { opacity: 0.9 },
   });
 }

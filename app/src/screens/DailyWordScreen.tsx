@@ -15,6 +15,7 @@ import type { RootStackParamList } from '../navigation/type';
 import { apiGet, apiPost } from '../lib/api';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
 import { toApiWordLanguage } from '../lib/wordDeckLanguage';
+import { emitPlatformQuestProgressChanged } from '../lib/platformQuestEvents';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 
@@ -153,6 +154,9 @@ export default function DailyWordScreen({ navigation }: Props) {
                       }
                     : prev,
             );
+            if (res.solved) {
+                emitPlatformQuestProgressChanged();
+            }
             setGuess('');
         } catch (e) {
             setError((e as Error).message || t('dailyWord.guessError'));

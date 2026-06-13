@@ -98,6 +98,69 @@ export class EmailService {
       tags: [{ name: 'category', value: 'party_invite' }],
     });
   }
+
+  async notifyStaffBanAppeal(params: {
+    toEmail: string;
+    venueName: string;
+    playerUsername: string;
+    portalUrl?: string;
+  }): Promise<void> {
+    if (!this.isConfigured()) return;
+    const link = params.portalUrl
+      ? `<p><a href="${escapeHtml(params.portalUrl)}">Review in owner portal</a></p>`
+      : '<p>Sign in to the owner portal to review this appeal.</p>';
+    const html = `
+      <p><strong>${escapeHtml(params.playerUsername)}</strong> submitted a ban appeal for <strong>${escapeHtml(params.venueName)}</strong>.</p>
+      ${link}
+    `;
+    await this.send({
+      to: params.toEmail,
+      subject: `Ban appeal — ${params.venueName}`,
+      html,
+      tags: [{ name: 'category', value: 'staff_ban_appeal' }],
+    });
+  }
+
+  async notifyStaffReceiptSubmitted(params: {
+    toEmail: string;
+    venueName: string;
+    playerUsername: string;
+    portalUrl?: string;
+  }): Promise<void> {
+    if (!this.isConfigured()) return;
+    const link = params.portalUrl
+      ? `<p><a href="${escapeHtml(params.portalUrl)}">Review receipt in owner portal</a></p>`
+      : '<p>Sign in to the owner portal to review pending receipts.</p>';
+    const html = `
+      <p><strong>${escapeHtml(params.playerUsername)}</strong> submitted a receipt at <strong>${escapeHtml(params.venueName)}</strong>.</p>
+      ${link}
+    `;
+    await this.send({
+      to: params.toEmail,
+      subject: `New receipt — ${params.venueName}`,
+      html,
+      tags: [{ name: 'category', value: 'staff_receipt' }],
+    });
+  }
+
+  async notifyStaffCampaignSent(params: {
+    toEmail: string;
+    venueName: string;
+    campaignName: string;
+    recipientCount: number;
+  }): Promise<void> {
+    if (!this.isConfigured()) return;
+    const html = `
+      <p>Campaign <strong>${escapeHtml(params.campaignName)}</strong> was sent for <strong>${escapeHtml(params.venueName)}</strong>.</p>
+      <p>Push delivered to <strong>${params.recipientCount}</strong> recent visitor${params.recipientCount === 1 ? '' : 's'}.</p>
+    `;
+    await this.send({
+      to: params.toEmail,
+      subject: `Campaign sent — ${params.venueName}`,
+      html,
+      tags: [{ name: 'category', value: 'staff_campaign' }],
+    });
+  }
 }
 
 function escapeHtml(s: string): string {

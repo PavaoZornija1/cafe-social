@@ -901,8 +901,10 @@ export class OwnerController {
   sendCampaign(
     @Param('venueId', new ParseUUIDPipe()) venueId: string,
     @Param('campaignId', new ParseUUIDPipe()) campaignId: string,
+    @CurrentUser() user: unknown,
   ) {
-    return this.campaigns.send(venueId, campaignId);
+    const sentByEmail = normalizeUserEmail(user) ?? null;
+    return this.campaigns.send(venueId, campaignId, { sentByEmail });
   }
 
   @Get('venues/:venueId/receipts')
