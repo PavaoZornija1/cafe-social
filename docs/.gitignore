@@ -1,0 +1,2 @@
+# Local-only credentials — never commit
+STAGING_STACK.secrets.local.md

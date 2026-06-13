@@ -12,12 +12,13 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ownerFetch } from "@/lib/portalApi";
 import { PORTAL_VENUE_CONTEXT_EVENT } from "@/lib/portalVenueContext";
 import { OwnerAnalyticsCharts } from "@/components/OwnerAnalyticsCharts";
 import { OwnerAnalyticsRoiSnapshot } from "@/components/OwnerAnalyticsRoiSnapshot";
 import { PartnerReadOnlyBanner } from "@/components/PartnerReadOnlyBanner";
-import { partnerVenueMutationsBlockedReason } from "@/lib/partnerVenueReadOnly";
+import { partnerVenueMutationsBlockedNotice } from "@/lib/partnerReadOnlyMessages";
 import {
   invalidateOwnerVenuePartnerQueries,
   ownerAnalyticsQueryString,
@@ -126,6 +127,7 @@ function CampaignBindingsEditor({
   getToken: () => Promise<string | null>;
   readOnlyDisabled: boolean;
 }) {
+  const { t } = useTranslation();
   const bindingsQ = useOwnerCampaignBindingsQuery(venueId, campaignId, getToken, true);
   const addMut = useOwnerAddCampaignBindingMutation(venueId, campaignId, getToken);
   const delMut = useOwnerDeleteCampaignBindingMutation(venueId, campaignId, getToken);
@@ -139,15 +141,16 @@ function CampaignBindingsEditor({
   return (
     <div className="border-t border-slate-200 bg-slate-50 p-4 space-y-3 text-sm">
       <p className="text-xs text-slate-600">
-        Metadata links for this campaign (challenges, perks, offers at this venue). No automation
-        runs on these yet.
+        {t("admin.partnerVenueDetail.bindings.lead")}
       </p>
-      {bindingsQ.isPending ? <p className="text-slate-500">Loading bindings…</p> : null}
+      {bindingsQ.isPending ? (
+        <p className="text-slate-500">{t("admin.partnerVenueDetail.bindings.loadingBindings")}</p>
+      ) : null}
       {bindingsQ.isError && bindingsQ.error instanceof Error ? (
         <p className="text-red-700 text-xs">{bindingsQ.error.message}</p>
       ) : null}
       {rows.length === 0 && !bindingsQ.isPending ? (
-        <p className="text-xs text-slate-500">No bindings.</p>
+        <p className="text-xs text-slate-500">{t("admin.partnerVenueDetail.bindings.noBindings")}</p>
       ) : null}
       <ul className="space-y-1">
         {rows.map((b: OwnerCampaignBindingRow) => (
@@ -165,14 +168,14 @@ function CampaignBindingsEditor({
               className="text-red-700 hover:underline disabled:opacity-50"
               onClick={() => void delMut.mutateAsync(b.id)}
             >
-              Remove
+              {t("admin.partnerVenueDetail.bindings.remove")}
             </button>
           </li>
         ))}
       </ul>
       <div className="flex flex-wrap gap-2 items-end pt-2 border-t border-slate-200">
         <label className="text-xs text-slate-600 flex flex-col gap-1">
-          Type
+          {t("admin.partnerVenueDetail.bindings.type")}
           <select
             className="border border-slate-300 rounded px-2 py-1 text-sm bg-white"
             value={entityType}
@@ -189,10 +192,10 @@ function CampaignBindingsEditor({
           </select>
         </label>
         <label className="text-xs text-slate-600 flex flex-col gap-1 min-w-[200px] flex-1">
-          Entity UUID
+          {t("admin.partnerVenueDetail.bindings.entityUuid")}
           <input
             className="border border-slate-300 rounded px-2 py-1 text-sm bg-white font-mono"
-            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+            placeholder={t("admin.partnerVenueDetail.bindings.entityUuidPlaceholder")}
             value={entityId}
             disabled={readOnlyDisabled}
             onChange={(e) => setEntityId(e.target.value.trim())}
@@ -206,7 +209,7 @@ function CampaignBindingsEditor({
             void addMut.mutateAsync({ entityType, entityId }).then(() => setEntityId(""));
           }}
         >
-          Add binding
+          {t("admin.partnerVenueDetail.bindings.addBinding")}
         </button>
       </div>
     </div>
@@ -214,6 +217,7 @@ function CampaignBindingsEditor({
 }
 
 export default function OwnerVenueDetailPage() {
+  const { t } = useTranslation();
   const params = useParams();
   const venueId = params.venueId as string;
   const { getToken, isLoaded } = useAuth();
@@ -241,10 +245,10 @@ export default function OwnerVenueDetailPage() {
   const [bindingsCampaignId, setBindingsCampaignId] = useState<string | null>(null);
 
   const STAFF_NOTE_TEMPLATES = [
-    "Reviewed — no policy violation found.",
-    "Spoke with parties on site; resolved informally.",
-    "Escalating to venue owner.",
-    "Duplicate report — closing.",
+    t("admin.partnerVenueDetail.moderation.noteTemplateReviewed"),
+    t("admin.partnerVenueDetail.moderation.noteTemplateResolvedInformally"),
+    t("admin.partnerVenueDetail.moderation.noteTemplateEscalating"),
+    t("admin.partnerVenueDetail.moderation.noteTemplateDuplicate"),
   ];
 
   const venuesListQ = useOwnerVenuesListQuery(getToken, Boolean(isLoaded));
@@ -270,11 +274,11 @@ export default function OwnerVenueDetailPage() {
   const hidePartnerFinancialUi =
     platformRole === "SUPER_ADMIN" && Boolean(actingPartnerVenueId);
 
-  const readOnlyMessage = useMemo(() => {
+  const readOnlyNotice = useMemo(() => {
     if (platformRole === "SUPER_ADMIN" && !actingPartnerVenueId) {
       return null;
     }
-    return partnerVenueMutationsBlockedReason({
+    return partnerVenueMutationsBlockedNotice({
       locked: venueLocked,
       lockReason: venueLockReason,
       organization: orgBilling
@@ -285,7 +289,7 @@ export default function OwnerVenueDetailPage() {
         : null,
     });
   }, [platformRole, actingPartnerVenueId, venueLocked, venueLockReason, orgBilling]);
-  const readOnlyDisabled = Boolean(readOnlyMessage);
+  const readOnlyDisabled = Boolean(readOnlyNotice);
 
   useEffect(() => {
     const fn = () => invalidateOwnerVenuePartnerQueries(qc, venueId);
@@ -413,15 +417,17 @@ export default function OwnerVenueDetailPage() {
       if (data.token) setLastCreatedToken(data.token);
       if (data.clerkInvitationSent) {
         setClerkInviteNotice(
-          "Clerk sent an invitation email with a sign-up link to this address (when your project has email delivery enabled).",
+          t("admin.partnerVenueDetail.staffInvites.clerkSentNotice"),
         );
       } else if (data.clerkInvitationError) {
         setClerkInviteNotice(
-          `Clerk did not send email (${data.clerkInvitationError.slice(0, 120)}). Share the manual link below.`,
+          t("admin.partnerVenueDetail.staffInvites.clerkErrorNotice", {
+            error: data.clerkInvitationError.slice(0, 120),
+          }),
         );
       } else {
         setClerkInviteNotice(
-          "Configure CLERK_SECRET_KEY and ADMIN_PORTAL_ORIGIN on the API to email invites via Clerk; otherwise share the link below.",
+          t("admin.partnerVenueDetail.staffInvites.clerkMissingConfigNotice"),
         );
       }
       formApi.reset();
@@ -482,33 +488,33 @@ export default function OwnerVenueDetailPage() {
   const handleVoid = useCallback(
     async (redemptionId: string) => {
       if (!voidReason.trim()) {
-        setBannerError("Enter a void reason (manager/owner).");
+        setBannerError(t("admin.partnerVenueDetail.redemptions.enterVoidReasonError"));
         return;
       }
       setBannerError(null);
       await voidMut.mutateAsync({ redemptionId, reason: voidReason.trim() });
       setVoidReason("");
     },
-    [voidReason, voidMut],
+    [voidReason, voidMut, t],
   );
 
   const redemptionColumns = useMemo(
     () => [
       redemptionCol.accessor("staffVerificationCode", {
-        header: "Staff code",
+        header: t("admin.partnerVenueDetail.redemptions.staffCode"),
         cell: (c) => (
           <span className="font-mono text-amber-900">{c.getValue()}</span>
         ),
       }),
       redemptionCol.accessor("issuedAt", {
-        header: "Time (UTC)",
+        header: t("admin.partnerVenueDetail.redemptions.timeUtc"),
         cell: (c) => (
           <span className="text-slate-600">{new Date(c.getValue()).toISOString()}</span>
         ),
       }),
       redemptionCol.display({
         id: "perk",
-        header: "Perk",
+        header: t("admin.partnerVenueDetail.redemptions.perk"),
         cell: ({ row }) => (
           <span>
             <span className="text-slate-800">{row.original.perkTitle}</span>
@@ -518,7 +524,7 @@ export default function OwnerVenueDetailPage() {
       }),
       redemptionCol.display({
         id: "status",
-        header: "Status",
+        header: t("admin.partnerVenueDetail.redemptions.status"),
         cell: ({ row }) => (
           <span className="text-xs text-slate-500">
             {row.original.status}
@@ -527,7 +533,7 @@ export default function OwnerVenueDetailPage() {
       }),
       redemptionCol.display({
         id: "actions",
-        header: "Actions",
+        header: t("admin.partnerVenueDetail.redemptions.actions"),
         cell: ({ row }) =>
           !row.original.voidedAt && role ? (
             <div className="flex flex-col gap-1">
@@ -542,7 +548,7 @@ export default function OwnerVenueDetailPage() {
                 onClick={() => void ackMut.mutateAsync(row.original.redemptionId)}
                 className="text-xs text-brand text-left disabled:opacity-50"
               >
-                Acknowledge
+                {t("admin.partnerVenueDetail.redemptions.acknowledge")}
               </button>
               {canAnalytics ? (
                 <button
@@ -551,14 +557,14 @@ export default function OwnerVenueDetailPage() {
                   onClick={() => void handleVoid(row.original.redemptionId)}
                   className="text-xs text-red-600 text-left disabled:opacity-50"
                 >
-                  Void
+                  {t("admin.partnerVenueDetail.redemptions.void")}
                 </button>
               ) : null}
             </div>
           ) : null,
       }),
     ],
-    [role, canAnalytics, readOnlyDisabled, ackMut, voidMut, handleVoid],
+    [role, canAnalytics, readOnlyDisabled, ackMut, voidMut, handleVoid, t],
   );
 
   const redemptionTable = useReactTable({
@@ -572,15 +578,19 @@ export default function OwnerVenueDetailPage() {
     () => [
       inviteCol.display({
         id: "who",
-        header: "Invite",
+        header: t("admin.partnerVenueDetail.staffInvites.invite"),
         cell: ({ row }) => (
           <div>
             <span className="text-slate-800">{row.original.email}</span>
-            <span className="text-xs font-mono text-brand ml-2">{row.original.role}</span>
+            <span className="text-xs font-mono text-brand ml-2">
+              {t(`admin.partnerVenueDetail.roles.${row.original.role}`)}
+            </span>
             <p className="text-xs text-slate-500 mt-1">
-              {row.original.status} · expires{" "}
-              {new Date(row.original.expiresAt).toISOString().slice(0, 10)} · by{" "}
-              {row.original.invitedBy.email}
+              {t("admin.partnerVenueDetail.staffInvites.expiresBy", {
+                status: row.original.status,
+                date: new Date(row.original.expiresAt).toISOString().slice(0, 10),
+                inviter: row.original.invitedBy.email,
+              })}
             </p>
           </div>
         ),
@@ -596,12 +606,12 @@ export default function OwnerVenueDetailPage() {
               onClick={() => void cancelInviteMut.mutateAsync(row.original.id)}
               className="text-xs text-red-600 hover:underline disabled:opacity-50"
             >
-              Cancel
+              {t("admin.partnerVenueDetail.staffInvites.cancelInvite")}
             </button>
           ) : null,
       }),
     ],
-    [readOnlyDisabled, cancelInviteMut],
+    [readOnlyDisabled, cancelInviteMut, t],
   );
 
   const inviteTable = useReactTable({
@@ -615,14 +625,19 @@ export default function OwnerVenueDetailPage() {
     () => [
       campaignCol.display({
         id: "info",
-        header: "Campaign",
+        header: t("admin.partnerVenueDetail.campaigns.campaign"),
         cell: ({ row }) => (
           <div>
             <p className="font-medium text-slate-800">{row.original.name}</p>
             <p className="text-xs text-slate-500">
-              {row.original.status} · segment {row.original.segmentDays}d
+              {t("admin.partnerVenueDetail.campaigns.campaignStatusSegment", {
+                status: row.original.status,
+                days: row.original.segmentDays,
+              })}
               {row.original.recipientCount != null
-                ? ` · recipients ${row.original.recipientCount}`
+                ? t("admin.partnerVenueDetail.campaigns.campaignRecipients", {
+                    count: row.original.recipientCount,
+                  })
                 : ""}
             </p>
             {row.original.lastError ? (
@@ -642,10 +657,12 @@ export default function OwnerVenueDetailPage() {
               onClick={() => void sendCampMut.mutateAsync(row.original.id)}
               className="text-sm bg-amber-50 border border-amber-300 text-amber-900 px-3 py-1 rounded-lg disabled:opacity-50"
             >
-              Send now
+              {t("admin.partnerVenueDetail.campaigns.sendNow")}
             </button>
           ) : (
-            <span className="text-xs text-slate-500">Sent</span>
+            <span className="text-xs text-slate-500">
+              {t("admin.partnerVenueDetail.common.statusSent")}
+            </span>
           ),
       }),
       campaignCol.display({
@@ -661,12 +678,14 @@ export default function OwnerVenueDetailPage() {
               )
             }
           >
-            {bindingsCampaignId === row.original.id ? "Hide bindings" : "Bindings"}
+            {bindingsCampaignId === row.original.id
+              ? t("admin.partnerVenueDetail.campaigns.hideBindings")
+              : t("admin.partnerVenueDetail.campaigns.bindings")}
           </button>
         ),
       }),
     ],
-    [readOnlyDisabled, sendCampMut, bindingsCampaignId],
+    [readOnlyDisabled, sendCampMut, bindingsCampaignId, t],
   );
 
   const campaignTable = useReactTable({
@@ -680,7 +699,7 @@ export default function OwnerVenueDetailPage() {
     () => [
       receiptCol.display({
         id: "sum",
-        header: "Submission",
+        header: t("admin.partnerVenueDetail.receipts.submission"),
         cell: ({ row }) => (
           <span className="text-sm text-slate-800">
             {row.original.player.email} · {row.original.status}
@@ -688,7 +707,7 @@ export default function OwnerVenueDetailPage() {
         ),
       }),
       receiptCol.accessor("createdAt", {
-        header: "Created",
+        header: t("admin.partnerVenueDetail.receipts.created"),
         cell: (c) => (
           <span className="text-xs text-slate-500">{new Date(c.getValue()).toISOString()}</span>
         ),
@@ -702,12 +721,12 @@ export default function OwnerVenueDetailPage() {
             className="text-sm text-brand"
             onClick={() => setReceiptIdOpen(row.original.id)}
           >
-            Open
+            {t("admin.partnerVenueDetail.common.open")}
           </button>
         ),
       }),
     ],
-    [],
+    [t],
   );
 
   const receiptTable = useReactTable({
@@ -721,7 +740,7 @@ export default function OwnerVenueDetailPage() {
     () => [
       perkCol.display({
         id: "p",
-        header: "Perk",
+        header: t("admin.partnerVenueDetail.analytics.perPerk"),
         cell: ({ row }) => (
           <span>
             {row.original.title}{" "}
@@ -730,11 +749,11 @@ export default function OwnerVenueDetailPage() {
         ),
       }),
       perkCol.accessor("count", {
-        header: "Count",
+        header: t("admin.partnerVenueDetail.analytics.count"),
         cell: (c) => <span>{c.getValue()}</span>,
       }),
     ],
-    [],
+    [t],
   );
 
   const perkTable = useReactTable({
@@ -747,12 +766,12 @@ export default function OwnerVenueDetailPage() {
   const dayCountColumns = useMemo(
     () => [
       dayCountCol.accessor("day", {
-        header: "Day (UTC)",
+        header: t("admin.partnerVenueDetail.analytics.dayUtc"),
         cell: (c) => <span className="font-mono text-slate-800">{c.getValue()}</span>,
       }),
-      dayCountCol.accessor("count", { header: "Count" }),
+      dayCountCol.accessor("count", { header: t("admin.partnerVenueDetail.analytics.count") }),
     ],
-    [],
+    [t],
   );
 
   const redeemDayTable = useReactTable({
@@ -773,7 +792,7 @@ export default function OwnerVenueDetailPage() {
     () => [
       hourCol.display({
         id: "h",
-        header: "Hour",
+        header: t("admin.partnerVenueDetail.analytics.hour"),
         cell: ({ row }) => (
           <span>
             {String(row.original.hour).padStart(2, "0")}:00 — {row.original.count}
@@ -781,7 +800,7 @@ export default function OwnerVenueDetailPage() {
         ),
       }),
     ],
-    [],
+    [t],
   );
 
   const hourUtcTable = useReactTable({
@@ -809,7 +828,7 @@ export default function OwnerVenueDetailPage() {
     setBannerError(null);
     try {
       const token = await getToken();
-      if (!token) throw new Error("Sign in required");
+      if (!token) throw new Error(t("admin.partnerVenueDetail.common.signInRequired"));
       const res = await ownerFetch(
         getToken,
         `/owner/venues/${venueId}/analytics/export.csv?${venueAnalyticsQs()}`,
@@ -824,7 +843,9 @@ export default function OwnerVenueDetailPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
-      setBannerError(e instanceof Error ? e.message : "CSV download failed");
+      setBannerError(
+        e instanceof Error ? e.message : t("admin.partnerVenueDetail.common.csvDownloadFailed"),
+      );
     }
   };
 
@@ -832,7 +853,7 @@ export default function OwnerVenueDetailPage() {
     setBannerError(null);
     try {
       const token = await getToken();
-      if (!token) throw new Error("Sign in required");
+      if (!token) throw new Error(t("admin.partnerVenueDetail.common.signInRequired"));
       const res = await ownerFetch(
         getToken,
         `/owner/venues/${venueId}/analytics/funnel-export.csv?${venueAnalyticsQs()}`,
@@ -847,7 +868,9 @@ export default function OwnerVenueDetailPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
-      setBannerError(e instanceof Error ? e.message : "CSV download failed");
+      setBannerError(
+        e instanceof Error ? e.message : t("admin.partnerVenueDetail.common.csvDownloadFailed"),
+      );
     }
   };
 
@@ -855,7 +878,7 @@ export default function OwnerVenueDetailPage() {
     setBannerError(null);
     try {
       const token = await getToken();
-      if (!token) throw new Error("Sign in required");
+      if (!token) throw new Error(t("admin.partnerVenueDetail.common.signInRequired"));
       const res = await ownerFetch(
         getToken,
         `/owner/venues/${venueId}/analytics/geofence-events.csv?${venueAnalyticsQs()}`,
@@ -870,13 +893,15 @@ export default function OwnerVenueDetailPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
-      setBannerError(e instanceof Error ? e.message : "CSV download failed");
+      setBannerError(
+        e instanceof Error ? e.message : t("admin.partnerVenueDetail.common.csvDownloadFailed"),
+      );
     }
   };
 
   const accessError =
     venuesListQ.isSuccess && !metaRow
-      ? "You do not have access to this venue or it does not exist."
+      ? t("admin.partnerVenueDetail.header.accessError")
       : null;
 
   const listErr =
@@ -885,7 +910,7 @@ export default function OwnerVenueDetailPage() {
       : null;
 
   const shellLoading = venuesListQ.isPending;
-  const title = venueName || "Venue";
+  const title = venueName || t("admin.partnerVenueDetail.header.fallbackVenueTitle");
 
   const showAnalyticsPending = canAnalytics && metaRow && analyticsQ.isLoading;
 
@@ -900,35 +925,33 @@ export default function OwnerVenueDetailPage() {
       <header className="border-b border-slate-200 px-6 py-4 flex items-center justify-between gap-4">
         <div>
           <Link href="/owner/venues" className="text-sm text-brand hover:text-brand">
-            ← All venues
+            {t("admin.partnerVenueDetail.header.allVenues")}
           </Link>
           <h1 className="text-xl font-semibold mt-2">
             {title}
             {role ? (
               <span className="ml-3 text-xs font-mono uppercase tracking-wide text-brand align-middle">
-                {role}
+                {role ? t(`admin.partnerVenueDetail.roles.${role}`) : null}
               </span>
             ) : null}
           </h1>
           {role === "EMPLOYEE" ? (
             <p className="text-sm text-slate-500 mt-1 max-w-xl">
-              Staff view — verify redemptions and acknowledgments. Open{" "}
+              {t("admin.partnerVenueDetail.header.staffLeadBeforeLink")}{" "}
               <Link href={`/staff/${venueId}`} className="text-emerald-700 hover:underline">
-                Today&apos;s list
+                {t("admin.partnerVenueDetail.header.todayList")}
               </Link>{" "}
-              for a focused screen.
+              {t("admin.partnerVenueDetail.header.staffLeadAfterLink")}
             </p>
           ) : null}
           {role === "MANAGER" ? (
             <p className="text-sm text-slate-500 mt-1 max-w-xl">
-              Manager — analytics, campaigns, receipts, and redemptions. Team invites are
-              owner-only.
+              {t("admin.partnerVenueDetail.header.managerLead")}
             </p>
           ) : null}
           {isOwner ? (
             <p className="text-sm text-slate-500 mt-1 max-w-xl">
-              Owner — includes staff invitations and subscription links when your org has a billing
-              portal URL.
+              {t("admin.partnerVenueDetail.header.ownerLead")}
             </p>
           ) : null}
           {organizationRollupId ? (
@@ -937,7 +960,7 @@ export default function OwnerVenueDetailPage() {
                 href={`/owner/organizations/${organizationRollupId}`}
                 className="text-amber-700 hover:underline"
               >
-                Organization roll-up (all locations) →
+                {t("admin.partnerVenueDetail.header.organizationRollupLink")}
               </Link>
             </p>
           ) : null}
@@ -951,32 +974,33 @@ export default function OwnerVenueDetailPage() {
                     rel="noreferrer"
                     className="text-emerald-700 hover:underline"
                   >
-                    Subscription / billing portal →
+                    {t("admin.partnerVenueDetail.header.subscriptionBillingPortal")}
                   </a>
                   <span className="text-slate-500 ml-2">
-                    {orgBilling.platformBillingPlan ?? "—"} · {orgBilling.platformBillingStatus}
+                    {orgBilling.platformBillingPlan ??
+                      t("admin.partnerVenueDetail.header.billingPlanFallback")}{" "}
+                    · {orgBilling.platformBillingStatus}
                     {orgBilling.platformBillingRenewsAt
-                      ? ` · renews ${orgBilling.platformBillingRenewsAt.slice(0, 10)}`
+                      ? t("admin.partnerVenueDetail.header.billingRenews", {
+                          date: orgBilling.platformBillingRenewsAt.slice(0, 10),
+                        })
                       : ""}
                     {orgBilling.platformBillingStatus === "ACTIVE_CANCELING"
-                      ? " · ends at period end"
+                      ? t("admin.partnerVenueDetail.header.billingEndsAtPeriodEnd")
                       : ""}
                     {orgBilling.platformBillingStatus === "CANCELED"
-                      ? " · contact support to restore organization billing"
+                      ? t("admin.partnerVenueDetail.header.billingCanceledSupport")
                       : ""}
                   </span>
                 </p>
               ) : (
                 <p className="text-sm mt-2 text-slate-500">
-                  Billing portal URL not configured — contact support to connect Stripe customer portal.
+                  {t("admin.partnerVenueDetail.header.billingPortalMissing")}
                 </p>
               )}
               <p className="text-xs text-slate-600 max-w-2xl mt-2 leading-relaxed">
-                <strong>Commercial clarity:</strong> the organization subscription covers partner portal
-                access and venue features. In-app <strong>guest</strong> subscriptions and optional
-                play-time top-ups are billed by the app stores to the Cafe Social product account (not
-                shared with venues unless separately contracted). Your contract defines venue fees;
-                this portal shows Stripe org status only.
+                <strong>{t("admin.partnerVenueDetail.header.commercialClarityTitle")}</strong>{" "}
+                {t("admin.partnerVenueDetail.header.commercialClarityBody")}
               </p>
             </>
           ) : null}
@@ -985,7 +1009,9 @@ export default function OwnerVenueDetailPage() {
       </header>
 
       <main className="p-6 max-w-4xl mx-auto space-y-10 pb-24">
-        {shellLoading ? <p className="text-slate-600">Loading…</p> : null}
+        {shellLoading ? (
+          <p className="text-slate-600">{t("admin.partnerVenueDetail.common.loading")}</p>
+        ) : null}
         {(listErr || accessError || bannerError || redemptionsQ.isError) && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800 text-sm">
             {listErr ??
@@ -994,46 +1020,48 @@ export default function OwnerVenueDetailPage() {
               (redemptionsQ.error instanceof Error ? redemptionsQ.error.message : null)}
           </div>
         )}
-        {readOnlyMessage ? <PartnerReadOnlyBanner message={readOnlyMessage} /> : null}
+        {readOnlyNotice ? <PartnerReadOnlyBanner notice={readOnlyNotice} /> : null}
 
         {canAnalytics && metaRow && (
           <section className="border border-emerald-200 rounded-xl p-4 space-y-3 bg-emerald-50/40">
-            <h2 className="text-lg font-medium text-slate-900">Partner playbook</h2>
+            <h2 className="text-lg font-medium text-slate-900">
+              {t("admin.partnerVenueDetail.playbook.title")}
+            </h2>
             <p className="text-sm text-slate-700">
-              Short checklist to go live with QR, staff, and a first campaign. Full printable brief:{" "}
+              {t("admin.partnerVenueDetail.playbook.leadBeforePath")}{" "}
               <code className="text-xs bg-white/80 px-1 rounded border border-emerald-200">
-                docs/prilog-za-partnera-cafe-social.md
+                {t("admin.partnerVenueDetail.playbook.briefPath")}
               </code>{" "}
-              in the repo.
+              {t("admin.partnerVenueDetail.playbook.leadAfterPath")}
             </p>
             <ol className="list-decimal list-inside text-sm text-slate-700 space-y-1.5">
               <li>
-                <strong>Geofence</strong> — draw once in the CMS (super admin) so detection matches your
-                floor.
+                <strong>{t("admin.partnerVenueDetail.playbook.step1Title")}</strong> —{" "}
+                {t("admin.partnerVenueDetail.playbook.step1Body")}
               </li>
               <li>
-                <strong>Test QR / deep link</strong> — scan or open{" "}
+                <strong>{t("admin.partnerVenueDetail.playbook.step2Title")}</strong> —{" "}
+                {t("admin.partnerVenueDetail.playbook.step2BeforeDeepLink")}{" "}
                 <code className="text-xs bg-white/80 px-1 rounded break-all">
                   cafesocial://unlock?venueId={venueId}
                 </code>{" "}
-                on a phone with the app installed.
+                {t("admin.partnerVenueDetail.playbook.step2AfterDeepLink")}
               </li>
               <li>
-                <strong>Sample perks & challenges</strong> — publish one simple perk staff can honour and
-                one weekly challenge in the CMS.
+                <strong>{t("admin.partnerVenueDetail.playbook.step3Title")}</strong> —{" "}
+                {t("admin.partnerVenueDetail.playbook.step3Body")}
               </li>
               <li>
-                <strong>Poster copy</strong> — use the partner brief wording for table tents; point guests
-                to the app + your venue context.
+                <strong>{t("admin.partnerVenueDetail.playbook.step4Title")}</strong> —{" "}
+                {t("admin.partnerVenueDetail.playbook.step4Body")}
               </li>
               <li>
-                <strong>Staff shift</strong> — one person owns redemption verification; managers can void
-                with reason (audit trail below).
+                <strong>{t("admin.partnerVenueDetail.playbook.step5Title")}</strong> —{" "}
+                {t("admin.partnerVenueDetail.playbook.step5Body")}
               </li>
             </ol>
             <p className="text-xs text-slate-600">
-              Order-nudge push copy is driven by venue type templates in the CMS when set; otherwise
-              platform defaults apply.
+              {t("admin.partnerVenueDetail.playbook.orderNudgeHint")}
             </p>
           </section>
         )}
@@ -1041,12 +1069,16 @@ export default function OwnerVenueDetailPage() {
         {canAnalytics && metaRow && (
           <section>
             {showAnalyticsPending ? (
-              <p className="text-slate-600 text-sm mb-4">Loading analytics…</p>
+              <p className="text-slate-600 text-sm mb-4">
+                {t("admin.partnerVenueDetail.common.loadingAnalytics")}
+              </p>
             ) : null}
             {analytics && !accessError && (
               <>
                 <div className="flex flex-wrap items-end justify-between gap-4 mb-4">
-                  <h2 className="text-lg font-medium">Analytics</h2>
+                  <h2 className="text-lg font-medium">
+                    {t("admin.partnerVenueDetail.analytics.title")}
+                  </h2>
                   <div className="flex flex-wrap items-center gap-3">
                     <button
                       type="button"
@@ -1054,7 +1086,7 @@ export default function OwnerVenueDetailPage() {
                       onClick={() => void downloadCsv()}
                       className="text-sm bg-emerald-50 border border-emerald-300 text-emerald-900 px-3 py-1 rounded-lg hover:bg-emerald-100 disabled:opacity-50"
                     >
-                      Redemptions CSV
+                      {t("admin.partnerVenueDetail.analytics.redemptionsCsv")}
                     </button>
                     <button
                       type="button"
@@ -1062,7 +1094,7 @@ export default function OwnerVenueDetailPage() {
                       onClick={() => void downloadFunnelCsv()}
                       className="text-sm bg-emerald-50 border border-emerald-300 text-emerald-900 px-3 py-1 rounded-lg hover:bg-emerald-100 disabled:opacity-50"
                     >
-                      Funnel CSV
+                      {t("admin.partnerVenueDetail.analytics.funnelCsv")}
                     </button>
                     <button
                       type="button"
@@ -1070,10 +1102,10 @@ export default function OwnerVenueDetailPage() {
                       onClick={() => void downloadGeofenceCsv()}
                       className="text-sm bg-indigo-50 border border-indigo-300 text-indigo-900 px-3 py-1 rounded-lg hover:bg-indigo-100 disabled:opacity-50"
                     >
-                      Geofence events CSV
+                      {t("admin.partnerVenueDetail.analytics.geofenceCsv")}
                     </button>
                     <label className="text-sm text-slate-600 flex items-center gap-2">
-                      Period (days)
+                      {t("admin.partnerVenueDetail.analytics.periodDays")}
                       <select
                         value={days}
                         onChange={(e) => setDays(Number(e.target.value))}
@@ -1087,7 +1119,7 @@ export default function OwnerVenueDetailPage() {
                       </select>
                     </label>
                     <label className="text-sm text-slate-600 flex items-center gap-2">
-                      From
+                      {t("admin.partnerVenueDetail.common.from")}
                       <input
                         type="date"
                         value={analyticsFromYmd}
@@ -1096,7 +1128,7 @@ export default function OwnerVenueDetailPage() {
                       />
                     </label>
                     <label className="text-sm text-slate-600 flex items-center gap-2">
-                      To
+                      {t("admin.partnerVenueDetail.common.to")}
                       <input
                         type="date"
                         value={analyticsToYmd}
@@ -1112,17 +1144,22 @@ export default function OwnerVenueDetailPage() {
                         setAnalyticsToYmd("");
                       }}
                     >
-                      Clear range
+                      {t("admin.partnerVenueDetail.common.clearRange")}
                     </button>
                   </div>
                 </div>
                 <p className="text-xs text-slate-500 mb-2">
-                  Custom from/to overrides the rolling window when both are set (UTC dates).
+                  {t("admin.partnerVenueDetail.analytics.rangeHint")}
                 </p>
                 <p className="text-xs text-slate-500 mb-4">
-                  UTC range {analytics.period.startDay} → {analytics.period.endDay}
+                  {t("admin.partnerVenueDetail.analytics.utcRange", {
+                    start: analytics.period.startDay,
+                    end: analytics.period.endDay,
+                  })}
                   {analytics.analyticsTimeZone
-                    ? ` · Venue TZ: ${analytics.analyticsTimeZone}`
+                    ? t("admin.partnerVenueDetail.analytics.venueTz", {
+                        tz: analytics.analyticsTimeZone,
+                      })
                     : ""}
                 </p>
                 <OwnerAnalyticsRoiSnapshot
@@ -1133,136 +1170,176 @@ export default function OwnerVenueDetailPage() {
                 />
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm text-slate-600">Active redemptions</p>
+                    <p className="text-sm text-slate-600">
+                      {t("admin.partnerVenueDetail.analytics.activeRedemptions")}
+                    </p>
                     <p className="text-2xl font-semibold mt-1">{analytics.redemptions.total}</p>
                     <p className="text-xs text-slate-500 mt-1">
-                      Voided: {analytics.redemptions.voided}
+                      {t("admin.partnerVenueDetail.analytics.voided", {
+                        count: analytics.redemptions.voided,
+                      })}
                     </p>
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm text-slate-600">Unique visitors</p>
+                    <p className="text-sm text-slate-600">
+                      {t("admin.partnerVenueDetail.analytics.uniqueVisitors")}
+                    </p>
                     <p className="text-2xl font-semibold mt-1">
                       {analytics.visits.uniquePlayers}
                     </p>
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm text-slate-600">Repeat visitors</p>
+                    <p className="text-sm text-slate-600">
+                      {t("admin.partnerVenueDetail.analytics.repeatVisitors")}
+                    </p>
                     <p className="text-2xl font-semibold mt-1">
                       {analytics.visits.loyalty.repeatVisitPlayers}
                     </p>
                     <p className="text-xs text-slate-500 mt-1">
-                      ≥2 days at this venue ·{" "}
-                      {analytics.visits.loyalty.shareRepeatVisitorsPercent}% of visitors
+                      {t("admin.partnerVenueDetail.analytics.repeatVisitorsHint", {
+                        percent: analytics.visits.loyalty.shareRepeatVisitorsPercent,
+                      })}
                     </p>
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm text-slate-600">Avg visit days / player</p>
+                    <p className="text-sm text-slate-600">
+                      {t("admin.partnerVenueDetail.analytics.avgVisitDaysPerPlayer")}
+                    </p>
                     <p className="text-2xl font-semibold mt-1">
                       {analytics.visits.loyalty.avgVisitDaysPerPlayer}
                     </p>
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm text-slate-600">Funnel</p>
+                    <p className="text-sm text-slate-600">
+                      {t("admin.partnerVenueDetail.analytics.funnel")}
+                    </p>
                     <p className="text-lg font-semibold mt-1">
-                      {analytics.funnel.uniqueRedeemers} / {analytics.funnel.uniqueVisitors}{" "}
-                      redeemers
+                      {t("admin.partnerVenueDetail.analytics.funnelRedeemers", {
+                        redeemers: analytics.funnel.uniqueRedeemers,
+                        visitors: analytics.funnel.uniqueVisitors,
+                      })}
                     </p>
                     <p className="text-xs text-slate-500 mt-1">
-                      ≈ {analytics.funnel.visitToRedeemPercent}% of visitors redeemed
+                      {t("admin.partnerVenueDetail.analytics.funnelVisitorsRedeemed", {
+                        percent: analytics.funnel.visitToRedeemPercent,
+                      })}
                     </p>
                   </div>
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm text-slate-600">Feed events</p>
+                    <p className="text-sm text-slate-600">
+                      {t("admin.partnerVenueDetail.analytics.feedEvents")}
+                    </p>
                     <p className="text-2xl font-semibold mt-1">{analytics.feedEvents.total}</p>
                   </div>
                 </div>
 
                 <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4">
                   <h3 className="text-sm font-semibold text-slate-800 mb-3">
-                    Funnel journey (detect → enter → play → redeem)
+                    {t("admin.partnerVenueDetail.analytics.funnelJourneyTitle")}
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                     <div>
-                      <p className="text-xs text-slate-500">Detect impressions</p>
+                      <p className="text-xs text-slate-500">
+                        {t("admin.partnerVenueDetail.analytics.detectImpressions")}
+                      </p>
                       <p className="text-lg font-semibold text-slate-900">
                         {analytics.funnelJourney.detectImpressions}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500">Unique entered</p>
+                      <p className="text-xs text-slate-500">
+                        {t("admin.partnerVenueDetail.analytics.uniqueEntered")}
+                      </p>
                       <p className="text-lg font-semibold text-slate-900">
                         {analytics.funnelJourney.uniqueEntered}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500">Unique played</p>
+                      <p className="text-xs text-slate-500">
+                        {t("admin.partnerVenueDetail.analytics.uniquePlayed")}
+                      </p>
                       <p className="text-lg font-semibold text-slate-900">
                         {analytics.funnelJourney.uniquePlayed}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500">Unique redeemed</p>
+                      <p className="text-xs text-slate-500">
+                        {t("admin.partnerVenueDetail.analytics.uniqueRedeemed")}
+                      </p>
                       <p className="text-lg font-semibold text-slate-900">
                         {analytics.funnelJourney.uniqueRedeemed}
                       </p>
                     </div>
                   </div>
                   <p className="text-xs text-slate-500 mt-3">
-                    Enter→play {analytics.funnelJourney.enterToPlayPercent}% · play→redeem{" "}
-                    {analytics.funnelJourney.playToRedeemPercent}% · entered→redeem{" "}
-                    {analytics.funnelJourney.enteredToRedeemPercent}%
+                    {t("admin.partnerVenueDetail.analytics.funnelJourneyRates", {
+                      enterToPlay: analytics.funnelJourney.enterToPlayPercent,
+                      playToRedeem: analytics.funnelJourney.playToRedeemPercent,
+                      enteredToRedeem: analytics.funnelJourney.enteredToRedeemPercent,
+                    })}
                   </p>
                 </div>
 
                 {geofenceDwellQ.data ? (
                   <div className="mb-6 rounded-xl border border-indigo-200 bg-indigo-50/50 p-4">
                     <h3 className="text-sm font-semibold text-slate-800 mb-2">
-                      Visit boundary (geofence enter/exit)
+                      {t("admin.partnerVenueDetail.analytics.geofenceTitle")}
                     </h3>
                     <p className="text-xs text-slate-600 mb-3">
-                      Approximate dwell from OS geofence events. Pairs each player&apos;s enter→exit;
-                      open enters at period end are listed separately. Compare with calendar visit rows
-                      (presence proxy) for context.
+                      {t("admin.partnerVenueDetail.analytics.geofenceLead")}
                     </p>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                       <div>
-                        <p className="text-xs text-slate-500">Enter / exit events</p>
+                        <p className="text-xs text-slate-500">
+                          {t("admin.partnerVenueDetail.analytics.geofenceEnterExitEvents")}
+                        </p>
                         <p className="text-lg font-semibold text-slate-900">
                           {geofenceDwellQ.data.geofenceEnterEvents} /{" "}
                           {geofenceDwellQ.data.geofenceExitEvents}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500">Players (≥1 event)</p>
+                        <p className="text-xs text-slate-500">
+                          {t("admin.partnerVenueDetail.analytics.geofencePlayersWithEvent")}
+                        </p>
                         <p className="text-lg font-semibold text-slate-900">
                           {geofenceDwellQ.data.uniquePlayersWithGeofenceEvent}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500">Completed sessions</p>
+                        <p className="text-xs text-slate-500">
+                          {t("admin.partnerVenueDetail.analytics.geofenceCompletedSessions")}
+                        </p>
                         <p className="text-lg font-semibold text-slate-900">
                           {geofenceDwellQ.data.completedVisitSessions}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500">Open at period end</p>
+                        <p className="text-xs text-slate-500">
+                          {t("admin.partnerVenueDetail.analytics.geofenceOpenAtPeriodEnd")}
+                        </p>
                         <p className="text-lg font-semibold text-slate-900">
                           {geofenceDwellQ.data.openSessionsAtPeriodEnd}
                         </p>
                       </div>
                     </div>
                     <p className="text-xs text-slate-600 mt-3">
-                      Avg completed dwell:{" "}
+                      {t("admin.partnerVenueDetail.analytics.geofenceAvgDwell")}{" "}
                       <strong>{geofenceDwellQ.data.avgDwellSecondsCompletedSessions}s</strong>
                       {geofenceDwellQ.data.medianDwellSecondsCompleted != null
-                        ? ` · median ${geofenceDwellQ.data.medianDwellSecondsCompleted}s`
+                        ? t("admin.partnerVenueDetail.analytics.geofenceMedianDwell", {
+                            seconds: geofenceDwellQ.data.medianDwellSecondsCompleted,
+                          })
                         : null}
-                      . Calendar visit-day rows:{" "}
-                      <strong>{geofenceDwellQ.data.calendarVisitDayRows}</strong>.
+                      {t("admin.partnerVenueDetail.analytics.geofenceCalendarRows", {
+                        count: geofenceDwellQ.data.calendarVisitDayRows,
+                      })}
                     </p>
                   </div>
                 ) : geofenceDwellQ.isLoading ? (
-                  <p className="text-xs text-slate-500 mb-4">Loading geofence dwell…</p>
+                  <p className="text-xs text-slate-500 mb-4">
+                    {t("admin.partnerVenueDetail.common.loadingGeofenceDwell")}
+                  </p>
                 ) : null}
 
                 <OwnerAnalyticsCharts
@@ -1273,7 +1350,9 @@ export default function OwnerVenueDetailPage() {
 
                 <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div>
-                    <h3 className="text-sm font-medium text-slate-800 mb-2">Per perk</h3>
+                    <h3 className="text-sm font-medium text-slate-800 mb-2">
+                      {t("admin.partnerVenueDetail.analytics.perPerk")}
+                    </h3>
                     <div className="max-h-48 overflow-auto rounded-lg border border-slate-200">
                       <table className="w-full text-sm">
                         <thead className="bg-slate-100 sticky top-0 text-slate-600">
@@ -1303,7 +1382,7 @@ export default function OwnerVenueDetailPage() {
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-slate-800 mb-2">
-                      Redemptions by hour (UTC)
+                      {t("admin.partnerVenueDetail.analytics.redemptionsByHourUtc")}
                     </h3>
                     <div className="max-h-48 overflow-auto rounded-lg border border-slate-200 text-xs font-mono p-2 text-slate-600">
                       <table className="w-full">
@@ -1326,7 +1405,7 @@ export default function OwnerVenueDetailPage() {
                 {analytics.redemptions.byHourVenue && (
                   <div className="mt-6">
                     <h3 className="text-sm font-medium text-slate-800 mb-2">
-                      Redemptions by hour (venue TZ)
+                      {t("admin.partnerVenueDetail.analytics.redemptionsByHourVenueTz")}
                     </h3>
                     <div className="max-h-48 overflow-auto rounded-lg border border-slate-200 text-xs font-mono p-2 text-slate-600">
                       <table className="w-full">
@@ -1348,7 +1427,9 @@ export default function OwnerVenueDetailPage() {
                 )}
                 <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div>
-                    <h3 className="text-sm font-medium text-slate-800 mb-2">Redemptions by day</h3>
+                    <h3 className="text-sm font-medium text-slate-800 mb-2">
+                      {t("admin.partnerVenueDetail.analytics.redemptionsByDay")}
+                    </h3>
                     <div className="max-h-56 overflow-auto rounded-lg border border-slate-200">
                       <table className="w-full text-sm">
                         <thead className="bg-slate-100 sticky top-0">
@@ -1375,7 +1456,9 @@ export default function OwnerVenueDetailPage() {
                     </div>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-slate-800 mb-2">Visit days by day</h3>
+                    <h3 className="text-sm font-medium text-slate-800 mb-2">
+                      {t("admin.partnerVenueDetail.analytics.visitDaysByDay")}
+                    </h3>
                     <div className="max-h-56 overflow-auto rounded-lg border border-slate-200">
                       <table className="w-full text-sm">
                         <thead className="bg-slate-100 sticky top-0">
@@ -1409,28 +1492,33 @@ export default function OwnerVenueDetailPage() {
 
         {canAnalytics && metaRow && (
           <section className="border border-slate-200 rounded-xl p-4 space-y-4">
-            <h2 className="text-lg font-medium">Moderation</h2>
+            <h2 className="text-lg font-medium">{t("admin.partnerVenueDetail.moderation.title")}</h2>
             <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-slate-800">
-              <p className="font-medium text-slate-900">Trust &amp; safety without extra tooling</p>
+              <p className="font-medium text-slate-900">
+                {t("admin.partnerVenueDetail.moderation.trustSafetyTitle")}
+              </p>
               <p className="text-xs text-slate-700 mt-1">
-                Player reports, venue bans, and ban appeals stay in this portal — bans block play and
-                redemptions here only. Use dismiss when no action is needed; audit log below captures
-                staff actions for accountability.
+                {t("admin.partnerVenueDetail.moderation.trustSafetyBody")}
               </p>
             </div>
             <p className="text-xs text-slate-500">
-              Open player reports and venue bans. Banning blocks play and redemptions at this
-              location. Dismiss clears a report without banning.
+              {t("admin.partnerVenueDetail.moderation.lead")}
             </p>
             {modReportsQ.isError ? (
               <p className="text-sm text-red-700">
-                {modReportsQ.error instanceof Error ? modReportsQ.error.message : "Reports failed"}
+                {modReportsQ.error instanceof Error
+                  ? modReportsQ.error.message
+                  : t("admin.partnerVenueDetail.moderation.reportsFailed")}
               </p>
             ) : null}
             <div>
-              <h3 className="text-sm font-medium text-slate-800 mb-2">Recent reports</h3>
+              <h3 className="text-sm font-medium text-slate-800 mb-2">
+                {t("admin.partnerVenueDetail.moderation.recentReports")}
+              </h3>
               {(modReportsQ.data ?? []).length === 0 ? (
-                <p className="text-sm text-slate-500">No open reports.</p>
+                <p className="text-sm text-slate-500">
+                  {t("admin.partnerVenueDetail.moderation.noOpenReports")}
+                </p>
               ) : (
                 <ul className="text-sm space-y-2 divide-y divide-slate-100">
                   {(modReportsQ.data ?? []).map((r) => (
@@ -1442,14 +1530,17 @@ export default function OwnerVenueDetailPage() {
                         </span>
                       </p>
                       <p className="text-xs text-slate-600 mt-0.5">
-                        Reason: {r.reason}
+                        {t("admin.partnerVenueDetail.moderation.reason", { reason: r.reason })}
                         {r.note ? ` — ${r.note}` : ""}
                       </p>
                       <p className="text-xs text-slate-500">
-                        By {r.reporter.email} · {new Date(r.createdAt).toLocaleString()}
+                        {t("admin.partnerVenueDetail.moderation.reportedBy", {
+                          email: r.reporter.email,
+                          date: new Date(r.createdAt).toLocaleString(),
+                        })}
                       </p>
                       <label className="block text-xs text-slate-600 mt-2">
-                        Note to reporter (optional, shown in app)
+                        {t("admin.partnerVenueDetail.moderation.dismissalNoteLabel")}
                         <textarea
                           className="mt-0.5 w-full max-w-md text-sm border border-slate-200 rounded px-2 py-1 bg-white"
                           rows={2}
@@ -1471,7 +1562,7 @@ export default function OwnerVenueDetailPage() {
                           }
                           className="text-xs border border-slate-300 rounded px-2 py-1 hover:bg-slate-50 disabled:opacity-50"
                         >
-                          Dismiss
+                          {t("admin.partnerVenueDetail.moderation.dismiss")}
                         </button>
                         <button
                           type="button"
@@ -1484,7 +1575,7 @@ export default function OwnerVenueDetailPage() {
                           }
                           className="text-xs border border-amber-300 text-amber-900 rounded px-2 py-1 hover:bg-amber-50 disabled:opacity-50"
                         >
-                          Ban player
+                          {t("admin.partnerVenueDetail.moderation.banPlayer")}
                         </button>
                       </div>
                     </li>
@@ -1493,9 +1584,11 @@ export default function OwnerVenueDetailPage() {
               )}
             </div>
             <div>
-              <h3 className="text-sm font-medium text-slate-800 mb-2">Active bans</h3>
+              <h3 className="text-sm font-medium text-slate-800 mb-2">
+                {t("admin.partnerVenueDetail.moderation.activeBans")}
+              </h3>
               {(modBansQ.data ?? []).length === 0 ? (
-                <p className="text-sm text-slate-500">No bans at this venue.</p>
+                <p className="text-sm text-slate-500">{t("admin.partnerVenueDetail.moderation.noBans")}</p>
               ) : (
                 <ul className="text-sm space-y-2">
                   {(modBansQ.data ?? []).map((b) => (
@@ -1519,7 +1612,7 @@ export default function OwnerVenueDetailPage() {
                         onClick={() => void unbanPlayerMut.mutateAsync(b.playerId)}
                         className="text-xs text-emerald-800 hover:underline disabled:opacity-50"
                       >
-                        Remove ban
+                        {t("admin.partnerVenueDetail.moderation.removeBan")}
                       </button>
                     </li>
                   ))}
@@ -1528,7 +1621,9 @@ export default function OwnerVenueDetailPage() {
             </div>
             <div>
               <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                <h3 className="text-sm font-medium text-slate-800">Ban appeals</h3>
+                <h3 className="text-sm font-medium text-slate-800">
+                  {t("admin.partnerVenueDetail.moderation.banAppeals")}
+                </h3>
                 <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -1536,25 +1631,25 @@ export default function OwnerVenueDetailPage() {
                     onChange={(e) => setAppealsIncludeResolved(e.target.checked)}
                     className="rounded border-slate-300"
                   />
-                  Show resolved history
+                  {t("admin.partnerVenueDetail.moderation.showResolvedHistory")}
                 </label>
               </div>
               <div className="flex flex-wrap gap-3 mb-3 text-xs text-slate-600">
                 <label>
-                  From (UTC)
+                  {t("admin.partnerVenueDetail.moderation.fromUtc")}
                   <input
                     type="text"
-                    placeholder="YYYY-MM-DD"
+                    placeholder={t("admin.partnerVenueDetail.moderation.datePlaceholder")}
                     className="mt-0.5 block bg-white border border-slate-300 rounded px-2 py-1 font-mono"
                     value={appealsFromYmd}
                     onChange={(e) => setAppealsFromYmd(e.target.value.trim())}
                   />
                 </label>
                 <label>
-                  To (UTC)
+                  {t("admin.partnerVenueDetail.moderation.toUtc")}
                   <input
                     type="text"
-                    placeholder="YYYY-MM-DD"
+                    placeholder={t("admin.partnerVenueDetail.moderation.datePlaceholder")}
                     className="mt-0.5 block bg-white border border-slate-300 rounded px-2 py-1 font-mono"
                     value={appealsToYmd}
                     onChange={(e) => setAppealsToYmd(e.target.value.trim())}
@@ -1562,20 +1657,20 @@ export default function OwnerVenueDetailPage() {
                 </label>
               </div>
               <p className="text-xs text-slate-500 mb-2">
-                Players who are venue-banned can submit one open appeal per location. Resolve with an
-                outcome, optional internal note, and an optional message to the player (if you notify
-                them).
+                {t("admin.partnerVenueDetail.moderation.appealsLead")}
               </p>
               {modAppealsQ.isError ? (
                 <p className="text-sm text-red-700">
                   {modAppealsQ.error instanceof Error
                     ? modAppealsQ.error.message
-                    : "Appeals failed"}
+                    : t("admin.partnerVenueDetail.moderation.appealsFailed")}
                 </p>
               ) : null}
               {(modAppealsQ.data ?? []).length === 0 ? (
                 <p className="text-sm text-slate-500">
-                  {appealsIncludeResolved ? "No appeals on file." : "No open appeals."}
+                  {appealsIncludeResolved
+                    ? t("admin.partnerVenueDetail.moderation.noAppealsOnFile")
+                    : t("admin.partnerVenueDetail.moderation.noOpenAppeals")}
                 </p>
               ) : (
                 <ul className="text-sm space-y-3 divide-y divide-slate-100">
@@ -1610,7 +1705,9 @@ export default function OwnerVenueDetailPage() {
                             {a.status}
                           </span>
                           {a.playerNotifiedAt ? (
-                            <span className="text-[10px] text-slate-500">Player notified</span>
+                            <span className="text-[10px] text-slate-500">
+                              {t("admin.partnerVenueDetail.moderation.playerNotified")}
+                            </span>
                           ) : null}
                         </div>
                         <p className="text-slate-800 mt-1">
@@ -1621,39 +1718,53 @@ export default function OwnerVenueDetailPage() {
                         </p>
                         <p className="text-xs text-slate-600 mt-0.5 whitespace-pre-wrap">{a.message}</p>
                         <p className="text-xs text-slate-500">
-                          Submitted {new Date(a.createdAt).toLocaleString()}
+                          {t("admin.partnerVenueDetail.moderation.submittedAt", {
+                            date: new Date(a.createdAt).toLocaleString(),
+                          })}
                         </p>
                         {bannedPlayerIds.has(a.playerId) ? (
                           <a
                             href={`#ban-row-${a.playerId}`}
                             className="text-xs text-blue-700 hover:underline mt-1 inline-block"
                           >
-                            View active ban for this player
+                            {t("admin.partnerVenueDetail.moderation.viewActiveBan")}
                           </a>
                         ) : null}
                         {a.resolvedAt ? (
                           <p className="text-xs text-slate-500 mt-0.5">
-                            Resolved {new Date(a.resolvedAt).toLocaleString()}
                             {a.resolvedBy
-                              ? ` · by ${a.resolvedBy.username} (${a.resolvedBy.email})`
-                              : ""}
+                              ? t("admin.partnerVenueDetail.moderation.resolvedAtBy", {
+                                  date: new Date(a.resolvedAt).toLocaleString(),
+                                  username: a.resolvedBy.username,
+                                  email: a.resolvedBy.email,
+                                })
+                              : t("admin.partnerVenueDetail.moderation.resolvedAt", {
+                                  date: new Date(a.resolvedAt).toLocaleString(),
+                                })}
                           </p>
                         ) : null}
                         {a.staffNote ? (
                           <p className="text-xs text-slate-600 mt-1">
-                            <span className="font-medium">Staff note:</span> {a.staffNote}
+                            <span className="font-medium">
+                              {t("admin.partnerVenueDetail.moderation.staffNote")}
+                            </span>{" "}
+                            {a.staffNote}
                           </p>
                         ) : null}
                         {a.staffMessageToPlayer ? (
                           <p className="text-xs text-slate-600 mt-0.5">
-                            <span className="font-medium">Message to player:</span>{" "}
+                            <span className="font-medium">
+                              {t("admin.partnerVenueDetail.moderation.messageToPlayer")}
+                            </span>{" "}
                             {a.staffMessageToPlayer}
                           </p>
                         ) : null}
                         {isOpen ? (
                           <div className="mt-2 space-y-2 border border-slate-100 rounded-lg p-2 bg-slate-50/80">
                             <div className="flex flex-wrap gap-1">
-                              <span className="text-[10px] text-slate-500 w-full">Note templates</span>
+                              <span className="text-[10px] text-slate-500 w-full">
+                                {t("admin.partnerVenueDetail.moderation.noteTemplates")}
+                              </span>
                               {STAFF_NOTE_TEMPLATES.map((tpl) => (
                                 <button
                                   key={tpl}
@@ -1668,7 +1779,7 @@ export default function OwnerVenueDetailPage() {
                               ))}
                             </div>
                             <label className="block text-xs text-slate-600">
-                              Internal note (staff only)
+                              {t("admin.partnerVenueDetail.moderation.internalNoteLabel")}
                               <textarea
                                 className="mt-0.5 w-full text-sm border border-slate-200 rounded px-2 py-1 bg-white"
                                 rows={2}
@@ -1679,7 +1790,7 @@ export default function OwnerVenueDetailPage() {
                               />
                             </label>
                             <label className="block text-xs text-slate-600">
-                              Message to player (optional; used if you notify)
+                              {t("admin.partnerVenueDetail.moderation.playerMessageLabel")}
                               <textarea
                                 className="mt-0.5 w-full text-sm border border-slate-200 rounded px-2 py-1 bg-white"
                                 rows={2}
@@ -1698,7 +1809,7 @@ export default function OwnerVenueDetailPage() {
                                 }
                                 className="rounded border-slate-300"
                               />
-                              Notify player (push)
+                              {t("admin.partnerVenueDetail.moderation.notifyPlayer")}
                             </label>
                             <div className="flex flex-wrap gap-2 pt-1">
                               <button
@@ -1707,7 +1818,7 @@ export default function OwnerVenueDetailPage() {
                                 onClick={() => void resolve("lifted")}
                                 className="text-xs bg-emerald-100 border border-emerald-300 text-emerald-950 rounded px-2 py-1 hover:bg-emerald-200 disabled:opacity-50"
                               >
-                                Lift ban
+                                {t("admin.partnerVenueDetail.moderation.liftBan")}
                               </button>
                               <button
                                 type="button"
@@ -1715,7 +1826,7 @@ export default function OwnerVenueDetailPage() {
                                 onClick={() => void resolve("upheld")}
                                 className="text-xs bg-slate-200 border border-slate-300 text-slate-900 rounded px-2 py-1 hover:bg-slate-300 disabled:opacity-50"
                               >
-                                Uphold ban
+                                {t("admin.partnerVenueDetail.moderation.upholdBan")}
                               </button>
                               <button
                                 type="button"
@@ -1723,7 +1834,7 @@ export default function OwnerVenueDetailPage() {
                                 onClick={() => void resolve("dismissed")}
                                 className="text-xs border border-slate-300 rounded px-2 py-1 hover:bg-white disabled:opacity-50"
                               >
-                                Dismiss appeal
+                                {t("admin.partnerVenueDetail.moderation.dismissAppeal")}
                               </button>
                             </div>
                           </div>
@@ -1735,19 +1846,21 @@ export default function OwnerVenueDetailPage() {
               )}
             </div>
             <div className="border-t border-slate-100 pt-4">
-              <h3 className="text-sm font-medium text-slate-800 mb-2">Ban by player ID</h3>
+              <h3 className="text-sm font-medium text-slate-800 mb-2">
+                {t("admin.partnerVenueDetail.moderation.banByPlayerId")}
+              </h3>
               <div className="flex flex-wrap gap-2 items-end">
                 <label className="text-sm text-slate-600 flex-1 min-w-[200px]">
-                  Player UUID
+                  {t("admin.partnerVenueDetail.moderation.playerUuid")}
                   <input
                     className="mt-1 w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono"
                     value={modBanPlayerId}
                     onChange={(e) => setModBanPlayerId(e.target.value)}
-                    placeholder="00000000-0000-…"
+                    placeholder={t("admin.partnerVenueDetail.moderation.playerUuidPlaceholder")}
                   />
                 </label>
                 <label className="text-sm text-slate-600 flex-1 min-w-[180px]">
-                  Reason (optional)
+                  {t("admin.partnerVenueDetail.moderation.banReasonOptional")}
                   <input
                     className="mt-1 w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm"
                     value={modBanReason}
@@ -1771,7 +1884,7 @@ export default function OwnerVenueDetailPage() {
                   }}
                   className="bg-amber-100 border border-amber-300 text-amber-950 rounded-lg px-3 py-2 text-sm h-[38px] disabled:opacity-50"
                 >
-                  Ban
+                  {t("admin.partnerVenueDetail.moderation.ban")}
                 </button>
               </div>
             </div>
@@ -1781,15 +1894,19 @@ export default function OwnerVenueDetailPage() {
                 onClick={() => setAuditOpen((v) => !v)}
                 className="text-sm font-medium text-slate-800 hover:text-slate-950"
               >
-                Moderation audit log {auditOpen ? "▼" : "▶"}
+                {t("admin.partnerVenueDetail.moderation.auditLog")} {auditOpen ? "▼" : "▶"}
               </button>
               {auditOpen ? (
                 moderationAuditQ.isLoading ? (
-                  <p className="text-xs text-slate-500 mt-2">Loading audit…</p>
+                  <p className="text-xs text-slate-500 mt-2">
+                    {t("admin.partnerVenueDetail.common.loadingAudit")}
+                  </p>
                 ) : (
                   <ul className="mt-2 text-xs space-y-2 max-h-64 overflow-auto text-slate-700">
                     {(moderationAuditQ.data ?? []).length === 0 ? (
-                      <li className="text-slate-500">No entries yet.</li>
+                      <li className="text-slate-500">
+                        {t("admin.partnerVenueDetail.moderation.noAuditEntries")}
+                      </li>
                     ) : (
                       (moderationAuditQ.data ?? []).map((row) => (
                         <li key={row.id} className="border-b border-slate-100 pb-2 font-mono">
@@ -1816,16 +1933,16 @@ export default function OwnerVenueDetailPage() {
 
         {isOwner && metaRow && (
           <section className="border border-slate-200 rounded-xl p-4 space-y-4">
-            <h2 className="text-lg font-medium">Staff invites</h2>
+            <h2 className="text-lg font-medium">{t("admin.partnerVenueDetail.staffInvites.title")}</h2>
             <p className="text-xs text-slate-500">
-              We create a venue invite and, when the API has{" "}
+              {t("admin.partnerVenueDetail.staffInvites.leadBeforeSecret")}{" "}
               <code className="text-slate-600">CLERK_SECRET_KEY</code> +{" "}
-              <code className="text-slate-600">ADMIN_PORTAL_ORIGIN</code>, Clerk emails a sign-up
-              link. The invitee must use the same email, then complete{" "}
+              <code className="text-slate-600">ADMIN_PORTAL_ORIGIN</code>
+              {t("admin.partnerVenueDetail.staffInvites.leadBeforeAcceptInvite")}{" "}
               <Link href="/owner/accept-invite" className="text-brand hover:underline">
-                Accept invite
+                {t("admin.partnerVenueDetail.staffInvites.acceptInvite")}
               </Link>
-              .
+              {t("admin.partnerVenueDetail.staffInvites.leadAfterAcceptInvite")}
             </p>
             {clerkInviteNotice ? (
               <p className="text-xs text-amber-900 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2">
@@ -1834,7 +1951,9 @@ export default function OwnerVenueDetailPage() {
             ) : null}
             {lastCreatedToken && typeof window !== "undefined" ? (
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs">
-                <p className="text-emerald-800 font-medium mb-1">Invite link (copy now)</p>
+                <p className="text-emerald-800 font-medium mb-1">
+                  {t("admin.partnerVenueDetail.staffInvites.inviteLinkTitle")}
+                </p>
                 <code className="text-slate-800 break-all block select-all">
                   {`${window.location.origin}/owner/accept-invite?token=${lastCreatedToken}`}
                 </code>
@@ -1850,7 +1969,7 @@ export default function OwnerVenueDetailPage() {
               <inviteForm.Field name="email">
                 {(field) => (
                   <label className="block text-sm text-slate-600 flex-1 min-w-[200px]">
-                    Email
+                    {t("admin.partnerVenueDetail.staffInvites.email")}
                     <input
                       type="email"
                       disabled={readOnlyDisabled}
@@ -1858,7 +1977,7 @@ export default function OwnerVenueDetailPage() {
                       value={field.state.value}
                       onChange={(e) => field.handleChange(e.target.value)}
                       onBlur={field.handleBlur}
-                      placeholder="staff@venue.com"
+                      placeholder={t("admin.partnerVenueDetail.staffInvites.emailPlaceholder")}
                     />
                   </label>
                 )}
@@ -1866,7 +1985,7 @@ export default function OwnerVenueDetailPage() {
               <inviteForm.Field name="role">
                 {(field) => (
                   <label className="block text-sm text-slate-600">
-                    Role
+                    {t("admin.partnerVenueDetail.staffInvites.role")}
                     <select
                       disabled={readOnlyDisabled}
                       className="mt-1 block w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm disabled:opacity-60"
@@ -1876,8 +1995,12 @@ export default function OwnerVenueDetailPage() {
                       }
                       onBlur={field.handleBlur}
                     >
-                      <option value="EMPLOYEE">EMPLOYEE</option>
-                      {role === "OWNER" ? <option value="MANAGER">MANAGER</option> : null}
+                      <option value="EMPLOYEE">
+                        {t("admin.partnerVenueDetail.roles.EMPLOYEE")}
+                      </option>
+                      {role === "OWNER" ? (
+                        <option value="MANAGER">{t("admin.partnerVenueDetail.roles.MANAGER")}</option>
+                      ) : null}
                     </select>
                   </label>
                 )}
@@ -1891,14 +2014,16 @@ export default function OwnerVenueDetailPage() {
                     }
                     className="bg-slate-200 hover:bg-slate-300 disabled:opacity-50 rounded-lg px-4 py-2 text-sm h-[38px]"
                   >
-                    Send invite
+                    {t("admin.partnerVenueDetail.staffInvites.sendInvite")}
                   </button>
                 )}
               </inviteForm.Subscribe>
             </form>
             <div className="border border-slate-200 rounded-lg overflow-hidden text-sm">
               {invites.length === 0 ? (
-                <p className="p-3 text-slate-500">No invite history yet for this venue.</p>
+                <p className="p-3 text-slate-500">
+                  {t("admin.partnerVenueDetail.staffInvites.noInviteHistory")}
+                </p>
               ) : (
                 <table className="w-full">
                   <tbody>
@@ -1923,18 +2048,17 @@ export default function OwnerVenueDetailPage() {
 
         {canAnalytics && metaRow && (
           <section className="border border-slate-200 rounded-xl p-4 space-y-4">
-            <h2 className="text-lg font-medium">Marketing campaigns</h2>
+            <h2 className="text-lg font-medium">{t("admin.partnerVenueDetail.campaigns.title")}</h2>
             <p className="text-xs text-slate-500">
-              Push to players who visited this venue in the last N UTC days. Only sends to accounts
-              with partner marketing on and not in total privacy (server-side).
+              {t("admin.partnerVenueDetail.campaigns.lead")}
             </p>
             <p className="text-xs text-slate-600">
-              <strong>Order nudge</strong> (after dwell) uses optional per-venue overrides in the CMS, else
-              templates matched to this venue&apos;s <strong>venue types</strong> (super admin), else
-              platform defaults.
+              {t("admin.partnerVenueDetail.campaigns.orderNudgeLead")}
             </p>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-medium text-slate-700 mb-2">Suggested copy (apply to draft)</p>
+              <p className="text-xs font-medium text-slate-700 mb-2">
+                {t("admin.partnerVenueDetail.campaigns.suggestedCopyTitle")}
+              </p>
               <div className="flex flex-wrap gap-2">
                 {CAMPAIGN_COPY_TEMPLATES.map((tpl) => (
                   <button
@@ -1966,7 +2090,7 @@ export default function OwnerVenueDetailPage() {
                   <input
                     disabled={readOnlyDisabled}
                     className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm disabled:opacity-60"
-                    placeholder="Internal name"
+                    placeholder={t("admin.partnerVenueDetail.campaigns.internalNamePlaceholder")}
                     value={field.state.value}
                     onChange={(e) => field.handleChange(e.target.value)}
                     onBlur={field.handleBlur}
@@ -1992,7 +2116,7 @@ export default function OwnerVenueDetailPage() {
                   <input
                     disabled={readOnlyDisabled}
                     className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm sm:col-span-2 disabled:opacity-60"
-                    placeholder="Notification title"
+                    placeholder={t("admin.partnerVenueDetail.campaigns.notificationTitlePlaceholder")}
                     value={field.state.value}
                     onChange={(e) => field.handleChange(e.target.value)}
                     onBlur={field.handleBlur}
@@ -2004,7 +2128,7 @@ export default function OwnerVenueDetailPage() {
                   <textarea
                     disabled={readOnlyDisabled}
                     className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm min-h-[80px] sm:col-span-2 disabled:opacity-60"
-                    placeholder="Notification body"
+                    placeholder={t("admin.partnerVenueDetail.campaigns.notificationBodyPlaceholder")}
                     value={field.state.value}
                     onChange={(e) => field.handleChange(e.target.value)}
                     onBlur={field.handleBlur}
@@ -2016,12 +2140,14 @@ export default function OwnerVenueDetailPage() {
                 disabled={readOnlyDisabled || createCampMut.isPending}
                 className="bg-brand hover:bg-brand-hover disabled:opacity-50 rounded-lg px-4 py-2 text-sm font-semibold sm:col-span-2 justify-self-start"
               >
-                Save draft campaign
+                {t("admin.partnerVenueDetail.campaigns.saveDraft")}
               </button>
             </form>
             <div className="border border-slate-200 rounded-lg overflow-hidden">
               {campaigns.length === 0 ? (
-                <p className="p-4 text-slate-500 text-sm">No campaigns yet.</p>
+                <p className="p-4 text-slate-500 text-sm">
+                  {t("admin.partnerVenueDetail.campaigns.noCampaigns")}
+                </p>
               ) : (
                 <>
                   <table className="w-full text-sm">
@@ -2057,20 +2183,22 @@ export default function OwnerVenueDetailPage() {
 
         {canAnalytics && metaRow && (
           <section className="border border-slate-200 rounded-xl p-4 space-y-4">
-            <h2 className="text-lg font-medium">Receipt submissions</h2>
+            <h2 className="text-lg font-medium">{t("admin.partnerVenueDetail.receipts.title")}</h2>
             <p className="text-xs text-slate-500">
-              90-day retention target per submission. Approve or reject from detail view.
+              {t("admin.partnerVenueDetail.receipts.lead")}
             </p>
             <button
               type="button"
               onClick={() => void receiptsQ.refetch()}
               className="text-sm text-brand"
             >
-              Refresh list
+              {t("admin.partnerVenueDetail.receipts.refreshList")}
             </button>
             <div className="border border-slate-200 rounded-lg overflow-hidden">
               {receipts.length === 0 ? (
-                <p className="p-4 text-slate-500 text-sm">No receipts.</p>
+                <p className="p-4 text-slate-500 text-sm">
+                  {t("admin.partnerVenueDetail.receipts.noReceipts")}
+                </p>
               ) : (
                 <table className="w-full text-sm">
                   <tbody>
@@ -2090,7 +2218,9 @@ export default function OwnerVenueDetailPage() {
             {receiptIdOpen ? (
               <div className="border border-slate-300 rounded-lg p-4 space-y-3 bg-slate-50">
                 {receiptDetailQ.isPending ? (
-                  <p className="text-sm text-slate-500">Loading receipt…</p>
+                  <p className="text-sm text-slate-500">
+                    {t("admin.partnerVenueDetail.common.loadingReceipt")}
+                  </p>
                 ) : null}
                 {receiptDetailQ.isError && receiptDetailQ.error instanceof Error ? (
                   <p className="text-sm text-red-700">{receiptDetailQ.error.message}</p>
@@ -2098,12 +2228,15 @@ export default function OwnerVenueDetailPage() {
                 {receiptDetailQ.data ? (
                   <>
                     <p className="text-sm text-slate-600">
-                      {receiptDetailQ.data.player.email} — {receiptDetailQ.data.status}
+                      {t("admin.partnerVenueDetail.receipts.playerStatus", {
+                        email: receiptDetailQ.data.player.email,
+                        status: receiptDetailQ.data.status,
+                      })}
                     </p>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={receiptDetailQ.data.imageData}
-                      alt="Receipt"
+                      alt={t("admin.partnerVenueDetail.receipts.receiptAlt")}
                       className="max-h-64 rounded border border-slate-300"
                     />
                     {receiptDetailQ.data.status === "PENDING" ? (
@@ -2116,7 +2249,7 @@ export default function OwnerVenueDetailPage() {
                           }
                           className="bg-emerald-800 text-white px-3 py-2 rounded-lg text-sm disabled:opacity-50"
                         >
-                          Approve
+                          {t("admin.partnerVenueDetail.receipts.approve")}
                         </button>
                         <button
                           type="button"
@@ -2126,14 +2259,14 @@ export default function OwnerVenueDetailPage() {
                           }
                           className="bg-red-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-red-700 disabled:opacity-50"
                         >
-                          Reject
+                          {t("admin.partnerVenueDetail.receipts.reject")}
                         </button>
                         <button
                           type="button"
                           onClick={() => setReceiptIdOpen(null)}
                           className="text-slate-600 text-sm px-2"
                         >
-                          Close
+                          {t("admin.partnerVenueDetail.common.close")}
                         </button>
                       </div>
                     ) : (
@@ -2142,7 +2275,7 @@ export default function OwnerVenueDetailPage() {
                         onClick={() => setReceiptIdOpen(null)}
                         className="text-slate-600 text-sm px-2"
                       >
-                        Close
+                        {t("admin.partnerVenueDetail.common.close")}
                       </button>
                     )}
                   </>
@@ -2154,19 +2287,16 @@ export default function OwnerVenueDetailPage() {
 
         {redemptionsPayload && metaRow && (
           <section>
-            <h2 className="text-lg font-medium mb-2">Perk redemptions</h2>
+            <h2 className="text-lg font-medium mb-2">{t("admin.partnerVenueDetail.redemptions.title")}</h2>
             <p className="text-sm text-slate-600 mb-4 max-w-2xl">
-              Each redemption shows a <strong>staff verification code</strong> — match it before
-              honouring the perk. Managers and owners can <strong>void</strong> with a reason (row greys
-              out; exports and analytics reflect voids). This gives a simple fraud-resistant audit trail
-              without spreadsheets.
+              {t("admin.partnerVenueDetail.redemptions.lead")}
             </p>
             {canAnalytics && (
               <div className="mb-4 flex flex-wrap items-center gap-2">
                 <input
                   disabled={readOnlyDisabled}
                   className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-sm flex-1 min-w-[200px] disabled:opacity-60"
-                  placeholder="Void reason (managers)"
+                  placeholder={t("admin.partnerVenueDetail.redemptions.voidReasonPlaceholder")}
                   value={voidReason}
                   onChange={(e) => setVoidReason(e.target.value)}
                 />
@@ -2174,7 +2304,7 @@ export default function OwnerVenueDetailPage() {
             )}
             <div className="flex flex-wrap items-center gap-4 mb-4">
               <label className="text-sm text-slate-600 flex items-center gap-2">
-                Date (UTC)
+                {t("admin.partnerVenueDetail.redemptions.dateUtc")}
                 <input
                   type="date"
                   value={dateYmd}
@@ -2187,7 +2317,7 @@ export default function OwnerVenueDetailPage() {
                 onClick={() => void redemptionsQ.refetch()}
                 className="text-sm bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded-lg"
               >
-                Refresh
+                {t("admin.partnerVenueDetail.common.refresh")}
               </button>
             </div>
             <div className="rounded-xl border border-slate-200 overflow-x-auto">
@@ -2219,7 +2349,9 @@ export default function OwnerVenueDetailPage() {
                 </tbody>
               </table>
               {redemptionRows.length === 0 && (
-                <p className="p-6 text-slate-500">No redemptions for this day.</p>
+                <p className="p-6 text-slate-500">
+                  {t("admin.partnerVenueDetail.redemptions.noRedemptionsForDay")}
+                </p>
               )}
             </div>
           </section>

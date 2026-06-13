@@ -10,13 +10,14 @@ import {
 } from '@tanstack/react-table';
 import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ownerFetch } from '@/lib/portalApi';
 import { OwnerAnalyticsCharts } from '@/components/OwnerAnalyticsCharts';
 import { PartnerReadOnlyBanner } from '@/components/PartnerReadOnlyBanner';
 import {
-  partnerOrganizationMutationsBlockedReason,
-  partnerVenueMutationsBlockedReason,
-} from '@/lib/partnerVenueReadOnly';
+  partnerOrganizationMutationsBlockedNotice,
+  partnerVenueMutationsBlockedNotice,
+} from '@/lib/partnerReadOnlyMessages';
 import {
   ownerAnalyticsQueryString,
   type OwnerOrganizationAnalytics,
@@ -41,6 +42,7 @@ const perkColHelper =
   createColumnHelper<OwnerOrganizationAnalytics['redemptions']['perPerk'][number]>();
 
 export default function OwnerOrganizationPage() {
+  const { t } = useTranslation();
   const params = useParams();
   const organizationId = params.organizationId as string;
   const { getToken, isLoaded } = useAuth();
@@ -60,7 +62,7 @@ export default function OwnerOrganizationPage() {
 
   const analytics = analyticsQ.data ?? null;
 
-  const orgReadOnlyMessage = useMemo(() => {
+  const orgReadOnlyNotice = useMemo(() => {
     const data = venuesListQ.data;
     if (!data) return null;
     const platformRole = data.platformRole ?? 'NONE';
@@ -72,18 +74,18 @@ export default function OwnerOrganizationPage() {
       return null;
     }
     const org = rows[0]?.venue.organization ?? null;
-    const orgMsg = partnerOrganizationMutationsBlockedReason(org);
-    if (orgMsg) return orgMsg;
-    const venueMsg = rows
+    const orgNotice = partnerOrganizationMutationsBlockedNotice(org);
+    if (orgNotice) return orgNotice;
+    const venueNotice = rows
       .map((r: PortalVenueListRow) =>
-        partnerVenueMutationsBlockedReason({
+        partnerVenueMutationsBlockedNotice({
           locked: r.venue.locked,
           lockReason: r.venue.lockReason ?? null,
           organization: r.venue.organization ?? org,
         }),
       )
-      .find((m) => m != null);
-    return venueMsg ?? null;
+      .find((n) => n != null);
+    return venueNotice ?? null;
   }, [venuesListQ.data, organizationId]);
 
   const hourSeries = useMemo(() => {
@@ -93,7 +95,7 @@ export default function OwnerOrganizationPage() {
       : analytics.redemptions.byHourUtc;
   }, [analytics]);
 
-  const readOnlyDisabled = Boolean(orgReadOnlyMessage);
+  const readOnlyDisabled = Boolean(orgReadOnlyNotice);
 
   const perkRows = useMemo(
     () => analytics?.redemptions.perPerk.slice(0, 12) ?? [],
@@ -104,7 +106,7 @@ export default function OwnerOrganizationPage() {
     () => [
       perkColHelper.display({
         id: 'perk',
-        header: 'Perk',
+        header: t('admin.partnerOrgRollup.columns.perk'),
         cell: ({ row }) => (
           <span>
             <span className="font-mono text-brand">{row.original.code}</span>{' '}
@@ -113,11 +115,11 @@ export default function OwnerOrganizationPage() {
         ),
       }),
       perkColHelper.accessor('count', {
-        header: 'Count',
+        header: t('admin.partnerOrgRollup.columns.count'),
         cell: (c) => <span className="text-slate-600">{c.getValue()}</span>,
       }),
     ],
-    [],
+    [t],
   );
 
   const perkTable = useReactTable({
@@ -178,33 +180,33 @@ export default function OwnerOrganizationPage() {
       <header className="border-b border-slate-200 px-6 py-4 flex flex-wrap justify-between gap-3">
         <div>
           <Link href="/owner/venues" className="text-sm text-brand hover:underline">
-            ← Venues
+            {t('admin.partnerOrgRollup.backVenues')}
           </Link>
-          <h1 className="text-xl font-semibold mt-2">Organization roll-up</h1>
+          <h1 className="text-xl font-semibold mt-2">{t('admin.partnerOrgRollup.title')}</h1>
           <p className="text-sm text-slate-600 mt-1 font-mono">{organizationId}</p>
         </div>
         <UserButton />
       </header>
       <main className="p-6 max-w-4xl">
         {!isLoaded || analyticsQ.isPending ? (
-          <p className="text-slate-600">Loading…</p>
+          <p className="text-slate-600">{t('admin.partnerOrgRollup.loading')}</p>
         ) : null}
         {loadErr ? (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800 text-sm">
             {loadErr}
           </div>
         ) : null}
-        {orgReadOnlyMessage ? (
-          <PartnerReadOnlyBanner message={orgReadOnlyMessage} />
+        {orgReadOnlyNotice ? (
+          <PartnerReadOnlyBanner notice={orgReadOnlyNotice} />
         ) : null}
         {analytics && analytics.venueCount === 0 ? (
-          <p className="text-slate-600 mt-4">No venues are linked to this organization yet.</p>
+          <p className="text-slate-600 mt-4">{t('admin.partnerOrgRollup.noVenues')}</p>
         ) : null}
         {analytics && analytics.venueCount > 0 ? (
           <>
             <div className="flex flex-wrap gap-3 items-end mt-2">
               <label className="text-sm text-slate-600">
-                Period (days)
+                {t('admin.partnerAnalytics.periodDays')}
                 <select
                   value={days}
                   onChange={(e) => setDays(Number(e.target.value))}
@@ -218,7 +220,7 @@ export default function OwnerOrganizationPage() {
                 </select>
               </label>
               <label className="text-sm text-slate-600">
-                From
+                {t('admin.partnerAnalytics.from')}
                 <input
                   type="date"
                   value={fromYmd}
@@ -227,7 +229,7 @@ export default function OwnerOrganizationPage() {
                 />
               </label>
               <label className="text-sm text-slate-600">
-                To
+                {t('admin.partnerAnalytics.to')}
                 <input
                   type="date"
                   value={toYmd}
@@ -243,11 +245,11 @@ export default function OwnerOrganizationPage() {
                   setToYmd('');
                 }}
               >
-                Clear custom range
+                {t('admin.partnerAnalytics.clearRange')}
               </button>
             </div>
             <p className="text-xs text-slate-500 mt-2">
-              Custom from/to overrides the rolling window when both are set (UTC dates).
+              {t('admin.partnerAnalytics.rangeHint')}
             </p>
             <div className="flex flex-wrap gap-4 mt-3">
               <button
@@ -256,7 +258,7 @@ export default function OwnerOrganizationPage() {
                 onClick={() => void exportCsv()}
                 className="text-sm text-emerald-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Export redemptions CSV
+                {t('admin.partnerOrgRollup.exportRedemptionsCsv')}
               </button>
               <button
                 type="button"
@@ -264,96 +266,118 @@ export default function OwnerOrganizationPage() {
                 onClick={() => void exportFunnelCsv()}
                 className="text-sm text-emerald-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Export funnel events CSV
+                {t('admin.partnerOrgRollup.exportFunnelCsv')}
               </button>
             </div>
             {analytics ? (
               <p className="text-xs text-slate-500 mt-2">
-                Range {analytics.period.startDay} → {analytics.period.endDay}
-                {analytics.analyticsTimeZone ? ` · sample TZ: ${analytics.analyticsTimeZone}` : ''}
+                {t('admin.partnerOrgRollup.rangeLine', {
+                  startDay: analytics.period.startDay,
+                  endDay: analytics.period.endDay,
+                })}
+                {analytics.analyticsTimeZone
+                  ? t('admin.partnerOrgRollup.sampleTz', {
+                      timeZone: analytics.analyticsTimeZone,
+                    })
+                  : ''}
               </p>
             ) : null}
             <p className="text-sm text-slate-500 mt-4">
-              Rolling up{' '}
-              <span className="text-slate-800 font-medium">{analytics.venueCount}</span> venues:{' '}
+              {t('admin.partnerOrgRollup.rollingUp', { count: analytics.venueCount })}{' '}
               {analytics.venues.map((v) => v.name).join(' · ')}
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-6">
               <div className="rounded-lg border border-slate-200 bg-slate-100 p-3">
-                <p className="text-xs text-slate-500">Unique players (org)</p>
+                <p className="text-xs text-slate-500">
+                  {t('admin.partnerAnalytics.uniquePlayersOrg')}
+                </p>
                 <p className="text-xl font-semibold text-slate-900">{analytics.visits.uniquePlayers}</p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-100 p-3">
-                <p className="text-xs text-slate-500">Redemptions</p>
+                <p className="text-xs text-slate-500">{t('admin.partnerAnalytics.redemptions')}</p>
                 <p className="text-xl font-semibold text-slate-900">{analytics.redemptions.total}</p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-100 p-3">
-                <p className="text-xs text-slate-500">Visit → redeem %</p>
+                <p className="text-xs text-slate-500">
+                  {t('admin.partnerAnalytics.visitRedeemPct')}
+                </p>
                 <p className="text-xl font-semibold text-slate-900">
                   {analytics.funnel.visitToRedeemPercent}%
                 </p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-100 p-3">
-                <p className="text-xs text-slate-500">Player-days (all sites)</p>
+                <p className="text-xs text-slate-500">{t('admin.partnerAnalytics.playerDays')}</p>
                 <p className="text-xl font-semibold text-slate-900">
                   {analytics.visits.uniquePlayerDays}
                 </p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-100 p-3">
-                <p className="text-xs text-slate-500">Repeat visitors (same site)</p>
+                <p className="text-xs text-slate-500">
+                  {t('admin.partnerAnalytics.repeatVisitors')}
+                </p>
                 <p className="text-xl font-semibold text-slate-900">
                   {analytics.visits.loyalty.repeatVisitPlayers}
                 </p>
                 <p className="text-[10px] text-slate-500 mt-0.5">
-                  {analytics.visits.loyalty.shareRepeatVisitorsPercent}% of org players · avg{" "}
-                  {analytics.visits.loyalty.avgVisitDaysPerPlayer} days/player
+                  {t('admin.partnerOrgRollup.repeatVisitorsDetail', {
+                    percent: analytics.visits.loyalty.shareRepeatVisitorsPercent,
+                    avg: analytics.visits.loyalty.avgVisitDaysPerPlayer,
+                  })}
                 </p>
               </div>
             </div>
             <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
               <h3 className="text-sm font-semibold text-slate-800 mb-3">
-                Funnel journey (detect → enter → play → redeem)
+                {t('admin.partnerAnalytics.funnelJourneyTitle')}
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                 <div>
-                  <p className="text-xs text-slate-500">Detect impressions</p>
+                  <p className="text-xs text-slate-500">{t('admin.partnerAnalytics.detectImp')}</p>
                   <p className="text-lg font-semibold text-slate-900">
                     {analytics.funnelJourney.detectImpressions}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500">Unique entered</p>
+                  <p className="text-xs text-slate-500">
+                    {t('admin.partnerAnalytics.uniqueEntered')}
+                  </p>
                   <p className="text-lg font-semibold text-slate-900">
                     {analytics.funnelJourney.uniqueEntered}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500">Unique played</p>
+                  <p className="text-xs text-slate-500">{t('admin.partnerAnalytics.uniquePlayed')}</p>
                   <p className="text-lg font-semibold text-slate-900">
                     {analytics.funnelJourney.uniquePlayed}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500">Unique redeemed</p>
+                  <p className="text-xs text-slate-500">
+                    {t('admin.partnerAnalytics.uniqueRedeemed')}
+                  </p>
                   <p className="text-lg font-semibold text-slate-900">
                     {analytics.funnelJourney.uniqueRedeemed}
                   </p>
                 </div>
               </div>
               <p className="text-xs text-slate-500 mt-3">
-                Enter→play {analytics.funnelJourney.enterToPlayPercent}% · play→redeem{' '}
-                {analytics.funnelJourney.playToRedeemPercent}% · entered→redeem{' '}
-                {analytics.funnelJourney.enteredToRedeemPercent}%
+                {t('admin.partnerOrgRollup.funnelRates', {
+                  enterToPlay: analytics.funnelJourney.enterToPlayPercent,
+                  playToRedeem: analytics.funnelJourney.playToRedeemPercent,
+                  enteredToRedeem: analytics.funnelJourney.enteredToRedeemPercent,
+                })}
               </p>
             </div>
             <OwnerAnalyticsCharts
-              title="Organization trends (all locations)"
+              title={t('admin.partnerAnalytics.orgTrendsTitle')}
               visitsByDay={analytics.visits.byDay}
               redemptionsByDay={analytics.redemptions.byDay}
               byHour={hourSeries}
             />
             <div className="mt-8">
-              <h3 className="text-sm font-semibold text-slate-800 mb-2">Top perks (all locations)</h3>
+              <h3 className="text-sm font-semibold text-slate-800 mb-2">
+                {t('admin.partnerOrgRollup.topPerksTitle')}
+              </h3>
               <div className="text-sm border border-slate-200 rounded-lg overflow-hidden">
                 <table className="min-w-full">
                   <thead>

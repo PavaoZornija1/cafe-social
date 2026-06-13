@@ -23,6 +23,30 @@ const VenueGeofenceMap = dynamic(() => import("@/components/VenueGeofenceMap"), 
 const DEFAULT_ONBOARD_PIN = { lat: 46.0569, lng: 14.5058 };
 const STEPS = 4;
 
+function OnboardingCompletingView() {
+  const { t } = useTranslation();
+  return (
+    <div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-br from-brand-lighter via-[var(--background)] to-white px-4"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div
+        className="h-10 w-10 rounded-xl bg-brand animate-pulse shadow-portal-card"
+        aria-hidden
+      />
+      <div className="mt-6 h-8 w-8 animate-spin rounded-full border-2 border-brand/25 border-t-brand" />
+      <h1 className="mt-6 text-lg font-semibold text-slate-900 text-center">
+        {t("admin.partnerOnboarding.completingTitle")}
+      </h1>
+      <p className="mt-2 max-w-sm text-center text-sm text-slate-600 leading-relaxed">
+        {t("admin.partnerOnboarding.completingBody")}
+      </p>
+    </div>
+  );
+}
+
 export default function PartnerOnboardingPage() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -32,6 +56,7 @@ export default function PartnerOnboardingPage() {
   const [geoPin, setGeoPin] = useState(DEFAULT_ONBOARD_PIN);
   const [geoPolygon, setGeoPolygon] = useState<GeofencePolygonGeoJson | null>(null);
   const [mapLayoutKey, setMapLayoutKey] = useState(0);
+  const [isFinishing, setIsFinishing] = useState(false);
   const meQ = usePortalMeQuery(getToken, isLoaded);
   const onboardMut = usePartnerOnboardingMutation(getToken);
   const prevNeedsOnboardingRef = useRef<boolean | null>(null);
@@ -50,7 +75,7 @@ export default function PartnerOnboardingPage() {
     onSubmit: async ({ value }) => {
       setSubmitErr(null);
       if (!geoPolygon) {
-        setSubmitErr("Draw a play-area polygon on the map before finishing.");
+        setSubmitErr(t("admin.partnerOnboarding.errorNoPolygon"));
         return;
       }
 
@@ -69,8 +94,19 @@ export default function PartnerOnboardingPage() {
         }),
       };
 
-      await onboardMut.mutateAsync(payload);
-      router.replace("/owner/venues");
+      setIsFinishing(true);
+      try {
+        await onboardMut.mutateAsync(payload);
+        const refreshed = await meQ.refetch();
+        if (refreshed.data?.needsPartnerOnboarding) {
+          setIsFinishing(false);
+          setSubmitErr(t("admin.partnerOnboarding.errorProfileStale"));
+          return;
+        }
+        router.replace("/owner/venues");
+      } catch {
+        setIsFinishing(false);
+      }
     },
   });
 
@@ -86,6 +122,7 @@ export default function PartnerOnboardingPage() {
   const venueName = useStore(form.store, (s) => s.values.venueName);
 
   useEffect(() => {
+    if (isFinishing) return;
     if (!meQ.data || meQ.isPending) return;
     const needs = meQ.data.needsPartnerOnboarding;
 
@@ -107,10 +144,14 @@ export default function PartnerOnboardingPage() {
     }
 
     prevNeedsOnboardingRef.current = needs;
-  }, [meQ.data, meQ.isPending, router]);
+  }, [isFinishing, meQ.data, meQ.isPending, router]);
 
   if (!isLoaded) {
-    return <div className="p-8 text-slate-600 text-sm">Loading…</div>;
+    return <div className="p-8 text-slate-600 text-sm">{t("admin.partnerOnboarding.loading")}</div>;
+  }
+
+  if (isFinishing) {
+    return <OnboardingCompletingView />;
   }
 
   if (accessGrantedMidFlow) {
@@ -138,14 +179,13 @@ export default function PartnerOnboardingPage() {
     >
       <div className="w-full max-w-lg">
         <p className="text-xs font-semibold uppercase tracking-wide text-brand-muted mb-2">
-          Partner setup
+          {t("admin.partnerOnboarding.wizardLabel")}
         </p>
         <h1 className="text-2xl font-semibold text-slate-900 tracking-tight mb-2">
-          Welcome to Cafe Social
+          {t("admin.partnerOnboarding.welcomeTitle")}
         </h1>
         <p className="text-sm text-slate-600 mb-8">
-          Step {step + 1} of {STEPS} — your trial includes full features for one location for 14
-          days.
+          {t("admin.partnerOnboarding.stepLead", { step: step + 1, total: STEPS })}
         </p>
 
         {(submitErr ||
@@ -163,7 +203,9 @@ export default function PartnerOnboardingPage() {
             <form.Field name="locationKind">
               {(field) => (
                 <div className="space-y-4">
-                  <p className="text-sm text-slate-700 font-medium">How do you operate?</p>
+                  <p className="text-sm text-slate-700 font-medium">
+                    {t("admin.partnerOnboarding.howOperate")}
+                  </p>
                   <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-slate-200 p-4 hover:bg-slate-50 has-[:checked]:border-brand has-[:checked]:bg-brand-light/40">
                     <input
                       type="radio"
@@ -173,9 +215,11 @@ export default function PartnerOnboardingPage() {
                       onChange={() => field.handleChange("SINGLE_LOCATION")}
                     />
                     <span>
-                      <span className="font-medium text-slate-900">Single location</span>
+                      <span className="font-medium text-slate-900">
+                        {t("admin.partnerOnboarding.singleLocationTitle")}
+                      </span>
                       <span className="block text-xs text-slate-600 mt-1">
-                        One café, bar, or venue.
+                        {t("admin.partnerOnboarding.singleLocationDesc")}
                       </span>
                     </span>
                   </label>
@@ -188,10 +232,11 @@ export default function PartnerOnboardingPage() {
                       onChange={() => field.handleChange("MULTI_LOCATION")}
                     />
                     <span>
-                      <span className="font-medium text-slate-900">Multiple locations</span>
+                      <span className="font-medium text-slate-900">
+                        {t("admin.partnerOnboarding.multiLocationTitle")}
+                      </span>
                       <span className="block text-xs text-slate-600 mt-1">
-                        Multiple sites under one organization — roll-up analytics across locations;
-                        trial still covers one site until you subscribe.
+                        {t("admin.partnerOnboarding.multiLocationDesc")}
                       </span>
                     </span>
                   </label>
@@ -205,14 +250,14 @@ export default function PartnerOnboardingPage() {
               {(field) => (
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-slate-800">
-                    Organization name
+                    {t("admin.partnerOnboarding.organizationName")}
                   </label>
                   <input
                     className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
                     value={field.state.value}
                     onChange={(e) => field.handleChange(e.target.value)}
                     onBlur={field.handleBlur}
-                    placeholder="e.g. Northside Coffee Group"
+                    placeholder={t("admin.partnerOnboarding.organizationNamePlaceholder")}
                   />
                 </div>
               )}
@@ -224,13 +269,15 @@ export default function PartnerOnboardingPage() {
               <form.Field name="venueName">
                 {(field) => (
                   <div>
-                    <label className="block text-sm font-medium text-slate-800">Venue name</label>
+                    <label className="block text-sm font-medium text-slate-800">
+                      {t("admin.partnerOnboarding.venueName")}
+                    </label>
                     <input
                       className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
                       value={field.state.value}
                       onChange={(e) => field.handleChange(e.target.value)}
                       onBlur={field.handleBlur}
-                      placeholder="e.g. Northside · Main Street"
+                      placeholder={t("admin.partnerOnboarding.venueNamePlaceholder")}
                     />
                   </div>
                 )}
@@ -239,7 +286,7 @@ export default function PartnerOnboardingPage() {
                 {(field) => (
                   <div>
                     <label className="block text-sm font-medium text-slate-800">
-                      Address (optional)
+                      {t("admin.partnerOnboarding.addressOptional")}
                     </label>
                     <input
                       className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
@@ -258,7 +305,7 @@ export default function PartnerOnboardingPage() {
                         className="block text-sm font-medium text-slate-800"
                         htmlFor="onboard-country"
                       >
-                        Country
+                        {t("admin.partnerOnboarding.country")}
                       </label>
                       <CountrySelect
                         id="onboard-country"
@@ -269,9 +316,11 @@ export default function PartnerOnboardingPage() {
                           field.handleChange(iso);
                           if (iso !== prev) form.setFieldValue("city", "");
                         }}
-                        placeholder="Search country…"
+                        placeholder={t("admin.partnerOnboarding.countrySearchPlaceholder")}
                       />
-                      <p className="mt-1 text-xs text-slate-500">Saved as a 2-letter ISO code.</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {t("admin.partnerOnboarding.countryIsoHint")}
+                      </p>
                     </div>
                   )}
                 </form.Field>
@@ -284,7 +333,7 @@ export default function PartnerOnboardingPage() {
                             className="block text-sm font-medium text-slate-800"
                             htmlFor="onboard-city"
                           >
-                            City
+                            {t("admin.partnerOnboarding.city")}
                           </label>
                           <CitySelect
                             id="onboard-city"
@@ -304,10 +353,7 @@ export default function PartnerOnboardingPage() {
 
           {step === 3 ? (
             <div className="space-y-4">
-              <p className="text-sm text-slate-600">
-                Drag the pin to your venue reference point and draw the play area (geofence) — same
-                tool as in the admin CMS.
-              </p>
+              <p className="text-sm text-slate-600">{t("admin.partnerOnboarding.mapLead")}</p>
               <div key={mapLayoutKey}>
                 <VenueGeofenceMap
                   pin={geoPin}
@@ -319,14 +365,14 @@ export default function PartnerOnboardingPage() {
                 {(field) => (
                   <div>
                     <label className="block text-sm font-medium text-slate-800">
-                      Timezone (optional, IANA)
+                      {t("admin.partnerOnboarding.timezoneOptional")}
                     </label>
                     <input
                       className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono text-xs"
                       value={field.state.value}
                       onChange={(e) => field.handleChange(e.target.value)}
                       onBlur={field.handleBlur}
-                      placeholder="Europe/Zagreb"
+                      placeholder={t("admin.partnerOnboarding.timezonePlaceholder")}
                     />
                   </div>
                 )}
@@ -349,7 +395,7 @@ export default function PartnerOnboardingPage() {
                     className="text-sm font-medium text-slate-600 hover:text-slate-900"
                     onClick={() => setStep((s) => Math.max(0, s - 1))}
                   >
-                    Back
+                    {t("admin.partnerOnboarding.back")}
                   </button>
                 ) : (
                   <span />
@@ -371,7 +417,7 @@ export default function PartnerOnboardingPage() {
                       });
                     }}
                   >
-                    Continue
+                    {t("admin.partnerOnboarding.continue")}
                   </button>
                 ) : (
                   <button
@@ -379,7 +425,9 @@ export default function PartnerOnboardingPage() {
                     disabled={onboardMut.isPending || !canNext}
                     className="rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground shadow-md shadow-brand/20 hover:bg-brand-hover disabled:opacity-40"
                   >
-                    {onboardMut.isPending ? "Creating…" : "Finish setup"}
+                    {onboardMut.isPending
+                      ? t("admin.partnerOnboarding.creating")
+                      : t("admin.partnerOnboarding.finishSetup")}
                   </button>
                 )}
               </div>
@@ -388,9 +436,9 @@ export default function PartnerOnboardingPage() {
         </div>
 
         <p className="mt-8 text-center text-xs text-slate-500">
-          Were you invited to a team?{" "}
+          {t("admin.partnerOnboarding.inviteLead")}{" "}
           <Link href="/owner/accept-invite" className="text-brand font-medium hover:underline">
-            Accept invite
+            {t("admin.partnerOnboarding.acceptInvite")}
           </Link>
         </p>
       </div>

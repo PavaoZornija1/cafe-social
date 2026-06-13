@@ -8,8 +8,12 @@ import { useTranslation } from "react-i18next";
 import { AdminLanguageSelect } from "@/i18n/AdminLanguageSelect";
 import { useInvalidatePartnerContext, usePortalMeQuery } from "@/lib/queries";
 import type { PortalMeOrg, PortalMeResponse } from "../lib/portalApi";
-import { TrialContactBar } from "./TrialContactBar";
+import {
+  partnerHasManagementAccess,
+  partnerNavVenuesActive,
+} from "@/lib/partnerRoles";
 import { SuperAdminVenuePicker } from "./SuperAdminVenuePicker";
+import { TrialContactBar } from "./TrialContactBar";
 
 function navClass(active: boolean) {
   return `group flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium tracking-tight transition-all duration-200 ${active
@@ -94,6 +98,8 @@ export default function PortalShell({
   }
 
   const isSa = me?.platformRole === "SUPER_ADMIN";
+  const staffOnly = !isSa && Boolean(me?.venues?.length) && !partnerHasManagementAccess(me?.venues);
+  const showManagementNav = !isSa && !staffOnly;
   const showPartnerCmsLink = !isSa && partnerHasCmsAccess(me);
 
   const isStreamlinedPartnerSetup =
@@ -103,8 +109,8 @@ export default function PortalShell({
     return (
       <div className="min-h-screen text-slate-900 bg-gradient-to-br from-brand-lighter via-[var(--background)] to-white">
         <header className="sticky top-0 z-20 border-b border-slate-200/90 bg-white/90 backdrop-blur-md">
-          <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-            <Link href="/onboarding" className="flex items-center gap-3 group shrink-0">
+          <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+            <Link href="/onboarding" className="flex min-w-0 items-center gap-3 group shrink-0">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-foreground text-xs font-bold tracking-tight shadow-md shadow-brand/30 transition-transform group-hover:scale-[1.02]">
                 CS
               </div>
@@ -117,14 +123,12 @@ export default function PortalShell({
                 </p>
               </div>
             </Link>
-            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-              <div className="w-[min(100%,9.5rem)]">
-                <AdminLanguageSelect />
-              </div>
+            <div className="flex shrink-0 items-center gap-3 sm:gap-4">
+              <AdminLanguageSelect variant="compact" />
               <UserButton
                 appearance={{
                   elements: {
-                    userButtonAvatarBox: "h-8 w-8 rounded-lg ring-2 ring-white shadow-sm",
+                    userButtonAvatarBox: "h-9 w-9 rounded-lg ring-2 ring-white shadow-sm",
                   },
                 }}
               />
@@ -225,26 +229,28 @@ export default function PortalShell({
               <>
                 <Link
                   href="/owner/venues"
-                  className={navClass(
-                    Boolean(pathname?.startsWith("/owner/venues")) &&
-                      !pathname?.startsWith("/owner/analytics") &&
-                      !pathname?.startsWith("/owner/subscriptions"),
-                  )}
+                  className={navClass(partnerNavVenuesActive(pathname, staffOnly))}
                 >
-                  {t("admin.shell.venuesAndDashboard")}
+                  {staffOnly
+                    ? t("admin.shell.staffRedemptions")
+                    : t("admin.shell.locationsHome")}
                 </Link>
-                <Link
-                  href="/owner/analytics"
-                  className={navClass(pathname?.startsWith("/owner/analytics") ?? false)}
-                >
-                  {t("admin.shell.statistics")}
-                </Link>
-                <Link
-                  href="/owner/subscriptions"
-                  className={navClass(pathname?.startsWith("/owner/subscriptions") ?? false)}
-                >
-                  {t("admin.shell.subscriptions")}
-                </Link>
+                {showManagementNav ? (
+                  <Link
+                    href="/owner/analytics"
+                    className={navClass(pathname?.startsWith("/owner/analytics") ?? false)}
+                  >
+                    {t("admin.shell.statistics")}
+                  </Link>
+                ) : null}
+                {showManagementNav ? (
+                  <Link
+                    href="/owner/subscriptions"
+                    className={navClass(pathname?.startsWith("/owner/subscriptions") ?? false)}
+                  >
+                    {t("admin.shell.subscriptions")}
+                  </Link>
+                ) : null}
                 {showPartnerCmsLink ? (
                   <Link
                     href="/venues"

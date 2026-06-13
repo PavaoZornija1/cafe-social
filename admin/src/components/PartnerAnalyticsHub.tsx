@@ -38,7 +38,10 @@ function roleCanAnalytics(role: string): boolean {
   return role === "OWNER" || role === "MANAGER";
 }
 
-function buildScopes(rows: VenueListRow[]): Scope[] {
+function buildScopes(
+  rows: VenueListRow[],
+  rollupLabel: (orgName: string) => string,
+): Scope[] {
   const scopes: Scope[] = [];
   const seenOrg = new Set<string>();
   for (const r of rows) {
@@ -49,7 +52,7 @@ function buildScopes(rows: VenueListRow[]): Scope[] {
       scopes.push({
         kind: "org",
         id: oid,
-        label: `Roll-up · ${r.venue.organization?.name ?? "Organization"}`,
+        label: rollupLabel(r.venue.organization?.name ?? ""),
       });
     }
   }
@@ -81,8 +84,12 @@ export function PartnerAnalyticsHub() {
 
   const scopes = useMemo(() => {
     const rows = (listQ.data?.venues ?? []) as VenueListRow[];
-    return buildScopes(rows);
-  }, [listQ.data?.venues]);
+    return buildScopes(rows, (orgName) =>
+      t("admin.partnerAnalytics.rollupScope", {
+        name: orgName || t("admin.partnerVenues.organizationFallback"),
+      }),
+    );
+  }, [listQ.data?.venues, t]);
 
   useEffect(() => {
     if (scopes.length === 0) return;

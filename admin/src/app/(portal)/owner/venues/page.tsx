@@ -3,9 +3,16 @@
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
-import { PartnerReadOnlyBanner } from "@/components/PartnerReadOnlyBanner";
-import { uniquePartnerReadOnlyMessages } from "@/lib/partnerVenueReadOnly";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { PartnerReadOnlyBanner, noticeKey } from "@/components/PartnerReadOnlyBanner";
+import { uniquePartnerReadOnlyNotices } from "@/lib/partnerReadOnlyMessages";
+import {
+  isManagementRole,
+  partnerHasManagementAccess,
+  venuePortalHomePath,
+} from "@/lib/partnerRoles";
 import { useInvalidatePartnerContext, useOwnerVenuesListQuery } from "@/lib/queries";
 import { queryKeys } from "@/lib/queries/keys";
 import { PORTAL_VENUE_CONTEXT_EVENT } from "@/lib/portalVenueContext";
@@ -34,10 +41,18 @@ type VenueRow = {
   };
 };
 
+function formatVenueLocation(row: VenueRow): string | null {
+  const parts = [row.venue.address, row.venue.city, row.venue.country].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 export default function OwnerVenuesPage() {
+  const { t } = useTranslation();
+  const router = useRouter();
   const { getToken, isLoaded } = useAuth();
   const qc = useQueryClient();
   const invalidatePartner = useInvalidatePartnerContext();
+  const [redirecting, setRedirecting] = useState(false);
 
   const venuesQ = useOwnerVenuesListQuery(getToken, isLoaded);
 
@@ -54,11 +69,31 @@ export default function OwnerVenuesPage() {
   const platformRole = venuesQ.data?.platformRole ?? null;
   const actingPartnerVenueId = venuesQ.data?.actingPartnerVenueId ?? null;
 
+  const isSuperAdmin = platformRole === "SUPER_ADMIN";
+  const staffOnly = Boolean(venues?.length && !partnerHasManagementAccess(venues));
+
+  useEffect(() => {
+    if (!isLoaded || venuesQ.isPending || !venues?.length) return;
+    if (isSuperAdmin && !actingPartnerVenueId) return;
+    if (venues.length !== 1) return;
+
+    const row = venues[0] as VenueRow;
+    setRedirecting(true);
+    router.replace(venuePortalHomePath(row.role, row.venue.id));
+  }, [
+    isLoaded,
+    venuesQ.isPending,
+    venues,
+    isSuperAdmin,
+    actingPartnerVenueId,
+    router,
+  ]);
+
   const error =
     venuesQ.isError && venuesQ.error instanceof Error ? venuesQ.error.message : null;
 
-  const readOnlyBannerMessages = useMemo(() => {
-    if (!venues?.length) return [];
+  const readOnlyNotices = useMemo(() => {
+    if (!venues?.length || staffOnly) return [];
     const snaps = venues.map((row) => ({
       locked: row.venue.locked,
       lockReason: row.venue.lockReason ?? null,
@@ -69,69 +104,85 @@ export default function OwnerVenuesPage() {
           }
         : null,
     }));
-    return uniquePartnerReadOnlyMessages(
+    return uniquePartnerReadOnlyNotices(
       snaps,
       platformRole ?? "NONE",
       actingPartnerVenueId,
     );
-  }, [venues, platformRole, actingPartnerVenueId]);
+  }, [venues, platformRole, actingPartnerVenueId, staffOnly]);
+
+  const groups = useMemo(() => {
+    if (!venues?.length) return [];
+    const byOrg = new Map<string, { label: string; orgId: string | null; rows: VenueRow[] }>();
+    for (const row of venues as VenueRow[]) {
+      const orgId = row.venue.organizationId;
+      const key = orgId ?? `__single:${row.venue.id}`;
+      const label =
+        row.venue.organization?.name ??
+        (orgId
+          ? t("admin.partnerVenues.organizationFallback")
+          : t("admin.partnerVenues.independentVenues"));
+      if (!byOrg.has(key)) {
+        byOrg.set(key, { label, orgId, rows: [] });
+      }
+      byOrg.get(key)!.rows.push(row);
+    }
+    return [...byOrg.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }, [venues, t]);
+
+  const showLoading =
+    !isLoaded || venuesQ.isPending || redirecting || (venues?.length === 1 && !isSuperAdmin);
+
+  const pageTitle = isSuperAdmin
+    ? t("admin.partnerVenues.titleSuperAdmin")
+    : staffOnly
+      ? t("admin.partnerVenues.titleStaff")
+      : t("admin.partnerVenues.titleLocations");
+
+  const pageLead = isSuperAdmin
+    ? t("admin.partnerVenues.leadSuperAdmin")
+    : staffOnly
+      ? t("admin.partnerVenues.leadStaff")
+      : t("admin.partnerVenues.leadManagement");
 
   return (
     <div className="bg-slate-50 text-slate-900">
       <header className="border-b border-slate-200 px-6 py-4">
-        <h1 className="text-xl font-semibold">Venue dashboard</h1>
-        <p className="text-sm text-slate-600 mt-1">
-          {platformRole === "SUPER_ADMIN"
-            ? "Super admin — pick a venue in the sidebar to open the partner dashboard for that location."
-            : "Analytics and redemptions for venues you manage."}
-        </p>
+        <h1 className="text-xl font-semibold">{pageTitle}</h1>
+        <p className="text-sm text-slate-600 mt-1 max-w-2xl leading-relaxed">{pageLead}</p>
       </header>
 
       <main className="p-6 max-w-2xl space-y-4">
-        {!isLoaded || venuesQ.isPending ? <p className="text-slate-600">Loading…</p> : null}
+        {showLoading ? (
+          <p className="text-slate-600">{t("admin.partnerVenues.loading")}</p>
+        ) : null}
         {error ? (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800 text-sm">
             {error}
           </div>
         ) : null}
-        {readOnlyBannerMessages.map((msg) => (
-          <PartnerReadOnlyBanner key={msg} message={msg} />
+        {readOnlyNotices.map((notice) => (
+          <PartnerReadOnlyBanner key={noticeKey(notice)} notice={notice} />
         ))}
-        {venues && venues.length === 0 && !error && (
-          <p className="text-slate-600">
-            {platformRole === "SUPER_ADMIN"
-              ? "No venue context selected. Use “Partner dashboard context” in the sidebar to act as a specific venue."
-              : "No venues yet. A platform admin must add your Clerk email to a venue as OWNER, MANAGER, or EMPLOYEE."}
+        {venues && venues.length === 0 && !error && !showLoading && (
+          <p className="text-slate-600 leading-relaxed">
+            {isSuperAdmin
+              ? t("admin.partnerVenues.emptySuperAdmin")
+              : t("admin.partnerVenues.emptyPartner")}
           </p>
         )}
-        {venues && venues.length > 0 && (
-          <ul className="mt-6 space-y-3">
-            {(() => {
-              const byOrg = new Map<
-                string,
-                { label: string; orgId: string | null; rows: VenueRow[] }
-              >();
-              for (const row of venues) {
-                const orgId = row.venue.organizationId;
-                const key = orgId ?? `__single:${row.venue.id}`;
-                const label =
-                  row.venue.organization?.name ??
-                  (orgId ? "Organization" : "Independent venues");
-                if (!byOrg.has(key)) {
-                  byOrg.set(key, { label, orgId, rows: [] });
-                }
-                byOrg.get(key)!.rows.push(row);
-              }
-              const groups = [...byOrg.values()].sort((a, b) =>
-                a.label.localeCompare(b.label),
-              );
-              return groups.flatMap((g) => {
-                const canSeeOrgRollup =
-                  platformRole === "SUPER_ADMIN" ||
-                  g.rows.some(
-                    (r) => r.role === "MANAGER" || r.role === "OWNER",
-                  );
-                const header = g.orgId ? (
+        {venues && venues.length > 1 && !showLoading && (
+          <ul className="mt-2 space-y-3">
+            {groups.flatMap((g) => {
+              const canSeeOrgRollup =
+                Boolean(g.orgId) &&
+                (isSuperAdmin || g.rows.some((r) => isManagementRole(r.role)));
+              const showOrgHeader =
+                Boolean(g.orgId) &&
+                (g.rows.length > 1 || groups.filter((x) => x.orgId).length > 1);
+
+              const header =
+                showOrgHeader && g.orgId ? (
                   <li key={`hdr-${g.orgId}`} className="list-none pt-4 first:pt-0">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -142,56 +193,51 @@ export default function OwnerVenuesPage() {
                           href={`/owner/organizations/${g.orgId}`}
                           className="text-xs text-amber-700 hover:underline"
                         >
-                          Rollup analytics →
+                          {t("admin.partnerVenues.orgAllLocations")}
                         </Link>
-                      ) : (
-                        <span className="text-xs text-slate-500">
-                          Ask an owner for organization roll-up analytics
-                        </span>
-                      )}
+                      ) : null}
                     </div>
                   </li>
                 ) : null;
-                const items = g.rows.map((row) => (
+
+              const items = g.rows.map((row) => {
+                const location = formatVenueLocation(row);
+                const href = venuePortalHomePath(row.role, row.venue.id);
+                const showRoleBadge = venues.length > 1;
+
+                return (
                   <li key={row.venue.id}>
                     <Link
-                      href={`/owner/venues/${row.venue.id}`}
-                      className="block rounded-xl border border-slate-200 bg-slate-100 hover:border-brand/40 transition px-4 py-4"
+                      href={href}
+                      className="block rounded-xl border border-slate-200 bg-white hover:border-brand/40 hover:shadow-sm transition px-4 py-4"
                     >
                       <div className="flex justify-between gap-3 items-start">
-                        <div>
+                        <div className="min-w-0">
                           <p className="font-medium text-slate-900 flex flex-wrap items-center gap-2">
                             {row.venue.name}
                             {row.venue.locked ? (
-                              <span className="text-[10px] font-mono uppercase text-red-700 border border-red-200 rounded px-1.5 py-0.5">
-                                Locked
+                              <span className="text-[10px] font-medium text-red-700 border border-red-200 rounded-full px-2 py-0.5">
+                                {t("admin.partnerVenues.lockedInactive")}
                               </span>
                             ) : null}
                           </p>
-                          <p className="text-sm text-slate-500 mt-1">
-                            {[row.venue.address, row.venue.city, row.venue.country]
-                              .filter(Boolean)
-                              .join(" · ") || "—"}
-                          </p>
+                          {location ? (
+                            <p className="text-sm text-slate-500 mt-1">{location}</p>
+                          ) : null}
                         </div>
-                        <span className="text-xs font-mono uppercase tracking-wide text-brand bg-brand-light px-2 py-1 rounded shrink-0">
-                          {row.role}
-                        </span>
+                        {showRoleBadge ? (
+                          <span className="text-xs font-medium text-brand bg-brand-light px-2.5 py-1 rounded-full shrink-0">
+                            {t(`admin.partnerVenueDetail.roles.${row.role}`)}
+                          </span>
+                        ) : null}
                       </div>
                     </Link>
-                    <div className="mt-2 text-sm">
-                      <Link
-                        href={`/staff/${row.venue.id}`}
-                        className="text-emerald-700 hover:underline"
-                      >
-                        Today&apos;s redemptions only →
-                      </Link>
-                    </div>
                   </li>
-                ));
-                return header ? [header, ...items] : items;
+                );
               });
-            })()}
+
+              return header ? [header, ...items] : items;
+            })}
           </ul>
         )}
       </main>
