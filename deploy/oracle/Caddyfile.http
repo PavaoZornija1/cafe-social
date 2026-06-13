@@ -1,0 +1,9 @@
+# HTTP only — for first boot before you have a domain + TLS.
+# Usage on VM: cp Caddyfile.http Caddyfile && docker compose up -d --force-recreate caddy
+#
+# Test: curl http://YOUR_VM_IP/api/health
+# Mobile/admin need HTTPS in production — switch to Caddyfile with a real domain ASAP.
+
+:80 {
+	reverse_proxy api:8080
+}

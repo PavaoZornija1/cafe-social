@@ -19,6 +19,13 @@
         "APP_ENV": "preview"
       }
     },
+    "staging": {
+      "distribution": "internal",
+      "channel": "staging",
+      "env": {
+        "APP_ENV": "staging"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "channel": "production",

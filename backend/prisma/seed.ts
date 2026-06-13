@@ -6,10 +6,16 @@ import {
 } from '../src/lib/venue-taxonomy';
 import { seedWordLocales } from './seed-word-locales';
 import { seedPilotVenues } from './seed-pilot-venues';
+import { seedDemoData } from './seed-demo-data';
 
-const connectionString = process.env.DATABASE_URL;
+const connectionString =
+  process.env.DIRECT_DATABASE_URL?.trim() ||
+  process.env.DIRECT_URL?.trim() ||
+  process.env.DATABASE_URL;
 if (!connectionString) {
-  throw new Error('DATABASE_URL is not set');
+  throw new Error(
+    'Set DIRECT_DATABASE_URL (Supabase session pooler) or DATABASE_URL for seed',
+  );
 }
 
 const prisma = new PrismaClient({
@@ -227,6 +233,8 @@ async function seedBrawlerPowerups(client: PrismaClient) {
 }
 
 async function main() {
+  // eslint-disable-next-line no-console
+  console.log('Seeding database…');
   const words = [
     // Drinks & Food
     {
@@ -650,6 +658,10 @@ async function main() {
 
   await seedPilotVenues(prisma);
 
+  // eslint-disable-next-line no-console
+  console.log('Seeding demo players, social, games, partner data…');
+  await seedDemoData(prisma);
+
   // MVP heroes for Brawler mode.
   // Stable IDs so seed remains idempotent across environments.
   const brawlerHeroes = [
@@ -809,6 +821,9 @@ async function main() {
       create: hero,
     });
   }
+
+  // eslint-disable-next-line no-console
+  console.log('Seed complete.');
 }
 
 main()

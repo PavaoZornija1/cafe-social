@@ -24,9 +24,17 @@ type PilotVenueSeed = {
 };
 
 /** Seed-only stable venue IDs for idempotent local dev — not referenced by runtime code. */
+export const SEED_VENUE_IDS = {
+  avlija: '8ac7d2f6-9a5a-4d2b-8f5c-3c7bd3e7d5c1',
+  ministry: '1c6e7e2a-2a1d-4f61-9d31-2b5b3c1b0b7a',
+  caffeineLab: '2d4f8a1b-6c3e-4a9f-b1e2-7c8d9e0f1a2b',
+  beanBloom: '3e5a9b2c-7d4f-5b0a-c2f3-8d9e0f1a2b3c',
+  espressoSociety: '4f6b0c3d-8e5a-6c1b-d3a4-9e0f1a2b3c4d',
+} as const;
+
 const PILOT_VENUES: PilotVenueSeed[] = [
   {
-    id: '8ac7d2f6-9a5a-4d2b-8f5c-3c7bd3e7d5c1',
+    id: SEED_VENUE_IDS.avlija,
     name: 'Kafić Avlija',
     address: 'Obala Kulina bana 12, Sarajevo',
     latitude: 43.8563,
@@ -40,7 +48,7 @@ const PILOT_VENUES: PilotVenueSeed[] = [
     venueTypeCodes: [VENUE_TYPE_CODES.COFFEE_SHOP],
   },
   {
-    id: '1c6e7e2a-2a1d-4f61-9d31-2b5b3c1b0b7a',
+    id: SEED_VENUE_IDS.ministry,
     name: 'Ministry of Ćejf',
     address: 'Franje Račkog 3, Sarajevo',
     latitude: 43.8613,
@@ -53,7 +61,7 @@ const PILOT_VENUES: PilotVenueSeed[] = [
     venueTypeCodes: [VENUE_TYPE_CODES.COFFEE_SHOP, VENUE_TYPE_CODES.BAKERY],
   },
   {
-    id: '2d4f8a1b-6c3e-4a9f-b1e2-7c8d9e0f1a2b',
+    id: SEED_VENUE_IDS.caffeineLab,
     name: 'Caffeine Lab',
     address: 'Zmaja od Bosne 8, Sarajevo',
     latitude: 43.8534,
@@ -65,7 +73,7 @@ const PILOT_VENUES: PilotVenueSeed[] = [
     venueTypeCodes: [VENUE_TYPE_CODES.COFFEE_SHOP],
   },
   {
-    id: '3e5a9b2c-7d4f-5b0a-c2f3-8d9e0f1a2b3c',
+    id: SEED_VENUE_IDS.beanBloom,
     name: 'Bean & Bloom',
     address: 'Titova 15, Sarajevo',
     latitude: 43.8588,
@@ -77,7 +85,7 @@ const PILOT_VENUES: PilotVenueSeed[] = [
     venueTypeCodes: [VENUE_TYPE_CODES.COFFEE_SHOP, VENUE_TYPE_CODES.BAKERY],
   },
   {
-    id: '4f6b0c3d-8e5a-6c1b-d3a4-9e0f1a2b3c4d',
+    id: SEED_VENUE_IDS.espressoSociety,
     name: 'Espresso Society',
     address: 'Hamdije Kreševljakovića 50, Sarajevo',
     latitude: 43.8641,
@@ -306,6 +314,20 @@ export async function seedPilotVenues(prisma: PrismaClient): Promise<void> {
       body: 'Co-op word rooms every Thursday.',
       isFeatured: true,
     },
+    {
+      id: 'f4d5e6f7-a8b9-0123-def0-234567890123',
+      venueId: venueByName.get('Bean & Bloom')!,
+      title: 'Weekend pastry bundle',
+      body: 'Buy any coffee, get 50% off a pastry Sat–Sun.',
+      isFeatured: false,
+    },
+    {
+      id: 'f5e6f7a8-b9c0-1234-ef01-345678901234',
+      venueId: venueByName.get('Espresso Society')!,
+      title: 'Morning rush XP boost',
+      body: 'Double XP on solo word games before 10 AM.',
+      isFeatured: true,
+    },
   ];
 
   for (const o of offers) {
@@ -362,6 +384,28 @@ export async function seedPilotVenues(prisma: PrismaClient): Promise<void> {
       locationRequired: true,
       targetCount: 5,
       resetsWeekly: true,
+      rewardPerkId: null,
+    },
+    {
+      id: 'b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e',
+      venueId: caffeineLabId,
+      title: 'Daily word streak',
+      description: 'Solve the venue daily word three days in a row.',
+      rewardVenueSpecific: true,
+      locationRequired: false,
+      targetCount: 3,
+      resetsWeekly: false,
+      rewardPerkId: null,
+    },
+    {
+      id: 'c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f',
+      venueId: venueByName.get('Bean & Bloom')!,
+      title: 'Brawler warm-up',
+      description: 'Finish one brawler match while checked in.',
+      rewardVenueSpecific: true,
+      locationRequired: true,
+      targetCount: 1,
+      resetsWeekly: false,
       rewardPerkId: null,
     },
   ];

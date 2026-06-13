@@ -1,0 +1,33 @@
+# Cafe Social API on Oracle Always Free VM (Ampere ARM).
+# Usage: cp .env.example .env && docker compose up -d --build
+services:
+  api:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: "8080"
+      NODE_ENV: production
+    restart: unless-stopped
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+
+volumes:
+  caddy_data:
+  caddy_config:

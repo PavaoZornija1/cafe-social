@@ -1,0 +1,12 @@
+# Railway service config (root directory = backend in dashboard).
+# Docs: docs/DEPLOYMENT_RAILWAY.md
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/health"
+healthcheckTimeout = 300
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10

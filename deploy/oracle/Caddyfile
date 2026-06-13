@@ -1,0 +1,14 @@
+# Replace with your API hostname (DNS A record → Oracle VM public IP).
+# Caddy obtains HTTPS certificates automatically via Let's Encrypt.
+#
+# Example:
+#   api.cafesocial.app {
+#     reverse_proxy api:8080
+#   }
+#
+# For HTTP-only testing (no domain), use Caddyfile.http instead:
+#   cp Caddyfile.http Caddyfile
+
+{$API_DOMAIN} {
+	reverse_proxy api:8080
+}
