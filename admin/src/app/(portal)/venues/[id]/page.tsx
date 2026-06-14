@@ -12,8 +12,10 @@ import {
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { GeofencePolygonGeoJson } from "@/components/VenueGeofenceMap";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { TableRowCards } from "@/components/TableRowCards";
 import { OrganizationAsyncSelect } from "@/components/ui/OrganizationAsyncSelect";
 import { VenueChallengesSection } from "@/components/venue-cms/VenueChallengesSection";
 import { VenueOffersSection } from "@/components/venue-cms/VenueOffersSection";
@@ -88,6 +90,7 @@ function venueToForm(v: AdminVenueDetail): VenueEditForm {
 }
 
 export default function EditVenuePage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { isLoaded, getToken } = useAuth();
@@ -139,9 +142,7 @@ export default function EditVenuePage() {
       try {
         if (geoDirty) {
           if (!geoPolygonDraft) {
-            setPageErr(
-              "Draw a play-area polygon on the map (or keep the existing one) before saving location changes.",
-            );
+            setPageErr(t("admin.venueCms.editor.errGeofenceRequired"));
             return;
           }
         }
@@ -150,7 +151,7 @@ export default function EditVenuePage() {
         if (limRaw !== "") {
           const n = Number.parseInt(limRaw, 10);
           if (!Number.isFinite(n) || n < 1 || n > 999) {
-            setPageErr("Guest daily game cap must be empty (inherit) or an integer 1–999.");
+            setPageErr(t("admin.venueCms.editor.errGuestCapInvalid"));
             return;
           }
           guestPlayDailyGamesLimit = n;
@@ -188,7 +189,7 @@ export default function EditVenuePage() {
     setCreateVenueTypeErr(null);
     const code = newVenueTypeCode.trim();
     if (!code) {
-      setCreateVenueTypeErr("Enter a category code.");
+      setCreateVenueTypeErr(t("admin.venueCms.editor.errCategoryCodeRequired"));
       return;
     }
     try {
@@ -203,7 +204,7 @@ export default function EditVenuePage() {
     } catch (e) {
       setCreateVenueTypeErr((e as Error).message);
     }
-  }, [createVenueTypeMut, newVenueTypeCode, newVenueTypeLabel, venueForm]);
+  }, [createVenueTypeMut, newVenueTypeCode, newVenueTypeLabel, venueForm, t]);
 
   useEffect(() => {
     if (!venueQ.data) return;
@@ -261,11 +262,11 @@ export default function EditVenuePage() {
     () => [
       staffColHelper.accessor((r) => r.player.email, {
         id: "email",
-        header: "Email",
+        header: t("admin.venueCms.common.email"),
         cell: (c) => <span className="text-slate-800">{c.getValue()}</span>,
       }),
       staffColHelper.accessor("role", {
-        header: "Role",
+        header: t("admin.venueCms.common.role"),
         cell: (c) => (
           <span className="text-xs font-mono text-brand">{c.getValue()}</span>
         ),
@@ -280,12 +281,12 @@ export default function EditVenuePage() {
             onClick={() => setStaffRemoveTarget(row.original)}
             className="text-red-600 hover:text-red-800 text-xs"
           >
-            Remove
+            {t("admin.venueCms.common.remove")}
           </button>
         ),
       }),
     ],
-    [staffAddMut.isPending, staffRemoveMut.isPending],
+    [staffAddMut.isPending, staffRemoveMut.isPending, t],
   );
 
   const staffTable = useReactTable({
@@ -300,17 +301,17 @@ export default function EditVenuePage() {
 
   if (loadErr && !venueQ.data) {
     return (
-      <div className="bg-slate-50 text-red-700 p-8">
+      <div className="bg-slate-50 text-red-700 px-4 py-6 sm:p-8">
         {loadErr}{" "}
         <Link href="/venues" className="text-brand">
-          Back
+          {t("admin.venueCms.editor.back")}
         </Link>
       </div>
     );
   }
   if (!venueQ.data) {
     return (
-      <div className="bg-slate-50 text-slate-900 p-8">Loading…</div>
+      <div className="bg-slate-50 text-slate-900 px-4 py-6 sm:p-8">{t("admin.venueCms.editor.loading")}</div>
     );
   }
 
@@ -340,14 +341,14 @@ export default function EditVenuePage() {
   return (
     <div className="bg-slate-50 text-slate-900 min-h-screen pb-16">
       <form
-        className="p-8 max-w-5xl mx-auto"
+        className="px-4 py-5 sm:p-6 md:p-8 max-w-5xl mx-auto w-full"
         onSubmit={(e) => {
           e.preventDefault();
           setSaveConfirmOpen(true);
         }}
       >
         <Link href="/venues" className="text-brand text-sm">
-          ← Venues
+          {t("admin.venueCms.editor.backVenues")}
         </Link>
         <h1 className="text-xl font-bold mt-4 mb-1">{v.name}</h1>
         <p className="text-xs text-slate-500 font-mono mb-6">{v.id}</p>
@@ -355,9 +356,9 @@ export default function EditVenuePage() {
         <section className="mb-8 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.04] md:p-6">
           <div className="space-y-6">
             <div>
-              <h2 className="text-sm font-semibold text-slate-900">Organization &amp; access</h2>
+              <h2 className="text-sm font-semibold text-slate-900">{t("admin.venueCms.editor.orgAccessTitle")}</h2>
               <p className="mt-1 text-xs text-slate-500">
-                Who owns this venue, suspension, and guest play limits.
+                {t("admin.venueCms.editor.orgAccessLead")}
               </p>
             </div>
 
@@ -367,14 +368,14 @@ export default function EditVenuePage() {
                   className="inline-block h-4 w-4 animate-pulse rounded-full bg-slate-200"
                   aria-hidden
                 />
-                Loading account…
+                {t("admin.venueCms.editor.loadingAccount")}
               </div>
             ) : isSuperAdmin ? (
               <venueForm.Field name="organizationId">
                 {(field) => (
                   <label className="flex min-w-0 flex-col gap-1.5">
                     <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Organization
+                      {t("admin.venueCms.editor.organization")}
                     </span>
                     <OrganizationAsyncSelect
                       className="w-full"
@@ -389,13 +390,12 @@ export default function EditVenuePage() {
                       }}
                       getToken={getToken}
                       isDisabled={patchMut.isPending}
-                      placeholder="Type to search organizations…"
+                      placeholder={t("admin.venueCms.editor.orgSearchPlaceholder")}
                     />
                     <p className="text-xs leading-snug text-slate-500">
-                      Results load in pages of 20 (search is debounced). Manage billing and structure
-                      under{" "}
+                      {t("admin.venueCms.editor.orgSearchHintSuperAdmin")}{" "}
                       <Link href="/organizations" className="font-medium text-brand hover:underline">
-                        Organizations
+                        {t("admin.venueCms.editor.organizationsLink")}
                       </Link>
                       .
                     </p>
@@ -405,14 +405,14 @@ export default function EditVenuePage() {
             ) : (
               <div className="rounded-xl border border-slate-200/90 bg-slate-50/80 px-4 py-3">
                 <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Organization
+                  {t("admin.venueCms.editor.orgReadOnly")}
                 </span>
                 <p className="mt-1.5 text-sm font-medium text-slate-900">
                   {v.organization?.name ??
                     (v.organizationId ? v.organizationId : "— None —")}
                 </p>
                 <p className="mt-2 text-xs leading-snug text-slate-500">
-                  Only platform admins can attach or move a venue between organizations.
+                  {t("admin.venueCms.editor.orgReadOnlyHintPlatform")}
                 </p>
               </div>
             )}
@@ -434,7 +434,7 @@ export default function EditVenuePage() {
                       }}
                       className="h-4 w-4 rounded border-slate-300 text-brand focus:ring-brand/30"
                     />
-                    Locked (suspend play &amp; map)
+                    {t("admin.venueCms.editor.lockedLabel")}
                   </label>
                 )}
               </venueForm.Field>
@@ -449,11 +449,9 @@ export default function EditVenuePage() {
                       className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-brand focus:ring-brand/30"
                     />
                     <span className="min-w-0 leading-snug">
-                      Require QR check-in at location
+                      {t("admin.venueCms.editor.requiresCheckInLabel")}
                       <span className="mt-1 block text-xs font-normal text-slate-500">
-                        Geofence still detects the venue, but games and venue-gated perks stay locked until the
-                        player scans the venue QR with location on (GPS must be inside the geofence). Leave off
-                        for automatic unlock when detected inside the fence.
+                        {t("admin.venueCms.editor.requiresCheckInHint")}
                       </span>
                     </span>
                   </label>
@@ -465,14 +463,14 @@ export default function EditVenuePage() {
                   {(field) => (
                     <label className="flex min-w-0 flex-col gap-1.5">
                       <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Lock reason (optional)
+                        {t("admin.venueCms.editor.lockReasonLabel")}
                       </span>
                       <input
                         className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
                         value={field.state.value}
                         onChange={(e) => field.handleChange(e.target.value)}
                         onBlur={field.handleBlur}
-                        placeholder="Shown to staff when relevant"
+                        placeholder={t("admin.venueCms.editor.lockReasonPlaceholder")}
                       />
                     </label>
                   )}
@@ -482,21 +480,20 @@ export default function EditVenuePage() {
                   {(field) => (
                     <label className="flex min-w-0 flex-col gap-1.5">
                       <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Guest daily game cap (optional)
+                        {t("admin.venueCms.editor.guestCapLabel")}
                       </span>
                       <input
                         type="number"
                         min={1}
                         max={999}
-                        placeholder="Inherit from org / default"
+                        placeholder={t("admin.venueCms.editor.guestCapPlaceholder")}
                         className="w-full min-w-0 max-w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 lg:max-w-xs"
                         value={field.state.value}
                         onChange={(e) => field.handleChange(e.target.value)}
                         onBlur={field.handleBlur}
                       />
                       <p className="text-xs leading-snug text-slate-500">
-                        Max QR / guest play sessions per player per calendar day at this venue. Leave
-                        empty for the organization default, then the platform env fallback.
+                        {t("admin.venueCms.editor.guestCapHint")}
                       </p>
                     </label>
                   )}
@@ -511,19 +508,18 @@ export default function EditVenuePage() {
           <div className="space-y-5">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
               <div>
-                <h2 className="text-sm font-semibold text-slate-900">Location &amp; geofence</h2>
+                <h2 className="text-sm font-semibold text-slate-900">{t("admin.venueCms.editor.locationTitle")}</h2>
                 <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
-                  Place the pin and draw the play-area polygon. Moving the pin re-centers nearby
-                  alerts (default 100&nbsp;m) — adjust presets or custom radius below before saving.
+                  {t("admin.venueCms.editor.locationLead")}
                 </p>
               </div>
               {v.geofencePolygon ? (
                 <span className="inline-flex shrink-0 items-center rounded-full border border-emerald-200/90 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
-                  Geofence on file
+                  {t("admin.venueCms.editor.geofenceOnFile")}
                 </span>
               ) : (
                 <span className="inline-flex shrink-0 items-center rounded-full border border-amber-200/90 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-900">
-                  No polygon yet
+                  {t("admin.venueCms.editor.noPolygonYet")}
                 </span>
               )}
             </div>
@@ -533,10 +529,9 @@ export default function EditVenuePage() {
                 className="rounded-xl border border-amber-200/90 bg-amber-50/90 px-4 py-3 text-sm text-amber-950 shadow-sm"
                 role="status"
               >
-                <p className="font-medium text-amber-950">Draw a geofence to enable in-venue detection</p>
+                <p className="font-medium text-amber-950">{t("admin.venueCms.editor.geofenceAlertTitle")}</p>
                 <p className="mt-1 text-xs leading-snug text-amber-900/90">
-                  Without a polygon, apps cannot tell when players are inside this venue&apos;s play
-                  space. Use the map tools below to add one before saving.
+                  {t("admin.venueCms.editor.geofenceAlertBody")}
                 </p>
               </div>
             ) : null}
@@ -559,11 +554,9 @@ export default function EditVenuePage() {
           <div className="space-y-5">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
               <div>
-                <h2 className="text-sm font-semibold text-slate-900">Menu &amp; ordering</h2>
+                <h2 className="text-sm font-semibold text-slate-900">{t("admin.venueCms.editor.menuTitle")}</h2>
                 <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
-                  Public links surfaced in the player experience (for example from venue detail or
-                  nudges). Use full URLs including <span className="font-mono text-[11px]">https://</span>.
-                  Leave blank if not applicable.
+                  {t("admin.venueCms.editor.menuLead")}
                 </p>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
@@ -571,11 +564,11 @@ export default function EditVenuePage() {
                   {(hasMenu) =>
                     hasMenu ? (
                       <span className="inline-flex items-center rounded-full border border-slate-200/90 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-700">
-                        Menu URL set
+                        {t("admin.venueCms.editor.badgeMenuUrlSet")}
                       </span>
                     ) : (
                       <span className="inline-flex items-center rounded-full border border-slate-200/90 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        No menu URL
+                        {t("admin.venueCms.editor.badgeNoMenuUrl")}
                       </span>
                     )
                   }
@@ -584,11 +577,11 @@ export default function EditVenuePage() {
                   {(hasOrder) =>
                     hasOrder ? (
                       <span className="inline-flex items-center rounded-full border border-slate-200/90 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-700">
-                        Ordering URL set
+                        {t("admin.venueCms.editor.badgeOrderingUrlSet")}
                       </span>
                     ) : (
                       <span className="inline-flex items-center rounded-full border border-slate-200/90 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        No ordering URL
+                        {t("admin.venueCms.editor.badgeNoOrderingUrl")}
                       </span>
                     )
                   }
@@ -601,12 +594,12 @@ export default function EditVenuePage() {
                 {(field) => (
                   <label className="flex min-w-0 flex-col gap-1.5">
                     <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Menu URL
+                      {t("admin.venueCms.editor.menuUrlLabel")}
                     </span>
                     <input
                       inputMode="url"
                       autoComplete="url"
-                      placeholder="https://example.com/menu"
+                      placeholder={t("admin.venueCms.editor.menuUrlPlaceholder")}
                       className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
                       value={field.state.value}
                       onChange={(e) => field.handleChange(e.target.value)}
@@ -620,12 +613,12 @@ export default function EditVenuePage() {
                 {(field) => (
                   <label className="flex min-w-0 flex-col gap-1.5">
                     <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Ordering URL
+                      {t("admin.venueCms.editor.orderingUrlLabel")}
                     </span>
                     <input
                       inputMode="url"
                       autoComplete="url"
-                      placeholder="https://order.example.com"
+                      placeholder={t("admin.venueCms.editor.orderingUrlPlaceholder")}
                       className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
                       value={field.state.value}
                       onChange={(e) => field.handleChange(e.target.value)}
@@ -642,11 +635,9 @@ export default function EditVenuePage() {
           <div className="space-y-6">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
               <div>
-                <h2 className="text-sm font-semibold text-slate-900">Venue categories</h2>
+                <h2 className="text-sm font-semibold text-slate-900">{t("admin.venueCms.editor.categoriesTitle")}</h2>
                 <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
-                  Pick any that apply (for example a coffee shop that also sells games). Dwell push copy
-                  is chosen from platform templates using these categories; env defaults apply if none
-                  match.
+                  {t("admin.venueCms.editor.categoriesLead")}
                 </p>
               </div>
               <venueForm.Subscribe selector={(s) => s.values.venueTypeCodes?.length ?? 0}>
@@ -658,7 +649,9 @@ export default function EditVenuePage() {
                         : "inline-flex shrink-0 items-center rounded-full border border-slate-200/90 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500"
                     }
                   >
-                    {n === 0 ? "None selected" : `${n} selected`}
+                    {n === 0
+                      ? t("admin.venueCms.editor.noneSelected")
+                      : t("admin.venueCms.editor.selectedCount", { count: n })}
                   </span>
                 )}
               </venueForm.Subscribe>
@@ -678,38 +671,35 @@ export default function EditVenuePage() {
                 <div className="space-y-4">
                   <div>
                     <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Add category
+                      {t("admin.venueCms.editor.addCategoryTitle")}
                     </h3>
                     <p className="mt-1 text-xs leading-snug text-slate-500">
-                      Creates a new global tag (e.g.{" "}
-                      <span className="font-mono text-[11px] text-slate-600">BOARD_GAME_CAFE</span>).
-                      It appears in this list for every venue; link nudge templates to this code in the
-                      database if you want template-based copy for it.
+                      {t("admin.venueCms.editor.addCategoryLead")}
                     </p>
                   </div>
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <label className="flex min-w-0 flex-col gap-1.5">
                         <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Code
+                          {t("admin.venueCms.common.code")}
                         </span>
                         <input
                           className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-mono text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
                           value={newVenueTypeCode}
                           onChange={(e) => setNewVenueTypeCode(e.target.value)}
-                          placeholder="BOARD_GAME_CAFE"
+                          placeholder={t("admin.venueCms.editor.categoryCodePlaceholder")}
                           autoComplete="off"
                         />
                       </label>
                       <label className="flex min-w-0 flex-col gap-1.5">
                         <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Display label (optional)
+                          {t("admin.venueCms.editor.displayLabelOptional")}
                         </span>
                         <input
                           className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
                           value={newVenueTypeLabel}
                           onChange={(e) => setNewVenueTypeLabel(e.target.value)}
-                          placeholder="Board game café"
+                          placeholder={t("admin.venueCms.editor.categoryLabelPlaceholder")}
                           autoComplete="off"
                         />
                       </label>
@@ -720,7 +710,9 @@ export default function EditVenuePage() {
                       onClick={() => void addVenueCategory()}
                       className="h-[42px] w-full rounded-lg bg-slate-800 px-4 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-900 disabled:opacity-50 sm:w-auto"
                     >
-                      {createVenueTypeMut.isPending ? "Adding…" : "Add & Select"}
+                      {createVenueTypeMut.isPending
+                        ? t("admin.venueCms.common.adding")
+                        : t("admin.venueCms.editor.addAndSelect")}
                     </button>
                   </div>
                   {createVenueTypeErr ? (
@@ -734,21 +726,21 @@ export default function EditVenuePage() {
               {(field) => (
                 <div className="space-y-3">
                   <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Categories for this venue
+                    {t("admin.venueCms.editor.categoriesForVenue")}
                   </span>
                   {(venueTypeCatalogQ.data ?? []).length === 0 ? (
                     <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/80 px-3 py-4 text-sm text-slate-500">
                       {venueTypeCatalogQ.isPending
-                        ? "Loading categories…"
-                        : "No categories are defined yet."}
+                        ? t("admin.venueCms.editor.loadingCategories")
+                        : t("admin.venueCms.editor.noCategoriesDefined")}
                     </p>
                   ) : (
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                      {(venueTypeCatalogQ.data ?? []).map((t: AdminVenueTypeRow) => {
-                        const checked = (field.state.value ?? []).includes(t.code);
+                      {(venueTypeCatalogQ.data ?? []).map((vt: AdminVenueTypeRow) => {
+                        const checked = (field.state.value ?? []).includes(vt.code);
                         return (
                           <label
-                            key={t.id}
+                            key={vt.id}
                             className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2.5 text-sm shadow-sm transition-colors focus-within:ring-2 focus-within:ring-brand/25 ${checked
                               ? "border-emerald-200/90 bg-emerald-50/50"
                               : "border-slate-200/90 bg-white hover:bg-slate-50/90"
@@ -760,17 +752,17 @@ export default function EditVenuePage() {
                               checked={checked}
                               onChange={(e) => {
                                 const next = new Set(field.state.value ?? []);
-                                if (e.target.checked) next.add(t.code);
-                                else next.delete(t.code);
+                                if (e.target.checked) next.add(vt.code);
+                                else next.delete(vt.code);
                                 field.handleChange([...next]);
                               }}
                             />
                             <span className="min-w-0 leading-snug">
                               <span className="font-medium text-slate-900">
-                                {t.label ?? t.code}
+                                {vt.label ?? vt.code}
                               </span>
                               <span className="mt-0.5 block font-mono text-[11px] text-slate-500">
-                                {t.code}
+                                {vt.code}
                               </span>
                             </span>
                           </label>
@@ -796,11 +788,9 @@ export default function EditVenuePage() {
           <section className="mb-8 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.04] md:p-6">
             <div className="space-y-5">
               <div>
-                <h2 className="text-sm font-semibold text-slate-900">Venue-wide copy fallback</h2>
+                <h2 className="text-sm font-semibold text-slate-900">{t("admin.venueCms.editor.copyFallbackTitle")}</h2>
                 <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
-                  Optional. Used after per-assignment overrides but before template defaults when resolving
-                  automatic nudges. Supports{" "}
-                  <span className="font-mono text-[11px] text-slate-600">{"{{venueName}}"}</span>.
+                  {t("admin.venueCms.editor.copyFallbackLead")}
                 </p>
               </div>
               <div className="space-y-5">
@@ -808,7 +798,7 @@ export default function EditVenuePage() {
                   {(field) => (
                     <label className="flex min-w-0 flex-col gap-1.5">
                       <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Fallback title
+                        {t("admin.venueCms.editor.fallbackTitleLabel")}
                       </span>
                       <input
                         className="w-full min-w-0 max-w-2xl rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
@@ -823,7 +813,7 @@ export default function EditVenuePage() {
                   {(field) => (
                     <label className="flex min-w-0 flex-col gap-1.5">
                       <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Fallback body
+                        {t("admin.venueCms.editor.fallbackBodyLabel")}
                       </span>
                       <textarea
                         className="min-h-[88px] w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
@@ -849,24 +839,23 @@ export default function EditVenuePage() {
         <section className="mb-8 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.04] md:p-6">
           <div className="space-y-5">
             <div>
-              <h2 className="text-sm font-semibold text-slate-900">Analytics</h2>
+              <h2 className="text-sm font-semibold text-slate-900">{t("admin.venueCms.editor.analyticsTitle")}</h2>
               <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
-                IANA timezone for owner-facing hour-of-day charts in this portal. Leave empty to use
-                the default from the environment or organization.
+                {t("admin.venueCms.editor.analyticsLead")}
               </p>
             </div>
             <venueForm.Field name="analyticsTimeZone">
               {(field) => (
                 <label className="flex max-w-xl min-w-0 flex-col gap-1.5">
                   <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Timezone (optional)
+                    {t("admin.venueCms.editor.timezoneOptional")}
                   </span>
                   <input
                     className="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
                     value={field.state.value}
                     onChange={(e) => field.handleChange(e.target.value)}
                     onBlur={field.handleBlur}
-                    placeholder="e.g. Europe/Zagreb"
+                    placeholder={t("admin.venueCms.editor.timezonePlaceholder")}
                   />
                 </label>
               )}
@@ -878,11 +867,9 @@ export default function EditVenuePage() {
           <div className="space-y-5">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
               <div>
-                <h2 className="text-sm font-semibold text-slate-900">Portal staff</h2>
+                <h2 className="text-sm font-semibold text-slate-900">{t("admin.venueCms.editor.staffTitle")}</h2>
                 <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
-                  Clerk-backed access: invite people with their real sign-in email. They use this partner
-                  portal in the same Clerk project—employees see verification lists; managers and owners see
-                  analytics and campaigns.
+                  {t("admin.venueCms.editor.staffLead")}
                 </p>
               </div>
               <span
@@ -893,33 +880,33 @@ export default function EditVenuePage() {
                 }
               >
                 {staffRows.length === 0
-                  ? "No staff"
-                  : `${staffRows.length} member${staffRows.length === 1 ? "" : "s"}`}
+                  ? t("admin.venueCms.editor.staffBadgeNone")
+                  : t("admin.venueCms.editor.staffBadgeCount", { count: staffRows.length })}
               </span>
             </div>
 
             <div className="rounded-xl border border-slate-200/90 bg-slate-50/70 p-4 shadow-sm md:p-5">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Add or update access
+                {t("admin.venueCms.editor.addOrUpdateAccess")}
               </p>
               <div className="mt-3 space-y-4">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_10rem]">
                   <label className="flex min-w-0 flex-col gap-1.5">
                     <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Email
+                      {t("admin.venueCms.common.email")}
                     </span>
                     <input
                       type="email"
                       className={staffFieldText}
                       value={staffEmail}
                       onChange={(e) => setStaffEmail(e.target.value)}
-                      placeholder="owner@venue.com"
+                      placeholder={t("admin.venueCms.editor.staffEmailPlaceholder")}
                       autoComplete="email"
                     />
                   </label>
                   <label className="flex min-w-0 flex-col gap-1.5">
                     <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Role
+                      {t("admin.venueCms.editor.staffRoleLabel")}
                     </span>
                     <select
                       className={staffFieldSelect}
@@ -938,20 +925,23 @@ export default function EditVenuePage() {
                   onClick={() => void addStaff()}
                   className="h-[42px] w-full rounded-lg bg-slate-800 px-4 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-900 disabled:opacity-50 sm:w-auto"
                 >
-                  {staffAddMut.isPending ? "Working…" : "Add / update"}
+                  {staffAddMut.isPending ? t("admin.venueCms.common.working") : t("admin.venueCms.common.addUpdate")}
                 </button>
               </div>
             </div>
 
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Current access
+                {t("admin.venueCms.editor.currentAccess")}
               </p>
-              <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm">
+              <div className="mt-3 rounded-xl border border-slate-200/90 bg-white shadow-sm">
                 {staffRows.length === 0 ? (
-                  <p className="px-3 py-6 text-center text-sm text-slate-500">No staff yet.</p>
+                  <p className="px-3 py-6 text-center text-sm text-slate-500">{t("admin.venueCms.editor.noStaff")}</p>
                 ) : (
-                  <table className="min-w-full text-sm">
+                  <>
+          <TableRowCards rows={staffTable.getRowModel().rows} leadCellId="email" actionCellIds={["rm"]} />
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="min-w-full text-sm">
                     <thead className="bg-slate-50/90">
                       {staffTable.getHeaderGroups().map((hg) => (
                         <tr
@@ -977,7 +967,9 @@ export default function EditVenuePage() {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                      </table>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -987,10 +979,9 @@ export default function EditVenuePage() {
         <section className="mb-10 rounded-2xl border border-slate-200/90 bg-slate-50/60 p-5 shadow-sm ring-1 ring-slate-900/[0.04] md:p-6">
           <div className="space-y-4">
             <div>
-              <h2 className="text-sm font-semibold text-slate-900">Save venue settings</h2>
+              <h2 className="text-sm font-semibold text-slate-900">{t("admin.venueCms.editor.saveTitle")}</h2>
               <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
-                Writes everything in this form (organization, access, URLs, categories, geofence,
-                nudges, fallback copy, analytics). Perks and challenges below save on their own actions.
+                {t("admin.venueCms.editor.saveLead")}
               </p>
             </div>
             {pageErr ? (
@@ -1006,7 +997,7 @@ export default function EditVenuePage() {
               disabled={patchMut.isPending}
               className="mx-auto block w-full max-w-md rounded-lg border border-brand-active bg-brand py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover disabled:opacity-50"
             >
-              {patchMut.isPending ? "Saving…" : "Save venue settings…"}
+              {patchMut.isPending ? t("admin.venueCms.common.saving") : t("admin.venueCms.editor.saveVenueSettings")}
             </button>
           </div>
         </section>
@@ -1016,14 +1007,13 @@ export default function EditVenuePage() {
       <ConfirmModal
         open={saveConfirmOpen}
         onClose={() => setSaveConfirmOpen(false)}
-        title="Save venue?"
+        title={t("admin.venueCms.editor.saveConfirmTitle")}
         description={
           <p>
-            Save changes to <span className="font-semibold text-slate-900">{v.name}</span>? You will
-            return to the venue list.
+            {t("admin.venueCms.editor.saveConfirmBody", { name: v.name })}
           </p>
         }
-        confirmLabel="Save"
+        confirmLabel={t("admin.venueCms.common.save")}
         onConfirm={() => venueForm.handleSubmit()}
       />
 
@@ -1031,15 +1021,14 @@ export default function EditVenuePage() {
       <ConfirmModal
         open={lockConfirmOpen}
         onClose={() => setLockConfirmOpen(false)}
-        title="Lock this venue?"
+        title={t("admin.venueCms.editor.lockConfirmTitle")}
         variant="danger"
         description={
           <p>
-            Players lose access to this venue on the map and in play until you unlock it again. You
-            still need to save the form for the lock to apply.
+            {t("admin.venueCms.editor.lockConfirmBody")}
           </p>
         }
-        confirmLabel="Lock venue"
+        confirmLabel={t("admin.venueCms.editor.lockConfirmLabel")}
         onConfirm={async () => {
           venueForm.setFieldValue("locked", true);
         }}
@@ -1049,20 +1038,19 @@ export default function EditVenuePage() {
       <ConfirmModal
         open={staffRemoveTarget !== null}
         onClose={() => setStaffRemoveTarget(null)}
-        title="Remove staff member?"
+        title={t("admin.venueCms.editor.removeStaffTitle")}
         variant="danger"
         description={
           staffRemoveTarget ? (
             <p>
-              Remove{" "}
-              <span className="font-semibold text-slate-900">
-                {staffRemoveTarget.player.email}
-              </span>{" "}
-              ({staffRemoveTarget.role}) from this venue?
+              {t("admin.venueCms.editor.removeStaffBody", {
+                email: staffRemoveTarget.player.email,
+                role: staffRemoveTarget.role,
+              })}
             </p>
           ) : null
         }
-        confirmLabel="Remove"
+        confirmLabel={t("admin.venueCms.common.remove")}
         onConfirm={async () => {
           if (!staffRemoveTarget || !id) return;
           setPageErr(null);
@@ -1079,18 +1067,20 @@ export default function EditVenuePage() {
       <ConfirmModal
         open={addStaffConfirmOpen}
         onClose={() => setAddStaffConfirmOpen(false)}
-        title="Add or update staff?"
+        title={t("admin.venueCms.editor.inviteConfirmTitle")}
         description={
           <p>
-            Invite <span className="font-semibold text-slate-900">{staffEmail.trim()}</span> as{" "}
-            <span className="font-mono text-slate-800">{staffRole}</span>?
+            {t("admin.venueCms.editor.inviteConfirmBody", {
+              email: staffEmail.trim(),
+              role: staffRole,
+            })}
           </p>
         }
-        confirmLabel="Add / update"
+        confirmLabel={t("admin.venueCms.common.addUpdate")}
         onConfirm={runAddStaff}
       />
 
-      <div className="mx-auto max-w-5xl space-y-8 px-8 pb-12">
+      <div className="mx-auto max-w-5xl space-y-8 px-4 sm:px-6 md:px-8 pb-12">
         <VenuePerksSection
           venueId={id}
           getToken={getToken}

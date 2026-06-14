@@ -34,7 +34,7 @@ function PaymentStepForm() {
     });
     setBusy(false);
     if (error) {
-      setMessage(error.message ?? "Payment failed");
+      setMessage(error.message ?? t("admin.partnerSubscriptionPay.paymentFailed"));
     }
   };
 
@@ -91,7 +91,7 @@ function PartnerSubscriptionPayInner() {
 
   if (!organizationId) {
     return (
-      <div className="bg-slate-50 min-h-full p-6 max-w-lg">
+      <div className="bg-slate-50 min-h-full px-4 py-6 sm:p-6 max-w-lg mx-auto w-full">
         <p className="text-slate-800">{t("admin.partnerSubscriptionPay.missingOrg")}</p>
         <Link href="/owner/subscriptions" className="mt-4 inline-block text-sm font-semibold text-brand hover:underline">
           {t("admin.partnerSubscriptionPay.back")}
@@ -102,7 +102,7 @@ function PartnerSubscriptionPayInner() {
 
   if (!isLoaded || setupQ.isPending) {
     return (
-      <div className="bg-slate-50 min-h-full p-8">
+      <div className="bg-slate-50 min-h-full px-4 py-6 sm:p-8">
         <p className="text-slate-600 text-sm">{t("admin.partnerSubscriptionPay.loading")}</p>
       </div>
     );
@@ -110,7 +110,7 @@ function PartnerSubscriptionPayInner() {
 
   if (setupQ.isError) {
     return (
-      <div className="bg-slate-50 min-h-full p-6 max-w-lg space-y-4">
+      <div className="bg-slate-50 min-h-full px-4 py-6 sm:p-6 max-w-lg mx-auto w-full space-y-4">
         <p className="text-red-800 text-sm">
           {setupQ.error instanceof Error ? setupQ.error.message : t("admin.partnerSubscriptionPay.loadError")}
         </p>
@@ -129,13 +129,13 @@ function PartnerSubscriptionPayInner() {
   if (!data.clientSecret) {
     if (data.subscriptionStatus === "active" || data.subscriptionStatus === "trialing") {
       return (
-        <div className="bg-slate-50 min-h-full p-8">
+        <div className="bg-slate-50 min-h-full px-4 py-6 sm:p-8">
           <p className="text-slate-600 text-sm">{t("admin.partnerSubscriptionPay.noPaymentStep")}</p>
         </div>
       );
     }
     return (
-      <div className="bg-slate-50 min-h-full p-6 max-w-lg space-y-4">
+      <div className="bg-slate-50 min-h-full px-4 py-6 sm:p-6 max-w-lg mx-auto w-full space-y-4">
         <p className="text-slate-800 text-sm">{t("admin.partnerSubscriptionPay.unexpectedNoSecret")}</p>
         <Link href="/owner/subscriptions" className="inline-block text-sm font-semibold text-brand hover:underline">
           {t("admin.partnerSubscriptionPay.back")}
@@ -150,14 +150,14 @@ function PartnerSubscriptionPayInner() {
 
   return (
     <div className="bg-slate-50 text-slate-900 min-h-full">
-      <header className="border-b border-slate-200 px-6 py-4">
+      <header className="border-b border-slate-200 px-4 sm:px-6 py-4">
         <Link href="/owner/subscriptions" className="text-sm text-brand hover:underline">
           {t("admin.partnerSubscriptionPay.back")}
         </Link>
         <h1 className="text-xl font-semibold mt-2">{t("admin.partnerSubscriptionPay.title")}</h1>
         <p className="text-sm text-slate-600 mt-1 max-w-xl leading-relaxed">{t("admin.partnerSubscriptionPay.lead")}</p>
       </header>
-      <main className="p-6 max-w-lg">
+      <main className="px-4 py-6 sm:p-6 max-w-lg mx-auto w-full">
         <Elements
           stripe={stripePromise}
           options={{
@@ -183,7 +183,7 @@ export default function PartnerSubscriptionPayPage() {
   return (
     <Suspense
       fallback={
-        <div className="bg-slate-50 min-h-full p-8">
+        <div className="bg-slate-50 min-h-full px-4 py-6 sm:p-8">
           <p className="text-slate-600 text-sm">{t("common.loading")}</p>
         </div>
       }

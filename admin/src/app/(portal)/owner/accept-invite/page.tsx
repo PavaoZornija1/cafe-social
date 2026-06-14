@@ -31,24 +31,23 @@ function AcceptStaffInviteInner() {
   }, [initial]);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 p-8 max-w-lg mx-auto">
+    <div className="min-h-full bg-slate-50 text-slate-900 px-4 py-6 sm:p-8 max-w-lg mx-auto w-full">
       <Link
         href={needsOnboarding ? '/onboarding' : '/owner/venues'}
-        className="text-sm text-brand hover:underline"
+        className="text-sm text-brand hover:underline font-medium"
       >
         {needsOnboarding
           ? t('admin.partnerOnboarding.backToSetup')
           : t('admin.partnerOnboarding.backToVenues')}
       </Link>
-      <h1 className="text-xl font-semibold mt-4">Accept staff invite</h1>
-      <p className="text-sm text-slate-600 mt-2">
-        Sign in with the same email the invitation was sent to, paste the token from your invite
-        link, then confirm.
+      <h1 className="text-xl font-semibold mt-4">{t('admin.partnerAcceptInvite.title')}</h1>
+      <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+        {t('admin.partnerAcceptInvite.lead')}
       </p>
       {!isLoaded ? (
-        <p className="mt-4 text-slate-500">Loading…</p>
+        <p className="mt-4 text-slate-500">{t('common.loading')}</p>
       ) : !isSignedIn ? (
-        <p className="mt-4 text-amber-800 text-sm">Sign in using Clerk first.</p>
+        <p className="mt-4 text-amber-800 text-sm">{t('admin.partnerAcceptInvite.signInFirst')}</p>
       ) : (
         <form
           className="mt-6 space-y-4"
@@ -59,14 +58,14 @@ function AcceptStaffInviteInner() {
         >
           <form.Field name="token">
             {(field) => (
-              <label className="block text-sm text-slate-600">
-                Invite token
+              <label className="block text-sm font-medium text-slate-800">
+                {t('admin.partnerAcceptInvite.tokenLabel')}
                 <textarea
-                  className="mt-1 w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono min-h-[100px]"
+                  className="mt-1.5 w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-mono min-h-[100px]"
                   value={field.state.value}
                   onChange={(e) => field.handleChange(e.target.value)}
                   onBlur={field.handleBlur}
-                  placeholder="Paste token"
+                  placeholder={t('admin.partnerAcceptInvite.tokenPlaceholder')}
                 />
               </label>
             )}
@@ -74,15 +73,22 @@ function AcceptStaffInviteInner() {
           <button
             type="submit"
             disabled={acceptMut.isPending || !form.state.values.token.trim()}
-            className="w-full bg-brand hover:bg-brand-hover disabled:opacity-50 rounded-lg py-2 font-medium"
+            className="w-full bg-brand hover:bg-brand-hover disabled:opacity-50 rounded-xl py-3 font-semibold text-brand-foreground text-sm"
           >
-            {acceptMut.isPending ? 'Working…' : 'Accept invite'}
+            {acceptMut.isPending
+              ? t('admin.partnerAcceptInvite.working')
+              : t('admin.partnerAcceptInvite.submit')}
           </button>
         </form>
       )}
       {acceptMut.isSuccess && acceptMut.data ? (
-        <p className="mt-4 text-emerald-800 text-sm">
-          {`You're on the team for ${acceptMut.data.venueName ?? 'the venue'} as ${acceptMut.data.role ?? 'staff'}.`}
+        <p className="mt-4 text-emerald-800 text-sm leading-relaxed">
+          {t('admin.partnerAcceptInvite.success', {
+            venueName: acceptMut.data.venueName ?? t('admin.partnerVenueDetail.header.fallbackVenueTitle'),
+            role: acceptMut.data.role
+              ? t(`admin.partnerVenueDetail.roles.${acceptMut.data.role as 'EMPLOYEE' | 'MANAGER' | 'OWNER'}`)
+              : t('admin.partnerVenueDetail.roles.EMPLOYEE'),
+          })}
         </p>
       ) : null}
       {acceptMut.isError && acceptMut.error instanceof Error ? (
@@ -93,10 +99,11 @@ function AcceptStaffInviteInner() {
 }
 
 export default function AcceptStaffInvitePage() {
+  const { t } = useTranslation();
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-slate-50 text-slate-600 p-8">Loading…</div>
+        <div className="min-h-full bg-slate-50 text-slate-600 px-4 py-8">{t('common.loading')}</div>
       }
     >
       <AcceptStaffInviteInner />

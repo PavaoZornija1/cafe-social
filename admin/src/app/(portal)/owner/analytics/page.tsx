@@ -9,7 +9,7 @@ function PartnerAnalyticsPageInner() {
   const { t } = useTranslation();
   return (
     <div className="bg-slate-50 text-slate-900 min-h-full">
-      <header className="border-b border-slate-200 px-6 py-4">
+      <header className="border-b border-slate-200 px-4 sm:px-6 py-4">
         <Link href="/owner/venues" className="text-sm text-brand hover:underline">
           {t("admin.partnerAnalytics.backVenues")}
         </Link>
@@ -18,7 +18,7 @@ function PartnerAnalyticsPageInner() {
           {t("admin.partnerAnalytics.pageLead")}
         </p>
       </header>
-      <main className="p-6 max-w-5xl">
+      <main className="p-4 sm:p-6 max-w-5xl">
         <PartnerAnalyticsHub />
       </main>
     </div>

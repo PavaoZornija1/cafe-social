@@ -8,7 +8,9 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { TableRowCards } from "@/components/TableRowCards";
 import {
   usePatchChallengeMutation,
   useVenueChallengesQuery,
@@ -44,6 +46,7 @@ export function VenueChallengesSection({
   enabled,
   variant = "page",
 }: Props) {
+  const { t } = useTranslation();
   const q = useVenueChallengesQuery(venueId, getToken, enabled && Boolean(venueId));
   const perksQ = useVenuePerksQuery(venueId, getToken, enabled && Boolean(venueId));
   const patchMut = usePatchChallengeMutation(getToken, venueId);
@@ -70,7 +73,7 @@ export function VenueChallengesSection({
   const columns = useMemo(
     () => [
       colHelper.accessor("title", {
-        header: "Challenge",
+        header: t("admin.venueCms.challenges.colChallenge"),
         cell: (info) => (
           <div>
             <div className="font-medium">{info.getValue()}</div>
@@ -80,13 +83,13 @@ export function VenueChallengesSection({
       }),
       colHelper.display({
         id: "reward",
-        header: "Completion reward",
+        header: t("admin.venueCms.challenges.colReward"),
         cell: ({ row }) => {
           const r = row.original;
           const perks = perksQ.data ?? [];
           return (
-            <label className="flex min-w-[200px] max-w-[320px] flex-col gap-1">
-              <span className={fieldLbl}>Perk issued on complete</span>
+            <label className="flex w-full sm:min-w-[200px] sm:max-w-[320px] flex-col gap-1">
+              <span className={fieldLbl}>{t("admin.venueCms.challenges.rewardPerkLabel")}</span>
               <select
                 className={fieldDt}
                 disabled={patchMut.isPending || perksQ.isPending}
@@ -99,7 +102,7 @@ export function VenueChallengesSection({
                   });
                 }}
               >
-                <option value="">None</option>
+                <option value="">{t("admin.venueCms.common.none")}</option>
                 {perks.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.title} ({p.code})
@@ -112,14 +115,14 @@ export function VenueChallengesSection({
       }),
       colHelper.display({
         id: "window",
-        header: "UTC window",
+        header: t("admin.venueCms.challenges.colWindow"),
         cell: ({ row }) => {
           const r = row.original;
           const ed = edits[r.id];
           return (
-            <div className="flex flex-wrap items-end gap-3 text-sm">
-              <label className="flex min-w-[160px] flex-1 flex-col gap-1">
-                <span className={fieldLbl}>activeFrom (UTC)</span>
+            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 text-sm">
+              <label className="flex w-full sm:min-w-[160px] sm:flex-1 flex-col gap-1">
+                <span className={fieldLbl}>{t("admin.venueCms.challenges.activeFromUtc")}</span>
                 <input
                   type="datetime-local"
                   className={fieldDt}
@@ -132,8 +135,8 @@ export function VenueChallengesSection({
                   }
                 />
               </label>
-              <label className="flex min-w-[160px] flex-1 flex-col gap-1">
-                <span className={fieldLbl}>activeTo (UTC)</span>
+              <label className="flex w-full sm:min-w-[160px] sm:flex-1 flex-col gap-1">
+                <span className={fieldLbl}>{t("admin.venueCms.challenges.activeToUtc")}</span>
                 <input
                   type="datetime-local"
                   className={fieldDt}
@@ -161,14 +164,14 @@ export function VenueChallengesSection({
                 }}
                 className={`h-[38px] shrink-0 ${btnRow}`}
               >
-                Save…
+                {t("admin.venueCms.common.saveEllipsis")}
               </button>
             </div>
           );
         },
       }),
     ],
-    [edits, patchMut.isPending, perksQ.data, perksQ.isPending],
+    [edits, patchMut.isPending, perksQ.data, perksQ.isPending, t],
   );
 
   const table = useReactTable({
@@ -186,16 +189,17 @@ export function VenueChallengesSection({
       className={
         embedded
           ? "mb-8 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.04] md:p-6"
-          : "min-h-screen bg-slate-50 p-8 text-slate-900"
+          : "min-h-screen bg-slate-50 px-4 py-6 sm:p-8 text-slate-900"
       }
     >
       {embedded ? (
         <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div>
-            <h2 className="text-sm font-semibold text-slate-900">Challenges</h2>
+            <h2 className="text-sm font-semibold text-slate-900">
+              {t("admin.venueCms.challenges.embeddedTitle")}
+            </h2>
             <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
-              Goals and schedules for this venue. Times are stored in UTC; adjust windows with care
-              for your audience.
+              {t("admin.venueCms.challenges.embeddedLead")}
             </p>
           </div>
           <span
@@ -206,16 +210,16 @@ export function VenueChallengesSection({
             }
           >
             {challengeCount === 0
-              ? "None"
-              : `${challengeCount} challenge${challengeCount === 1 ? "" : "s"}`}
+              ? t("admin.venueCms.challenges.badgeNone")
+              : t("admin.venueCms.challenges.badgeCount", { count: challengeCount })}
           </span>
         </div>
       ) : (
         <>
           <Link href="/venues" className="text-brand text-sm">
-            ← Venues
+            {t("admin.venueCms.common.backVenues")}
           </Link>
-          <h1 className="text-xl font-bold mt-4 mb-4">Challenges (UTC window)</h1>
+          <h1 className="text-xl font-bold mt-4 mb-4">{t("admin.venueCms.challenges.pageTitle")}</h1>
         </>
       )}
 
@@ -237,7 +241,7 @@ export function VenueChallengesSection({
       ) : null}
 
       {embedded ? (
-        <p className={fieldLbl}>Schedule &amp; windows</p>
+        <p className={fieldLbl}>{t("admin.venueCms.challenges.scheduleWindows")}</p>
       ) : null}
       {q.isPending && !q.data ? (
         <p
@@ -247,17 +251,19 @@ export function VenueChallengesSection({
               : "text-sm text-slate-600"
           }
         >
-          Loading challenges…
+          {t("admin.venueCms.challenges.loading")}
         </p>
       ) : (
-        <div
-          className={
-            embedded
-              ? "mt-3 overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm"
-              : "max-w-4xl overflow-x-auto rounded-xl border border-slate-200 bg-white"
-          }
-        >
-          <table className="min-w-full text-sm">
+        <>
+          <TableRowCards rows={table.getRowModel().rows} leadCellId="title" actionCellIds={["window"]} />
+          <div
+            className={
+              embedded
+                ? "hidden md:block mt-3 overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm"
+                : "hidden md:block max-w-4xl overflow-x-auto rounded-xl border border-slate-200 bg-white"
+            }
+          >
+            <table className="min-w-full text-sm">
             <thead className="bg-slate-50/90">
               {table.getHeaderGroups().map((hg) => (
                 <tr
@@ -279,7 +285,7 @@ export function VenueChallengesSection({
                     colSpan={3}
                     className="border-t border-slate-100 px-3 py-6 text-center text-sm text-slate-500"
                   >
-                    No challenges for this venue.
+                    {t("admin.venueCms.challenges.empty")}
                   </td>
                 </tr>
               ) : (
@@ -295,26 +301,37 @@ export function VenueChallengesSection({
               )}
             </tbody>
           </table>
-        </div>
+          </div>
+          {(q.data ?? []).length === 0 ? (
+            <p
+              className={
+                embedded
+                  ? "md:hidden mt-3 rounded-lg border border-dashed border-slate-200 bg-slate-50/80 px-3 py-4 text-sm text-slate-500 text-center"
+                  : "md:hidden rounded-lg border border-slate-200 px-3 py-6 text-sm text-slate-500 text-center"
+              }
+            >
+              No challenges for this venue.
+            </p>
+          ) : null}
+        </>
       )}
 
       <ConfirmModal
         open={saveChallenge !== null}
         onClose={() => setSaveChallenge(null)}
-        title="Save challenge UTC window?"
+        title={t("admin.venueCms.challenges.saveWindowTitle")}
         description={
           saveChallenge ? (
             <p>
-              Update schedule for{" "}
-              <span className="font-semibold text-slate-900">{saveChallenge.title}</span>
-              :{" "}
-              <span className="font-mono text-xs text-slate-700">
-                {saveChallenge.from || "—"} → {saveChallenge.to || "—"}
-              </span>
+              {t("admin.venueCms.challenges.saveWindowBody", {
+                title: saveChallenge.title,
+                from: saveChallenge.from || "—",
+                to: saveChallenge.to || "—",
+              })}
             </p>
           ) : null
         }
-        confirmLabel="Save"
+        confirmLabel={t("admin.venueCms.common.save")}
         onConfirm={async () => {
           if (!saveChallenge) return;
           await patchMut.mutateAsync({
@@ -330,9 +347,9 @@ export function VenueChallengesSection({
 
       {!embedded ? null : (
         <p className="text-xs text-slate-500 mt-3">
-          Standalone page:{" "}
+          {t("admin.venueCms.common.standalonePage")}{" "}
           <Link href={`/challenges/${venueId}`} className="text-brand hover:underline font-medium">
-            Open challenges in full width
+            {t("admin.venueCms.challenges.openFullWidth")}
           </Link>
         </p>
       )}

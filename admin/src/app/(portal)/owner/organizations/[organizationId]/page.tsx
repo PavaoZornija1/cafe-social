@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { ownerFetch } from '@/lib/portalApi';
 import { OwnerAnalyticsCharts } from '@/components/OwnerAnalyticsCharts';
 import { PartnerReadOnlyBanner } from '@/components/PartnerReadOnlyBanner';
+import { PerkCountCards } from '@/components/TableRowCards';
 import {
   partnerOrganizationMutationsBlockedNotice,
   partnerVenueMutationsBlockedNotice,
@@ -177,7 +178,7 @@ export default function OwnerOrganizationPage() {
 
   return (
     <div className="bg-slate-50 text-slate-900 min-h-full">
-      <header className="border-b border-slate-200 px-6 py-4 flex flex-wrap justify-between gap-3">
+      <header className="border-b border-slate-200 px-4 sm:px-6 py-4 flex flex-wrap justify-between gap-3">
         <div>
           <Link href="/owner/venues" className="text-sm text-brand hover:underline">
             {t('admin.partnerOrgRollup.backVenues')}
@@ -185,9 +186,11 @@ export default function OwnerOrganizationPage() {
           <h1 className="text-xl font-semibold mt-2">{t('admin.partnerOrgRollup.title')}</h1>
           <p className="text-sm text-slate-600 mt-1 font-mono">{organizationId}</p>
         </div>
-        <UserButton />
+        <div className="hidden lg:block shrink-0">
+          <UserButton />
+        </div>
       </header>
-      <main className="p-6 max-w-4xl">
+      <main className="p-4 sm:p-6 max-w-4xl">
         {!isLoaded || analyticsQ.isPending ? (
           <p className="text-slate-600">{t('admin.partnerOrgRollup.loading')}</p>
         ) : null}
@@ -204,13 +207,13 @@ export default function OwnerOrganizationPage() {
         ) : null}
         {analytics && analytics.venueCount > 0 ? (
           <>
-            <div className="flex flex-wrap gap-3 items-end mt-2">
-              <label className="text-sm text-slate-600">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 mt-2">
+              <label className="text-sm text-slate-600 flex flex-col sm:flex-row sm:items-center gap-1.5 w-full sm:w-auto">
                 {t('admin.partnerAnalytics.periodDays')}
                 <select
                   value={days}
                   onChange={(e) => setDays(Number(e.target.value))}
-                  className="ml-2 bg-white border border-slate-300 rounded px-2 py-1 text-slate-900"
+                  className="sm:ml-2 bg-white border border-slate-300 rounded px-2 py-1 text-slate-900 w-full sm:w-auto"
                 >
                   {[7, 14, 30, 60, 90].map((d) => (
                     <option key={d} value={d}>
@@ -219,27 +222,27 @@ export default function OwnerOrganizationPage() {
                   ))}
                 </select>
               </label>
-              <label className="text-sm text-slate-600">
+              <label className="text-sm text-slate-600 flex flex-col sm:flex-row sm:items-center gap-1.5 w-full sm:w-auto">
                 {t('admin.partnerAnalytics.from')}
                 <input
                   type="date"
                   value={fromYmd}
                   onChange={(e) => setFromYmd(e.target.value)}
-                  className="ml-2 bg-white border border-slate-300 rounded px-2 py-1 text-slate-900"
+                  className="sm:ml-2 bg-white border border-slate-300 rounded px-2 py-1 text-slate-900 w-full sm:w-auto"
                 />
               </label>
-              <label className="text-sm text-slate-600">
+              <label className="text-sm text-slate-600 flex flex-col sm:flex-row sm:items-center gap-1.5 w-full sm:w-auto">
                 {t('admin.partnerAnalytics.to')}
                 <input
                   type="date"
                   value={toYmd}
                   onChange={(e) => setToYmd(e.target.value)}
-                  className="ml-2 bg-white border border-slate-300 rounded px-2 py-1 text-slate-900"
+                  className="sm:ml-2 bg-white border border-slate-300 rounded px-2 py-1 text-slate-900 w-full sm:w-auto"
                 />
               </label>
               <button
                 type="button"
-                className="text-xs text-slate-500 hover:underline"
+                className="text-xs text-slate-500 hover:underline self-start"
                 onClick={() => {
                   setFromYmd('');
                   setToYmd('');
@@ -251,7 +254,7 @@ export default function OwnerOrganizationPage() {
             <p className="text-xs text-slate-500 mt-2">
               {t('admin.partnerAnalytics.rangeHint')}
             </p>
-            <div className="flex flex-wrap gap-4 mt-3">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-4 mt-3">
               <button
                 type="button"
                 disabled={readOnlyDisabled}
@@ -282,7 +285,7 @@ export default function OwnerOrganizationPage() {
                   : ''}
               </p>
             ) : null}
-            <p className="text-sm text-slate-500 mt-4">
+            <p className="text-sm text-slate-500 mt-4 line-clamp-3 sm:line-clamp-none">
               {t('admin.partnerOrgRollup.rollingUp', { count: analytics.venueCount })}{' '}
               {analytics.venues.map((v) => v.name).join(' · ')}
             </p>
@@ -378,7 +381,8 @@ export default function OwnerOrganizationPage() {
               <h3 className="text-sm font-semibold text-slate-800 mb-2">
                 {t('admin.partnerOrgRollup.topPerksTitle')}
               </h3>
-              <div className="text-sm border border-slate-200 rounded-lg overflow-hidden">
+              <PerkCountCards rows={perkRows} />
+              <div className="hidden md:block text-sm border border-slate-200 rounded-lg overflow-hidden">
                 <table className="min-w-full">
                   <thead>
                     {perkTable.getHeaderGroups().map((hg) => (

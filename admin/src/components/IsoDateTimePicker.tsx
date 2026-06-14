@@ -1,16 +1,15 @@
 "use client";
 
-import { enUS } from "date-fns/locale";
 import { useMemo } from "react";
-import DatePicker, { registerLocale } from "react-datepicker";
+import { useTranslation } from "react-i18next";
+import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-
-registerLocale("en-admin", enUS);
+import { adminDatePickerLocale } from "@/i18n/dateFnsLocale";
 
 function parseIsoToDate(iso: string): Date | null {
-  const t = iso.trim();
-  if (!t) return null;
-  const d = new Date(t);
+  const trimmed = iso.trim();
+  if (!trimmed) return null;
+  const d = new Date(trimmed);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
@@ -25,7 +24,9 @@ export type IsoDateTimePickerProps = {
  * Pick date and time (browser-local); value is ISO 8601 string for API storage.
  */
 export function IsoDateTimePicker({ id, value, onChange, disabled }: IsoDateTimePickerProps) {
+  const { t, i18n } = useTranslation();
   const selected = useMemo(() => parseIsoToDate(value), [value]);
+  const locale = useMemo(() => adminDatePickerLocale(i18n.language), [i18n.language]);
 
   return (
     <DatePicker
@@ -37,10 +38,10 @@ export function IsoDateTimePicker({ id, value, onChange, disabled }: IsoDateTime
       showTimeSelect
       timeIntervals={15}
       dateFormat="PPP p"
-      locale="en-admin"
+      locale={locale}
       isClearable
       disabled={disabled}
-      placeholderText="Select date and time"
+      placeholderText={t("admin.common.selectDateTime")}
       wrapperClassName="w-full block"
       popperClassName="z-[120]"
       className="mt-1 w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm"

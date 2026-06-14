@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   type AdminNudgeTemplateRow,
   useAdminNudgeTemplateCreateMutation,
@@ -32,6 +33,7 @@ const btnGhost =
   "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50";
 
 export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: Props) {
+  const { t } = useTranslation();
   const templatesQ = useAdminNudgeTemplatesQuery(getToken, enabled);
   const assignmentsQ = useVenueNudgeAssignmentsQuery(venueId, getToken, enabled);
 
@@ -164,7 +166,7 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
   const submitAttach = async () => {
     setAsmErr(null);
     if (!attachDraft.templateId) {
-      setAsmErr("Choose a nudge template.");
+      setAsmErr(t("admin.venueCms.nudges.chooseTemplateError"));
       return;
     }
     try {
@@ -227,7 +229,7 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
   };
 
   const removeAsm = async (id: string) => {
-    if (!confirm("Remove this nudge from the venue?")) return;
+    if (!confirm(t("admin.venueCms.nudges.removeConfirm"))) return;
     setAsmErr(null);
     try {
       await deleteAsmMut.mutateAsync(id);
@@ -242,7 +244,10 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
     try {
       const r = await triggerMut.mutateAsync(assignmentId);
       setTriggerMsg(
-        `Sent to ${r.pushAttemptedForPlayers} player(s) currently at this venue (approx. ${r.playersWithTokens} with push tokens).`,
+        t("admin.venueCms.nudges.triggerResult", {
+          attempted: r.pushAttemptedForPlayers,
+          tokens: r.playersWithTokens,
+        }),
       );
     } catch (e) {
       setAsmErr((e as Error).message);
@@ -254,11 +259,9 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
       <div className="space-y-6">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div>
-            <h2 className="text-sm font-semibold text-slate-900">Venue nudges</h2>
+            <h2 className="text-sm font-semibold text-slate-900">{t("admin.venueCms.nudges.title")}</h2>
             <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
-              Marketing pushes tied to on-site dwell. Resolution order: assignment overrides → venue-wide
-              fallback (super admin) → template → env defaults; category templates apply when nothing is
-              attached.
+              {t("admin.venueCms.nudges.lead")}
             </p>
           </div>
           <span
@@ -269,28 +272,17 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
             }
           >
             {assignments.length === 0
-              ? "None attached"
-              : `${assignments.length} attached`}
+              ? t("admin.venueCms.nudges.badgeNone")
+              : t("admin.venueCms.nudges.badgeCount", { count: assignments.length })}
           </span>
         </div>
 
         <div className="rounded-xl border border-amber-200/90 bg-amber-50/90 px-4 py-3 text-slate-900 shadow-sm">
           <p className="text-xs leading-relaxed text-amber-950">
-            <strong className="font-semibold">Automatic:</strong> while a guest is on site, after their
-            dwell time (lowest <span className="font-mono text-[11px]">sort order</span> assignment wins —
-            use per-assignment or template default minutes, else global{" "}
-            <span className="font-mono text-[11px]">VENUE_ORDER_NUDGE_AFTER_MINUTES</span>), we send{" "}
-            <strong className="font-semibold">one</strong> push per visit using that row&apos;s copy
-            (assignment overrides → venue-wide fallback fields below → template → env). If this venue has{" "}
-            <strong className="font-semibold">no</strong> assignments, legacy matching by{" "}
-            <strong className="font-semibold">venue categories</strong> still applies.
+            {t("admin.venueCms.nudges.autoExplainer")}
           </p>
           <p className="mt-2 text-xs leading-relaxed text-amber-950/95">
-            <strong className="font-semibold">Trigger now (super admin):</strong> sends the selected
-            assignment&apos;s copy immediately to players with <strong className="font-semibold">fresh presence</strong>{" "}
-            at this venue (last ~10 minutes), respecting privacy/marketing prefs. Throttled per venue
-            (default 120s,{" "}
-            <span className="font-mono text-[11px]">VENUE_NUDGE_ADMIN_TRIGGER_MIN_SECONDS</span>).
+            {t("admin.venueCms.nudges.triggerExplainer")}
           </p>
         </div>
 
@@ -298,11 +290,9 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
           <div className="rounded-xl border border-slate-200/90 bg-slate-50/70 p-4 shadow-sm md:p-5">
             <div className="space-y-5">
               <div>
-                <h3 className={fieldLbl}>Global nudge library</h3>
+                <h3 className={fieldLbl}>{t("admin.venueCms.nudges.libraryTitle")}</h3>
                 <p className="mt-1 text-xs leading-snug text-slate-500">
-                  Reusable templates. Attach them to this venue below; optional{" "}
-                  <span className="font-mono text-[11px] text-slate-600">VenueType</span> links in the DB
-                  still drive defaults when a venue has no assignments.
+                  {t("admin.venueCms.nudges.libraryLead")}
                 </p>
               </div>
               {tplErr ? (
@@ -315,19 +305,19 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
               ) : null}
 
               <div className="rounded-xl border border-slate-200/80 bg-white/90 p-4 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">New template</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("admin.venueCms.nudges.newTemplate")}</p>
                 <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <label className={fieldCol}>
-                    <span className={fieldLbl}>Code</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.common.code")}</span>
                     <input
                       className={`${fieldInp} font-mono text-xs`}
                       value={newTpl.code}
                       onChange={(e) => setNewTpl((s) => ({ ...s, code: e.target.value }))}
-                      placeholder="LATTE_REMINDER_V1"
+                      placeholder={t("admin.venueCms.nudges.codePlaceholder")}
                     />
                   </label>
                   <label className={fieldCol}>
-                    <span className={fieldLbl}>Nudge type (analytics)</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.nudges.nudgeTypeAnalytics")}</span>
                     <input
                       className={fieldInp}
                       value={newTpl.nudgeType}
@@ -335,7 +325,7 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
                     />
                   </label>
                   <label className={`${fieldCol} sm:col-span-2`}>
-                    <span className={fieldLbl}>Title template</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.nudges.titleTemplate")}</span>
                     <input
                       className={fieldInp}
                       value={newTpl.titleTemplate}
@@ -343,7 +333,7 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
                     />
                   </label>
                   <label className={`${fieldCol} sm:col-span-2`}>
-                    <span className={fieldLbl}>Body template</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.nudges.bodyTemplate")}</span>
                     <textarea
                       className={`${fieldInp} min-h-[56px]`}
                       value={newTpl.bodyTemplate}
@@ -351,7 +341,7 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
                     />
                   </label>
                   <label className={`${fieldCol} sm:col-span-2`}>
-                    <span className={fieldLbl}>Description (internal)</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.nudges.descriptionInternal")}</span>
                     <input
                       className={fieldInp}
                       value={newTpl.description}
@@ -359,16 +349,16 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
                     />
                   </label>
                   <label className={fieldCol}>
-                    <span className={fieldLbl}>Default dwell minutes</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.nudges.defaultDwellMinutes")}</span>
                     <input
                       className={fieldInp}
                       value={newTpl.defaultAfterMinutes}
                       onChange={(e) => setNewTpl((s) => ({ ...s, defaultAfterMinutes: e.target.value }))}
-                      placeholder="e.g. 30"
+                      placeholder={t("admin.venueCms.nudges.dwellPlaceholder")}
                     />
                   </label>
                   <label className={fieldCol}>
-                    <span className={fieldLbl}>Sort priority</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.nudges.sortPriority")}</span>
                     <input
                       className={fieldInp}
                       value={newTpl.sortPriority}
@@ -382,41 +372,78 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
                   onClick={() => void createTpl()}
                   className={`mt-4 h-[42px] ${btnPrimary}`}
                 >
-                  {createTplMut.isPending ? "Creating…" : "Create template"}
+                  {createTplMut.isPending ? t("admin.venueCms.common.creating") : t("admin.venueCms.nudges.createTemplate")}
                 </button>
               </div>
 
-              <div className="overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm">
+              <ul className="md:hidden space-y-3">
+                {templates.map((tpl) => (
+                  <li
+                    key={tpl.id}
+                    className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-2"
+                  >
+                    <p className="font-mono text-sm font-semibold text-slate-900">{tpl.code}</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
+                      <span>
+                        <span className="font-medium text-slate-500">{t("admin.venueCms.common.type")}</span>{" "}
+                        {tpl.nudgeType}
+                      </span>
+                      <span>
+                        <span className="font-medium text-slate-500">{t("admin.venueCms.common.active")}</span>{" "}
+                        {tpl.active ? t("admin.venueCms.common.yes") : t("admin.venueCms.common.no")}
+                      </span>
+                      <span>
+                        <span className="font-medium text-slate-500">{t("admin.venueCms.nudges.colDwellMin")}</span>{" "}
+                        {tpl.defaultAfterMinutes ?? "—"} min
+                      </span>
+                      <span>
+                        <span className="font-medium text-slate-500">{t("admin.venueCms.nudges.colVenues")}</span>{" "}
+                        {tpl._count?.venueAssignments ?? "—"}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => startEditTpl(tpl)}
+                      className="text-brand text-xs font-medium hover:underline pt-1"
+                    >
+                      {t("admin.venueCms.common.edit")}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm">
                 <table className="min-w-full text-sm">
                   <thead className="bg-slate-50/90">
                     <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      <th className="px-3 py-2.5 pr-3">Code</th>
-                      <th className="px-3 py-2.5 pr-3">Type</th>
-                      <th className="px-3 py-2.5 pr-3">Active</th>
-                      <th className="px-3 py-2.5 pr-3">Dwell min</th>
-                      <th className="px-3 py-2.5 pr-3">Venues</th>
+                      <th className="px-3 py-2.5 pr-3">{t("admin.venueCms.common.code")}</th>
+                      <th className="px-3 py-2.5 pr-3">{t("admin.venueCms.nudges.colType")}</th>
+                      <th className="px-3 py-2.5 pr-3">{t("admin.venueCms.nudges.colActive")}</th>
+                      <th className="px-3 py-2.5 pr-3">{t("admin.venueCms.nudges.colDwellMin")}</th>
+                      <th className="px-3 py-2.5 pr-3">{t("admin.venueCms.nudges.colVenues")}</th>
                       <th className="px-3 py-2.5 pr-3" />
                     </tr>
                   </thead>
                   <tbody>
-                    {templates.map((t) => (
-                      <tr key={t.id} className="border-b border-slate-100 align-top">
-                        <td className="px-3 py-2.5 pr-3 font-mono text-xs">{t.code}</td>
-                        <td className="px-3 py-2.5 pr-3 text-xs">{t.nudgeType}</td>
-                        <td className="px-3 py-2.5 pr-3">{t.active ? "yes" : "no"}</td>
-                        <td className="px-3 py-2.5 pr-3 tabular-nums">
-                          {t.defaultAfterMinutes ?? "—"}
+                    {templates.map((tpl) => (
+                      <tr key={tpl.id} className="border-b border-slate-100 align-top">
+                        <td className="px-3 py-2.5 pr-3 font-mono text-xs">{tpl.code}</td>
+                        <td className="px-3 py-2.5 pr-3 text-xs">{tpl.nudgeType}</td>
+                        <td className="px-3 py-2.5 pr-3">
+                          {tpl.active ? t("admin.venueCms.common.yes") : t("admin.venueCms.common.no")}
                         </td>
                         <td className="px-3 py-2.5 pr-3 tabular-nums">
-                          {t._count?.venueAssignments ?? "—"}
+                          {tpl.defaultAfterMinutes ?? "—"}
+                        </td>
+                        <td className="px-3 py-2.5 pr-3 tabular-nums">
+                          {tpl._count?.venueAssignments ?? "—"}
                         </td>
                         <td className="px-3 py-2.5 pr-3">
                           <button
                             type="button"
-                            onClick={() => startEditTpl(t)}
+                            onClick={() => startEditTpl(tpl)}
                             className="text-brand text-xs font-medium hover:underline"
                           >
-                            Edit
+                            {t("admin.venueCms.common.edit")}
                           </button>
                         </td>
                       </tr>
@@ -428,11 +455,11 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
               {editTplId ? (
                 <div className="rounded-xl border border-brand/25 bg-brand-light/25 p-4 shadow-sm md:p-5">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                    Edit template
+                    {t("admin.venueCms.nudges.editTemplate")}
                   </p>
                   <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <label className={fieldCol}>
-                      <span className={fieldLbl}>Nudge type</span>
+                      <span className={fieldLbl}>{t("admin.venueCms.nudges.editNudgeType")}</span>
                       <input
                         className={fieldInp}
                         value={editTplDraft.nudgeType}
@@ -450,10 +477,10 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
                           setEditTplDraft((s) => ({ ...s, active: e.target.checked }))
                         }
                       />
-                      Active
+                      {t("admin.venueCms.common.active")}
                     </label>
                     <label className={`${fieldCol} sm:col-span-2`}>
-                      <span className={fieldLbl}>Title</span>
+                      <span className={fieldLbl}>{t("admin.venueCms.common.title")}</span>
                       <input
                         className={fieldInp}
                         value={editTplDraft.titleTemplate}
@@ -463,7 +490,7 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
                       />
                     </label>
                     <label className={`${fieldCol} sm:col-span-2`}>
-                      <span className={fieldLbl}>Body</span>
+                      <span className={fieldLbl}>{t("admin.venueCms.nudges.bodyTemplate")}</span>
                       <textarea
                         className={`${fieldInp} min-h-[56px]`}
                         value={editTplDraft.bodyTemplate}
@@ -473,7 +500,7 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
                       />
                     </label>
                     <label className={`${fieldCol} sm:col-span-2`}>
-                      <span className={fieldLbl}>Description</span>
+                      <span className={fieldLbl}>{t("admin.venueCms.nudges.descriptionShort")}</span>
                       <input
                         className={fieldInp}
                         value={editTplDraft.description}
@@ -483,7 +510,7 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
                       />
                     </label>
                     <label className={fieldCol}>
-                      <span className={fieldLbl}>Default dwell min</span>
+                      <span className={fieldLbl}>{t("admin.venueCms.nudges.defaultDwellMinutes")}</span>
                       <input
                         className={fieldInp}
                         value={editTplDraft.defaultAfterMinutes}
@@ -496,7 +523,7 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
                       />
                     </label>
                     <label className={fieldCol}>
-                      <span className={fieldLbl}>Sort priority</span>
+                      <span className={fieldLbl}>{t("admin.venueCms.nudges.sortPriority")}</span>
                       <input
                         className={fieldInp}
                         value={editTplDraft.sortPriority}
@@ -513,10 +540,10 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
                       onClick={() => void saveTpl()}
                       className={btnBrand}
                     >
-                      {patchTplMut.isPending ? "Saving…" : "Save template"}
+                      {patchTplMut.isPending ? t("admin.venueCms.common.saving") : t("admin.venueCms.nudges.saveTemplate")}
                     </button>
                     <button type="button" onClick={() => setEditTplId(null)} className={btnGhost}>
-                      Cancel
+                      {t("admin.venueCms.common.cancel")}
                     </button>
                   </div>
                 </div>
@@ -528,11 +555,9 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
         <div className="rounded-xl border border-slate-200/90 bg-slate-50/50 p-4 shadow-sm md:p-5">
           <div className="space-y-4">
             <div>
-              <h3 className={fieldLbl}>Nudges on this venue</h3>
+              <h3 className={fieldLbl}>{t("admin.venueCms.nudges.assignmentsTitle")}</h3>
               <p className="mt-1 text-xs leading-snug text-slate-500">
-                Lower <span className="font-mono text-[11px]">sort order</span> runs first for automatic
-                dwell selection. Per-row overrides replace template text or dwell minutes for this venue
-                only.
+                {t("admin.venueCms.nudges.assignmentsLead")}
               </p>
             </div>
             {asmErr ? (
@@ -556,22 +581,22 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
               <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_5.5rem] sm:items-end">
                   <label className={fieldCol}>
-                    <span className={fieldLbl}>Attach template</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.nudges.attachTemplate")}</span>
                     <select
                       className={fieldInp}
                       value={attachDraft.templateId}
                       onChange={(e) => setAttachDraft((s) => ({ ...s, templateId: e.target.value }))}
                     >
-                      <option value="">— Select —</option>
-                      {unassignedTemplates.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.code} ({t.nudgeType})
+                      <option value="">{t("admin.venueCms.nudges.selectTemplate")}</option>
+                      {unassignedTemplates.map((tpl) => (
+                        <option key={tpl.id} value={tpl.id}>
+                          {tpl.code} ({tpl.nudgeType})
                         </option>
                       ))}
                     </select>
                   </label>
                   <label className={fieldCol}>
-                    <span className={fieldLbl}>Sort</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.common.sort")}</span>
                     <input
                       className={fieldInp}
                       value={attachDraft.sortOrder}
@@ -580,24 +605,24 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
                   </label>
                 </div>
                 <p className="text-xs text-slate-500">
-                  Optional overrides when adding (leave blank for template defaults):
+                  {t("admin.venueCms.nudges.overridesHint")}
                 </p>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <input
                     className={fieldInp}
-                    placeholder="Title override"
+                    placeholder={t("admin.venueCms.nudges.titleOverridePlaceholder")}
                     value={attachDraft.titleOverride}
                     onChange={(e) => setAttachDraft((s) => ({ ...s, titleOverride: e.target.value }))}
                   />
                   <input
                     className={fieldInp}
-                    placeholder="Body override"
+                    placeholder={t("admin.venueCms.nudges.bodyOverridePlaceholder")}
                     value={attachDraft.bodyOverride}
                     onChange={(e) => setAttachDraft((s) => ({ ...s, bodyOverride: e.target.value }))}
                   />
                   <input
                     className={fieldInp}
-                    placeholder="Dwell min"
+                    placeholder={t("admin.venueCms.nudges.dwellOverridePlaceholder")}
                     value={attachDraft.afterMinutesOverride}
                     onChange={(e) =>
                       setAttachDraft((s) => ({ ...s, afterMinutesOverride: e.target.value }))
@@ -610,19 +635,87 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
                   onClick={() => void submitAttach()}
                   className={`h-[42px] w-full sm:w-auto ${btnPrimary}`}
                 >
-                  {createAsmMut.isPending ? "Adding…" : "Add template"}
+                  {createAsmMut.isPending ? t("admin.venueCms.common.adding") : t("admin.venueCms.nudges.addTemplate")}
                 </button>
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm">
+            <ul className="md:hidden space-y-3">
+              {assignments.map((a) => (
+                <li
+                  key={a.id}
+                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-2"
+                >
+                  <div>
+                    <p className="font-mono text-sm font-semibold text-slate-900">{a.template.code}</p>
+                    <p className="text-xs text-slate-500">{a.template.nudgeType}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
+                    <span>
+                      <span className="font-medium text-slate-500">{t("admin.venueCms.common.sort")}</span> {a.sortOrder}
+                    </span>
+                    <span>
+                      <span className="font-medium text-slate-500">{t("admin.venueCms.common.on")}</span>{" "}
+                      {a.enabled ? t("admin.venueCms.common.yes") : t("admin.venueCms.common.no")}
+                    </span>
+                  </div>
+                  {a.titleOverride || a.bodyOverride || a.afterMinutesOverride != null ? (
+                    <div className="text-xs text-slate-600 space-y-0.5">
+                      {a.titleOverride ? (
+                        <p>{t("admin.venueCms.nudges.overrideTitle", { value: a.titleOverride })}</p>
+                      ) : null}
+                      {a.bodyOverride ? (
+                        <p>{t("admin.venueCms.nudges.overrideBody", { value: a.bodyOverride })}</p>
+                      ) : null}
+                      {a.afterMinutesOverride != null ? (
+                        <p>{t("admin.venueCms.nudges.overrideDwell", { minutes: a.afterMinutesOverride })}</p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400">{t("admin.venueCms.common.noOverrides")}</p>
+                  )}
+                  <div className="flex flex-wrap gap-3 pt-2 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => startEditAsm(a)}
+                      className="text-xs font-medium text-brand hover:underline"
+                    >
+                      {t("admin.venueCms.common.edit")}
+                    </button>
+                    {isSuperAdmin ? (
+                      <button
+                        type="button"
+                        disabled={triggerMut.isPending}
+                        onClick={() => void triggerNow(a.id)}
+                        className="text-xs font-medium text-amber-900 hover:underline"
+                      >
+                        {t("admin.venueCms.common.triggerNow")}
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => void removeAsm(a.id)}
+                      className="text-xs text-red-600 hover:underline"
+                    >
+                      {t("admin.venueCms.common.remove")}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            {assignments.length === 0 ? (
+              <p className="md:hidden rounded-xl border border-dashed border-slate-200 bg-slate-50/80 px-3 py-4 text-xs text-slate-500 text-center">
+                {t("admin.venueCms.nudges.emptyAssignments")}
+              </p>
+            ) : null}
+            <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm">
               <table className="min-w-full text-sm">
                 <thead className="bg-slate-50/90">
                   <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    <th className="px-3 py-2.5 pr-3">Template</th>
-                    <th className="px-3 py-2.5 pr-3">Sort</th>
-                    <th className="px-3 py-2.5 pr-3">On</th>
-                    <th className="px-3 py-2.5 pr-3">Overrides</th>
+                    <th className="px-3 py-2.5 pr-3">{t("admin.venueCms.nudges.colTemplate")}</th>
+                    <th className="px-3 py-2.5 pr-3">{t("admin.venueCms.common.sort")}</th>
+                    <th className="px-3 py-2.5 pr-3">{t("admin.venueCms.common.on")}</th>
+                    <th className="px-3 py-2.5 pr-3">{t("admin.venueCms.nudges.colOverrides")}</th>
                     <th className="px-3 py-2.5 pr-3" />
                   </tr>
                 </thead>
@@ -667,7 +760,7 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
                             onClick={() => void triggerNow(a.id)}
                             className="mr-2 text-xs font-medium text-amber-900 hover:underline"
                           >
-                            Trigger now
+                            {t("admin.venueCms.common.triggerNow")}
                           </button>
                         ) : null}
                         <button
@@ -684,7 +777,7 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
               </table>
               {assignments.length === 0 ? (
                 <p className="border-t border-slate-100 px-3 py-4 text-xs text-slate-500">
-                  No nudges attached — legacy category templates may still apply.
+                  {t("admin.venueCms.nudges.emptyAssignments")}
                 </p>
               ) : null}
             </div>
@@ -692,11 +785,11 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
             {editAsmId ? (
               <div className="rounded-xl border border-brand/25 bg-brand-light/25 p-4 shadow-sm md:p-5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  Edit assignment
+                  {t("admin.venueCms.nudges.editAssignment")}
                 </p>
                 <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <label className={fieldCol}>
-                    <span className={fieldLbl}>Sort order</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.nudges.sortOrder")}</span>
                     <input
                       className={fieldInp}
                       value={editAsmDraft.sortOrder}
@@ -714,10 +807,10 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
                         setEditAsmDraft((s) => ({ ...s, enabled: e.target.checked }))
                       }
                     />
-                    Enabled
+                    {t("admin.venueCms.nudges.enabled")}
                   </label>
                   <label className={`${fieldCol} sm:col-span-2`}>
-                    <span className={fieldLbl}>Title override</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.nudges.titleOverridePlaceholder")}</span>
                     <input
                       className={fieldInp}
                       value={editAsmDraft.titleOverride}
@@ -727,7 +820,7 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
                     />
                   </label>
                   <label className={`${fieldCol} sm:col-span-2`}>
-                    <span className={fieldLbl}>Body override</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.nudges.bodyOverridePlaceholder")}</span>
                     <textarea
                       className={`${fieldInp} min-h-[48px]`}
                       value={editAsmDraft.bodyOverride}
@@ -737,7 +830,7 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
                     />
                   </label>
                   <label className={fieldCol}>
-                    <span className={fieldLbl}>Dwell minutes override</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.nudges.dwellMinutesOverride")}</span>
                     <input
                       className={fieldInp}
                       value={editAsmDraft.afterMinutesOverride}
@@ -757,10 +850,10 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
                     onClick={() => void saveAsm()}
                     className={btnBrand}
                   >
-                    {patchAsmMut.isPending ? "Saving…" : "Save"}
+                    {patchAsmMut.isPending ? t("admin.venueCms.common.saving") : t("admin.venueCms.common.save")}
                   </button>
                   <button type="button" onClick={() => setEditAsmId(null)} className={btnGhost}>
-                    Cancel
+                    {t("admin.venueCms.common.cancel")}
                   </button>
                 </div>
               </div>

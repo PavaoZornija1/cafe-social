@@ -2,6 +2,7 @@
 
 import { useForm } from "@tanstack/react-form";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   createColumnHelper,
   flexRender,
@@ -9,6 +10,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { TableRowCards } from "@/components/TableRowCards";
 import { IsoDateTimePicker } from "@/components/IsoDateTimePicker";
 import {
   type AdminVenueOfferRow,
@@ -52,6 +54,7 @@ function numOrNull(raw: string): number | null {
 }
 
 export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
+  const { t } = useTranslation();
   const offersQ = useVenueOffersQuery(venueId, getToken, enabled && Boolean(venueId));
   const createMut = useCreateVenueOfferMutation(venueId, getToken);
   const patchMut = usePatchVenueOfferMutation(venueId, getToken);
@@ -143,26 +146,26 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
   const columns = useMemo(
     () => [
       colHelper.accessor("title", {
-        header: "Offer",
+        header: t("admin.venueCms.offers.colOffer"),
         cell: ({ getValue, row }) => (
           <div>
             <div className="font-medium text-slate-900">{getValue()}</div>
             <div className="text-xs text-slate-500">
-              {row.original.isFeatured ? "Featured · " : ""}
+              {row.original.isFeatured ? t("admin.venueCms.offers.featuredPrefix") : ""}
               {row.original.status}
               {" · "}
               {row.original.redemptionCount}
               {row.original.maxRedemptions != null
                 ? ` / ${row.original.maxRedemptions}`
-                : ""}{" "}
-              redemptions
+                : ""}
+              {t("admin.venueCms.offers.redemptionsSuffix")}
             </div>
           </div>
         ),
       }),
       colHelper.display({
         id: "status",
-        header: "Status",
+        header: t("admin.venueCms.common.status"),
         cell: ({ row }) => (
           <select
             className={`${fieldInpXs} max-w-[9rem]`}
@@ -183,7 +186,7 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
       }),
       colHelper.display({
         id: "feat",
-        header: "Spotlight",
+        header: t("admin.venueCms.common.spotlight"),
         cell: ({ row }) => (
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-1.5 text-xs font-medium text-slate-700">
             <input
@@ -198,7 +201,7 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
                 })
               }
             />
-            Featured
+            {t("admin.venueCms.common.featured")}
           </label>
         ),
       }),
@@ -212,7 +215,7 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
               className="text-xs font-medium text-brand hover:underline"
               onClick={() => startEdit(row.original)}
             >
-              Edit
+              {t("admin.venueCms.common.edit")}
             </button>
             <button
               type="button"
@@ -220,13 +223,13 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
               className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
               onClick={() => setDeleteTarget(row.original)}
             >
-              Delete
+              {t("admin.venueCms.common.delete")}
             </button>
           </div>
         ),
       }),
     ],
-    [deleteMut.isPending, patchMut],
+    [deleteMut.isPending, patchMut, startEdit, t],
   );
 
   const table = useReactTable({
@@ -249,13 +252,9 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
       <div className="space-y-6">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div>
-            <h2 className="text-sm font-semibold text-slate-900">Offers &amp; promos</h2>
+            <h2 className="text-sm font-semibold text-slate-900">{t("admin.venueCms.offers.title")}</h2>
             <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
-              Guest-facing offers on the home card (separate from perk codes). Only{" "}
-              <strong className="font-medium text-slate-700">ACTIVE</strong> rows inside their date
-              window appear in the app. Mark one as{" "}
-              <strong className="font-medium text-slate-700">Featured</strong> for the spotlight slot;
-              guests can redeem when you set per-player or global caps.
+              {t("admin.venueCms.offers.lead")}
             </p>
           </div>
           <span
@@ -266,8 +265,8 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
             }
           >
             {offerCount === 0
-              ? "No offers"
-              : `${offerCount} offer${offerCount === 1 ? "" : "s"}`}
+              ? t("admin.venueCms.offers.badgeNone")
+              : t("admin.venueCms.offers.badgeCount", { count: offerCount })}
           </span>
         </div>
 
@@ -295,15 +294,15 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
           }}
           className="rounded-xl border border-slate-200/90 bg-slate-50/70 p-4 shadow-sm md:p-5"
         >
-          <p className={fieldLbl}>Create offer</p>
+          <p className={fieldLbl}>{t("admin.venueCms.offers.createOffer")}</p>
           <div className="mt-4 space-y-4">
             <createForm.Field name="title">
               {(f) => (
                 <label className={fieldCol}>
-                  <span className={fieldLbl}>Headline</span>
+                  <span className={fieldLbl}>{t("admin.venueCms.offers.headline")}</span>
                   <input
                     className={fieldInp}
-                    placeholder="e.g. Free pastry with any drink"
+                    placeholder={t("admin.venueCms.offers.headlinePlaceholder")}
                     value={f.state.value}
                     onChange={(e) => f.handleChange(e.target.value)}
                   />
@@ -313,10 +312,10 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
             <createForm.Field name="body">
               {(f) => (
                 <label className={fieldCol}>
-                  <span className={fieldLbl}>Message (optional)</span>
+                  <span className={fieldLbl}>{t("admin.venueCms.offers.messageOptional")}</span>
                   <textarea
                     className={`${fieldInp} min-h-[72px]`}
-                    placeholder="Short description for the card"
+                    placeholder={t("admin.venueCms.offers.messagePlaceholder")}
                     value={f.state.value}
                     onChange={(e) => f.handleChange(e.target.value)}
                   />
@@ -327,12 +326,12 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
               <createForm.Field name="ctaUrl">
                 {(f) => (
                   <label className={fieldCol}>
-                    <span className={fieldLbl}>CTA URL (optional)</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.offers.ctaUrlOptional")}</span>
                     <input
                       className={fieldInp}
                       inputMode="url"
                       autoComplete="url"
-                      placeholder="https://…"
+                      placeholder={t("admin.venueCms.offers.urlPlaceholder")}
                       value={f.state.value}
                       onChange={(e) => f.handleChange(e.target.value)}
                     />
@@ -342,12 +341,12 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
               <createForm.Field name="imageUrl">
                 {(f) => (
                   <label className={fieldCol}>
-                    <span className={fieldLbl}>Image URL (optional)</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.offers.imageUrlOptional")}</span>
                     <input
                       className={fieldInp}
                       inputMode="url"
                       autoComplete="url"
-                      placeholder="https://…"
+                      placeholder={t("admin.venueCms.offers.urlPlaceholder")}
                       value={f.state.value}
                       onChange={(e) => f.handleChange(e.target.value)}
                     />
@@ -359,7 +358,7 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
               <createForm.Field name="status">
                 {(f) => (
                   <label className={fieldCol}>
-                    <span className={fieldLbl}>Status</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.common.status")}</span>
                     <select
                       className={fieldSelect}
                       value={f.state.value}
@@ -377,7 +376,7 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
               <createForm.Field name="isFeatured">
                 {(f) => (
                   <label className={fieldCol}>
-                    <span className={fieldLbl}>Spotlight</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.common.spotlight")}</span>
                     <span className={fieldToggleRow}>
                       <input
                         type="checkbox"
@@ -385,7 +384,7 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
                         checked={f.state.value}
                         onChange={(e) => f.handleChange(e.target.checked)}
                       />
-                      Featured
+                      {t("admin.venueCms.common.featured")}
                     </span>
                   </label>
                 )}
@@ -395,7 +394,7 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
               <createForm.Field name="validFrom">
                 {(f) => (
                   <label className={fieldCol}>
-                    <span className={fieldLbl}>Valid from (optional)</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.offers.validFromOptional")}</span>
                     <IsoDateTimePicker
                       value={f.state.value}
                       onChange={(iso) => f.handleChange(iso)}
@@ -407,7 +406,7 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
               <createForm.Field name="validTo">
                 {(f) => (
                   <label className={fieldCol}>
-                    <span className={fieldLbl}>Valid to (optional)</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.offers.validToOptional")}</span>
                     <IsoDateTimePicker
                       value={f.state.value}
                       onChange={(iso) => f.handleChange(iso)}
@@ -421,12 +420,12 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
               <createForm.Field name="maxRedemptions">
                 {(f) => (
                   <label className={fieldCol}>
-                    <span className={fieldLbl}>Max total redemptions</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.offers.maxTotalRedemptions")}</span>
                     <input
                       type="number"
                       min={0}
                       className={`${fieldInp} max-w-xs`}
-                      placeholder="Blank = unlimited"
+                      placeholder={t("admin.venueCms.offers.unlimitedPlaceholder")}
                       value={f.state.value}
                       onChange={(e) => f.handleChange(e.target.value)}
                     />
@@ -436,12 +435,12 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
               <createForm.Field name="maxRedemptionsPerPlayer">
                 {(f) => (
                   <label className={fieldCol}>
-                    <span className={fieldLbl}>Max per guest</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.offers.maxPerGuest")}</span>
                     <input
                       type="number"
                       min={0}
                       className={`${fieldInp} max-w-xs`}
-                      placeholder="Blank = unlimited"
+                      placeholder={t("admin.venueCms.offers.unlimitedPlaceholder")}
                       value={f.state.value}
                       onChange={(e) => f.handleChange(e.target.value)}
                     />
@@ -454,7 +453,7 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
               disabled={createMut.isPending}
               className={`h-[42px] ${btnPrimary}`}
             >
-              {createMut.isPending ? "Adding…" : "Add offer"}
+              {createMut.isPending ? t("admin.venueCms.common.adding") : t("admin.venueCms.offers.addOffer")}
             </button>
           </div>
         </form>
@@ -469,21 +468,21 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <p className="text-sm font-semibold text-slate-900">
-                Edit &quot;{editTarget.title}&quot;
+                {t("admin.venueCms.offers.editOffer", { title: editTarget.title })}
               </p>
               <button
                 type="button"
                 className={btnGhost}
                 onClick={() => setEditTarget(null)}
               >
-                Cancel
+                {t("admin.venueCms.common.cancel")}
               </button>
             </div>
             <div className="mt-4 space-y-4">
               <editForm.Field name="title">
                 {(f) => (
                   <label className={fieldCol}>
-                    <span className={fieldLbl}>Headline</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.offers.headline")}</span>
                     <input
                       className={fieldInp}
                       value={f.state.value}
@@ -495,7 +494,7 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
               <editForm.Field name="body">
                 {(f) => (
                   <label className={fieldCol}>
-                    <span className={fieldLbl}>Message</span>
+                    <span className={fieldLbl}>{t("admin.venueCms.offers.message")}</span>
                     <textarea
                       className={`${fieldInp} min-h-[72px]`}
                       value={f.state.value}
@@ -508,12 +507,12 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
                 <editForm.Field name="ctaUrl">
                   {(f) => (
                     <label className={fieldCol}>
-                      <span className={fieldLbl}>CTA URL</span>
+                      <span className={fieldLbl}>{t("admin.venueCms.offers.ctaUrl")}</span>
                       <input
                         className={fieldInp}
                         inputMode="url"
                         autoComplete="url"
-                        placeholder="https://…"
+                        placeholder={t("admin.venueCms.offers.urlPlaceholder")}
                         value={f.state.value}
                         onChange={(e) => f.handleChange(e.target.value)}
                       />
@@ -523,12 +522,12 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
                 <editForm.Field name="imageUrl">
                   {(f) => (
                     <label className={fieldCol}>
-                      <span className={fieldLbl}>Image URL</span>
+                      <span className={fieldLbl}>{t("admin.venueCms.offers.imageUrl")}</span>
                       <input
                         className={fieldInp}
                         inputMode="url"
                         autoComplete="url"
-                        placeholder="https://…"
+                        placeholder={t("admin.venueCms.offers.urlPlaceholder")}
                         value={f.state.value}
                         onChange={(e) => f.handleChange(e.target.value)}
                       />
@@ -540,7 +539,7 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
                 <editForm.Field name="status">
                   {(f) => (
                     <label className={fieldCol}>
-                      <span className={fieldLbl}>Status</span>
+                      <span className={fieldLbl}>{t("admin.venueCms.common.status")}</span>
                       <select
                         className={fieldSelect}
                         value={f.state.value}
@@ -558,7 +557,7 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
                 <editForm.Field name="isFeatured">
                   {(f) => (
                     <label className={fieldCol}>
-                      <span className={fieldLbl}>Spotlight</span>
+                      <span className={fieldLbl}>{t("admin.venueCms.common.spotlight")}</span>
                       <span className={fieldToggleRow}>
                         <input
                           type="checkbox"
@@ -566,7 +565,7 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
                           checked={f.state.value}
                           onChange={(e) => f.handleChange(e.target.checked)}
                         />
-                        Featured
+                        {t("admin.venueCms.common.featured")}
                       </span>
                     </label>
                   )}
@@ -576,7 +575,7 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
                 <editForm.Field name="validFrom">
                   {(f) => (
                     <label className={fieldCol}>
-                      <span className={fieldLbl}>Valid from</span>
+                      <span className={fieldLbl}>{t("admin.venueCms.offers.validFrom")}</span>
                       <IsoDateTimePicker
                         value={f.state.value}
                         onChange={(iso) => f.handleChange(iso)}
@@ -588,7 +587,7 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
                 <editForm.Field name="validTo">
                   {(f) => (
                     <label className={fieldCol}>
-                      <span className={fieldLbl}>Valid to</span>
+                      <span className={fieldLbl}>{t("admin.venueCms.offers.validTo")}</span>
                       <IsoDateTimePicker
                         value={f.state.value}
                         onChange={(iso) => f.handleChange(iso)}
@@ -602,12 +601,12 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
                 <editForm.Field name="maxRedemptions">
                   {(f) => (
                     <label className={fieldCol}>
-                      <span className={fieldLbl}>Max total</span>
+                      <span className={fieldLbl}>{t("admin.venueCms.offers.maxTotalRedemptions")}</span>
                       <input
                         type="number"
                         min={0}
                         className={`${fieldInp} max-w-xs`}
-                        placeholder="Blank = unlimited"
+                        placeholder={t("admin.venueCms.offers.unlimitedPlaceholder")}
                         value={f.state.value}
                         onChange={(e) => f.handleChange(e.target.value)}
                       />
@@ -617,12 +616,12 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
                 <editForm.Field name="maxRedemptionsPerPlayer">
                   {(f) => (
                     <label className={fieldCol}>
-                      <span className={fieldLbl}>Max per guest</span>
+                      <span className={fieldLbl}>{t("admin.venueCms.offers.maxPerGuest")}</span>
                       <input
                         type="number"
                         min={0}
                         className={`${fieldInp} max-w-xs`}
-                        placeholder="Blank = unlimited"
+                        placeholder={t("admin.venueCms.offers.unlimitedPlaceholder")}
                         value={f.state.value}
                         onChange={(e) => f.handleChange(e.target.value)}
                       />
@@ -631,7 +630,7 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
                 </editForm.Field>
               </div>
               <button type="submit" disabled={patchMut.isPending} className={btnBrand}>
-                {patchMut.isPending ? "Saving…" : "Save changes"}
+                {patchMut.isPending ? t("admin.venueCms.common.saving") : t("admin.venueCms.offers.saveChanges")}
               </button>
             </div>
           </form>
@@ -640,17 +639,19 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
         <ConfirmModal
           open={deleteTarget !== null}
           onClose={() => setDeleteTarget(null)}
-          title="Delete offer?"
-          variant="danger"
-          description={
-            deleteTarget ? (
-              <p>
-                Remove <span className="font-semibold">{deleteTarget.title}</span>? This cannot be
-                undone.
-              </p>
-            ) : null
-          }
-          confirmLabel="Delete"
+        title={t("admin.venueCms.offers.deleteTitle")}
+        variant="danger"
+        description={
+          deleteTarget ? (
+            <p>
+              {t("admin.venueCms.offers.deleteBody", {
+                title: deleteTarget.title,
+                cannotUndo: t("admin.venueCms.common.cannotUndo"),
+              })}
+            </p>
+          ) : null
+        }
+        confirmLabel={t("admin.venueCms.common.delete")}
           onConfirm={async () => {
             if (!deleteTarget) return;
             await deleteMut.mutateAsync(deleteTarget.id);
@@ -658,14 +659,20 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
         />
 
         <div>
-          <p className={fieldLbl}>Existing offers</p>
+          <p className={fieldLbl}>{t("admin.venueCms.offers.existing")}</p>
           {offersQ.isPending && !offersQ.data ? (
             <p className="mt-3 rounded-lg border border-dashed border-slate-200 bg-slate-50/80 px-3 py-4 text-sm text-slate-500">
-              Loading offers…
+              {t("admin.venueCms.offers.loading")}
             </p>
           ) : (
-            <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm">
-              <table className="min-w-full text-sm">
+            <>
+              <TableRowCards
+                rows={table.getRowModel().rows}
+                leadCellId="title"
+                actionCellIds={["status", "feat", "actions"]}
+              />
+              <div className="hidden md:block mt-3 overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm">
+                <table className="min-w-full text-sm">
                 <thead className="bg-slate-50/90">
                   {table.getHeaderGroups().map((hg) => (
                     <tr
@@ -684,7 +691,7 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
                   {table.getRowModel().rows.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="border-t border-slate-100 px-3 py-6 text-center text-sm text-slate-500">
-                        No offers yet.
+                        {t("admin.venueCms.offers.empty")}
                       </td>
                     </tr>
                   ) : (
@@ -700,7 +707,13 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
                   )}
                 </tbody>
               </table>
-            </div>
+              </div>
+              {(offersQ.data ?? []).length === 0 ? (
+                <p className="md:hidden mt-3 rounded-lg border border-dashed border-slate-200 bg-slate-50/80 px-3 py-4 text-sm text-slate-500 text-center">
+                  {t("admin.venueCms.offers.empty")}
+                </p>
+              ) : null}
+            </>
           )}
         </div>
       </div>

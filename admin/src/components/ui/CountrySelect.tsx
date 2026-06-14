@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { getCountrySelectOptions } from "@/lib/geo/countryOptions";
 import { FilterableSelect, type FilterableOption } from "./FilterableSelect";
 
@@ -19,11 +20,13 @@ export function CountrySelect({
   id,
   value,
   onChange,
-  placeholder = "Search country…",
+  placeholder,
   isDisabled,
   isClearable = true,
   className,
 }: Props) {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t("admin.common.searchCountry");
   const options = useMemo(() => getCountrySelectOptions(), []);
   const selected = useMemo(
     () => options.find((o) => o.value === value) ?? null,
@@ -37,7 +40,7 @@ export function CountrySelect({
       options={options}
       value={selected}
       onChange={(opt) => onChange(opt?.value ?? "")}
-      placeholder={placeholder}
+      placeholder={resolvedPlaceholder}
       isDisabled={isDisabled}
       isClearable={isClearable}
     />

@@ -18,6 +18,7 @@ import { PORTAL_VENUE_CONTEXT_EVENT } from "@/lib/portalVenueContext";
 import { OwnerAnalyticsCharts } from "@/components/OwnerAnalyticsCharts";
 import { OwnerAnalyticsRoiSnapshot } from "@/components/OwnerAnalyticsRoiSnapshot";
 import { PartnerReadOnlyBanner } from "@/components/PartnerReadOnlyBanner";
+import { DayCountCards, HourCountCards, PerkCountCards, TableRowCards } from "@/components/TableRowCards";
 import { partnerVenueMutationsBlockedNotice } from "@/lib/partnerReadOnlyMessages";
 import {
   invalidateOwnerVenuePartnerQueries,
@@ -922,8 +923,8 @@ export default function OwnerVenueDetailPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-200 px-6 py-4 flex items-center justify-between gap-4">
-        <div>
+      <header className="border-b border-slate-200 px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="min-w-0 flex-1">
           <Link href="/owner/venues" className="text-sm text-brand hover:text-brand">
             {t("admin.partnerVenueDetail.header.allVenues")}
           </Link>
@@ -1005,10 +1006,12 @@ export default function OwnerVenueDetailPage() {
             </>
           ) : null}
         </div>
-        <UserButton />
+        <div className="hidden lg:block shrink-0">
+          <UserButton />
+        </div>
       </header>
 
-      <main className="p-6 max-w-4xl mx-auto space-y-10 pb-24">
+      <main className="p-4 sm:p-6 max-w-4xl mx-auto space-y-8 sm:space-y-10 w-full min-w-0">
         {shellLoading ? (
           <p className="text-slate-600">{t("admin.partnerVenueDetail.common.loading")}</p>
         ) : null}
@@ -1075,16 +1078,16 @@ export default function OwnerVenueDetailPage() {
             ) : null}
             {analytics && !accessError && (
               <>
-                <div className="flex flex-wrap items-end justify-between gap-4 mb-4">
+                <div className="flex flex-col gap-4 mb-4">
                   <h2 className="text-lg font-medium">
                     {t("admin.partnerVenueDetail.analytics.title")}
                   </h2>
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-3">
                     <button
                       type="button"
                       disabled={readOnlyDisabled}
                       onClick={() => void downloadCsv()}
-                      className="text-sm bg-emerald-50 border border-emerald-300 text-emerald-900 px-3 py-1 rounded-lg hover:bg-emerald-100 disabled:opacity-50"
+                      className="text-sm bg-emerald-50 border border-emerald-300 text-emerald-900 px-3 py-2 rounded-lg hover:bg-emerald-100 disabled:opacity-50 w-full sm:w-auto"
                     >
                       {t("admin.partnerVenueDetail.analytics.redemptionsCsv")}
                     </button>
@@ -1092,7 +1095,7 @@ export default function OwnerVenueDetailPage() {
                       type="button"
                       disabled={readOnlyDisabled}
                       onClick={() => void downloadFunnelCsv()}
-                      className="text-sm bg-emerald-50 border border-emerald-300 text-emerald-900 px-3 py-1 rounded-lg hover:bg-emerald-100 disabled:opacity-50"
+                      className="text-sm bg-emerald-50 border border-emerald-300 text-emerald-900 px-3 py-2 rounded-lg hover:bg-emerald-100 disabled:opacity-50 w-full sm:w-auto"
                     >
                       {t("admin.partnerVenueDetail.analytics.funnelCsv")}
                     </button>
@@ -1100,16 +1103,18 @@ export default function OwnerVenueDetailPage() {
                       type="button"
                       disabled={readOnlyDisabled}
                       onClick={() => void downloadGeofenceCsv()}
-                      className="text-sm bg-indigo-50 border border-indigo-300 text-indigo-900 px-3 py-1 rounded-lg hover:bg-indigo-100 disabled:opacity-50"
+                      className="text-sm bg-indigo-50 border border-indigo-300 text-indigo-900 px-3 py-2 rounded-lg hover:bg-indigo-100 disabled:opacity-50 w-full sm:w-auto"
                     >
                       {t("admin.partnerVenueDetail.analytics.geofenceCsv")}
                     </button>
-                    <label className="text-sm text-slate-600 flex items-center gap-2">
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3">
+                    <label className="text-sm text-slate-600 flex flex-col sm:flex-row sm:items-center gap-1.5 w-full sm:w-auto">
                       {t("admin.partnerVenueDetail.analytics.periodDays")}
                       <select
                         value={days}
                         onChange={(e) => setDays(Number(e.target.value))}
-                        className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-900"
+                        className="sm:ml-2 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-slate-900 w-full sm:w-auto"
                       >
                         {[7, 14, 30, 60, 90].map((d) => (
                           <option key={d} value={d}>
@@ -1118,27 +1123,27 @@ export default function OwnerVenueDetailPage() {
                         ))}
                       </select>
                     </label>
-                    <label className="text-sm text-slate-600 flex items-center gap-2">
+                    <label className="text-sm text-slate-600 flex flex-col sm:flex-row sm:items-center gap-1.5 w-full sm:w-auto">
                       {t("admin.partnerVenueDetail.common.from")}
                       <input
                         type="date"
                         value={analyticsFromYmd}
                         onChange={(e) => setAnalyticsFromYmd(e.target.value)}
-                        className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-900"
+                        className="sm:ml-2 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-slate-900 w-full sm:w-auto"
                       />
                     </label>
-                    <label className="text-sm text-slate-600 flex items-center gap-2">
+                    <label className="text-sm text-slate-600 flex flex-col sm:flex-row sm:items-center gap-1.5 w-full sm:w-auto">
                       {t("admin.partnerVenueDetail.common.to")}
                       <input
                         type="date"
                         value={analyticsToYmd}
                         onChange={(e) => setAnalyticsToYmd(e.target.value)}
-                        className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-900"
+                        className="sm:ml-2 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-slate-900 w-full sm:w-auto"
                       />
                     </label>
                     <button
                       type="button"
-                      className="text-xs text-slate-500 hover:underline"
+                      className="text-xs text-slate-500 hover:underline self-start"
                       onClick={() => {
                         setAnalyticsFromYmd("");
                         setAnalyticsToYmd("");
@@ -1353,7 +1358,8 @@ export default function OwnerVenueDetailPage() {
                     <h3 className="text-sm font-medium text-slate-800 mb-2">
                       {t("admin.partnerVenueDetail.analytics.perPerk")}
                     </h3>
-                    <div className="max-h-48 overflow-auto rounded-lg border border-slate-200">
+                    <PerkCountCards rows={perkRows} />
+                    <div className="hidden md:block max-h-48 overflow-auto rounded-lg border border-slate-200">
                       <table className="w-full text-sm">
                         <thead className="bg-slate-100 sticky top-0 text-slate-600">
                           {perkTable.getHeaderGroups().map((hg) => (
@@ -1384,7 +1390,8 @@ export default function OwnerVenueDetailPage() {
                     <h3 className="text-sm font-medium text-slate-800 mb-2">
                       {t("admin.partnerVenueDetail.analytics.redemptionsByHourUtc")}
                     </h3>
-                    <div className="max-h-48 overflow-auto rounded-lg border border-slate-200 text-xs font-mono p-2 text-slate-600">
+                    <HourCountCards rows={hourUtcRows} />
+                    <div className="hidden md:block max-h-48 overflow-auto rounded-lg border border-slate-200 text-xs font-mono p-2 text-slate-600">
                       <table className="w-full">
                         <tbody>
                           {hourUtcTable.getRowModel().rows.map((row) => (
@@ -1407,7 +1414,8 @@ export default function OwnerVenueDetailPage() {
                     <h3 className="text-sm font-medium text-slate-800 mb-2">
                       {t("admin.partnerVenueDetail.analytics.redemptionsByHourVenueTz")}
                     </h3>
-                    <div className="max-h-48 overflow-auto rounded-lg border border-slate-200 text-xs font-mono p-2 text-slate-600">
+                    <HourCountCards rows={hourVenueRows} />
+                    <div className="hidden md:block max-h-48 overflow-auto rounded-lg border border-slate-200 text-xs font-mono p-2 text-slate-600">
                       <table className="w-full">
                         <tbody>
                           {hourVenueTable.getRowModel().rows.map((row) => (
@@ -1430,7 +1438,8 @@ export default function OwnerVenueDetailPage() {
                     <h3 className="text-sm font-medium text-slate-800 mb-2">
                       {t("admin.partnerVenueDetail.analytics.redemptionsByDay")}
                     </h3>
-                    <div className="max-h-56 overflow-auto rounded-lg border border-slate-200">
+                    <DayCountCards rows={redeemDayRows} />
+                    <div className="hidden md:block max-h-56 overflow-auto rounded-lg border border-slate-200">
                       <table className="w-full text-sm">
                         <thead className="bg-slate-100 sticky top-0">
                           <tr className="text-left text-slate-500">
@@ -1459,7 +1468,8 @@ export default function OwnerVenueDetailPage() {
                     <h3 className="text-sm font-medium text-slate-800 mb-2">
                       {t("admin.partnerVenueDetail.analytics.visitDaysByDay")}
                     </h3>
-                    <div className="max-h-56 overflow-auto rounded-lg border border-slate-200">
+                    <DayCountCards rows={visitDayRows} />
+                    <div className="hidden md:block max-h-56 overflow-auto rounded-lg border border-slate-200">
                       <table className="w-full text-sm">
                         <thead className="bg-slate-100 sticky top-0">
                           <tr className="text-left text-slate-500">
@@ -2025,22 +2035,31 @@ export default function OwnerVenueDetailPage() {
                   {t("admin.partnerVenueDetail.staffInvites.noInviteHistory")}
                 </p>
               ) : (
-                <table className="w-full">
-                  <tbody>
-                    {inviteTable.getRowModel().rows.map((row) => (
-                      <tr
-                        key={row.id}
-                        className="border-b border-slate-200 last:border-0 bg-brand-light/60"
-                      >
-                        {row.getVisibleCells().map((cell) => (
-                          <td key={cell.id} className="p-3">
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </td>
+                <>
+                  <TableRowCards
+                    rows={inviteTable.getRowModel().rows}
+                    leadCellId="who"
+                    actionCellIds={["cancel"]}
+                  />
+                  <div className="hidden md:block">
+                    <table className="w-full">
+                      <tbody>
+                        {inviteTable.getRowModel().rows.map((row) => (
+                          <tr
+                            key={row.id}
+                            className="border-b border-slate-200 last:border-0 bg-brand-light/60"
+                          >
+                            {row.getVisibleCells().map((cell) => (
+                              <td key={cell.id} className="p-3">
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              </td>
+                            ))}
+                          </tr>
                         ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
           </section>
@@ -2150,22 +2169,29 @@ export default function OwnerVenueDetailPage() {
                 </p>
               ) : (
                 <>
-                  <table className="w-full text-sm">
-                    <tbody>
-                      {campaignTable.getRowModel().rows.map((row) => (
-                        <tr
-                          key={row.id}
-                          className="border-b border-slate-200 last:border-0 bg-brand-light/60"
-                        >
-                          {row.getVisibleCells().map((cell) => (
-                            <td key={cell.id} className="p-3">
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <TableRowCards
+                    rows={campaignTable.getRowModel().rows}
+                    leadCellId="info"
+                    actionCellIds={["send", "bindings"]}
+                  />
+                  <div className="hidden md:block">
+                    <table className="w-full text-sm">
+                      <tbody>
+                        {campaignTable.getRowModel().rows.map((row) => (
+                          <tr
+                            key={row.id}
+                            className="border-b border-slate-200 last:border-0 bg-brand-light/60"
+                          >
+                            {row.getVisibleCells().map((cell) => (
+                              <td key={cell.id} className="p-3">
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                   {bindingsCampaignId ? (
                     <CampaignBindingsEditor
                       key={bindingsCampaignId}
@@ -2200,19 +2226,29 @@ export default function OwnerVenueDetailPage() {
                   {t("admin.partnerVenueDetail.receipts.noReceipts")}
                 </p>
               ) : (
-                <table className="w-full text-sm">
-                  <tbody>
-                    {receiptTable.getRowModel().rows.map((row) => (
-                      <tr key={row.id} className="border-b border-slate-200 last:border-0">
-                        {row.getVisibleCells().map((cell) => (
-                          <td key={cell.id} className={cell.column.id === "sum" ? "p-3" : "p-3"}>
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </td>
+                <>
+                  <TableRowCards
+                    rows={receiptTable.getRowModel().rows}
+                    leadCellId="sum"
+                    actionCellIds={["open"]}
+                    showBodyLabels
+                  />
+                  <div className="hidden md:block">
+                    <table className="w-full text-sm">
+                      <tbody>
+                        {receiptTable.getRowModel().rows.map((row) => (
+                          <tr key={row.id} className="border-b border-slate-200 last:border-0">
+                            {row.getVisibleCells().map((cell) => (
+                              <td key={cell.id} className="p-3">
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              </td>
+                            ))}
+                          </tr>
                         ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
             {receiptIdOpen ? (
@@ -2302,25 +2338,37 @@ export default function OwnerVenueDetailPage() {
                 />
               </div>
             )}
-            <div className="flex flex-wrap items-center gap-4 mb-4">
-              <label className="text-sm text-slate-600 flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 mb-4">
+              <label className="text-sm text-slate-600 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
                 {t("admin.partnerVenueDetail.redemptions.dateUtc")}
                 <input
                   type="date"
                   value={dateYmd}
                   onChange={(e) => setDateYmd(e.target.value)}
-                  className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-900"
+                  className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 w-full sm:w-auto"
                 />
               </label>
               <button
                 type="button"
                 onClick={() => void redemptionsQ.refetch()}
-                className="text-sm bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded-lg"
+                className="text-sm bg-slate-200 hover:bg-slate-300 px-4 py-2 rounded-lg w-full sm:w-auto"
               >
                 {t("admin.partnerVenueDetail.common.refresh")}
               </button>
             </div>
-            <div className="rounded-xl border border-slate-200 overflow-x-auto">
+            <TableRowCards
+              rows={redemptionTable.getRowModel().rows}
+              leadCellId="staffVerificationCode"
+              leadStyle="code"
+              actionCellIds={["actions"]}
+              rowClassName={(row) => (row.original.voidedAt ? "opacity-50" : "")}
+            />
+            {redemptionRows.length === 0 ? (
+              <p className="p-6 text-slate-500 md:hidden rounded-xl border border-slate-200 bg-white">
+                {t("admin.partnerVenueDetail.redemptions.noRedemptionsForDay")}
+              </p>
+            ) : null}
+            <div className="hidden md:block rounded-xl border border-slate-200 overflow-x-auto">
               <table className="w-full text-sm min-w-[640px]">
                 <thead className="bg-slate-100 text-slate-600 text-left">
                   {redemptionTable.getHeaderGroups().map((hg) => (
@@ -2348,11 +2396,11 @@ export default function OwnerVenueDetailPage() {
                   ))}
                 </tbody>
               </table>
-              {redemptionRows.length === 0 && (
+              {redemptionRows.length === 0 ? (
                 <p className="p-6 text-slate-500">
                   {t("admin.partnerVenueDetail.redemptions.noRedemptionsForDay")}
                 </p>
-              )}
+              ) : null}
             </div>
           </section>
         )}

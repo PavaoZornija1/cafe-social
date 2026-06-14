@@ -46,8 +46,8 @@ export function TrialContactBar({
   if (endedTrialOrgs.length > 0) {
     return (
       <div className="border-b border-amber-200/90 bg-gradient-to-r from-amber-50 via-amber-50/95 to-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-3.5">
-          <p className="text-sm font-medium text-amber-950 leading-snug max-w-3xl">
+        <div className="mx-auto flex max-w-6xl flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between px-4 py-3 sm:px-5 sm:py-3.5">
+          <p className="text-sm font-medium text-amber-950 leading-snug">
             {t("admin.trialBar.trialEndedLead")}
             {endedTrialOrgs.length === 1 ? ` (${endedTrialOrgs[0]!.name})` : ""}.{" "}
             {t("admin.trialBar.trialEndedTail")}
@@ -71,8 +71,8 @@ export function TrialContactBar({
 
   return (
     <div className="border-b border-brand-light/80 bg-gradient-to-r from-brand-light/95 via-brand-light/80 to-white">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-3.5">
-        <p className="text-sm font-medium text-slate-800 leading-snug max-w-3xl">
+        <div className="mx-auto flex max-w-6xl flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between px-4 py-3 sm:px-5 sm:py-3.5">
+          <p className="text-sm font-medium text-slate-800 leading-snug">
           {t("admin.trialBar.activeLead")}
           {daysLeft !== null
             ? t("admin.trialBar.daysLeft", { count: daysLeft })

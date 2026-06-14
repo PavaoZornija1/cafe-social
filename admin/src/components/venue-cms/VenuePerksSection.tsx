@@ -9,7 +9,9 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { TableRowCards } from "@/components/TableRowCards";
 import {
   useCreatePerkMutation,
   useDeletePerkMutation,
@@ -45,6 +47,7 @@ export function VenuePerksSection({
   enabled,
   variant = "page",
 }: Props) {
+  const { t } = useTranslation();
   const perksQ = useVenuePerksQuery(venueId, getToken, enabled && Boolean(venueId));
   const createMut = useCreatePerkMutation(venueId, getToken);
   const deleteMut = useDeletePerkMutation(venueId, getToken);
@@ -66,12 +69,16 @@ export function VenuePerksSection({
     () => [
       colHelper.display({
         id: "perk",
-        header: "Perk",
+        header: t("admin.venueCms.common.perk"),
         cell: ({ row }) => (
           <span>
             <span className="font-mono text-amber-900">{row.original.code}</span> —{" "}
             {row.original.title}{" "}
-            <span className="text-slate-500">({row.original.redemptionCount})</span>
+            <span className="text-slate-500">
+              {t("admin.venueCms.common.redemptionCount", {
+                count: row.original.redemptionCount,
+              })}
+            </span>
           </span>
         ),
       }),
@@ -85,12 +92,12 @@ export function VenuePerksSection({
             onClick={() => setDeleteTarget(row.original)}
             className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
           >
-            Delete
+            {t("admin.venueCms.common.delete")}
           </button>
         ),
       }),
     ],
-    [deleteMut.isPending],
+    [deleteMut.isPending, t],
   );
 
   const table = useReactTable({
@@ -116,16 +123,17 @@ export function VenuePerksSection({
       className={
         embedded
           ? "mb-8 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.04] md:p-6"
-          : "min-h-screen max-w-3xl bg-slate-50 p-8 text-slate-900"
+          : "min-h-screen max-w-3xl bg-slate-50 px-4 py-6 sm:p-8 text-slate-900"
       }
     >
       {embedded ? (
         <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div>
-            <h2 className="text-sm font-semibold text-slate-900">Perks &amp; redeem codes</h2>
+            <h2 className="text-sm font-semibold text-slate-900">
+              {t("admin.venueCms.perks.embeddedTitle")}
+            </h2>
             <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-500">
-              Codes guests claim in the app (redemption counts shown). Separate from marketing offers
-              on this page.
+              {t("admin.venueCms.perks.embeddedLead")}
             </p>
           </div>
           <span
@@ -135,15 +143,17 @@ export function VenuePerksSection({
                 : "inline-flex shrink-0 items-center rounded-full border border-slate-200/90 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500"
             }
           >
-            {perkCount === 0 ? "No perks" : `${perkCount} perk${perkCount === 1 ? "" : "s"}`}
+            {perkCount === 0
+              ? t("admin.venueCms.perks.badgeNone")
+              : t("admin.venueCms.perks.badgeCount", { count: perkCount })}
           </span>
         </div>
       ) : (
         <>
           <Link href="/venues" className="text-brand text-sm">
-            ← Venues
+            {t("admin.venueCms.common.backVenues")}
           </Link>
-          <h1 className="text-xl font-bold mt-4 mb-4">Perk codes</h1>
+          <h1 className="text-xl font-bold mt-4 mb-4">{t("admin.venueCms.perks.pageTitle")}</h1>
         </>
       )}
 
@@ -168,16 +178,16 @@ export function VenuePerksSection({
         }
       >
         <p className={embedded ? fieldLbl : "text-xs font-semibold text-slate-700"}>
-          {embedded ? "Create perk" : "New perk"}
+          {embedded ? t("admin.venueCms.perks.createEmbedded") : t("admin.venueCms.perks.createPage")}
         </p>
         <div className={embedded ? "mt-4 space-y-4" : "mt-2 space-y-2"}>
           <form.Field name="code">
             {(f) => (
               <label className={fieldCol}>
-                <span className={fieldLbl}>Code</span>
+                <span className={fieldLbl}>{t("admin.venueCms.common.code")}</span>
                 <input
                   className={`${fieldInp} font-mono text-xs`}
-                  placeholder="e.g. COFFEE10"
+                  placeholder={t("admin.venueCms.perks.codePlaceholder")}
                   value={f.state.value}
                   onChange={(e) => f.handleChange(e.target.value)}
                   autoComplete="off"
@@ -188,10 +198,10 @@ export function VenuePerksSection({
           <form.Field name="title">
             {(f) => (
               <label className={fieldCol}>
-                <span className={fieldLbl}>Title</span>
+                <span className={fieldLbl}>{t("admin.venueCms.common.title")}</span>
                 <input
                   className={fieldInp}
-                  placeholder="Shown after redeem"
+                  placeholder={t("admin.venueCms.perks.titlePlaceholder")}
                   value={f.state.value}
                   onChange={(e) => f.handleChange(e.target.value)}
                 />
@@ -207,7 +217,7 @@ export function VenuePerksSection({
                   checked={f.state.value}
                   onChange={(e) => f.handleChange(e.target.checked)}
                 />
-                Requires QR unlock
+                {t("admin.venueCms.perks.requiresQr")}
               </label>
             )}
           </form.Field>
@@ -217,34 +227,38 @@ export function VenuePerksSection({
           disabled={createMut.isPending}
           className={`h-[42px] w-full sm:w-auto ${embedded ? "mt-4" : "mt-3"} ${btnPrimary}`}
         >
-          {createMut.isPending ? "Creating…" : embedded ? "Create perk" : "Create…"}
+          {createMut.isPending
+            ? t("admin.venueCms.common.creating")
+            : embedded
+              ? t("admin.venueCms.perks.createSubmit")
+              : t("admin.venueCms.perks.createSubmitShort")}
         </button>
       </form>
 
       <ConfirmModal
         open={deleteTarget !== null}
         onClose={() => setDeleteTarget(null)}
-        title="Delete perk?"
+        title={t("admin.venueCms.perks.deleteTitle")}
         variant="danger"
         description={
           deleteTarget ? (
             <p>
-              Delete{" "}
-              <span className="font-mono font-semibold text-slate-900">{deleteTarget.code}</span> —{" "}
-              {deleteTarget.title}? This cannot be undone.
+              {t("admin.venueCms.perks.deleteBody", {
+                code: deleteTarget.code,
+                title: deleteTarget.title,
+                cannotUndo: t("admin.venueCms.common.cannotUndo"),
+              })}
             </p>
           ) : null
         }
-        confirmLabel="Delete"
+        confirmLabel={t("admin.venueCms.common.delete")}
         onConfirm={async () => {
           if (!deleteTarget) return;
           await deleteMut.mutateAsync(deleteTarget.id);
         }}
       />
 
-      {embedded ? (
-        <p className={fieldLbl}>Existing perks</p>
-      ) : null}
+      {embedded ? <p className={fieldLbl}>{t("admin.venueCms.perks.existing")}</p> : null}
       {perksQ.isPending && !perksQ.data ? (
         <p
           className={
@@ -253,62 +267,76 @@ export function VenuePerksSection({
               : "text-sm text-slate-600"
           }
         >
-          Loading perks…
+          {t("admin.venueCms.perks.loading")}
         </p>
       ) : (
-        <div
-          className={
-            embedded
-              ? "mt-3 overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm"
-              : "overflow-x-auto rounded-xl border border-slate-200 bg-white"
-          }
-        >
-          <table className="min-w-full text-sm">
-            <thead className="bg-slate-50/90">
-              {table.getHeaderGroups().map((hg) => (
-                <tr
-                  key={hg.id}
-                  className="border-b border-slate-200 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
-                >
-                  {hg.headers.map((h) => (
-                    <th key={h.id} className="px-3 py-2.5 pr-3 text-left">
-                      {flexRender(h.column.columnDef.header, h.getContext())}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {table.getRowModel().rows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={2}
-                    className="border-t border-slate-100 px-3 py-6 text-center text-sm text-slate-500"
+        <>
+          <TableRowCards rows={table.getRowModel().rows} leadCellId="perk" actionCellIds={["del"]} />
+          <div
+            className={
+              embedded
+                ? "hidden md:block mt-3 overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm"
+                : "hidden md:block overflow-x-auto rounded-xl border border-slate-200 bg-white"
+            }
+          >
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50/90">
+                {table.getHeaderGroups().map((hg) => (
+                  <tr
+                    key={hg.id}
+                    className="border-b border-slate-200 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
                   >
-                    No perks yet.
-                  </td>
-                </tr>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <tr key={row.id} className="border-b border-slate-100">
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-3 py-2.5 align-top">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
+                    {hg.headers.map((h) => (
+                      <th key={h.id} className="px-3 py-2.5 pr-3 text-left">
+                        {flexRender(h.column.columnDef.header, h.getContext())}
+                      </th>
                     ))}
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </thead>
+              <tbody>
+                {table.getRowModel().rows.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={2}
+                      className="border-t border-slate-100 px-3 py-6 text-center text-sm text-slate-500"
+                    >
+                      {t("admin.venueCms.perks.empty")}
+                    </td>
+                  </tr>
+                ) : (
+                  table.getRowModel().rows.map((row) => (
+                    <tr key={row.id} className="border-b border-slate-100">
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className="px-3 py-2.5 align-top">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          {(perksQ.data ?? []).length === 0 ? (
+            <p
+              className={
+                embedded
+                  ? "md:hidden mt-3 rounded-lg border border-dashed border-slate-200 bg-slate-50/80 px-3 py-4 text-sm text-slate-500 text-center"
+                  : "md:hidden rounded-lg border border-slate-200 px-3 py-6 text-sm text-slate-500 text-center"
+              }
+            >
+              {t("admin.venueCms.perks.empty")}
+            </p>
+          ) : null}
+        </>
       )}
 
       {!embedded ? null : (
         <p className="text-xs text-slate-500 mt-3">
-          Standalone page:{" "}
+          {t("admin.venueCms.common.standalonePage")}{" "}
           <Link href={`/perks/${venueId}`} className="text-brand hover:underline font-medium">
-            Open perks in full width
+            {t("admin.venueCms.perks.openFullWidth")}
           </Link>
         </p>
       )}

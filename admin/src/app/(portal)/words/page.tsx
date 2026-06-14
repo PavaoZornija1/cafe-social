@@ -10,7 +10,9 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { TableRowCards } from "@/components/TableRowCards";
 import { useAddWordMutation, useWordsQuery } from "@/lib/queries";
 
 type WordRow = { id: string; text: string; language: string; category: string };
@@ -19,6 +21,7 @@ const colHelper = createColumnHelper<WordRow>();
 const WORDS_TAKE = 80;
 
 export default function WordsPage() {
+  const { t } = useTranslation();
   const { isLoaded, getToken } = useAuth();
   const wordsQ = useWordsQuery(getToken, isLoaded, WORDS_TAKE);
   const addMut = useAddWordMutation(getToken, WORDS_TAKE);
@@ -57,19 +60,19 @@ export default function WordsPage() {
   const columns = useMemo(
     () => [
       colHelper.accessor("language", {
-        header: "Lang",
+        header: t("admin.words.colLang"),
         cell: (c) => <span className="font-mono text-xs">{c.getValue()}</span>,
       }),
       colHelper.accessor("text", {
-        header: "Text",
+        header: t("admin.words.colText"),
         cell: (c) => <span className="font-mono text-sm">{c.getValue()}</span>,
       }),
       colHelper.accessor("category", {
-        header: "Category",
+        header: t("admin.words.colCategory"),
         cell: (c) => <span className="text-xs text-slate-600">{c.getValue()}</span>,
       }),
     ],
-    [],
+    [t],
   );
 
   const table = useReactTable({
@@ -83,21 +86,21 @@ export default function WordsPage() {
 
   if (err && !wordsQ.data) {
     return (
-      <div className="bg-slate-50 text-red-700 p-8">
+      <div className="bg-slate-50 text-red-700 px-4 py-6 sm:p-8">
         {err}{" "}
         <Link href="/dashboard" className="text-brand">
-          Dashboard
+          {t("admin.words.dashboard")}
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="bg-slate-50 text-slate-900 p-8">
+    <div className="bg-slate-50 text-slate-900 px-4 py-6 sm:p-8 max-w-3xl mx-auto w-full">
       <Link href="/dashboard" className="text-brand text-sm">
-        ← Dashboard
+        {t("admin.words.backDashboard")}
       </Link>
-      <h1 className="text-xl font-bold mt-4 mb-4">Words</h1>
+      <h1 className="text-xl font-bold mt-4 mb-4">{t("admin.words.title")}</h1>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -105,12 +108,12 @@ export default function WordsPage() {
         }}
         className="border border-slate-200 rounded-lg p-4 mb-6 space-y-2 max-w-lg"
       >
-        <p className="text-sm text-slate-600">Add word</p>
+        <p className="text-sm text-slate-600">{t("admin.words.addWord")}</p>
         <addForm.Field name="text">
           {(f) => (
             <input
               className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
-              placeholder="text"
+              placeholder={t("admin.words.placeholderText")}
               value={f.state.value}
               onChange={(e) => f.handleChange(e.target.value)}
             />
@@ -120,7 +123,7 @@ export default function WordsPage() {
           {(f) => (
             <input
               className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
-              placeholder="language"
+              placeholder={t("admin.words.placeholderLanguage")}
               value={f.state.value}
               onChange={(e) => f.handleChange(e.target.value)}
             />
@@ -130,7 +133,7 @@ export default function WordsPage() {
           {(f) => (
             <input
               className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
-              placeholder="category (enum, e.g. DRINK_FOOD)"
+              placeholder={t("admin.words.placeholderCategory")}
               value={f.state.value}
               onChange={(e) => f.handleChange(e.target.value)}
             />
@@ -140,7 +143,7 @@ export default function WordsPage() {
           {(f) => (
             <input
               className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
-              placeholder="sentence hint"
+              placeholder={t("admin.words.placeholderSentenceHint")}
               value={f.state.value}
               onChange={(e) => f.handleChange(e.target.value)}
             />
@@ -150,7 +153,7 @@ export default function WordsPage() {
           {(f) => (
             <input
               className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
-              placeholder="word hints comma-separated"
+              placeholder={t("admin.words.placeholderWordHints")}
               value={f.state.value}
               onChange={(e) => f.handleChange(e.target.value)}
             />
@@ -160,7 +163,7 @@ export default function WordsPage() {
           {(f) => (
             <input
               className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
-              placeholder="emoji hints comma-separated"
+              placeholder={t("admin.words.placeholderEmojiHints")}
               value={f.state.value}
               onChange={(e) => f.handleChange(e.target.value)}
             />
@@ -174,33 +177,38 @@ export default function WordsPage() {
           disabled={addMut.isPending}
           className="bg-brand border border-brand-active text-white rounded px-3 py-1 text-sm font-medium hover:bg-brand-hover disabled:opacity-50"
         >
-          Add…
+          {t("admin.words.addSubmit")}
         </button>
       </form>
 
       <ConfirmModal
         open={addWordConfirmOpen}
         onClose={() => setAddWordConfirmOpen(false)}
-        title="Add word?"
+        title={t("admin.words.confirmTitle")}
         description={
           <p>
-            Add{" "}
-            <span className="font-mono font-semibold text-slate-900">
-              {addForm.state.values.text || "—"}
-            </span>{" "}
-            <span className="text-slate-600">
-              ({addForm.state.values.language}) · {addForm.state.values.category}
-            </span>
+            {t("admin.words.confirmBody", {
+              text: addForm.state.values.text || "—",
+              language: addForm.state.values.language,
+              category: addForm.state.values.category,
+            })}
           </p>
         }
-        confirmLabel="Add word"
+        confirmLabel={t("admin.words.confirmLabel")}
         onConfirm={() => addForm.handleSubmit()}
       />
       {wordsQ.isPending && !wordsQ.data ? (
-        <p>Loading…</p>
+        <p>{t("admin.words.loading")}</p>
       ) : (
-        <div className="rounded-xl border border-slate-200 bg-white overflow-x-auto max-w-3xl">
-          <table className="min-w-full text-sm">
+        <>
+          <TableRowCards
+            rows={table.getRowModel().rows}
+            leadCellId="text"
+            showBodyLabels
+            leadStyle="default"
+          />
+          <div className="hidden md:block rounded-xl border border-slate-200 bg-white overflow-x-auto max-w-3xl">
+            <table className="min-w-full text-sm">
             <thead>
               {table.getHeaderGroups().map((hg) => (
                 <tr key={hg.id} className="border-b border-slate-200 bg-slate-50">
@@ -224,7 +232,8 @@ export default function WordsPage() {
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

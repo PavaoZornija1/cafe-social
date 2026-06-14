@@ -11,6 +11,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { CitySelect } from '@/components/ui/CitySelect';
 import { CountrySelect } from '@/components/ui/CountrySelect';
@@ -93,6 +94,7 @@ const emptyCreateVenue = () => ({
 export default function EditOrganizationPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { t } = useTranslation();
   const { isLoaded, getToken } = useAuth();
   const [o, setO] = useState<OrgDetail | null>(null);
   const [linkedVenueIds, setLinkedVenueIds] = useState<string[]>([]);
@@ -176,12 +178,12 @@ export default function EditOrganizationPage() {
             checked={linkedVenueIds.includes(row.original.id)}
             onChange={() => toggleVenue(row.original.id)}
             className="mt-1"
-            aria-label={`Link ${row.original.name}`}
+            aria-label={t('admin.organizationDetail.linkAria', { name: row.original.name })}
           />
         ),
       }),
       venueColHelper.accessor('name', {
-        header: 'Venue',
+        header: t('admin.organizationDetail.colVenue'),
         cell: (c) => (
           <span className="text-sm text-slate-800">
             {c.getValue()}
@@ -191,7 +193,7 @@ export default function EditOrganizationPage() {
       }),
       venueColHelper.display({
         id: 'loc',
-        header: 'Location',
+        header: t('admin.organizationDetail.colLocation'),
         cell: ({ row }) => (
           <span className="text-slate-500 text-xs">
             {[row.original.city, row.original.country].filter(Boolean).join(' · ') || '—'}
@@ -203,11 +205,11 @@ export default function EditOrganizationPage() {
         header: '',
         cell: ({ row }) =>
           row.original.organizationId && row.original.organizationId !== id ? (
-            <span className="text-amber-800 text-xs">Other org</span>
+            <span className="text-amber-800 text-xs">{t('admin.venueCms.common.otherOrg')}</span>
           ) : null,
       }),
     ],
-    [linkedVenueIds, id, toggleVenue],
+    [linkedVenueIds, id, toggleVenue, t],
   );
 
   const venueTable = useReactTable({
@@ -279,16 +281,16 @@ export default function EditOrganizationPage() {
 
   if ((loadErr || err) && !o) {
     return (
-      <div className="bg-slate-50 text-red-700 p-8">
+      <div className="bg-slate-50 text-red-700 px-4 py-6 sm:p-8">
         {(loadErr ?? err ?? 'Error')}{' '}
         <Link href="/organizations" className="text-brand">
-          Back
+          {t('admin.organizationDetail.back')}
         </Link>
       </div>
     );
   }
   if (!o) {
-    return <div className="bg-slate-50 text-slate-900 p-8">Loading…</div>;
+    return <div className="bg-slate-50 text-slate-900 px-4 py-6 sm:p-8">{t('admin.organizationDetail.loading')}</div>;
   }
 
   const stats: OrgStats = o.stats ?? {
@@ -301,13 +303,13 @@ export default function EditOrganizationPage() {
   const ownerList = o.ownerContacts ?? [];
 
   return (
-    <div className="bg-slate-50 text-slate-900 p-6 sm:p-8 max-w-5xl">
+    <div className="bg-slate-50 text-slate-900 px-4 py-6 sm:p-6 sm:max-w-5xl w-full mx-auto">
       <div className="flex flex-wrap gap-3 text-sm">
         <Link href="/platform" className="text-brand hover:underline">
-          ← Platform
+          {t('admin.organizationDetail.backPlatform')}
         </Link>
         <Link href="/organizations" className="text-brand hover:underline">
-          All organizations
+          {t('admin.organizationDetail.allOrganizations')}
         </Link>
       </div>
       <h1 className="text-xl font-bold mt-4 mb-1">{o.name}</h1>
@@ -315,19 +317,19 @@ export default function EditOrganizationPage() {
 
       <div className="mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-          <p className="text-xs text-slate-500">Venues</p>
+          <p className="text-xs text-slate-500">{t('admin.organizationDetail.statVenues')}</p>
           <p className="text-lg font-semibold text-slate-900">{stats.venueCount}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-          <p className="text-xs text-slate-500">Locked venues</p>
+          <p className="text-xs text-slate-500">{t('admin.organizationDetail.statLockedVenues')}</p>
           <p className="text-lg font-semibold text-slate-900">{stats.lockedVenueCount}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-          <p className="text-xs text-slate-500">Perks (all venues)</p>
+          <p className="text-xs text-slate-500">{t('admin.organizationDetail.statPerks')}</p>
           <p className="text-lg font-semibold text-slate-900">{stats.perksCount}</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-          <p className="text-xs text-slate-500">Redemptions</p>
+          <p className="text-xs text-slate-500">{t('admin.organizationDetail.statRedemptions')}</p>
           <p className="text-lg font-semibold text-slate-900">{stats.totalRedemptions}</p>
         </div>
       </div>
@@ -335,15 +337,15 @@ export default function EditOrganizationPage() {
       <section className="mb-8 space-y-6 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.04] md:p-6">
         <div className="space-y-5">
           <div>
-            <h2 className="text-sm font-semibold text-slate-900">People</h2>
+            <h2 className="text-sm font-semibold text-slate-900">{t('admin.organizationDetail.peopleTitle')}</h2>
             <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500">
-              Self-serve signup and venue owners across venues linked to this organization.
+              {t('admin.organizationDetail.peopleLead')}
             </p>
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
             <div className={fieldCol}>
-              <span className={fieldLbl}>Self-serve onboarding</span>
+              <span className={fieldLbl}>{t('admin.organizationDetail.selfServeLabel')}</span>
               {o.selfServeCreatedBy ? (
                 <div className="rounded-lg border border-slate-200/90 bg-slate-50/80 px-3 py-2.5 text-sm text-slate-900">
                   <p className="font-medium text-slate-900">{o.selfServeCreatedBy.email}</p>
@@ -351,16 +353,16 @@ export default function EditOrganizationPage() {
                 </div>
               ) : (
                 <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 px-3 py-2.5 text-xs text-slate-500">
-                  No self-serve creator recorded for this org.
+                  {t('admin.organizationDetail.selfServeEmpty')}
                 </p>
               )}
             </div>
 
             <div className={fieldCol}>
-              <span className={fieldLbl}>Venue owners (linked venues)</span>
+              <span className={fieldLbl}>{t('admin.organizationDetail.ownersLabel')}</span>
               {ownerList.length === 0 ? (
                 <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 px-3 py-2.5 text-xs text-slate-500">
-                  No owner staff on these venues yet.
+                  {t('admin.organizationDetail.ownersEmpty')}
                 </p>
               ) : (
                 <ul className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-slate-200/90 bg-slate-50/80 px-3 py-2.5 text-sm">
@@ -379,14 +381,14 @@ export default function EditOrganizationPage() {
         </div>
 
         <div className="border-t border-slate-100 pt-6">
-          <h2 className="text-sm font-semibold text-slate-900">Organization</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{t('admin.organizationDetail.orgSectionTitle')}</h2>
           <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500">
-            Display name, URL slug, and default guest play limit for venues without their own cap.
+            {t('admin.organizationDetail.orgSectionLead')}
           </p>
 
           <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
             <label className={fieldCol} htmlFor="org-detail-name">
-              <span className={fieldLbl}>Name</span>
+              <span className={fieldLbl}>{t('admin.organizationDetail.nameLabel')}</span>
               <input
                 id="org-detail-name"
                 className={fieldInp}
@@ -396,38 +398,38 @@ export default function EditOrganizationPage() {
               />
             </label>
             <label className={fieldCol} htmlFor="org-detail-slug">
-              <span className={fieldLbl}>Slug (optional)</span>
+              <span className={fieldLbl}>{t('admin.organizationDetail.slugOptional')}</span>
               <input
                 id="org-detail-slug"
                 className={fieldInp}
                 value={o.slug ?? ''}
                 onChange={(e) => setO({ ...o, slug: e.target.value || null })}
-                placeholder="url-friendly-id"
+                placeholder={t('admin.organizationDetail.slugPlaceholder')}
                 autoComplete="off"
               />
             </label>
           </div>
 
           <label className={`${fieldCol} mt-4 max-w-md`} htmlFor="org-detail-guest-cap">
-            <span className={fieldLbl}>Default guest daily game cap (optional)</span>
+            <span className={fieldLbl}>{t('admin.organizationDetail.guestCapOptional')}</span>
             <input
               id="org-detail-guest-cap"
               type="number"
               min={1}
               max={999}
               className={fieldInp}
-              placeholder="Platform default"
+              placeholder={t('admin.organizationDetail.guestCapPlaceholder')}
               value={o.guestPlayDailyGamesLimit ?? ''}
               onChange={(e) => {
-                const t = e.target.value;
+                const raw = e.target.value;
                 setO({
                   ...o,
-                  guestPlayDailyGamesLimit: t === '' ? null : Number.parseInt(t, 10),
+                  guestPlayDailyGamesLimit: raw === '' ? null : Number.parseInt(raw, 10),
                 });
               }}
             />
             <p className="text-xs leading-relaxed text-slate-500">
-              Applies to linked venues that do not set their own cap (then env{' '}
+              {t('admin.organizationDetail.guestCapHint')}{' '}
               <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[0.7rem] text-slate-700">
                 VENUE_GUEST_PLAY_DAILY_GAMES
               </code>
@@ -440,10 +442,9 @@ export default function EditOrganizationPage() {
       <div className="border border-slate-200 rounded-xl bg-white shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-5 sm:py-4">
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold text-slate-900">Venues</h2>
+            <h2 className="text-base font-semibold text-slate-900">{t('admin.organizationDetail.venuesTitle')}</h2>
             <p className="text-sm text-slate-600 mt-1.5 max-w-2xl leading-relaxed">
-              Create a new location for this organization, or link venues that already exist. If you
-              link a venue that sits under another org, it will be moved here.
+              {t('admin.organizationDetail.venuesLead')}
             </p>
           </div>
           <button
@@ -465,7 +466,7 @@ export default function EditOrganizationPage() {
                 : 'border border-brand-active bg-brand text-white hover:bg-brand-hover'
             }`}
           >
-            {createOpen ? 'Close form' : 'Create venue'}
+            {createOpen ? t('admin.organizationDetail.closeForm') : t('admin.organizationDetail.createVenueButton')}
           </button>
         </div>
 
@@ -476,11 +477,10 @@ export default function EditOrganizationPage() {
           >
             <header className="border-b border-slate-200/80 bg-white px-4 py-4 sm:px-5">
               <h3 id="create-venue-heading" className="text-base font-semibold text-slate-900">
-                New venue
+                {t('admin.organizationDetail.newVenueTitle')}
               </h3>
               <p className="mt-1 text-sm text-slate-600 leading-relaxed max-w-3xl">
-                Enter a display name, then set the map pin and draw the play area. Guests only count
-                as “in venue” when they are inside that polygon.
+                {t('admin.organizationDetail.newVenueLead')}
               </p>
             </header>
 
@@ -488,12 +488,12 @@ export default function EditOrganizationPage() {
               <div>
                 <label className="block" htmlFor="org-create-venue-name">
                   <span className="text-sm font-medium text-slate-800">
-                    Venue name <span className="text-red-600">*</span>
+                    {t('admin.organizationDetail.venueNameRequired')} <span className="text-red-600">*</span>
                   </span>
                   <input
                     id="org-create-venue-name"
                     className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-                    placeholder="e.g. Northside · Main Street"
+                    placeholder={t('admin.organizationDetail.venueNamePlaceholder')}
                     value={createForm.name}
                     onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
                     autoComplete="off"
@@ -516,26 +516,28 @@ export default function EditOrganizationPage() {
                   role="status"
                 >
                   <span className="text-sm font-semibold">
-                    {createForm.geofencePolygon ? 'Play area defined' : 'Play area not drawn yet'}
+                    {createForm.geofencePolygon
+                      ? t('admin.organizationDetail.playAreaDefined')
+                      : t('admin.organizationDetail.playAreaNotDrawn')}
                   </span>
                   <span className="text-xs leading-snug opacity-90 sm:text-right sm:max-w-md">
                     {createForm.geofencePolygon
-                      ? 'You can continue to adjust the shape, then use Create & link below.'
-                      : 'Use Draw polygon in the map toolbar and close the ring so the pin sits inside.'}
+                      ? t('admin.organizationDetail.playAreaDefinedHint')
+                      : t('admin.organizationDetail.playAreaNotDrawnHint')}
                   </span>
                 </div>
               </div>
 
               <fieldset className="rounded-xl border border-dashed border-slate-300/90 bg-white px-4 py-4 sm:px-5">
                 <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Address (optional)
+                  {t('admin.organizationDetail.addressOptional')}
                 </legend>
                 <p className="text-xs text-slate-500 mb-4 -mt-1">
-                  Shown on venue listings; does not affect the geofence.
+                  {t('admin.organizationDetail.addressLegendHint')}
                 </p>
                 <div className="space-y-4">
                   <label className="block" htmlFor="org-create-venue-address">
-                    <span className="text-sm font-medium text-slate-700">Street address</span>
+                    <span className="text-sm font-medium text-slate-700">{t('admin.organizationDetail.streetAddress')}</span>
                     <input
                       id="org-create-venue-address"
                       className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
@@ -549,7 +551,7 @@ export default function EditOrganizationPage() {
                         className="block text-sm font-medium text-slate-700"
                         htmlFor="org-create-venue-country"
                       >
-                        Country
+                        {t('admin.organizationDetail.countryLabel')}
                       </label>
                       <CountrySelect
                         id="org-create-venue-country"
@@ -562,10 +564,10 @@ export default function EditOrganizationPage() {
                             city: f.country !== iso ? '' : f.city,
                           }))
                         }
-                        placeholder="Search country…"
+                        placeholder={t('admin.organizationDetail.searchCountryPlaceholder')}
                       />
                       <p className="mt-1 text-xs text-slate-500">
-                        Stored as ISO code (e.g. BA) for listings.
+                        {t('admin.organizationDetail.countryHint')}
                       </p>
                     </div>
                     <div>
@@ -573,7 +575,7 @@ export default function EditOrganizationPage() {
                         className="block text-sm font-medium text-slate-700"
                         htmlFor="org-create-venue-city"
                       >
-                        City
+                        {t('admin.organizationDetail.cityLabel')}
                       </label>
                       <CitySelect
                         id="org-create-venue-city"
@@ -605,7 +607,7 @@ export default function EditOrganizationPage() {
                     setCreateOpen(false);
                   }}
                 >
-                  Cancel
+                  {t('admin.organizationDetail.cancel')}
                 </button>
                 <button
                   type="button"
@@ -613,7 +615,7 @@ export default function EditOrganizationPage() {
                   onClick={() => openCreateVenueConfirm()}
                   className="rounded-lg border border-brand-active bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover disabled:opacity-50"
                 >
-                  Create &amp; link venue…
+                  {t('admin.organizationDetail.createAndLink')}
                 </button>
               </div>
             </div>
@@ -621,6 +623,30 @@ export default function EditOrganizationPage() {
         ) : null}
 
         <div className="max-h-72 overflow-y-auto border-t border-slate-100 bg-white">
+          <ul className="md:hidden divide-y divide-slate-100">
+            {sortedVenues.map((v) => (
+              <li key={v.id} className="flex gap-3 px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={linkedVenueIds.includes(v.id)}
+                  onChange={() => toggleVenue(v.id)}
+                  className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-brand focus:ring-brand/30"
+                  aria-label={t('admin.organizationDetail.linkAria', { name: v.name })}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-slate-800">{v.name}</p>
+                  <p className="text-xs font-mono text-slate-500 mt-0.5 truncate">{v.id}</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {[v.city, v.country].filter(Boolean).join(" · ") || "—"}
+                  </p>
+                  {v.organizationId && v.organizationId !== id ? (
+                    <p className="text-xs text-amber-800 mt-1">{t("admin.venueCms.common.otherOrg")}</p>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden md:block">
           <table className="min-w-full text-sm">
             <thead>
               {venueTable.getHeaderGroups().map((hg) => (
@@ -648,6 +674,7 @@ export default function EditOrganizationPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
         <div className="border-t border-slate-100 px-4 py-4 sm:px-5">
           <button
@@ -656,10 +683,10 @@ export default function EditOrganizationPage() {
             onClick={() => requestLinkVenuesModal()}
             className="text-sm font-semibold rounded-lg bg-brand border border-brand-active text-white px-4 py-2.5 hover:bg-brand-hover disabled:opacity-40 disabled:hover:bg-brand"
           >
-            Apply link changes…
+            {t('admin.organizationDetail.applyLinkChanges')}
           </button>
           <p className="text-xs text-slate-500 mt-2">
-            Tick venues above, then confirm to attach or detach them from this organization.
+            {t('admin.organizationDetail.applyLinkHint')}
           </p>
         </div>
       </div>
@@ -671,46 +698,45 @@ export default function EditOrganizationPage() {
         onClick={() => setSaveOrgOpen(true)}
         className="mt-6 w-full bg-brand border border-brand-active text-white hover:bg-brand-hover disabled:opacity-50 rounded-lg py-2 font-semibold"
       >
-        Save organization…
+        {t('admin.organizationDetail.saveOrganization')}
       </button>
 
       <div className="mt-10 pt-8 border-t border-slate-200">
-        <h2 className="text-sm font-semibold text-red-700 mb-2">Danger zone</h2>
+        <h2 className="text-sm font-semibold text-red-700 mb-2">{t('admin.organizationDetail.dangerZone')}</h2>
         <button
           type="button"
           disabled={deleteMut.isPending}
           onClick={() => setDeleteOrgOpen(true)}
           className="text-sm bg-red-600 border border-red-700 text-white hover:bg-red-700 rounded-lg px-4 py-2 disabled:opacity-50"
         >
-          Delete organization…
+          {t('admin.organizationDetail.deleteOrganization')}
         </button>
       </div>
 
       <ConfirmModal
         open={saveOrgOpen}
         onClose={() => setSaveOrgOpen(false)}
-        title="Save organization?"
+        title={t('admin.organizationDetail.saveConfirmTitle')}
         description={
           <>
             <p>
-              Name <span className="font-medium text-slate-800">{o.name.trim() || '—'}</span>
+              {t('admin.organizationDetail.saveConfirmName', { name: o.name.trim() || '—' })}
               {o.slug?.trim() ? (
                 <>
-                  {', slug '}
-                  <span className="font-mono text-slate-800">{o.slug.trim()}</span>
+                  {t('admin.organizationDetail.saveConfirmSlug', { slug: o.slug.trim() })}
                 </>
               ) : null}
             </p>
-            <p>You will return to the organizations list after saving.</p>
+            <p>{t('admin.organizationDetail.saveConfirmReturn')}</p>
           </>
         }
-        confirmLabel="Save organization"
+        confirmLabel={t('admin.organizationDetail.saveConfirmLabel')}
         onConfirm={async () => {
           if (!o || !id) return;
           setErr(null);
           const lim = o.guestPlayDailyGamesLimit;
           if (lim != null && (!Number.isFinite(lim) || lim < 1 || lim > 999)) {
-            setErr('Guest daily game cap must be empty or an integer 1–999.');
+            setErr(t('admin.organizationDetail.errGuestCap'));
             return;
           }
           try {
@@ -730,17 +756,16 @@ export default function EditOrganizationPage() {
       <ConfirmModal
         open={deleteOrgOpen}
         onClose={() => setDeleteOrgOpen(false)}
-        title="Delete this organization?"
+        title={t('admin.organizationDetail.deleteConfirmTitle')}
         variant="danger"
         description={
           <>
             <p>
-              <span className="font-semibold text-slate-900">“{o.name}”</span> will be removed.
-              Venues stay in the system but are unlinked from this org. This cannot be undone.
+              {t('admin.organizationDetail.deleteConfirmBody', { name: o.name })}
             </p>
           </>
         }
-        confirmLabel="Delete organization"
+        confirmLabel={t('admin.organizationDetail.deleteConfirmLabel')}
         onConfirm={async () => {
           if (!id || !o) return;
           setErr(null);
@@ -757,30 +782,30 @@ export default function EditOrganizationPage() {
       <ConfirmModal
         open={linkModal !== null}
         onClose={() => setLinkModal(null)}
-        title="Update linked venues?"
+        title={t('admin.organizationDetail.linkConfirmTitle')}
         description={
           linkModal ? (
             <>
               <p className="text-slate-700">
-                Confirm attaching and detaching venues for this organization. Venues linked from
-                another org are moved here.
+                {t('admin.organizationDetail.linkConfirmLead')}
               </p>
               {linkModal.attach.some((vid) => {
                 const row = allVenues.find((v) => v.id === vid);
                 return Boolean(row?.organizationId && row.organizationId !== id);
               }) ? (
                 <p className="text-amber-900 text-sm rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-                  Some venues are currently tied to another organization and will be moved to this
-                  one.
+                  {t('admin.organizationDetail.linkConfirmMoveWarning')}
                 </p>
               ) : null}
               {linkModal.attach.length > 0 ? (
                 <div>
-                  <p className="font-medium text-slate-800">Link here ({linkModal.attach.length})</p>
+                  <p className="font-medium text-slate-800">
+                    {t('admin.organizationDetail.linkConfirmAttach', { count: linkModal.attach.length })}
+                  </p>
                   <ul className="list-disc pl-5 text-xs mt-1 space-y-0.5 max-h-32 overflow-y-auto">
                     {linkModal.attach.map((vid) => (
                       <li key={vid}>
-                        {venueNameById.get(vid) ?? 'Venue'}{' '}
+                        {venueNameById.get(vid) ?? t('admin.organizationDetail.venueFallback')}{' '}
                         <span className="font-mono text-slate-500">{vid}</span>
                       </li>
                     ))}
@@ -790,12 +815,12 @@ export default function EditOrganizationPage() {
               {linkModal.detach.length > 0 ? (
                 <div>
                   <p className="font-medium text-slate-800">
-                    Unlink from this org ({linkModal.detach.length})
+                    {t('admin.organizationDetail.linkConfirmDetach', { count: linkModal.detach.length })}
                   </p>
                   <ul className="list-disc pl-5 text-xs mt-1 space-y-0.5 max-h-32 overflow-y-auto">
                     {linkModal.detach.map((vid) => (
                       <li key={vid}>
-                        {venueNameById.get(vid) ?? 'Venue'}{' '}
+                        {venueNameById.get(vid) ?? t('admin.organizationDetail.venueFallback')}{' '}
                         <span className="font-mono text-slate-500">{vid}</span>
                       </li>
                     ))}
@@ -805,7 +830,7 @@ export default function EditOrganizationPage() {
             </>
           ) : null
         }
-        confirmLabel="Apply changes"
+        confirmLabel={t('admin.organizationDetail.linkConfirmLabel')}
         onConfirm={async () => {
           if (!linkModal || !o) return;
           setErr(null);
@@ -827,7 +852,7 @@ export default function EditOrganizationPage() {
           setCreateConfirmPayload(null);
           setCreateConfirmErr(null);
         }}
-        title="Create venue under this organization?"
+        title={t('admin.organizationDetail.createConfirmTitle')}
         description={
           createConfirmPayload ? (
             <div className="space-y-3 text-left">
@@ -837,27 +862,29 @@ export default function EditOrganizationPage() {
                 </p>
               ) : null}
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Venue name</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  {t('admin.organizationDetail.createConfirmVenueName')}
+                </p>
                 <p className="text-base font-semibold text-slate-900 mt-0.5">{createConfirmPayload.name}</p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 space-y-1">
-                <p className="text-xs font-medium text-slate-500">Reference pin (WGS84)</p>
+                <p className="text-xs font-medium text-slate-500">{t('admin.organizationDetail.createConfirmPin')}</p>
                 <p className="font-mono text-xs sm:text-sm break-all">
                   {createConfirmPayload.latitude.toFixed(6)}, {createConfirmPayload.longitude.toFixed(6)}
                 </p>
                 <p className="text-xs text-slate-600 pt-1">
-                  Geofence:{' '}
-                  <span className="font-medium text-slate-800">
-                    {createConfirmPayload.geofencePolygon.coordinates[0]?.length ?? 0} positions
-                  </span>{' '}
-                  in outer ring (including closing point).
+                  {t('admin.organizationDetail.createConfirmGeofence', {
+                    count: createConfirmPayload.geofencePolygon.coordinates[0]?.length ?? 0,
+                  })}
                 </p>
               </div>
               {[createConfirmPayload.address, createConfirmPayload.city, createConfirmPayload.country]
                 .filter(Boolean)
                 .length > 0 ? (
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Address</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                    {t('admin.organizationDetail.createConfirmAddress')}
+                  </p>
                   <p className="text-sm text-slate-700 mt-0.5 leading-relaxed">
                     {[
                       createConfirmPayload.address,
@@ -872,7 +899,7 @@ export default function EditOrganizationPage() {
             </div>
           ) : null
         }
-        confirmLabel="Create venue"
+        confirmLabel={t('admin.organizationDetail.createConfirmLabel')}
         onConfirm={async () => {
           if (!createConfirmPayload) return;
           setCreateConfirmErr(null);

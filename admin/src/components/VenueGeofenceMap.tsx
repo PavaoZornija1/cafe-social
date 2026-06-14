@@ -2,7 +2,8 @@
 
 import { type LeafletEvent } from "leaflet";
 import { L } from "./leaflet-geoman-client";
-import { useCallback, useEffect, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
 
 export type GeofencePolygonGeoJson = { type: "Polygon"; coordinates: number[][][] };
@@ -194,45 +195,21 @@ function clampArrivalRadiusMeters(n: number): number {
   return Math.round(Math.min(ARRIVAL_RADIUS_MAX, Math.max(ARRIVAL_RADIUS_MIN, n)));
 }
 
-function MapInstructionsBold({ children }: { children: ReactNode }) {
-  return <strong className="font-semibold text-slate-900">{children}</strong>;
-}
-
 function MapInstructions() {
-  const steps: { n: number; text: ReactNode }[] = [
-    {
-      n: 1,
-      text: (
-        <>
-          Drag the blue <MapInstructionsBold>pin</MapInstructionsBold> to your venue entrance or main reference point.
-        </>
-      ),
-    },
-    {
-      n: 2,
-      text: (
-        <>
-          In the toolbar (top-left), open <MapInstructionsBold>Draw polygon</MapInstructionsBold>. Click each corner of the
-          play area; finish by clicking the first point again.
-        </>
-      ),
-    },
-    {
-      n: 3,
-      text: (
-        <>
-          The pin must sit <MapInstructionsBold>inside</MapInstructionsBold> the polygon. Adjust with the edit tools, or remove with the
-          trash icon and draw again.
-        </>
-      ),
-    },
+  const { t } = useTranslation();
+  const steps: { n: number; key: string }[] = [
+    { n: 1, key: "admin.venueCms.geofence.instruction1" },
+    { n: 2, key: "admin.venueCms.geofence.instruction2" },
+    { n: 3, key: "admin.venueCms.geofence.instruction3" },
   ];
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 sm:px-4 sm:py-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Map &amp; geofence</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {t("admin.venueCms.geofence.mapTitle")}
+      </p>
       <ul className="mt-3 space-y-3">
-        {steps.map(({ n, text }) => (
+        {steps.map(({ n, key }) => (
           <li key={n} className="flex gap-3 text-sm leading-snug text-slate-700">
             <span
               className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-700 ring-1 ring-slate-200/80"
@@ -240,7 +217,12 @@ function MapInstructions() {
             >
               {n}
             </span>
-            <span className="min-w-0 pt-0.5">{text}</span>
+            <span className="min-w-0 pt-0.5">
+              <Trans
+                i18nKey={key}
+                components={{ bold: <strong className="font-semibold text-slate-900" /> }}
+              />
+            </span>
           </li>
         ))}
       </ul>
@@ -260,6 +242,7 @@ export default function VenueGeofenceMap({
   proximityAlertsEnabled = true,
   onProximityAlertsEnabledChange,
 }: VenueGeofenceMapProps) {
+  const { t } = useTranslation();
   const onDragEnd = useCallback(
     (e: LeafletEvent) => {
       const m = e.target as L.Marker;
@@ -281,12 +264,10 @@ export default function VenueGeofenceMap({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-amber-900/80">
-                Arrival zone (nearby alerts)
+                {t("admin.venueCms.geofence.arrivalTitle")}
               </p>
               <p className="mt-1 text-xs leading-snug text-amber-950/80">
-                Circle centered on the pin — players get one offer push per day when they enter this
-                ring. Moving the pin re-centers the ring and resets to 100&nbsp;m (choose presets or
-                custom before save). Super-admin only. Separate from the play-area polygon.
+                {t("admin.venueCms.geofence.arrivalLead")}
               </p>
             </div>
             {onProximityAlertsEnabledChange ? (
@@ -297,7 +278,7 @@ export default function VenueGeofenceMap({
                   onChange={(e) => onProximityAlertsEnabledChange(e.target.checked)}
                   className="rounded border-amber-300 text-amber-700 focus:ring-amber-500"
                 />
-                Enabled
+                {t("admin.venueCms.geofence.enabled")}
               </label>
             ) : null}
           </div>
@@ -317,7 +298,7 @@ export default function VenueGeofenceMap({
               </button>
             ))}
             <label className="flex items-center gap-2 text-sm text-amber-950">
-              <span className="font-medium">Custom</span>
+              <span className="font-medium">{t("admin.venueCms.geofence.custom")}</span>
               <input
                 type="number"
                 min={ARRIVAL_RADIUS_MIN}
@@ -333,10 +314,10 @@ export default function VenueGeofenceMap({
                 }}
                 className="w-20 rounded-lg border border-amber-200 bg-white px-2 py-1.5 text-sm shadow-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
               />
-              <span className="text-xs text-amber-900/70">m</span>
+              <span className="text-xs text-amber-900/70">{t("admin.venueCms.geofence.metersUnit")}</span>
             </label>
             <span className="self-center text-xs font-medium text-amber-900/70">
-              {radius} m from pin
+              {t("admin.venueCms.geofence.metersFromPin", { radius })}
             </span>
           </div>
         </div>

@@ -12,6 +12,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { OwnerAnalyticsCharts } from "@/components/OwnerAnalyticsCharts";
+import { PerkCountCards } from "@/components/TableRowCards";
 import {
   type OwnerOrganizationAnalytics,
   type OwnerVenueAnalytics,
@@ -162,7 +163,7 @@ export function PartnerAnalyticsHub() {
       () => [
         perkOrgCol.display({
           id: "perk",
-          header: "Perk",
+          header: () => t("admin.partnerOrgRollup.columns.perk"),
           cell: ({ row }) => (
             <span>
               <span className="font-mono text-brand">{row.original.code}</span>{" "}
@@ -171,11 +172,11 @@ export function PartnerAnalyticsHub() {
           ),
         }),
         perkOrgCol.accessor("count", {
-          header: "Count",
+          header: () => t("admin.partnerOrgRollup.columns.count"),
           cell: (c) => <span className="text-slate-600">{c.getValue()}</span>,
         }),
       ],
-      [],
+      [t],
     ),
     getCoreRowModel: getCoreRowModel(),
     getRowId: (r) => r.perkId,
@@ -191,7 +192,7 @@ export function PartnerAnalyticsHub() {
       () => [
         perkVenueCol.display({
           id: "perk",
-          header: "Perk",
+          header: () => t("admin.partnerOrgRollup.columns.perk"),
           cell: ({ row }) => (
             <span>
               <span className="font-mono text-brand">{row.original.code}</span>{" "}
@@ -200,11 +201,11 @@ export function PartnerAnalyticsHub() {
           ),
         }),
         perkVenueCol.accessor("count", {
-          header: "Count",
+          header: () => t("admin.partnerOrgRollup.columns.count"),
           cell: (c) => <span className="text-slate-600">{c.getValue()}</span>,
         }),
       ],
-      [],
+      [t],
     ),
     getCoreRowModel: getCoreRowModel(),
     getRowId: (r) => r.perkId,
@@ -229,8 +230,8 @@ export function PartnerAnalyticsHub() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end gap-4">
-        <label className="block text-sm text-slate-700 min-w-[min(100%,16rem)]">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4">
+        <label className="block text-sm text-slate-700 min-w-[min(100%,16rem)] w-full sm:w-auto">
           <span className="font-medium text-slate-800">{t("admin.partnerAnalytics.scopeLabel")}</span>
           <select
             className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
@@ -244,12 +245,12 @@ export function PartnerAnalyticsHub() {
             ))}
           </select>
         </label>
-        <label className="text-sm text-slate-600">
+        <label className="text-sm text-slate-600 flex flex-col sm:flex-row sm:items-center gap-1.5 w-full sm:w-auto">
           {t("admin.partnerAnalytics.periodDays")}
           <select
             value={days}
             onChange={(e) => setDays(Number(e.target.value))}
-            className="ml-2 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-slate-900"
+            className="sm:ml-2 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-slate-900 w-full sm:w-auto"
           >
             {[7, 14, 30, 60, 90].map((d) => (
               <option key={d} value={d}>
@@ -258,27 +259,27 @@ export function PartnerAnalyticsHub() {
             ))}
           </select>
         </label>
-        <label className="text-sm text-slate-600">
+        <label className="text-sm text-slate-600 flex flex-col sm:flex-row sm:items-center gap-1.5 w-full sm:w-auto">
           {t("admin.partnerAnalytics.from")}
           <input
             type="date"
             value={fromYmd}
             onChange={(e) => setFromYmd(e.target.value)}
-            className="ml-2 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-slate-900"
+            className="sm:ml-2 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-slate-900 w-full sm:w-auto"
           />
         </label>
-        <label className="text-sm text-slate-600">
+        <label className="text-sm text-slate-600 flex flex-col sm:flex-row sm:items-center gap-1.5 w-full sm:w-auto">
           {t("admin.partnerAnalytics.to")}
           <input
             type="date"
             value={toYmd}
             onChange={(e) => setToYmd(e.target.value)}
-            className="ml-2 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-slate-900"
+            className="sm:ml-2 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-slate-900 w-full sm:w-auto"
           />
         </label>
         <button
           type="button"
-          className="text-xs text-slate-500 hover:underline pb-1"
+          className="text-xs text-slate-500 hover:underline pb-1 self-start"
           onClick={() => {
             setFromYmd("");
             setToYmd("");
@@ -380,7 +381,8 @@ export function PartnerAnalyticsHub() {
             redemptionsByDay={orgAnalytics.redemptions.byDay}
             byHour={hourOrg}
           />
-          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+          <PerkCountCards rows={orgPerkRows} />
+          <div className="hidden md:block rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
             <table className="min-w-full text-sm">
               <thead>
                 {orgPerkTable.getHeaderGroups().map((hg) => (
@@ -484,7 +486,8 @@ export function PartnerAnalyticsHub() {
             redemptionsByDay={venueAnalytics.redemptions.byDay}
             byHour={hourVenue}
           />
-          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+          <PerkCountCards rows={venuePerkRows} />
+          <div className="hidden md:block rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
             <table className="min-w-full text-sm">
               <thead>
                 {venuePerkTable.getHeaderGroups().map((hg) => (

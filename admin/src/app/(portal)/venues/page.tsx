@@ -24,6 +24,7 @@ import {
   FilterableSelect,
   type FilterableOption,
 } from "@/components/ui/FilterableSelect";
+import { TableRowCards } from "@/components/TableRowCards";
 
 const colHelper = createColumnHelper<AdminVenueListRow>();
 
@@ -203,7 +204,7 @@ export default function VenuesPage() {
 
   if (!isLoaded) {
     return (
-      <div className="bg-slate-50 text-slate-600 p-8">
+      <div className="bg-slate-50 text-slate-600 px-4 py-6 sm:p-8">
         <p>{t("admin.venues.loading")}</p>
       </div>
     );
@@ -211,7 +212,7 @@ export default function VenuesPage() {
 
   if (meQ.isPending && !meQ.data) {
     return (
-      <div className="bg-slate-50 text-slate-600 p-8">
+      <div className="bg-slate-50 text-slate-600 px-4 py-6 sm:p-8">
         <p>{t("admin.venues.loading")}</p>
       </div>
     );
@@ -220,7 +221,7 @@ export default function VenuesPage() {
   const showInitialLoading = venuesQ.isLoading && !venuesQ.data;
 
   return (
-    <div className="bg-slate-50 text-slate-900 p-6 md:p-8 min-h-full">
+    <div className="bg-slate-50 text-slate-900 px-4 py-6 sm:p-6 md:p-8 min-h-full">
       <div className="max-w-6xl mx-auto">
         <div className="mb-6">
           <Link
@@ -337,7 +338,13 @@ export default function VenuesPage() {
                 </div>
               </div>
             </section>
-            <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto relative">
+            <TableRowCards rows={table.getRowModel().rows} leadCellId="name" />
+            {total === 0 && !venuesQ.isFetching ? (
+              <p className="md:hidden px-4 py-8 text-center text-slate-500 text-sm rounded-xl border border-slate-200 bg-white">
+                {hasActiveFilters ? t("admin.venues.noMatch") : t("admin.venues.empty")}
+              </p>
+            ) : null}
+            <div className="hidden md:block rounded-xl border border-slate-200 bg-white shadow-sm overflow-x-auto relative">
               {venuesQ.isFetching && venuesQ.data ? (
                 <div className="absolute top-2 right-3 text-xs text-slate-500 z-10">
                   {t("admin.venues.loading")}

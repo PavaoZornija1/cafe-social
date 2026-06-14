@@ -1,6 +1,7 @@
 'use client';
 
 import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 
 export type ConfirmModalProps = {
@@ -20,10 +21,11 @@ export function ConfirmModal({
   title,
   description,
   confirmLabel,
-  cancelLabel = 'Cancel',
+  cancelLabel,
   variant = 'default',
   onConfirm,
 }: ConfirmModalProps) {
+  const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   busyRef.current = busy;
@@ -74,7 +76,7 @@ export function ConfirmModal({
       <button
         type="button"
         className="absolute inset-0 bg-black/45"
-        aria-label="Dismiss"
+        aria-label={t('admin.common.dismiss')}
         disabled={busy}
         onClick={() => !busy && onClose()}
       />
@@ -95,7 +97,7 @@ export function ConfirmModal({
             className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-800 hover:bg-slate-50 disabled:opacity-50"
             onClick={onClose}
           >
-            {cancelLabel}
+            {cancelLabel ?? t('admin.common.cancel')}
           </button>
           <button
             type="button"
@@ -103,7 +105,7 @@ export function ConfirmModal({
             className={`rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50 ${confirmClass}`}
             onClick={() => void runConfirm()}
           >
-            {busy ? 'Working…' : confirmLabel}
+            {busy ? t('admin.common.working') : confirmLabel}
           </button>
         </div>
       </div>

@@ -94,7 +94,7 @@ export default function PlatformDashboardPage() {
   const q = usePlatformMetrics(getToken, isLoaded);
 
   return (
-    <div className="bg-slate-50 text-slate-900 min-h-full p-8 max-w-5xl">
+    <div className="bg-slate-50 text-slate-900 min-h-full px-4 py-6 sm:p-8 max-w-5xl mx-auto w-full">
       <div className="mb-8">
         <h1 className="text-2xl font-semibold tracking-tight">{t("admin.platform.title")}</h1>
         <p className="text-sm text-slate-600 mt-2 max-w-2xl leading-relaxed">

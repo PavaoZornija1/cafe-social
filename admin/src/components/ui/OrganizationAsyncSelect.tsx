@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useId, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { AsyncPaginate, type AsyncPaginateProps } from "react-select-async-paginate";
 import type { GroupBase, OptionsOrGroups } from "react-select";
 import { fetchAdminOrganizationsPicker } from "@/lib/queries";
@@ -33,9 +34,11 @@ export function OrganizationAsyncSelect({
   onChange,
   getToken,
   isDisabled,
-  placeholder = "Search organizations…",
+  placeholder,
   className,
 }: Props) {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t("admin.common.searchOrganizations");
   const rid = useId();
   const instanceId = inputId ?? rid.replace(/:/g, "");
   const styles = useMemo(
@@ -90,7 +93,7 @@ export function OrganizationAsyncSelect({
           const single = opt as FilterableOption;
           onChange(single.value, { id: single.value, name: single.label });
         }}
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         isClearable
         isDisabled={isDisabled}
         menuPosition="fixed"

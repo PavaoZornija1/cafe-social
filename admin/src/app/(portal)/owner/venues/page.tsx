@@ -147,12 +147,12 @@ export default function OwnerVenuesPage() {
 
   return (
     <div className="bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-200 px-6 py-4">
+      <header className="border-b border-slate-200 px-4 sm:px-6 py-4">
         <h1 className="text-xl font-semibold">{pageTitle}</h1>
         <p className="text-sm text-slate-600 mt-1 max-w-2xl leading-relaxed">{pageLead}</p>
       </header>
 
-      <main className="p-6 max-w-2xl space-y-4">
+      <main className="p-4 sm:p-6 max-w-2xl space-y-4">
         {showLoading ? (
           <p className="text-slate-600">{t("admin.partnerVenues.loading")}</p>
         ) : null}

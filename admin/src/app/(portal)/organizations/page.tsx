@@ -12,6 +12,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { TableRowCards } from "@/components/TableRowCards";
 import {
   type AdminOrganizationsListParams,
   useAdminOrganizationsListQuery,
@@ -201,7 +202,7 @@ export default function OrganizationsPage() {
 
   if (!isLoaded) {
     return (
-      <div className="bg-slate-50 text-slate-600 p-8">
+      <div className="bg-slate-50 text-slate-600 px-4 py-6 sm:p-8">
         <p>{t("admin.organizations.loading")}</p>
       </div>
     );
@@ -209,7 +210,7 @@ export default function OrganizationsPage() {
 
   if (portalGate === "loading") {
     return (
-      <div className="bg-slate-50 text-slate-600 p-8">
+      <div className="bg-slate-50 text-slate-600 px-4 py-6 sm:p-8">
         <p>{t("admin.organizations.loading")}</p>
       </div>
     );
@@ -217,7 +218,7 @@ export default function OrganizationsPage() {
 
   if (portalGate !== "super_admin") {
     return (
-      <div className="bg-slate-50 text-slate-900 p-8 max-w-lg">
+      <div className="bg-slate-50 text-slate-900 px-4 py-6 sm:p-8 max-w-lg">
         <h1 className="text-xl font-semibold">{t("admin.organizations.gateTitle")}</h1>
         <p className="text-sm text-slate-600 mt-3">{t("admin.organizations.gateBody")}</p>
         <Link
@@ -231,7 +232,7 @@ export default function OrganizationsPage() {
   }
 
   return (
-    <div className="bg-slate-50 text-slate-900 p-6 md:p-8 min-h-full">
+    <div className="bg-slate-50 text-slate-900 px-4 py-6 sm:p-6 md:p-8 min-h-full">
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-wrap justify-between gap-4 mb-6">
           <div>
@@ -292,12 +293,10 @@ export default function OrganizationsPage() {
         <ConfirmModal
           open={createConfirmOpen}
           onClose={() => setCreateConfirmOpen(false)}
-          title={t("admin.organizations.createConfirmTitle", { defaultValue: "Create organization?" })}
+          title={t("admin.organizations.createConfirmTitle")}
           description={
             <p>
-              {t("admin.organizations.createConfirmBody", {
-                defaultValue: "Create organization named",
-              })}{" "}
+              {t("admin.organizations.createConfirmBody")}{" "}
               <span className="font-semibold text-slate-900">
                 {createOrgForm.state.values.name.trim() || "—"}
               </span>
@@ -316,13 +315,10 @@ export default function OrganizationsPage() {
               <div className="space-y-5">
                 <div>
                   <h2 className="text-sm font-semibold text-slate-900">
-                    {t("admin.organizations.filtersTitle", { defaultValue: "Filters" })}
+                    {t("admin.organizations.filtersTitle")}
                   </h2>
                   <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500">
-                    {t("admin.organizations.filtersHint", {
-                      defaultValue:
-                        "Search is debounced. Billing status matches the API filter substring.",
-                    })}
+                    {t("admin.organizations.filtersHint")}
                   </p>
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
@@ -369,7 +365,18 @@ export default function OrganizationsPage() {
                 </div>
               </div>
             </section>
-            <div className="relative overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-900/[0.04]">
+            <TableRowCards
+              rows={table.getRowModel().rows}
+              leadCellId="name"
+              actionCellIds={["actions"]}
+              showBodyLabels
+            />
+            {total === 0 && !orgsQ.isFetching ? (
+              <p className="md:hidden px-4 py-8 text-center text-slate-500 text-sm rounded-xl border border-slate-200 bg-white">
+                {hasActiveFilters ? t("admin.organizations.noMatch") : t("admin.organizations.empty")}
+              </p>
+            ) : null}
+            <div className="hidden md:block relative overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-900/[0.04]">
               {orgsQ.isFetching && orgsQ.data ? (
                 <div className="absolute top-2 right-3 text-xs text-slate-500 z-10">
                   {t("admin.organizations.loading")}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   getCityOptionsForCountry,
   type CityFilterableOption,
@@ -35,10 +36,12 @@ export function CitySelect({
   countryCode,
   cityName,
   onChange,
-  placeholder = "Search or type a city…",
+  placeholder,
   isDisabled,
   className,
 }: Props) {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t("admin.common.searchCity");
   const options = useMemo(
     () => getCityOptionsForCountry(countryCode),
     [countryCode],
@@ -46,14 +49,14 @@ export function CitySelect({
 
   const value = useMemo((): CitySelectOption | null => {
     if (!cityName.trim()) return null;
-    const t = cityName.trim();
+    const trimmed = cityName.trim();
     const match = options.find(
       (o) =>
-        o.meta.name === t ||
-        o.meta.name.toLowerCase() === t.toLowerCase(),
+        o.meta.name === trimmed ||
+        o.meta.name.toLowerCase() === trimmed.toLowerCase(),
     );
     if (match) return match;
-    return { value: `__custom__|${encodeURIComponent(t)}`, label: t };
+    return { value: `__custom__|${encodeURIComponent(trimmed)}`, label: trimmed };
   }, [options, cityName]);
 
   return (
@@ -75,14 +78,14 @@ export function CitySelect({
       }}
       onCreateOption={(input) => onChange(input.trim())}
       placeholder={
-        countryCode.trim() ? placeholder : "Choose a country first…"
+        countryCode.trim() ? resolvedPlaceholder : t("admin.common.chooseCountryFirst")
       }
       isDisabled={isDisabled || !countryCode.trim()}
       isClearable
       noOptionsMessage={({ inputValue }) =>
         inputValue.trim()
-          ? `No match — press Enter to use “${inputValue.trim()}”`
-          : "Type to search cities"
+          ? t("admin.common.cityNoMatch", { name: inputValue.trim() })
+          : t("admin.common.cityTypeToSearch")
       }
     />
   );

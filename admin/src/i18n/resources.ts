@@ -10,6 +10,10 @@ import partnerVenueDetailDe from "./overlays/partnerVenueDetail.de.json";
 import partnerVenueDetailEn from "./overlays/partnerVenueDetail.en.json";
 import partnerVenueDetailEs from "./overlays/partnerVenueDetail.es.json";
 import partnerVenueDetailHr from "./overlays/partnerVenueDetail.hr.json";
+import venueCmsDe from "./overlays/venueCms.de.json";
+import venueCmsEn from "./overlays/venueCms.en.json";
+import venueCmsEs from "./overlays/venueCms.es.json";
+import venueCmsHr from "./overlays/venueCms.hr.json";
 import { ADMIN_LOCALE_STORAGE_KEY } from "./constants";
 import type { AppLanguage } from "./types";
 import { isAppLanguage } from "./types";
@@ -25,18 +29,22 @@ export function buildResources() {
   const enAdmin = {
     ...(enOverlay as Record<string, unknown>),
     partnerVenueDetail: partnerVenueDetailEn as Record<string, unknown>,
+    venueCms: venueCmsEn as Record<string, unknown>,
   };
   const deAdmin = {
     ...(deOverlay as Record<string, unknown>),
     partnerVenueDetail: partnerVenueDetailDe as Record<string, unknown>,
+    venueCms: venueCmsDe as Record<string, unknown>,
   };
   const esAdmin = {
     ...(esOverlay as Record<string, unknown>),
     partnerVenueDetail: partnerVenueDetailEs as Record<string, unknown>,
+    venueCms: venueCmsEs as Record<string, unknown>,
   };
   const hrAdmin = {
     ...(hrOverlay as Record<string, unknown>),
     partnerVenueDetail: partnerVenueDetailHr as Record<string, unknown>,
+    venueCms: venueCmsHr as Record<string, unknown>,
   };
 
   return {
