@@ -1,4 +1,12 @@
 {
+  "sectionNav": {
+    "settings": "Postavke",
+    "nudges": "Nudges",
+    "offers": "Ponude",
+    "perks": "Perks",
+    "challenges": "Izazovi",
+    "staff": "Tim"
+  },
   "common": {
     "backVenues": "← Lokacije",
     "delete": "Obriši",

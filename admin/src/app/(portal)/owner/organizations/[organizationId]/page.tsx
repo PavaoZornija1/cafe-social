@@ -13,6 +13,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ownerFetch } from '@/lib/portalApi';
 import { OwnerAnalyticsCharts } from '@/components/OwnerAnalyticsCharts';
+import { OwnerAttributionSnapshot } from '@/components/OwnerAttributionSnapshot';
 import { PartnerReadOnlyBanner } from '@/components/PartnerReadOnlyBanner';
 import { PerkCountCards } from '@/components/TableRowCards';
 import {
@@ -33,6 +34,8 @@ type PortalVenueListRow = {
     locked: boolean;
     lockReason: string | null;
     organization: {
+      id: string;
+      name: string;
       platformBillingStatus: string;
       trialEndsAt: string | null;
     } | null;
@@ -62,6 +65,14 @@ export default function OwnerOrganizationPage() {
   const venuesListQ = useOwnerVenuesListQuery(getToken, Boolean(isLoaded));
 
   const analytics = analyticsQ.data ?? null;
+
+  const orgDisplayName = useMemo(() => {
+    const rows = venuesListQ.data?.venues ?? [];
+    const match = rows.find(
+      (r: PortalVenueListRow) => r.venue.organizationId === organizationId,
+    );
+    return match?.venue.organization?.name ?? null;
+  }, [venuesListQ.data, organizationId]);
 
   const orgReadOnlyNotice = useMemo(() => {
     const data = venuesListQ.data;
@@ -95,8 +106,6 @@ export default function OwnerOrganizationPage() {
       ? analytics.redemptions.byHourVenue
       : analytics.redemptions.byHourUtc;
   }, [analytics]);
-
-  const readOnlyDisabled = Boolean(orgReadOnlyNotice);
 
   const perkRows = useMemo(
     () => analytics?.redemptions.perPerk.slice(0, 12) ?? [],
@@ -134,7 +143,6 @@ export default function OwnerOrganizationPage() {
     ownerAnalyticsQueryString(days, fromYmd.trim() || undefined, toYmd.trim() || undefined);
 
   const exportCsv = async () => {
-    if (readOnlyDisabled) return;
     const token = await getToken();
     if (!token) return;
     const res = await ownerFetch(
@@ -153,7 +161,6 @@ export default function OwnerOrganizationPage() {
   };
 
   const exportFunnelCsv = async () => {
-    if (readOnlyDisabled) return;
     const token = await getToken();
     if (!token) return;
     const res = await ownerFetch(
@@ -183,8 +190,25 @@ export default function OwnerOrganizationPage() {
           <Link href="/owner/venues" className="text-sm text-brand hover:underline">
             {t('admin.partnerOrgRollup.backVenues')}
           </Link>
-          <h1 className="text-xl font-semibold mt-2">{t('admin.partnerOrgRollup.title')}</h1>
-          <p className="text-sm text-slate-600 mt-1 font-mono">{organizationId}</p>
+          <h1 className="text-xl font-semibold mt-2">
+            {orgDisplayName ?? t('admin.partnerOrgRollup.title')}
+          </h1>
+          <p className="text-sm text-slate-600 mt-1 leading-relaxed">
+            {t('admin.partnerOrgRollup.subtitle')}
+            {' '}
+            <Link
+              href={`/owner/analytics?org=${encodeURIComponent(organizationId)}`}
+              className="text-brand font-medium hover:underline"
+            >
+              {t('admin.partnerOrgRollup.analyticsHubLink')}
+            </Link>
+          </p>
+          <details className="text-xs text-slate-500 mt-2">
+            <summary className="cursor-pointer hover:text-slate-700">
+              {t('admin.partnerOrgRollup.orgIdLabel')}
+            </summary>
+            <p className="font-mono mt-1 break-all">{organizationId}</p>
+          </details>
         </div>
         <div className="hidden lg:block shrink-0">
           <UserButton />
@@ -257,17 +281,15 @@ export default function OwnerOrganizationPage() {
             <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-4 mt-3">
               <button
                 type="button"
-                disabled={readOnlyDisabled}
                 onClick={() => void exportCsv()}
-                className="text-sm text-emerald-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-sm text-emerald-700 hover:underline"
               >
                 {t('admin.partnerOrgRollup.exportRedemptionsCsv')}
               </button>
               <button
                 type="button"
-                disabled={readOnlyDisabled}
                 onClick={() => void exportFunnelCsv()}
-                className="text-sm text-emerald-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-sm text-emerald-700 hover:underline"
               >
                 {t('admin.partnerOrgRollup.exportFunnelCsv')}
               </button>
@@ -371,6 +393,7 @@ export default function OwnerOrganizationPage() {
                 })}
               </p>
             </div>
+            <OwnerAttributionSnapshot attribution={analytics.attribution} />
             <OwnerAnalyticsCharts
               title={t('admin.partnerAnalytics.orgTrendsTitle')}
               visitsByDay={analytics.visits.byDay}

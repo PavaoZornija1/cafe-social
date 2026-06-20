@@ -1,4 +1,12 @@
 {
+  "sectionNav": {
+    "settings": "Ajustes",
+    "nudges": "Nudges",
+    "offers": "Ofertas",
+    "perks": "Perks",
+    "challenges": "Retos",
+    "staff": "Equipo"
+  },
   "common": {
     "backVenues": "← Locales",
     "delete": "Eliminar",

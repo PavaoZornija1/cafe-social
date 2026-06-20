@@ -45,16 +45,16 @@
   },
   "playbook": {
     "title": "Partner playbook",
-    "leadBeforePath": "Short checklist to go live with QR, staff, and a first campaign. Full printable brief:",
-    "leadAfterPath": "in the repo.",
-    "briefPath": "docs/prilog-za-partnera-cafe-social.md",
+    "lead": "Short checklist to go live with QR, staff, and a first campaign.",
     "step1Title": "Geofence",
-    "step1Body": "draw once in the CMS (super admin) so detection matches your floor.",
+    "step1Body": "You set this during onboarding. Adjust under Locations & content if your floor plan changes.",
     "step2Title": "Test QR / deep link",
     "step2BeforeDeepLink": "scan or open",
     "step2AfterDeepLink": "on a phone with the app installed.",
     "step3Title": "Sample perks & challenges",
-    "step3Body": "publish one simple perk staff can honour and one weekly challenge in the CMS.",
+    "step3BeforeCms": "Publish one simple perk staff can honour and one weekly challenge under",
+    "step3CmsLink": "Locations & content",
+    "step3AfterCms": "for this location.",
     "step4Title": "Poster copy",
     "step4Body": "use the partner brief wording for table tents; point guests to the app + your venue context.",
     "step5Title": "Staff shift",
@@ -153,7 +153,13 @@
     "banReasonOptional": "Reason (optional)",
     "ban": "Ban",
     "auditLog": "Moderation audit log",
-    "noAuditEntries": "No entries yet."
+    "noAuditEntries": "No entries yet.",
+    "appealStatus": {
+      "open": "Open",
+      "lifted": "Lifted",
+      "upheld": "Upheld",
+      "dismissed": "Dismissed"
+    }
   },
   "staffInvites": {
     "title": "Staff invites",
@@ -199,7 +205,15 @@
     "type": "Type",
     "entityUuid": "Entity UUID",
     "entityUuidPlaceholder": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-    "addBinding": "Add binding"
+    "addBinding": "Add binding",
+    "selectEntity": "Item",
+    "selectEntityPlaceholder": "Choose…",
+    "loadingEntities": "Loading…",
+    "types": {
+      "CHALLENGE": "Challenge",
+      "VENUE_PERK": "Perk",
+      "VENUE_OFFER": "Offer"
+    }
   },
   "receipts": {
     "title": "Receipt submissions",
@@ -227,5 +241,14 @@
     "void": "Void",
     "noRedemptionsForDay": "No redemptions for this day.",
     "enterVoidReasonError": "Enter a void reason (manager/owner)."
+  },
+  "sectionNav": {
+    "playbook": "Playbook",
+    "analytics": "Analytics",
+    "moderation": "Moderation",
+    "team": "Team",
+    "campaigns": "Campaigns",
+    "receipts": "Receipts",
+    "redemptions": "Redemptions"
   }
 }

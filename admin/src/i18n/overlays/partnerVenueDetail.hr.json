@@ -45,16 +45,16 @@
   },
   "playbook": {
     "title": "Partnerski playbook",
-    "leadBeforePath": "Kratka kontrolna lista za pokretanje s QR-om, osobljem i prvom kampanjom. Cijeli ispisivi brief:",
-    "leadAfterPath": "u repozitoriju.",
-    "briefPath": "docs/prilog-za-partnera-cafe-social.md",
+    "lead": "Kratki popis za QR, osoblje i prvu kampanju.",
     "step1Title": "Geofence",
-    "step1Body": "nacrtajte jednom u CMS-u (super admin) kako bi detekcija odgovarala vašem prostoru.",
+    "step1Body": "Postavili ste tijekom onboardinga. Prilagodite pod Lokacije i sadržaj ako se tlocrt promijeni.",
     "step2Title": "Test QR / deep link",
     "step2BeforeDeepLink": "skenirajte ili otvorite",
     "step2AfterDeepLink": "na telefonu s instaliranom aplikacijom.",
     "step3Title": "Primjerni perkovi i izazovi",
-    "step3Body": "objavite jedan jednostavan perk koji osoblje može potvrditi i jedan tjedni izazov u CMS-u.",
+    "step3BeforeCms": "Objavite jedan jednostavan perk i jedan tjedni izazov pod",
+    "step3CmsLink": "Lokacije i sadržaj",
+    "step3AfterCms": "za ovu lokaciju.",
     "step4Title": "Tekst za plakate",
     "step4Body": "koristite formulacije iz partnerskog briefa za stolne kartice; usmjerite goste na aplikaciju + kontekst vaše lokacije.",
     "step5Title": "Smjena osoblja",
@@ -153,7 +153,13 @@
     "banReasonOptional": "Razlog (opcionalno)",
     "ban": "Zabrani",
     "auditLog": "Audit zapis moderacije",
-    "noAuditEntries": "Još nema zapisa."
+    "noAuditEntries": "Još nema zapisa.",
+    "appealStatus": {
+      "open": "Otvoreno",
+      "lifted": "Ukinuto",
+      "upheld": "Potvrđeno",
+      "dismissed": "Odbijeno"
+    }
   },
   "staffInvites": {
     "title": "Pozivnice za osoblje",
@@ -199,7 +205,15 @@
     "type": "Tip",
     "entityUuid": "UUID entiteta",
     "entityUuidPlaceholder": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-    "addBinding": "Dodaj binding"
+    "addBinding": "Dodaj binding",
+    "selectEntity": "Stavka",
+    "selectEntityPlaceholder": "Odaberite…",
+    "loadingEntities": "Učitavanje…",
+    "types": {
+      "CHALLENGE": "Izazov",
+      "VENUE_PERK": "Perk",
+      "VENUE_OFFER": "Ponuda"
+    }
   },
   "receipts": {
     "title": "Predani računi",
@@ -227,5 +241,14 @@
     "void": "Poništi",
     "noRedemptionsForDay": "Nema otkupa za ovaj dan.",
     "enterVoidReasonError": "Unesite razlog poništenja (menadžer/vlasnik)."
+  },
+  "sectionNav": {
+    "playbook": "Playbook",
+    "analytics": "Analitika",
+    "moderation": "Moderacija",
+    "team": "Tim",
+    "campaigns": "Kampanje",
+    "receipts": "Računi",
+    "redemptions": "Otkupi"
   }
 }

@@ -744,6 +744,15 @@ export type OwnerVenueAnalytics = {
     total: number;
     byKind: Record<string, number>;
   };
+  attribution: {
+    proximityNudges: number;
+    areaRingEnters: number;
+    polygonSessions: number;
+    attributedVisits: number;
+    billableVisits: number;
+    stripeReportedVisits: number;
+    nudgeToBillablePercent: number;
+  };
 };
 
 export type OwnerVenueCampaignRow = {
@@ -1486,6 +1495,7 @@ export type OwnerOrganizationAnalytics = {
     enteredToRedeemPercent: number;
   };
   feedEvents: { total: number; byKind: Record<string, number> };
+  attribution: OwnerVenueAnalytics["attribution"];
 };
 
 /** Owner organization roll-up analytics — `/owner/organizations/:id/analytics` */
@@ -1537,6 +1547,18 @@ export function useOwnerOrganizationCheckoutMutation(getToken: () => Promise<str
           ),
           headers: { "Content-Type": "application/json" },
         },
+      ),
+  });
+}
+
+/** Stripe Checkout — pay-per-visit metered plan ($0 base + per attributed visit). */
+export function useOwnerOrganizationPpvCheckoutMutation(getToken: () => Promise<string | null>) {
+  return useMutation({
+    mutationFn: (organizationId: string) =>
+      ownerJson<{ url: string }>(
+        getToken,
+        `/owner/organizations/${organizationId}/stripe/ppv-checkout-session`,
+        { method: "POST", body: "{}", headers: { "Content-Type": "application/json" } },
       ),
   });
 }
@@ -1808,7 +1830,7 @@ export function useAcceptStaffInviteMutation(getToken: () => Promise<string | nu
       });
       const text = await res.text();
       if (!res.ok) throw new Error(text || res.statusText);
-      return text ? (JSON.parse(text) as { venueName?: string; role?: string }) : {};
+      return text ? (JSON.parse(text) as { venueId?: string; venueName?: string; role?: string }) : {};
     },
   });
 }
@@ -1819,6 +1841,35 @@ export function usePartnerOnboardingMutation(getToken: () => Promise<string | nu
     mutationFn: (body: PartnerOnboardingPayload) =>
       partnerOnboardingBootstrap(getToken, body),
     onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.portal.me });
+    },
+  });
+}
+
+export type OwnerCreateVenueUnderOrgInput = {
+  name: string;
+  latitude: number;
+  longitude: number;
+  geofencePolygon: { type: "Polygon"; coordinates: number[][][] };
+  address?: string;
+  city?: string;
+  country?: string;
+};
+
+export function useOwnerCreateVenueUnderOrgMutation(
+  orgId: string | undefined,
+  getToken: () => Promise<string | null>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: OwnerCreateVenueUnderOrgInput) =>
+      ownerJson<{ id: string; name: string }>(
+        getToken,
+        `/owner/organizations/${orgId}/venues`,
+        { method: "POST", body: JSON.stringify(body) },
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.owner.venuesList });
       void qc.invalidateQueries({ queryKey: queryKeys.portal.me });
     },
   });

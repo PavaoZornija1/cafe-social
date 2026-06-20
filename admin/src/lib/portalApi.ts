@@ -176,3 +176,40 @@ export async function partnerOnboardingBootstrap(
     body: JSON.stringify(body),
   });
 }
+
+export type GeocodeSearchHit = {
+  id: string;
+  label: string;
+  lat: number;
+  lng: number;
+  address?: string;
+  city?: string;
+  country?: string;
+};
+
+/** Forward geocode via backend Mapbox proxy (JWT required). */
+export async function geocodeSearch(
+  getToken: () => Promise<string | null>,
+  params: {
+    q: string;
+    country?: string;
+    proximityLat?: number;
+    proximityLng?: number;
+    limit?: number;
+  },
+): Promise<GeocodeSearchHit[]> {
+  const sp = new URLSearchParams({ q: params.q });
+  if (params.country?.trim()) sp.set("country", params.country.trim());
+  if (params.proximityLat !== undefined && Number.isFinite(params.proximityLat)) {
+    sp.set("proximityLat", String(params.proximityLat));
+  }
+  if (params.proximityLng !== undefined && Number.isFinite(params.proximityLng)) {
+    sp.set("proximityLng", String(params.proximityLng));
+  }
+  if (params.limit !== undefined && Number.isFinite(params.limit)) {
+    sp.set("limit", String(params.limit));
+  }
+  return portalFetch<GeocodeSearchHit[]>(getToken, `/geocode/search?${sp.toString()}`, {
+    method: "GET",
+  });
+}

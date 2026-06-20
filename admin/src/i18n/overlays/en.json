@@ -11,9 +11,9 @@
     "sectionPartnerView": "Partner view",
     "partnerViewBlurb": "Same screens as a venue owner. Billing and Stripe stay under Organizations.",
     "partnerApp": "Partner app",
-    "venuesAndDashboard": "Venues & dashboard",
+    "venuesAndDashboard": "Locations & dashboard",
     "locationsHome": "Your locations",
-    "staffRedemptions": "Redemptions",
+    "staffLocations": "Locations",
     "statistics": "Statistics",
     "subscriptions": "Subscriptions & billing",
     "locationsCms": "Locations & content (CMS)",
@@ -39,7 +39,8 @@
     "searchCity": "Search or type a city…",
     "chooseCountryFirst": "Choose a country first…",
     "cityNoMatch": "No match — press Enter to use \"{{name}}\"",
-    "cityTypeToSearch": "Type to search cities"
+    "cityTypeToSearch": "Type to search cities",
+    "redirecting": "Redirecting…"
   },
   "trialBar": {
     "manageSubscription": "Subscriptions & billing",
@@ -95,7 +96,9 @@
     "leadSuperAdmin": "Choose a venue in the sidebar to preview the partner experience for that location.",
     "loading": "Loading…",
     "emptySuperAdmin": "No venue selected. Use “Partner dashboard context” in the sidebar, then you'll land on that location's dashboard.",
-    "emptyPartner": "You don't have access to any locations yet. If you were invited to a team, open the link from your invitation email.",
+    "emptyPartner": "You don't have access to any locations yet.",
+    "emptyPartnerInviteHint": "If you were invited to a team, accept your invite below or open the link from your email.",
+    "emptyPartnerInviteLink": "Accept staff invite",
     "organizationFallback": "Organization",
     "independentVenues": "Other locations",
     "orgAllLocations": "All locations →",
@@ -115,11 +118,16 @@
     "tokenPlaceholder": "Paste token from email…",
     "working": "Accepting…",
     "submit": "Accept invite",
-    "success": "You’re on the team at {{venueName}} as {{role}}. Open your locations from the sidebar."
+    "success": "You're on the team at {{venueName}} as {{role}}.",
+    "goToLocation": "Open my location",
+    "goToLocations": "Go to locations"
   },
   "partnerOrgRollup": {
-    "backVenues": "← Venues",
+    "backVenues": "← Locations",
     "title": "Organization roll-up",
+    "subtitle": "Combined metrics for all locations in this organization.",
+    "analyticsHubLink": "Open in Statistics hub →",
+    "orgIdLabel": "Organization ID (support)",
     "loading": "Loading…",
     "noVenues": "No venues are linked to this organization yet.",
     "exportRedemptionsCsv": "Export redemptions CSV",
@@ -138,7 +146,7 @@
   "partnerAnalytics": {
     "pageTitle": "Statistics",
     "pageLead": "Compare roll-up performance across all locations in an organization, or focus on a single venue. Date filters use UTC unless a venue timezone is shown.",
-    "backVenues": "← Venues & dashboard",
+    "backVenues": "← Locations & dashboard",
     "noAccessTitle": "Analytics require owner or manager access",
     "noAccessBody": "Your account is on the team in a staff role. Ask an owner or manager if you need organization or venue statistics.",
     "scopeLabel": "Scope",
@@ -188,12 +196,29 @@
       "vsPriorPp": "vs prior: {{sign}}{{delta}} pp",
       "sentInRange": "Sent in this range (logged sends)",
       "footnote": "Comparison uses the immediately preceding UTC window of the same length. Campaign row sums <pushSentCount>pushSentCount</pushSentCount> for sends whose <sentAt>sentAt</sentAt> falls in the period (approximate uplift vs operations)."
+    },
+    "attribution": {
+      "title": "Proximity & pay-per-visit attribution",
+      "lead": "Nudges (100 m ring) → polygon visits → billable when nudge + enter within 15 min + 15 min dwell.",
+      "nudgeToBillable": "{{percent}}% of nudges became billable visits in this period",
+      "proximityNudges": "Proximity nudges sent",
+      "proximityNudgesHint": "Marketing pushes when players enter the arrival ring",
+      "areaRingEnters": "Area ring enters",
+      "areaRingEntersHint": "Foot traffic near the venue (~100 m)",
+      "polygonSessions": "Polygon visits",
+      "polygonSessionsHint": "In-venue sessions (play geofence)",
+      "attributedVisits": "Attributed visits",
+      "attributedVisitsHint": "Nudge within window + polygon entry",
+      "billableVisits": "Billable visits",
+      "billableVisitsHint": "Attributed + ≥15 min dwell in polygon",
+      "stripeReported": "Reported to Stripe",
+      "stripeReportedHint": "Metered usage sent for invoicing"
     }
   },
   "partnerSubscriptions": {
     "title": "Subscriptions & billing",
     "lead": "Platform billing is per organization. Start your subscription inside this portal with Stripe Payment Element, then manage invoices and payment methods from Stripe customer portal.",
-    "backVenues": "← Venues & dashboard",
+    "backVenues": "← Locations & dashboard",
     "sectionStripe": "Stripe billing",
     "sectionHowItWorks": "How billing works",
     "stepCheckout": "Use “Subscribe in this app” to complete card setup without leaving the portal (Stripe Elements).",
@@ -214,7 +239,46 @@
     "savedPortalLink": "Saved portal link (if any)",
     "billingSuccess": "Payment completed — Stripe is syncing your subscription. Refresh if status does not update within a minute.",
     "billingCancel": "Checkout was cancelled. No charges were made.",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "refreshStatus": "Refresh billing status",
+    "orgIdLabel": "Organization ID",
+    "hostedCheckoutBusy": "Opening Stripe…",
+    "billingModel": "Billing model",
+    "billingModelSubscription": "Monthly subscription",
+    "billingModelPpv": "Pay per visit ($0 base)",
+    "subscribePpvCta": "Pay per visit — add card on Stripe",
+    "subscribePpvHint": "You pay only for attributed visits (nudge → enter → 15+ min dwell).",
+    "choosePlanTitle": "Choose how you want to pay",
+    "subscriptionCardBody": "Fixed monthly fee for full partner access across your locations.",
+    "ppvCardBody": "No monthly base fee — you pay only for visits we attribute to your venue (proximity nudge, enter geofence within 15 minutes, stay 15+ minutes).",
+    "ppvAnalyticsLink": "See how visits are counted →",
+    "ppvActiveAnalyticsLink": "View attributed visits and billing metrics →"
+  },
+  "addressGeocode": {
+    "label": "Find address",
+    "hint": "Search to move the map pin. You still need to draw the play-area polygon on the map.",
+    "placeholder": "Street, place, or business name…",
+    "searching": "Searching…",
+    "attribution": "Address search powered by Mapbox"
+  },
+  "partnerAddVenue": {
+    "title": "Add another location",
+    "lead": "Create a new site under {{orgName}}. Each location has its own geofence and dashboard.",
+    "open": "Add location",
+    "close": "Close form",
+    "venueName": "Location name",
+    "venueNamePlaceholder": "e.g. Downtown",
+    "addressOptional": "Address (optional)",
+    "streetPlaceholder": "Street address",
+    "countryPlaceholder": "Search country…",
+    "cancel": "Cancel",
+    "create": "Create location",
+    "creating": "Creating…",
+    "errorNameRequired": "Enter a name for this location.",
+    "errorNoPolygon": "Draw the play-area polygon on the map before creating.",
+    "trialOneSiteTitle": "Trial includes one location",
+    "trialOneSiteBody": "Your trial covers one site with full features. Subscribe to add more locations under this organization.",
+    "trialSubscribeCta": "View billing options"
   },
   "partnerSubscriptionPay": {
     "title": "Payment details",
@@ -225,7 +289,7 @@
     "missingOrg": "Missing organization. Go back and pick an organization from Subscriptions & billing.",
     "loadError": "Could not start payment. Return to subscriptions and try again.",
     "noPaymentStep": "No card step was required — your subscription may already be active. Redirecting…",
-    "unexpectedNoSecret": "Could not load a payment form. Please try hosted checkout from the subscriptions page or contact support.",
+    "unexpectedNoSecret": "Could not load the in-app payment form. Try hosted checkout from the subscriptions page or contact support.",
     "paymentFailed": "Payment failed"
   },
   "picker": {
@@ -459,5 +523,39 @@
     "createConfirmGeofence": "Geofence: {{count}} positions in outer ring (including closing point).",
     "createConfirmAddress": "Address",
     "createConfirmLabel": "Create venue"
+  },
+  "partnerBillingStatus": {
+    "NONE": "Not subscribed",
+    "TRIALING": "Trial active",
+    "ACTIVE": "Active",
+    "ACTIVE_CANCELING": "Canceling",
+    "PAST_DUE": "Payment overdue",
+    "CANCELED": "Canceled"
+  },
+  "partnerCampaignTemplates": {
+    "welcome_back": {
+      "label": "Welcome back (soft)",
+      "name": "Welcome back — soft nudge",
+      "title": "We'd love to see you again",
+      "body": "You've played at our place before — stop by this week for a drink and a quick round in Cafe Social."
+    },
+    "happy_hour": {
+      "label": "Happy hour / offer",
+      "name": "Happy hour reminder",
+      "title": "Something's on today",
+      "body": "We've got a little extra on today — open the app at the venue to see the featured offer and your perks."
+    },
+    "daily_word": {
+      "label": "Daily ritual",
+      "name": "Daily word ritual",
+      "title": "Today's word is live",
+      "body": "Open Cafe Social at the venue and try the daily word — quick, friendly, and on us."
+    },
+    "friends_table": {
+      "label": "Play with friends",
+      "name": "Bring a friend",
+      "title": "Grab a table, start a room",
+      "body": "Host a word match from the app and share the room code — perfect for a slow afternoon."
+    }
   }
 }

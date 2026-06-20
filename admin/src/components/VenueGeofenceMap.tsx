@@ -5,6 +5,7 @@ import { L } from "./leaflet-geoman-client";
 import { useCallback, useEffect, useRef } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
+import { AddressGeocodeSearch, type AddressGeocodeSelection } from "./AddressGeocodeSearch";
 
 export type GeofencePolygonGeoJson = { type: "Polygon"; coordinates: number[][][] };
 
@@ -26,6 +27,12 @@ export type VenueGeofenceMapProps = {
   onArrivalRadiusChange?: (m: number) => void;
   proximityAlertsEnabled?: boolean;
   onProximityAlertsEnabledChange?: (enabled: boolean) => void;
+  /** Show Mapbox-powered address search above the map (default true). */
+  showAddressSearch?: boolean;
+  /** ISO 3166-1 alpha-2 — biases geocode results. */
+  searchCountryBias?: string;
+  /** Called when user picks an address from search (optional field fill). */
+  onAddressResolved?: (fields: { address?: string; city?: string; country?: string }) => void;
 };
 
 function FixLeafletIcons() {
@@ -195,6 +202,22 @@ function clampArrivalRadiusMeters(n: number): number {
   return Math.round(Math.min(ARRIVAL_RADIUS_MAX, Math.max(ARRIVAL_RADIUS_MIN, n)));
 }
 
+/** Fly map to pin when it moves (e.g. address search). */
+function MapRecenter({ pin }: { pin: { lat: number; lng: number } }) {
+  const map = useMap();
+  const skipFirst = useRef(true);
+
+  useEffect(() => {
+    if (skipFirst.current) {
+      skipFirst.current = false;
+      return;
+    }
+    map.flyTo([pin.lat, pin.lng], Math.max(map.getZoom(), 16), { duration: 0.75 });
+  }, [map, pin.lat, pin.lng]);
+
+  return null;
+}
+
 function MapInstructions() {
   const { t } = useTranslation();
   const steps: { n: number; key: string }[] = [
@@ -241,6 +264,9 @@ export default function VenueGeofenceMap({
   onArrivalRadiusChange,
   proximityAlertsEnabled = true,
   onProximityAlertsEnabledChange,
+  showAddressSearch = true,
+  searchCountryBias,
+  onAddressResolved,
 }: VenueGeofenceMapProps) {
   const { t } = useTranslation();
   const onDragEnd = useCallback(
@@ -252,6 +278,18 @@ export default function VenueGeofenceMap({
     [onPinChange],
   );
 
+  const handleGeocodeSelect = useCallback(
+    (sel: AddressGeocodeSelection) => {
+      onPinChange({ lat: sel.lat, lng: sel.lng });
+      onAddressResolved?.({
+        address: sel.address ?? sel.label,
+        city: sel.city,
+        country: sel.country,
+      });
+    },
+    [onPinChange, onAddressResolved],
+  );
+
   const showArrivalControls = Boolean(onArrivalRadiusChange);
   const radius = clampArrivalRadiusMeters(arrivalRadiusMeters);
   const presetActive = (ARRIVAL_RADIUS_PRESETS as readonly number[]).includes(radius);
@@ -259,6 +297,13 @@ export default function VenueGeofenceMap({
   return (
     <div className={`space-y-3 ${className}`.trim()}>
       {hideInstructions ? null : <MapInstructions />}
+      {showAddressSearch ? (
+        <AddressGeocodeSearch
+          countryBias={searchCountryBias}
+          proximity={pin}
+          onSelect={handleGeocodeSelect}
+        />
+      ) : null}
       {showArrivalControls ? (
         <div className="rounded-xl border border-amber-200/90 bg-amber-50/80 px-3 py-3 sm:px-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -330,6 +375,7 @@ export default function VenueGeofenceMap({
           scrollWheelZoom
         >
           <FixLeafletIcons />
+          <MapRecenter pin={pin} />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

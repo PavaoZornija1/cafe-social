@@ -13,7 +13,6 @@
     "partnerApp": "App socio",
     "venuesAndDashboard": "Locales y panel",
     "locationsHome": "Tus locales",
-    "staffRedemptions": "Canjes",
     "statistics": "Estadísticas",
     "subscriptions": "Suscripción y facturación",
     "locationsCms": "Locales y contenido (CMS)",
@@ -27,7 +26,8 @@
     "mobileNav": "Navegación principal",
     "statisticsShort": "Estadísticas",
     "subscriptionsShort": "Facturación",
-    "cmsShort": "Contenido"
+    "cmsShort": "Contenido",
+    "staffLocations": "Locales"
   },
   "common": {
     "cancel": "Cancelar",
@@ -39,7 +39,8 @@
     "searchCity": "Buscar o escribir ciudad…",
     "chooseCountryFirst": "Elige un país primero…",
     "cityNoMatch": "Sin coincidencia — Enter para usar «{{name}}»",
-    "cityTypeToSearch": "Escribe para buscar ciudades"
+    "cityTypeToSearch": "Escribe para buscar ciudades",
+    "redirecting": "Redirigiendo…"
   },
   "trialBar": {
     "manageSubscription": "Suscripción y facturación",
@@ -95,11 +96,13 @@
     "leadSuperAdmin": "Elige un local en la barra lateral para previsualizar la experiencia de socio.",
     "loading": "Cargando…",
     "emptySuperAdmin": "Ningún local seleccionado. Usa «Contexto del panel de socio» en la barra lateral.",
-    "emptyPartner": "Aún no tienes acceso a ningún local. Si te invitaron, abre el enlace del correo de invitación.",
+    "emptyPartner": "Aún no tienes acceso a locales.",
     "organizationFallback": "Organización",
     "independentVenues": "Otros locales",
     "orgAllLocations": "Todos los locales →",
-    "lockedInactive": "Inactivo"
+    "lockedInactive": "Inactivo",
+    "emptyPartnerInviteHint": "¿Te invitaron al equipo? Acepta la invitación o abre el enlace del correo.",
+    "emptyPartnerInviteLink": "Aceptar invitación"
   },
   "partnerReadOnly": {
     "viewOnlyTitle": "Solo lectura",
@@ -115,11 +118,16 @@
     "tokenPlaceholder": "Pega el token del correo…",
     "working": "Aceptando…",
     "submit": "Aceptar invitación",
-    "success": "Estás en el equipo de {{venueName}} como {{role}}. Abre tus locales desde la barra lateral."
+    "success": "Estás en el equipo de {{venueName}} como {{role}}.",
+    "goToLocation": "Abrir mi local",
+    "goToLocations": "Ir a locales"
   },
   "partnerOrgRollup": {
     "backVenues": "← Locales",
     "title": "Agregación de organización",
+    "subtitle": "Métricas combinadas de todos los locales de esta organización.",
+    "analyticsHubLink": "Abrir en hub de estadísticas →",
+    "orgIdLabel": "ID de organización (soporte)",
     "loading": "Cargando…",
     "noVenues": "Esta organización aún no tiene locales vinculados.",
     "exportRedemptionsCsv": "Exportar canjes CSV",
@@ -214,7 +222,46 @@
     "savedPortalLink": "Enlace guardado al portal",
     "billingSuccess": "Pago completado — Stripe sincroniza la suscripción. Actualiza si el estado no cambia en un minuto.",
     "billingCancel": "Checkout cancelado. No se ha cobrado.",
-    "dismiss": "Cerrar"
+    "dismiss": "Cerrar",
+    "refreshStatus": "Actualizar estado de facturación",
+    "orgIdLabel": "ID de organización",
+    "hostedCheckoutBusy": "Abriendo Stripe…",
+    "billingModel": "Modelo de facturación",
+    "billingModelSubscription": "Suscripción mensual",
+    "billingModelPpv": "Pago por visita (0 € base)",
+    "subscribePpvCta": "Pago por visita — añadir tarjeta en Stripe",
+    "subscribePpvHint": "Pagas solo por visitas atribuidas (nudge → entrada → 15+ min de permanencia).",
+    "choosePlanTitle": "Elige cómo quieres pagar",
+    "subscriptionCardBody": "Cuota mensual fija para acceso completo de partner en todos tus locales.",
+    "ppvCardBody": "Sin cuota mensual base — pagas solo las visitas que atribuimos a tu local (nudge de proximidad, entrar al geofence en 15 min, permanencia 15+ min).",
+    "ppvAnalyticsLink": "Cómo se cuentan las visitas →",
+    "ppvActiveAnalyticsLink": "Ver visitas atribuidas y métricas de facturación →"
+  },
+  "addressGeocode": {
+    "label": "Buscar dirección",
+    "hint": "La búsqueda mueve el pin del mapa. Aún debes dibujar el polígono del área de juego en el mapa.",
+    "placeholder": "Calle, lugar o nombre del negocio…",
+    "searching": "Buscando…",
+    "attribution": "Búsqueda de direcciones con Mapbox"
+  },
+  "partnerAddVenue": {
+    "title": "Añadir otro local",
+    "lead": "Crea un nuevo local bajo {{orgName}}. Cada local tiene su propio geofence y panel.",
+    "open": "Añadir local",
+    "close": "Cerrar formulario",
+    "venueName": "Nombre del local",
+    "venueNamePlaceholder": "p. ej. Centro",
+    "addressOptional": "Dirección (opcional)",
+    "streetPlaceholder": "Calle y número",
+    "countryPlaceholder": "Buscar país…",
+    "cancel": "Cancelar",
+    "create": "Crear local",
+    "creating": "Creando…",
+    "errorNameRequired": "Introduce un nombre para el local.",
+    "errorNoPolygon": "Dibuja el polígono del área de juego en el mapa antes de crear.",
+    "trialOneSiteTitle": "Prueba: un local",
+    "trialOneSiteBody": "Tu prueba incluye un local con todas las funciones. Suscríbete para añadir más locales bajo esta organización.",
+    "trialSubscribeCta": "Ver opciones de facturación"
   },
   "partnerSubscriptionPay": {
     "title": "Datos de pago",
@@ -459,5 +506,39 @@
     "createConfirmGeofence": "Geofence: {{count}} posiciones en anillo exterior (incl. punto de cierre).",
     "createConfirmAddress": "Dirección",
     "createConfirmLabel": "Crear local"
+  },
+  "partnerBillingStatus": {
+    "NONE": "Sin suscripción",
+    "TRIALING": "Prueba activa",
+    "ACTIVE": "Activa",
+    "ACTIVE_CANCELING": "Cancelación en curso",
+    "PAST_DUE": "Pago pendiente",
+    "CANCELED": "Cancelada"
+  },
+  "partnerCampaignTemplates": {
+    "welcome_back": {
+      "label": "Bienvenida (suave)",
+      "name": "Bienvenida — recordatorio suave",
+      "title": "Nos encantaría verte de nuevo",
+      "body": "Ya has jugado aquí — pásate esta semana por una bebida y una partida en Cafe Social."
+    },
+    "happy_hour": {
+      "label": "Happy hour / oferta",
+      "name": "Recordatorio happy hour",
+      "title": "Hoy hay algo especial",
+      "body": "Hoy hay un extra — abre la app en el local para ver la oferta destacada y tus perks."
+    },
+    "daily_word": {
+      "label": "Ritual diario",
+      "name": "Palabra del día",
+      "title": "La palabra de hoy está lista",
+      "body": "Abre Cafe Social en el local y prueba la palabra del día — rápido, amable, por nuestra cuenta."
+    },
+    "friends_table": {
+      "label": "Jugar con amigos",
+      "name": "Trae a un amigo",
+      "title": "Mesa y sala",
+      "body": "Organiza una partida desde la app y comparte el código de sala — perfecto para una tarde tranquila."
+    }
   }
 }

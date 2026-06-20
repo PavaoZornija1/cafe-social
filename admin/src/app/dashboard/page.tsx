@@ -3,9 +3,11 @@
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { usePortalMeQuery } from "@/lib/queries";
 
 export default function DashboardRedirectPage() {
+  const { t } = useTranslation();
   const { isLoaded, getToken } = useAuth();
   const router = useRouter();
   const meQ = usePortalMeQuery(getToken, isLoaded);
@@ -38,7 +40,7 @@ export default function DashboardRedirectPage() {
         className="h-10 w-10 rounded-xl bg-brand opacity-90 animate-pulse shadow-portal-card"
         aria-hidden
       />
-      <p className="text-sm font-medium text-slate-700">Redirecting…</p>
+      <p className="text-sm font-medium text-slate-700">{t("admin.common.redirecting")}</p>
     </div>
   );
 }

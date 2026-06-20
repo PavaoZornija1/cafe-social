@@ -1,3 +1,5 @@
+import type { TFunction } from "i18next";
+
 export type CampaignCopyTemplate = {
   id: string;
   label: string;
@@ -7,38 +9,28 @@ export type CampaignCopyTemplate = {
   segmentDays: number;
 };
 
+const CAMPAIGN_TEMPLATE_IDS = [
+  "welcome_back",
+  "happy_hour",
+  "daily_word",
+  "friends_table",
+] as const;
+
+const SEGMENT_DAYS: Record<(typeof CAMPAIGN_TEMPLATE_IDS)[number], number> = {
+  welcome_back: 30,
+  happy_hour: 14,
+  daily_word: 21,
+  friends_table: 30,
+};
+
 /** Suggested push copy — owners should still adapt tone to their brand. */
-export const CAMPAIGN_COPY_TEMPLATES: CampaignCopyTemplate[] = [
-  {
-    id: "welcome_back",
-    label: "Welcome back (soft)",
-    name: "Welcome back — soft nudge",
-    title: "We’d love to see you again",
-    body: "You’ve played at our place before — stop by this week for a drink and a quick round in Cafe Social.",
-    segmentDays: 30,
-  },
-  {
-    id: "happy_hour",
-    label: "Happy hour / offer",
-    name: "Happy hour reminder",
-    title: "Something’s on today",
-    body: "We’ve got a little extra on today — open the app at the venue to see the featured offer and your perks.",
-    segmentDays: 14,
-  },
-  {
-    id: "daily_word",
-    label: "Daily ritual",
-    name: "Daily word ritual",
-    title: "Today’s word is live",
-    body: "Open Cafe Social at the venue and try the daily word — quick, friendly, and on us.",
-    segmentDays: 21,
-  },
-  {
-    id: "friends_table",
-    label: "Play with friends",
-    name: "Bring a friend",
-    title: "Grab a table, start a room",
-    body: "Host a word match from the app and share the room code — perfect for a slow afternoon.",
-    segmentDays: 30,
-  },
-];
+export function getCampaignCopyTemplates(t: TFunction): CampaignCopyTemplate[] {
+  return CAMPAIGN_TEMPLATE_IDS.map((id) => ({
+    id,
+    label: t(`admin.partnerCampaignTemplates.${id}.label`),
+    name: t(`admin.partnerCampaignTemplates.${id}.name`),
+    title: t(`admin.partnerCampaignTemplates.${id}.title`),
+    body: t(`admin.partnerCampaignTemplates.${id}.body`),
+    segmentDays: SEGMENT_DAYS[id],
+  }));
+}

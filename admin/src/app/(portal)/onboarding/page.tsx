@@ -354,13 +354,23 @@ export default function PartnerOnboardingPage() {
           {step === 3 ? (
             <div className="space-y-4">
               <p className="text-sm text-slate-600">{t("admin.partnerOnboarding.mapLead")}</p>
-              <div key={mapLayoutKey}>
-                <VenueGeofenceMap
-                  pin={geoPin}
-                  onPinChange={onPinChange}
-                  onPolygonChange={onPolygonChange}
-                />
-              </div>
+              <form.Subscribe selector={(s) => s.values.country}>
+                {(country) => (
+                  <div key={mapLayoutKey}>
+                    <VenueGeofenceMap
+                      pin={geoPin}
+                      onPinChange={onPinChange}
+                      onPolygonChange={onPolygonChange}
+                      searchCountryBias={country || undefined}
+                      onAddressResolved={(fields) => {
+                        if (fields.address) form.setFieldValue("address", fields.address);
+                        if (fields.city) form.setFieldValue("city", fields.city);
+                        if (fields.country) form.setFieldValue("country", fields.country);
+                      }}
+                    />
+                  </div>
+                )}
+              </form.Subscribe>
               <form.Field name="analyticsTimeZone">
                 {(field) => (
                   <div>

@@ -153,7 +153,7 @@ function PortalNavLinks({
         className={navClass(partnerNavVenuesActive(pathname, staffOnly))}
         {...click}
       >
-        {staffOnly ? t("admin.shell.staffRedemptions") : t("admin.shell.locationsHome")}
+        {staffOnly ? t("admin.shell.staffLocations") : t("admin.shell.locationsHome")}
       </Link>
       {showManagementNav ? (
         <Link
@@ -202,7 +202,7 @@ function PartnerMobileBottomNav({
   const items: { href: string; label: string; active: boolean }[] = [
     {
       href: "/owner/venues",
-      label: staffOnly ? t("admin.shell.staffRedemptions") : t("admin.shell.locationsHome"),
+      label: staffOnly ? t("admin.shell.staffLocations") : t("admin.shell.locationsHome"),
       active: partnerNavVenuesActive(pathname, staffOnly),
     },
   ];

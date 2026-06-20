@@ -506,6 +506,15 @@ export default function EditOrganizationPage() {
                   pin={createForm.pin}
                   onPinChange={(p) => setCreateForm((f) => ({ ...f, pin: p }))}
                   onPolygonChange={(g) => setCreateForm((f) => ({ ...f, geofencePolygon: g }))}
+                  searchCountryBias={createForm.country || undefined}
+                  onAddressResolved={(fields) => {
+                    setCreateForm((f) => ({
+                      ...f,
+                      ...(fields.address ? { address: fields.address } : {}),
+                      ...(fields.city ? { city: fields.city } : {}),
+                      ...(fields.country ? { country: fields.country } : {}),
+                    }));
+                  }}
                 />
                 <div
                   className={`flex flex-col gap-1 rounded-xl border px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 ${

@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { PartnerAddVenueForm, type PartnerAddVenueOrgContext } from "@/components/PartnerAddVenueForm";
 import { PartnerReadOnlyBanner, noticeKey } from "@/components/PartnerReadOnlyBanner";
 import { uniquePartnerReadOnlyNotices } from "@/lib/partnerReadOnlyMessages";
 import {
@@ -31,6 +32,7 @@ type VenueRow = {
     organization: {
       id: string;
       name: string;
+      locationKind?: string;
       billingPortalUrl: string | null;
       platformBillingPlan: string | null;
       platformBillingStatus: string;
@@ -78,6 +80,11 @@ export default function OwnerVenuesPage() {
     if (venues.length !== 1) return;
 
     const row = venues[0] as VenueRow;
+    const org = row.venue.organization;
+    if (row.role === "OWNER" && org?.locationKind === "MULTI_LOCATION") {
+      return;
+    }
+
     setRedirecting(true);
     router.replace(venuePortalHomePath(row.role, row.venue.id));
   }, [
@@ -130,8 +137,34 @@ export default function OwnerVenuesPage() {
     return [...byOrg.values()].sort((a, b) => a.label.localeCompare(b.label));
   }, [venues, t]);
 
+  const addVenueOrgs = useMemo((): PartnerAddVenueOrgContext[] => {
+    if (!venues?.length || isSuperAdmin) return [];
+    const byOrg = new Map<string, PartnerAddVenueOrgContext>();
+    for (const row of venues as VenueRow[]) {
+      if (row.role !== "OWNER") continue;
+      const o = row.venue.organization;
+      if (!o?.id || o.locationKind !== "MULTI_LOCATION") continue;
+      const existing = byOrg.get(o.id);
+      if (existing) {
+        existing.venueCount += 1;
+      } else {
+        byOrg.set(o.id, {
+          id: o.id,
+          name: o.name,
+          locationKind: o.locationKind ?? "MULTI_LOCATION",
+          trialEndsAt: o.trialEndsAt,
+          platformBillingStatus: o.platformBillingStatus,
+          venueCount: 1,
+        });
+      }
+    }
+    return [...byOrg.values()];
+  }, [venues, isSuperAdmin]);
+
+  const showVenueList = Boolean(venues && venues.length >= 1 && !redirecting);
+
   const showLoading =
-    !isLoaded || venuesQ.isPending || redirecting || (venues?.length === 1 && !isSuperAdmin);
+    !isLoaded || venuesQ.isPending || redirecting;
 
   const pageTitle = isSuperAdmin
     ? t("admin.partnerVenues.titleSuperAdmin")
@@ -165,13 +198,32 @@ export default function OwnerVenuesPage() {
           <PartnerReadOnlyBanner key={noticeKey(notice)} notice={notice} />
         ))}
         {venues && venues.length === 0 && !error && !showLoading && (
-          <p className="text-slate-600 leading-relaxed">
-            {isSuperAdmin
-              ? t("admin.partnerVenues.emptySuperAdmin")
-              : t("admin.partnerVenues.emptyPartner")}
-          </p>
+          <div className="space-y-3 text-slate-600 leading-relaxed">
+            <p>{isSuperAdmin ? t("admin.partnerVenues.emptySuperAdmin") : t("admin.partnerVenues.emptyPartner")}</p>
+            {!isSuperAdmin ? (
+              <>
+                <p className="text-sm">{t("admin.partnerVenues.emptyPartnerInviteHint")}</p>
+                <Link
+                  href="/owner/accept-invite"
+                  className="inline-flex rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-brand-foreground shadow-md shadow-brand/20 hover:bg-brand-hover transition-colors"
+                >
+                  {t("admin.partnerVenues.emptyPartnerInviteLink")}
+                </Link>
+              </>
+            ) : null}
+          </div>
         )}
-        {venues && venues.length > 1 && !showLoading && (
+        {addVenueOrgs.map((org) => (
+          <PartnerAddVenueForm
+            key={org.id}
+            org={org}
+            getToken={getToken}
+            onCreated={() => {
+              void qc.invalidateQueries({ queryKey: queryKeys.owner.venuesList });
+            }}
+          />
+        ))}
+        {showVenueList && !showLoading ? (
           <ul className="mt-2 space-y-3">
             {groups.flatMap((g) => {
               const canSeeOrgRollup =
@@ -179,7 +231,13 @@ export default function OwnerVenuesPage() {
                 (isSuperAdmin || g.rows.some((r) => isManagementRole(r.role)));
               const showOrgHeader =
                 Boolean(g.orgId) &&
-                (g.rows.length > 1 || groups.filter((x) => x.orgId).length > 1);
+                (g.rows.length > 1 ||
+                  groups.filter((x) => x.orgId).length > 1 ||
+                  g.rows.some(
+                    (r) =>
+                      r.role === "OWNER" &&
+                      r.venue.organization?.locationKind === "MULTI_LOCATION",
+                  ));
 
               const header =
                 showOrgHeader && g.orgId ? (
@@ -203,7 +261,7 @@ export default function OwnerVenuesPage() {
               const items = g.rows.map((row) => {
                 const location = formatVenueLocation(row);
                 const href = venuePortalHomePath(row.role, row.venue.id);
-                const showRoleBadge = venues.length > 1;
+                const showRoleBadge = (venues?.length ?? 0) > 1;
 
                 return (
                   <li key={row.venue.id}>
@@ -239,7 +297,7 @@ export default function OwnerVenuesPage() {
               return header ? [header, ...items] : items;
             })}
           </ul>
-        )}
+        ) : null}
       </main>
     </div>
   );

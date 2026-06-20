@@ -13,7 +13,6 @@
     "partnerApp": "Partner-App",
     "venuesAndDashboard": "Standorte & Dashboard",
     "locationsHome": "Ihre Standorte",
-    "staffRedemptions": "Einlösungen",
     "statistics": "Statistiken",
     "subscriptions": "Abo & Abrechnung",
     "locationsCms": "Standorte & Inhalt (CMS)",
@@ -27,7 +26,8 @@
     "mobileNav": "Hauptnavigation",
     "statisticsShort": "Statistik",
     "subscriptionsShort": "Abo",
-    "cmsShort": "Inhalt"
+    "cmsShort": "Inhalt",
+    "staffLocations": "Standorte"
   },
   "common": {
     "cancel": "Abbrechen",
@@ -39,7 +39,8 @@
     "searchCity": "Stadt suchen oder eingeben…",
     "chooseCountryFirst": "Zuerst ein Land wählen…",
     "cityNoMatch": "Kein Treffer — Enter für „{{name}}“",
-    "cityTypeToSearch": "Tippen zum Suchen"
+    "cityTypeToSearch": "Tippen zum Suchen",
+    "redirecting": "Weiterleitung…"
   },
   "trialBar": {
     "manageSubscription": "Abo & Abrechnung",
@@ -150,11 +151,13 @@
     "leadSuperAdmin": "Wählen Sie in der Seitenleiste einen Standort, um die Partner-Oberfläche für diesen Ort zu sehen.",
     "loading": "Laden…",
     "emptySuperAdmin": "Kein Standort gewählt. Nutzen Sie „Partner-Dashboard-Kontext“ in der Seitenleiste.",
-    "emptyPartner": "Sie haben noch keinen Zugang zu Standorten. Wenn Sie eingeladen wurden, öffnen Sie den Link aus der Einladungs-E-Mail.",
+    "emptyPartner": "Sie haben noch keinen Zugang zu Standorten.",
     "organizationFallback": "Organisation",
     "independentVenues": "Weitere Standorte",
     "orgAllLocations": "Alle Standorte →",
-    "lockedInactive": "Inaktiv"
+    "lockedInactive": "Inaktiv",
+    "emptyPartnerInviteHint": "Wurden Sie eingeladen? Nehmen Sie die Einladung an oder öffnen Sie den Link aus der E-Mail.",
+    "emptyPartnerInviteLink": "Einladung annehmen"
   },
   "partnerReadOnly": {
     "viewOnlyTitle": "Nur Ansicht",
@@ -170,11 +173,16 @@
     "tokenPlaceholder": "Token aus E-Mail einfügen…",
     "working": "Wird angenommen…",
     "submit": "Einladung annehmen",
-    "success": "Sie sind im Team bei {{venueName}} als {{role}}. Öffnen Sie Ihre Standorte über die Seitenleiste."
+    "success": "Sie sind im Team bei {{venueName}} als {{role}}.",
+    "goToLocation": "Meinen Standort öffnen",
+    "goToLocations": "Zu Standorten"
   },
   "partnerOrgRollup": {
     "backVenues": "← Standorte",
     "title": "Organisations-Aggregation",
+    "subtitle": "Kombinierte Kennzahlen für alle Standorte dieser Organisation.",
+    "analyticsHubLink": "In Statistik-Hub öffnen →",
+    "orgIdLabel": "Organisations-ID (Support)",
     "loading": "Laden…",
     "noVenues": "Dieser Organisation sind noch keine Standorte zugeordnet.",
     "exportRedemptionsCsv": "Einlösungen als CSV exportieren",
@@ -214,7 +222,46 @@
     "savedPortalLink": "Gespeicherte Portal-URL",
     "billingSuccess": "Zahlung abgeschlossen — Stripe synchronisiert das Abo. Aktualisieren, falls der Status nicht innerhalb einer Minute steht.",
     "billingCancel": "Checkout abgebrochen. Keine Belastung.",
-    "dismiss": "Schließen"
+    "dismiss": "Schließen",
+    "refreshStatus": "Abrechnungsstatus aktualisieren",
+    "orgIdLabel": "Organisations-ID",
+    "hostedCheckoutBusy": "Stripe wird geöffnet…",
+    "billingModel": "Abrechnungsmodell",
+    "billingModelSubscription": "Monatliches Abo",
+    "billingModelPpv": "Pay per Visit (0 € Grundgebühr)",
+    "subscribePpvCta": "Pay per Visit — Karte auf Stripe hinterlegen",
+    "subscribePpvHint": "Sie zahlen nur für zugeordnete Besuche (Nudge → Betreten → 15+ Min. Aufenthalt).",
+    "choosePlanTitle": "Wählen Sie Ihr Abrechnungsmodell",
+    "subscriptionCardBody": "Feste monatliche Gebühr für vollen Partner-Zugang an allen Standorten.",
+    "ppvCardBody": "Keine monatliche Grundgebühr — Sie zahlen nur für Besuche, die wir Ihrem Standort zuordnen (Nähe-Nudge, Geofence innerhalb von 15 Min., mindestens 15 Min. Aufenthalt).",
+    "ppvAnalyticsLink": "So werden Besuche gezählt →",
+    "ppvActiveAnalyticsLink": "Zugeordnete Besuche und Abrechnungskennzahlen ansehen →"
+  },
+  "addressGeocode": {
+    "label": "Adresse finden",
+    "hint": "Suche verschiebt die Kartenmarkierung. Sie müssen das Spielgebiet-Polygon weiterhin auf der Karte zeichnen.",
+    "placeholder": "Straße, Ort oder Geschäftsname…",
+    "searching": "Suche…",
+    "attribution": "Adresssuche powered by Mapbox"
+  },
+  "partnerAddVenue": {
+    "title": "Weiteren Standort hinzufügen",
+    "lead": "Neuen Standort unter {{orgName}} anlegen. Jeder Standort hat eigenen Geofence und eigenes Dashboard.",
+    "open": "Standort hinzufügen",
+    "close": "Formular schließen",
+    "venueName": "Standortname",
+    "venueNamePlaceholder": "z. B. Innenstadt",
+    "addressOptional": "Adresse (optional)",
+    "streetPlaceholder": "Straße und Hausnummer",
+    "countryPlaceholder": "Land suchen…",
+    "cancel": "Abbrechen",
+    "create": "Standort erstellen",
+    "creating": "Wird erstellt…",
+    "errorNameRequired": "Bitte einen Namen für den Standort eingeben.",
+    "errorNoPolygon": "Bitte zuerst den Spielbereich auf der Karte zeichnen.",
+    "trialOneSiteTitle": "Testphase: ein Standort",
+    "trialOneSiteBody": "Ihre Testphase umfasst einen Standort mit vollem Funktionsumfang. Abonnieren Sie, um weitere Standorte unter dieser Organisation hinzuzufügen.",
+    "trialSubscribeCta": "Abrechnungsoptionen ansehen"
   },
   "partnerSubscriptionPay": {
     "title": "Zahlungsdaten",
@@ -459,5 +506,39 @@
     "createConfirmGeofence": "Geofence: {{count}} Positionen im äußeren Ring (inkl. Schlusspunkt).",
     "createConfirmAddress": "Adresse",
     "createConfirmLabel": "Standort erstellen"
+  },
+  "partnerBillingStatus": {
+    "NONE": "Nicht abonniert",
+    "TRIALING": "Testphase aktiv",
+    "ACTIVE": "Aktiv",
+    "ACTIVE_CANCELING": "Kündigung läuft",
+    "PAST_DUE": "Zahlung überfällig",
+    "CANCELED": "Beendet"
+  },
+  "partnerCampaignTemplates": {
+    "welcome_back": {
+      "label": "Willkommen zurück (sanft)",
+      "name": "Willkommen zurück — sanfter Hinweis",
+      "title": "Schön, wenn Sie wieder vorbeischauen",
+      "body": "Sie waren schon bei uns — kommen Sie diese Woche vorbei für einen Drink und eine Runde Cafe Social."
+    },
+    "happy_hour": {
+      "label": "Happy Hour / Angebot",
+      "name": "Happy-Hour-Erinnerung",
+      "title": "Heute gibt's etwas Besonderes",
+      "body": "Heute wartet ein kleines Extra — öffnen Sie die App vor Ort für das Angebot und Ihre Perks."
+    },
+    "daily_word": {
+      "label": "Tägliches Ritual",
+      "name": "Tägliches Wort",
+      "title": "Das Wort des Tages ist da",
+      "body": "Öffnen Sie Cafe Social vor Ort und probieren Sie das Tageswort — schnell, freundlich, von uns."
+    },
+    "friends_table": {
+      "label": "Mit Freunden spielen",
+      "name": "Freund mitbringen",
+      "title": "Tisch reservieren, Raum starten",
+      "body": "Starten Sie ein Wortspiel in der App und teilen Sie den Raumcode — perfekt für einen gemütlichen Nachmittag."
+    }
   }
 }

@@ -45,16 +45,16 @@
   },
   "playbook": {
     "title": "Playbook del socio",
-    "leadBeforePath": "Checklist breve para salir en vivo con QR, personal y una primera campaña. Brief completo imprimible:",
-    "leadAfterPath": "en el repositorio.",
-    "briefPath": "docs/prilog-za-partnera-cafe-social.md",
+    "lead": "Lista breve para QR, equipo y primera campaña.",
     "step1Title": "Geovalla",
-    "step1Body": "dibújala una vez en el CMS (superadmin) para que la detección coincida con tu espacio.",
+    "step1Body": "Lo configuraste en el onboarding. Ajústalo en Locales y contenido si cambia el plano.",
     "step2Title": "Probar QR / deep link",
     "step2BeforeDeepLink": "escanea o abre",
     "step2AfterDeepLink": "en un teléfono con la app instalada.",
     "step3Title": "Ventajas y retos de ejemplo",
-    "step3Body": "publica una ventaja simple que el personal pueda validar y un reto semanal en el CMS.",
+    "step3BeforeCms": "Publica un perk sencillo y un reto semanal en",
+    "step3CmsLink": "Locales y contenido",
+    "step3AfterCms": "para este local.",
     "step4Title": "Texto para cartelería",
     "step4Body": "usa el texto del brief para los displays de mesa; dirige a los invitados a la app + contexto de tu local.",
     "step5Title": "Turno de personal",
@@ -153,7 +153,13 @@
     "banReasonOptional": "Motivo (opcional)",
     "ban": "Bloquear",
     "auditLog": "Registro de auditoría de moderación",
-    "noAuditEntries": "Aún no hay entradas."
+    "noAuditEntries": "Aún no hay entradas.",
+    "appealStatus": {
+      "open": "Abierto",
+      "lifted": "Levantado",
+      "upheld": "Confirmado",
+      "dismissed": "Descartado"
+    }
   },
   "staffInvites": {
     "title": "Invitaciones de personal",
@@ -199,7 +205,15 @@
     "type": "Tipo",
     "entityUuid": "UUID de entidad",
     "entityUuidPlaceholder": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-    "addBinding": "Agregar binding"
+    "addBinding": "Agregar binding",
+    "selectEntity": "Elemento",
+    "selectEntityPlaceholder": "Elegir…",
+    "loadingEntities": "Cargando…",
+    "types": {
+      "CHALLENGE": "Reto",
+      "VENUE_PERK": "Perk",
+      "VENUE_OFFER": "Oferta"
+    }
   },
   "receipts": {
     "title": "Envíos de recibos",
@@ -227,5 +241,14 @@
     "void": "Anular",
     "noRedemptionsForDay": "No hay canjes para este día.",
     "enterVoidReasonError": "Introduce un motivo de anulación (gerente/propietario)."
+  },
+  "sectionNav": {
+    "playbook": "Playbook",
+    "analytics": "Analítica",
+    "moderation": "Moderación",
+    "team": "Equipo",
+    "campaigns": "Campañas",
+    "receipts": "Recibos",
+    "redemptions": "Canjes"
   }
 }

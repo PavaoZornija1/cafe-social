@@ -13,7 +13,6 @@
     "partnerApp": "Partnerska aplikacija",
     "venuesAndDashboard": "Lokacije i nadzorna ploča",
     "locationsHome": "Vaše lokacije",
-    "staffRedemptions": "Otkupi",
     "statistics": "Statistika",
     "subscriptions": "Pretplata i naplata",
     "locationsCms": "Lokacije i sadržaj (CMS)",
@@ -27,7 +26,8 @@
     "mobileNav": "Glavna navigacija",
     "statisticsShort": "Statistika",
     "subscriptionsShort": "Pretplata",
-    "cmsShort": "Sadržaj"
+    "cmsShort": "Sadržaj",
+    "staffLocations": "Lokacije"
   },
   "common": {
     "cancel": "Odustani",
@@ -39,7 +39,8 @@
     "searchCity": "Pretraži ili upiši grad…",
     "chooseCountryFirst": "Prvo odaberi državu…",
     "cityNoMatch": "Nema podudaranja — Enter za „{{name}}“",
-    "cityTypeToSearch": "Upiši za pretragu gradova"
+    "cityTypeToSearch": "Upiši za pretragu gradova",
+    "redirecting": "Preusmjeravanje…"
   },
   "trialBar": {
     "manageSubscription": "Pretplata i naplata",
@@ -150,11 +151,13 @@
     "leadSuperAdmin": "Odaberite lokaciju u bočnoj traci da vidite partnersko sučelje za taj lokal.",
     "loading": "Učitavanje…",
     "emptySuperAdmin": "Nije odabrana lokacija. Koristite „Kontekst partnerske ploče“ u bočnoj traci.",
-    "emptyPartner": "Još nemate pristup lokacijama. Ako ste pozvani, otvorite poveznicu iz e-pošte s pozivnicom.",
+    "emptyPartner": "Još nemate pristup lokacijama.",
     "organizationFallback": "Organizacija",
     "independentVenues": "Ostale lokacije",
     "orgAllLocations": "Sve lokacije →",
-    "lockedInactive": "Neaktivno"
+    "lockedInactive": "Neaktivno",
+    "emptyPartnerInviteHint": "Pozvani ste u tim? Prihvatite pozivnicu ili otvorite link iz e-pošte.",
+    "emptyPartnerInviteLink": "Prihvati pozivnicu"
   },
   "partnerReadOnly": {
     "viewOnlyTitle": "Samo pregled",
@@ -170,11 +173,16 @@
     "tokenPlaceholder": "Zalijepite token iz e-pošte…",
     "working": "Prihvaćanje…",
     "submit": "Prihvati pozivnicu",
-    "success": "U timu ste na {{venueName}} kao {{role}}. Otvorite lokacije iz bočne trake."
+    "success": "U timu ste na {{venueName}} kao {{role}}.",
+    "goToLocation": "Otvori moju lokaciju",
+    "goToLocations": "Idi na lokacije"
   },
   "partnerOrgRollup": {
     "backVenues": "← Lokacije",
     "title": "Agregacija organizacije",
+    "subtitle": "Kombinirane metrike za sve lokacije ove organizacije.",
+    "analyticsHubLink": "Otvori u statistici →",
+    "orgIdLabel": "ID organizacije (podrška)",
     "loading": "Učitavanje…",
     "noVenues": "Ovoj organizaciji još nisu povezane lokacije.",
     "exportRedemptionsCsv": "Izvezi otkupe CSV",
@@ -214,7 +222,46 @@
     "savedPortalLink": "Spremljena poveznica na portal",
     "billingSuccess": "Plaćanje dovršeno — Stripe sinkronizira pretplatu. Osvježite ako se status ne promijeni unutar minute.",
     "billingCancel": "Checkout otkazan. Nema naplate.",
-    "dismiss": "Zatvori"
+    "dismiss": "Zatvori",
+    "refreshStatus": "Osvježi status naplate",
+    "orgIdLabel": "ID organizacije",
+    "hostedCheckoutBusy": "Otvaranje Stripea…",
+    "billingModel": "Model naplate",
+    "billingModelSubscription": "Mjesečna pretplata",
+    "billingModelPpv": "Plaćanje po posjetu (0 € osnovno)",
+    "subscribePpvCta": "Plaćanje po posjetu — kartica na Stripeu",
+    "subscribePpvHint": "Plaćate samo za pripisane posjete (nudge → ulazak → 15+ min boravka).",
+    "choosePlanTitle": "Odaberite način plaćanja",
+    "subscriptionCardBody": "Fiksna mjesečna naknada za puni partnerski pristup na svim lokacijama.",
+    "ppvCardBody": "Bez mjesečne osnovne naknade — plaćate samo posjete koje pripisujemo vašoj lokaciji (nudge blizine, ulazak u geofence unutar 15 min., boravak 15+ min.).",
+    "ppvAnalyticsLink": "Kako se broje posjete →",
+    "ppvActiveAnalyticsLink": "Pogledajte pripisane posjete i metrike naplate →"
+  },
+  "addressGeocode": {
+    "label": "Pronađi adresu",
+    "hint": "Pretraživanje pomiče oznaku na karti. I dalje morate nacrtati poligon područja igre na karti.",
+    "placeholder": "Ulica, mjesto ili naziv poslovnice…",
+    "searching": "Pretraživanje…",
+    "attribution": "Pretraživanje adresa putem Mapboxa"
+  },
+  "partnerAddVenue": {
+    "title": "Dodaj još jednu lokaciju",
+    "lead": "Stvorite novu lokaciju pod {{orgName}}. Svaka lokacija ima vlastiti geofence i nadzornu ploču.",
+    "open": "Dodaj lokaciju",
+    "close": "Zatvori obrazac",
+    "venueName": "Naziv lokacije",
+    "venueNamePlaceholder": "npr. Centar",
+    "addressOptional": "Adresa (opcionalno)",
+    "streetPlaceholder": "Ulica i broj",
+    "countryPlaceholder": "Pretraži državu…",
+    "cancel": "Odustani",
+    "create": "Stvori lokaciju",
+    "creating": "Stvaranje…",
+    "errorNameRequired": "Unesite naziv lokacije.",
+    "errorNoPolygon": "Nacrtajte poligon igrališta na karti prije stvaranja.",
+    "trialOneSiteTitle": "Probno razdoblje: jedna lokacija",
+    "trialOneSiteBody": "Probno razdoblje pokriva jednu lokaciju s punim funkcijama. Pretplatite se da biste dodali više lokacija pod ovom organizacijom.",
+    "trialSubscribeCta": "Opcije naplate"
   },
   "partnerSubscriptionPay": {
     "title": "Podaci za plaćanje",
@@ -459,5 +506,39 @@
     "createConfirmGeofence": "Geofence: {{count}} pozicija u vanjskom prstenu (uključujući završnu točku).",
     "createConfirmAddress": "Adresa",
     "createConfirmLabel": "Stvori lokaciju"
+  },
+  "partnerBillingStatus": {
+    "NONE": "Nema pretplate",
+    "TRIALING": "Probno razdoblje",
+    "ACTIVE": "Aktivno",
+    "ACTIVE_CANCELING": "Otkazivanje u tijeku",
+    "PAST_DUE": "Plaćanje dospjelo",
+    "CANCELED": "Otkazano"
+  },
+  "partnerCampaignTemplates": {
+    "welcome_back": {
+      "label": "Dobrodošli natrag (blago)",
+      "name": "Dobrodošli natrag — blagi poticaj",
+      "title": "Voljeli bismo vas ponovno vidjeti",
+      "body": "Već ste igrali kod nas — svratite ovaj tjedan na piće i brzu rundu u Cafe Socialu."
+    },
+    "happy_hour": {
+      "label": "Happy hour / ponuda",
+      "name": "Happy hour podsjetnik",
+      "title": "Danas nešto posebno",
+      "body": "Danas imamo malo ekstra — otvorite aplikaciju u lokalu za istaknutu ponudu i perke."
+    },
+    "daily_word": {
+      "label": "Dnevni ritual",
+      "name": "Dnevna riječ",
+      "title": "Današnja riječ je spremna",
+      "body": "Otvorite Cafe Social u lokalu i isprobajte dnevnu riječ — brzo, prijateljski, na naš račun."
+    },
+    "friends_table": {
+      "label": "Igraj s prijateljima",
+      "name": "Povedi prijatelja",
+      "title": "Zauzmi stol, pokreni sobu",
+      "body": "Pokrenite igru riječi u aplikaciji i podijelite kod sobe — savršeno za opušteno popodne."
+    }
   }
 }

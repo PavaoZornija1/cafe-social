@@ -12,6 +12,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { OwnerAnalyticsCharts } from "@/components/OwnerAnalyticsCharts";
+import { OwnerAttributionSnapshot } from "@/components/OwnerAttributionSnapshot";
 import { PerkCountCards } from "@/components/TableRowCards";
 import {
   type OwnerOrganizationAnalytics,
@@ -292,7 +293,7 @@ export function PartnerAnalyticsHub() {
 
       {scope?.kind === "venue" ? (
         <p className="text-sm">
-          <Link href={`/owner/venues/${scope.id}`} className="text-brand font-medium hover:underline">
+          <Link href={`/owner/venues/${scope.id}/analytics`} className="text-brand font-medium hover:underline">
             {t("admin.partnerAnalytics.openVenueDashboard")}
           </Link>
         </p>
@@ -375,6 +376,7 @@ export function PartnerAnalyticsHub() {
               </p>
             </div>
           </div>
+          <OwnerAttributionSnapshot attribution={orgAnalytics.attribution} />
           <OwnerAnalyticsCharts
             title={t("admin.partnerAnalytics.orgTrendsTitle")}
             visitsByDay={orgAnalytics.visits.byDay}
@@ -480,6 +482,7 @@ export function PartnerAnalyticsHub() {
               </div>
             </div>
           </div>
+          <OwnerAttributionSnapshot attribution={venueAnalytics.attribution} />
           <OwnerAnalyticsCharts
             title={t("admin.partnerAnalytics.venueTrendsTitle")}
             visitsByDay={venueAnalytics.visits.byDay}

@@ -45,16 +45,16 @@
   },
   "playbook": {
     "title": "Partner-Playbook",
-    "leadBeforePath": "Kurze Checkliste für den Start mit QR, Personal und erster Kampagne. Vollständiges druckbares Briefing:",
-    "leadAfterPath": "im Repository.",
-    "briefPath": "docs/prilog-za-partnera-cafe-social.md",
+    "lead": "Kurze Checkliste für QR, Team und erste Kampagne.",
     "step1Title": "Geofence",
-    "step1Body": "einmal im CMS (Super-Admin) zeichnen, damit die Erkennung zur Fläche passt.",
+    "step1Body": "Beim Onboarding festgelegt. Unter Standorte & Inhalte anpassen, wenn sich der Grundriss ändert.",
     "step2Title": "QR / Deep Link testen",
     "step2BeforeDeepLink": "auf einem Smartphone mit installierter App scannen oder öffnen",
     "step2AfterDeepLink": ".",
     "step3Title": "Beispiel-Perks & Challenges",
-    "step3Body": "einen einfachen Perk veröffentlichen, den das Personal einlösen kann, und eine wöchentliche Challenge im CMS.",
+    "step3BeforeCms": "Veröffentlichen Sie einen einfachen Perk und eine wöchentliche Challenge unter",
+    "step3CmsLink": "Standorte & Inhalte",
+    "step3AfterCms": "für diesen Standort.",
     "step4Title": "Poster-Text",
     "step4Body": "Formulierungen aus dem Partnerbriefing für Tischaufsteller nutzen; Gäste auf die App + Ihren Standortkontext hinweisen.",
     "step5Title": "Schichtverantwortung",
@@ -153,7 +153,13 @@
     "banReasonOptional": "Grund (optional)",
     "ban": "Sperren",
     "auditLog": "Moderations-Audit-Log",
-    "noAuditEntries": "Noch keine Einträge."
+    "noAuditEntries": "Noch keine Einträge.",
+    "appealStatus": {
+      "open": "Offen",
+      "lifted": "Aufgehoben",
+      "upheld": "Bestätigt",
+      "dismissed": "Abgewiesen"
+    }
   },
   "staffInvites": {
     "title": "Mitarbeitereinladungen",
@@ -199,7 +205,15 @@
     "type": "Typ",
     "entityUuid": "Entity-UUID",
     "entityUuidPlaceholder": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-    "addBinding": "Binding hinzufügen"
+    "addBinding": "Binding hinzufügen",
+    "selectEntity": "Element",
+    "selectEntityPlaceholder": "Auswählen…",
+    "loadingEntities": "Laden…",
+    "types": {
+      "CHALLENGE": "Challenge",
+      "VENUE_PERK": "Perk",
+      "VENUE_OFFER": "Angebot"
+    }
   },
   "receipts": {
     "title": "Belegeinreichungen",
@@ -227,5 +241,14 @@
     "void": "Stornieren",
     "noRedemptionsForDay": "Keine Einlösungen für diesen Tag.",
     "enterVoidReasonError": "Bitte einen Stornogrund eingeben (Manager/Inhaber)."
+  },
+  "sectionNav": {
+    "playbook": "Playbook",
+    "analytics": "Analytics",
+    "moderation": "Moderation",
+    "team": "Team",
+    "campaigns": "Kampagnen",
+    "receipts": "Belege",
+    "redemptions": "Einlösungen"
   }
 }

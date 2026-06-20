@@ -6,6 +6,7 @@ import { useForm } from '@tanstack/react-form';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { venuePortalHomePath } from '@/lib/partnerRoles';
 import { useAcceptStaffInviteMutation, usePortalMeQuery } from '@/lib/queries';
 
 function AcceptStaffInviteInner() {
@@ -30,6 +31,13 @@ function AcceptStaffInviteInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sync URL token to form; form API stable
   }, [initial]);
 
+  const successData = acceptMut.isSuccess ? acceptMut.data : null;
+  const successRole = successData?.role as 'EMPLOYEE' | 'MANAGER' | 'OWNER' | undefined;
+  const successHref =
+    successData?.venueId && successRole
+      ? venuePortalHomePath(successRole, successData.venueId)
+      : '/owner/venues';
+
   return (
     <div className="min-h-full bg-slate-50 text-slate-900 px-4 py-6 sm:p-8 max-w-lg mx-auto w-full">
       <Link
@@ -48,6 +56,25 @@ function AcceptStaffInviteInner() {
         <p className="mt-4 text-slate-500">{t('common.loading')}</p>
       ) : !isSignedIn ? (
         <p className="mt-4 text-amber-800 text-sm">{t('admin.partnerAcceptInvite.signInFirst')}</p>
+      ) : successData ? (
+        <div className="mt-6 space-y-4">
+          <p className="text-emerald-800 text-sm leading-relaxed">
+            {t('admin.partnerAcceptInvite.success', {
+              venueName: successData.venueName ?? t('admin.partnerVenueDetail.header.fallbackVenueTitle'),
+              role: successRole
+                ? t(`admin.partnerVenueDetail.roles.${successRole}`)
+                : t('admin.partnerVenueDetail.roles.EMPLOYEE'),
+            })}
+          </p>
+          <Link
+            href={successHref}
+            className="inline-flex rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-brand-foreground shadow-md shadow-brand/20 hover:bg-brand-hover transition-colors"
+          >
+            {successData.venueId
+              ? t('admin.partnerAcceptInvite.goToLocation')
+              : t('admin.partnerAcceptInvite.goToLocations')}
+          </Link>
+        </div>
       ) : (
         <form
           className="mt-6 space-y-4"
@@ -81,16 +108,6 @@ function AcceptStaffInviteInner() {
           </button>
         </form>
       )}
-      {acceptMut.isSuccess && acceptMut.data ? (
-        <p className="mt-4 text-emerald-800 text-sm leading-relaxed">
-          {t('admin.partnerAcceptInvite.success', {
-            venueName: acceptMut.data.venueName ?? t('admin.partnerVenueDetail.header.fallbackVenueTitle'),
-            role: acceptMut.data.role
-              ? t(`admin.partnerVenueDetail.roles.${acceptMut.data.role as 'EMPLOYEE' | 'MANAGER' | 'OWNER'}`)
-              : t('admin.partnerVenueDetail.roles.EMPLOYEE'),
-          })}
-        </p>
-      ) : null}
       {acceptMut.isError && acceptMut.error instanceof Error ? (
         <p className="mt-4 text-red-700 text-sm">{acceptMut.error.message}</p>
       ) : null}
