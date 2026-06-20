@@ -141,6 +141,70 @@ export class OwnerAnalyticsService {
     };
   }
 
+  private emptyAttributionMetrics() {
+    return {
+      proximityNudges: 0,
+      areaRingEnters: 0,
+      polygonSessions: 0,
+      attributedVisits: 0,
+      billableVisits: 0,
+      stripeReportedVisits: 0,
+      nudgeToBillablePercent: 0,
+    };
+  }
+
+  private async attributionMetrics(venueIds: string[], start: Date, end: Date) {
+    if (venueIds.length === 0) return this.emptyAttributionMetrics();
+
+    const [proximityNudges, areaRingEnters, polygonSessions] = await Promise.all([
+      this.prisma.proximityArrivalPushLog.count({
+        where: {
+          venueId: { in: venueIds },
+          sentAt: { gte: start, lte: end },
+        },
+      }),
+      this.prisma.playerVenueGeofenceEvent.count({
+        where: {
+          venueId: { in: venueIds },
+          boundaryType: 'proximity_ring',
+          kind: 'enter',
+          recordedAt: { gte: start, lte: end },
+        },
+      }),
+      this.prisma.playerVenuePolygonSession.findMany({
+        where: {
+          venueId: { in: venueIds },
+          enteredAt: { gte: start, lte: end },
+        },
+        select: {
+          attributionMet: true,
+          billableAt: true,
+          stripeUsageReportedAt: true,
+        },
+      }),
+    ]);
+
+    const attributedVisits = polygonSessions.filter((s) => s.attributionMet).length;
+    const billableVisits = polygonSessions.filter((s) => s.billableAt != null).length;
+    const stripeReportedVisits = polygonSessions.filter(
+      (s) => s.stripeUsageReportedAt != null,
+    ).length;
+    const nudgeToBillablePercent =
+      proximityNudges === 0
+        ? 0
+        : Math.round((billableVisits / proximityNudges) * 1000) / 10;
+
+    return {
+      proximityNudges,
+      areaRingEnters,
+      polygonSessions: polygonSessions.length,
+      attributedVisits,
+      billableVisits,
+      stripeReportedVisits,
+      nudgeToBillablePercent,
+    };
+  }
+
   async getVenueSummary(venueId: string, opts: AnalyticsQueryOpts) {
     const { start, end, startDay, endDay } = resolveAnalyticsPeriod(
       opts.days,
@@ -259,6 +323,7 @@ export class OwnerAnalyticsService {
 
     const funnelJourney = await this.funnelMetrics([venueId], start, end);
     const visitLoyalty = loyaltyMetricsSingleVenue(visitRows);
+    const attribution = await this.attributionMetrics([venueId], start, end);
 
     return {
       venueId,
@@ -301,6 +366,7 @@ export class OwnerAnalyticsService {
         total: feedEvents.length,
         byKind: feedByKind,
       },
+      attribution,
     };
   }
 
@@ -363,6 +429,7 @@ export class OwnerAnalyticsService {
           enteredToRedeemPercent: 0,
         },
         feedEvents: { total: 0, byKind: {} as Partial<Record<VenueFeedEventKind, number>> },
+        attribution: this.emptyAttributionMetrics(),
       };
     }
 
@@ -475,6 +542,7 @@ export class OwnerAnalyticsService {
 
     const funnelJourney = await this.funnelMetrics(venueIds, start, end);
     const visitLoyalty = loyaltyMetricsOrg(visitRows);
+    const attribution = await this.attributionMetrics(venueIds, start, end);
 
     return {
       organizationId,
@@ -520,6 +588,7 @@ export class OwnerAnalyticsService {
         total: feedEvents.length,
         byKind: feedByKind,
       },
+      attribution,
     };
   }
 

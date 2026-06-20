@@ -57,6 +57,7 @@ import { PartnerOnboardingThrottlerFilter } from './partner-onboarding-throttle.
 import { PORTAL_VENUE_CONTEXT_HEADER } from './portal-context.constants';
 import { VenueModerationService } from '../venue/venue-moderation.service';
 import { StripePartnerBillingService } from '../stripe/stripe-partner-billing.service';
+import { StripePartnerPpvBillingService } from '../stripe/stripe-partner-ppv-billing.service';
 import { BanPlayerDto } from './dto/ban-player.dto';
 import { ResolveBanAppealDto } from './dto/resolve-ban-appeal.dto';
 import { DismissModerationReportDto } from './dto/dismiss-moderation-report.dto';
@@ -95,6 +96,7 @@ export class OwnerController {
     private readonly ownerOrgVenues: OwnerOrganizationVenueService,
     private readonly venueModeration: VenueModerationService,
     private readonly stripePartnerBilling: StripePartnerBillingService,
+    private readonly stripePartnerPpvBilling: StripePartnerPpvBillingService,
   ) {}
 
   private async staffPlayerId(user: unknown): Promise<string> {
@@ -173,6 +175,7 @@ export class OwnerController {
           trialStartedAt: Date | null;
           trialEndsAt: Date | null;
           platformBillingPlan: string | null;
+          platformBillingModel: string;
           platformBillingStatus: string;
           platformBillingRenewsAt: Date | null;
           platformBillingSyncedAt: Date | null;
@@ -214,6 +217,7 @@ export class OwnerController {
           trialStartedAt: true,
           trialEndsAt: true,
           platformBillingPlan: true,
+          platformBillingModel: true,
           platformBillingStatus: true,
           platformBillingRenewsAt: true,
           platformBillingSyncedAt: true,
@@ -402,6 +406,40 @@ export class OwnerController {
     return this.stripePartnerBilling.createPartnerBillingPortalSession(
       organizationId,
       'partner-subscriptions',
+    );
+  }
+
+  @Post('organizations/:organizationId/stripe/checkout-session')
+  @UseGuards(OrganizationStaffGuard)
+  partnerStripeCheckout(
+    @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
+    @Body() body: { priceId?: string },
+  ) {
+    return this.stripePartnerBilling.createPartnerCheckoutSession(organizationId, {
+      returnKind: 'partner-subscriptions',
+      priceId: body?.priceId,
+    });
+  }
+
+  @Post('organizations/:organizationId/stripe/ppv-checkout-session')
+  @UseGuards(OrganizationStaffGuard)
+  partnerStripePpvCheckout(
+    @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
+  ) {
+    return this.stripePartnerPpvBilling.createPartnerPpvCheckoutSession(
+      organizationId,
+    );
+  }
+
+  @Get('organizations/:organizationId/stripe/elements-subscription-setup')
+  @UseGuards(OrganizationStaffGuard)
+  partnerStripeElementsSubscriptionSetup(
+    @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
+    @Query('priceId') priceId?: string,
+  ) {
+    return this.stripePartnerBilling.createPartnerEmbeddedSubscriptionClientSecret(
+      organizationId,
+      { priceId: priceId?.trim() || undefined },
     );
   }
 
@@ -905,6 +943,43 @@ export class OwnerController {
   ) {
     const sentByEmail = normalizeUserEmail(user) ?? null;
     return this.campaigns.send(venueId, campaignId, { sentByEmail });
+  }
+
+  @Get('venues/:venueId/campaigns/:campaignId/bindings')
+  @UseGuards(VenueStaffGuard)
+  @MinVenueRole(VenueStaffRole.MANAGER)
+  listCampaignBindings(
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+    @Param('campaignId', new ParseUUIDPipe()) campaignId: string,
+  ) {
+    return this.campaigns.listBindings(venueId, campaignId);
+  }
+
+  @Post('venues/:venueId/campaigns/:campaignId/bindings')
+  @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard)
+  @MinVenueRole(VenueStaffRole.MANAGER)
+  addCampaignBinding(
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+    @Param('campaignId', new ParseUUIDPipe()) campaignId: string,
+    @Body() body: CreateOwnerCampaignBindingDto,
+  ) {
+    return this.campaigns.addBinding(
+      venueId,
+      campaignId,
+      body.entityType,
+      body.entityId,
+    );
+  }
+
+  @Delete('venues/:venueId/campaigns/:campaignId/bindings/:bindingId')
+  @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard)
+  @MinVenueRole(VenueStaffRole.MANAGER)
+  removeCampaignBinding(
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+    @Param('campaignId', new ParseUUIDPipe()) campaignId: string,
+    @Param('bindingId', new ParseUUIDPipe()) bindingId: string,
+  ) {
+    return this.campaigns.removeBinding(venueId, campaignId, bindingId);
   }
 
   @Get('venues/:venueId/receipts')

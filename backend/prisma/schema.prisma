@@ -31,11 +31,15 @@ model VenueOrganization {
 
   /// Cafe Social platform billing (owner-facing); super admin maintains.
   platformBillingPlan      String?
+  /// SUBSCRIPTION (flat SaaS) | PAY_PER_VISIT (metered usage, $0 base).
+  platformBillingModel     String  @default("SUBSCRIPTION")
   platformBillingStatus    String  @default("NONE")
   platformBillingRenewsAt  DateTime?
   stripeCustomerId         String?
   /// Primary Stripe Subscription id (partner SaaS); webhooks keep status in sync.
   stripeSubscriptionId     String?
+  /// Subscription item id for metered pay-per-visit price (usage records).
+  stripePpvSubscriptionItemId String?
   /// Optional link shown to venue owners (e.g. Stripe Customer Portal).
   billingPortalUrl         String?
   /// Last time org billing fields were updated from a Stripe webhook (Checkout/subscription events).
@@ -145,6 +149,7 @@ model Venue {
   banAppeals      VenueBanAppeal[]
   geofenceEvents  PlayerVenueGeofenceEvent[]
   proximityArrivalPushLogs ProximityArrivalPushLog[]
+  polygonSessions PlayerVenuePolygonSession[]
   moderationAuditLogs VenueModerationAuditLog[]
   explicitCheckIns    PlayerVenueCheckIn[]
 
@@ -523,6 +528,7 @@ model Player {
   dailyStreaks PlayerDailyStreak[]
   dailyStreakAtRiskPushLogs DailyStreakAtRiskPushLog[]
   proximityArrivalPushLogs ProximityArrivalPushLog[]
+  polygonSessions      PlayerVenuePolygonSession[]
   soloWordSessions SoloWordSession[]
   venueVisitDays   PlayerVenueVisitDay[]
   venuePlayDays    PlayerVenuePlayDay[]
@@ -783,13 +789,15 @@ model VenueBanAppeal {
   @@index([playerId, createdAt])
 }
 
-/// Background geofence enter/exit (approximate visit boundary). Powers “visit dwell” vs app heartbeat “engaged dwell”.
+/// Background geofence enter/exit. `proximity_ring` = ~100 m OS arrival zone (area foot traffic); not used for billing.
 model PlayerVenueGeofenceEvent {
   id              String   @id @default(uuid())
   playerId        String
   venueId         String
   /// enter | exit
   kind            String
+  /// proximity_ring (default) — partner play polygon uses {@link PlayerVenuePolygonSession}.
+  boundaryType    String   @default("proximity_ring")
   recordedAt      DateTime @default(now())
   /// Idempotency from client (e.g. expo task event id).
   clientDedupeKey String?
@@ -800,6 +808,7 @@ model PlayerVenueGeofenceEvent {
   @@unique([playerId, clientDedupeKey])
   @@index([venueId, recordedAt])
   @@index([playerId, venueId, recordedAt])
+  @@index([venueId, boundaryType, recordedAt])
 }
 
 /// Idempotent log so we send at most one ~24h perk expiry push per redemption.
@@ -1232,18 +1241,48 @@ model DailyStreakAtRiskPushLog {
   @@index([dayKey])
 }
 
-/// Idempotent log — at most one proximity arrival push per player/venue/UTC day.
+/// Proximity arrival marketing push — multiple rows per player/venue/day allowed (cooldown in app logic).
 model ProximityArrivalPushLog {
-  playerId String
-  venueId  String
-  dayKey   String
-  sentAt   DateTime @default(now())
+  id                    String   @id @default(uuid())
+  playerId              String
+  venueId               String
+  dayKey                String
+  sentAt                DateTime @default(now())
+  featuredOfferId       String?
+  proximityRadiusMeters Int?
 
-  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  player            Player                     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue             Venue                      @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  attributedSession PlayerVenuePolygonSession?
 
-  @@id([playerId, venueId, dayKey])
+  @@index([playerId, venueId, dayKey])
+  @@index([playerId, venueId, sentAt])
   @@index([playerId, dayKey])
+}
+
+/// In-venue stay inside the partner play polygon — powers dwell, attribution, and future pay-per-visit billing.
+model PlayerVenuePolygonSession {
+  id             String    @id @default(uuid())
+  playerId       String
+  venueId        String
+  dayKey         String
+  enteredAt      DateTime
+  exitedAt       DateTime?
+  dwellSeconds   Int?
+  nudgeLogId     String?   @unique
+  attributionMet Boolean   @default(false)
+  dwellQualified Boolean   @default(false)
+  billableAt     DateTime?
+  stripeUsageReportedAt DateTime?
+
+  player   Player                  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue    Venue                   @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  nudgeLog ProximityArrivalPushLog? @relation(fields: [nudgeLogId], references: [id], onDelete: SetNull)
+
+  @@index([venueId, enteredAt])
+  @@index([playerId, venueId, dayKey])
+  @@index([playerId, enteredAt])
+  @@index([venueId, billableAt])
 }
 
 enum VenueFeedEventKind {

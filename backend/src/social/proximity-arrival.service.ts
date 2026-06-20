@@ -4,10 +4,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
 import { utcDayKey } from '../lib/day-key';
 import { loadPublicVenueOffersForVenue } from '../venue/venue-offer-public.util';
+import { loadVenueAttributionConfig } from './venue-attribution.config';
+import { VenuePolygonSessionService } from './venue-polygon-session.service';
 
 export const VENUE_PROXIMITY_ARRIVAL_PUSH_TYPE = 'venue_proximity_arrival' as const;
-
-const GLOBAL_DAILY_CAP = 2;
 
 @Injectable()
 export class ProximityArrivalService {
@@ -17,6 +17,7 @@ export class ProximityArrivalService {
     private readonly prisma: PrismaService,
     private readonly push: PushService,
     private readonly config: ConfigService,
+    private readonly polygonSessions: VenuePolygonSessionService,
   ) {}
 
   async trySendOnEnter(params: { playerId: string; venueId: string }): Promise<void> {
@@ -25,6 +26,7 @@ export class ProximityArrivalService {
 
     const { playerId, venueId } = params;
     const dayKey = utcDayKey();
+    const cfg = loadVenueAttributionConfig(this.config);
 
     const player = await this.prisma.player.findUnique({
       where: { id: playerId },
@@ -32,12 +34,12 @@ export class ProximityArrivalService {
         totalPrivacy: true,
         partnerMarketingPush: true,
         lastPresenceVenueId: true,
-        lastPresenceAt: true,
       },
     });
     if (!player || player.totalPrivacy || !player.partnerMarketingPush) return;
 
     if (player.lastPresenceVenueId === venueId) return;
+    if (await this.polygonSessions.hasOpenSession(playerId, venueId)) return;
 
     const venue = await this.prisma.venue.findUnique({
       where: { id: venueId },
@@ -45,26 +47,37 @@ export class ProximityArrivalService {
         id: true,
         name: true,
         locked: true,
-        latitude: true,
-        longitude: true,
-        geofencePolygon: true,
         proximityAlertsEnabled: true,
         proximityAlertRadiusMeters: true,
       },
     });
     if (!venue || venue.locked || !venue.proximityAlertsEnabled) return;
 
-    const existing = await this.prisma.proximityArrivalPushLog.findUnique({
-      where: {
-        playerId_venueId_dayKey: { playerId, venueId, dayKey },
-      },
+    const sentTodayVenue = await this.prisma.proximityArrivalPushLog.count({
+      where: { playerId, venueId, dayKey },
     });
-    if (existing) return;
+    if (sentTodayVenue >= cfg.nudgeVenueDailyMax) return;
 
-    const sentToday = await this.prisma.proximityArrivalPushLog.count({
+    const sentTodayGlobal = await this.prisma.proximityArrivalPushLog.count({
       where: { playerId, dayKey },
     });
-    if (sentToday >= GLOBAL_DAILY_CAP) return;
+    if (sentTodayGlobal >= cfg.nudgeGlobalDailyMax) return;
+
+    const lastNudge = await this.prisma.proximityArrivalPushLog.findFirst({
+      where: { playerId, venueId },
+      orderBy: { sentAt: 'desc' },
+      select: { sentAt: true },
+    });
+    if (lastNudge) {
+      const cooldownMs = cfg.nudgeVenueCooldownMinutes * 60 * 1000;
+      const sinceLast = Date.now() - lastNudge.sentAt.getTime();
+      if (sinceLast < cooldownMs) {
+        const lastExit = await this.polygonSessions.lastPolygonExitAt(playerId, venueId);
+        if (!lastExit || lastExit.getTime() <= lastNudge.sentAt.getTime()) {
+          return;
+        }
+      }
+    }
 
     const { featuredOffer } = await loadPublicVenueOffersForVenue(this.prisma, venueId);
     const offerTitle = featuredOffer?.title?.trim();
@@ -97,7 +110,13 @@ export class ProximityArrivalService {
       );
 
       await this.prisma.proximityArrivalPushLog.create({
-        data: { playerId, venueId, dayKey },
+        data: {
+          playerId,
+          venueId,
+          dayKey,
+          featuredOfferId: featuredOffer?.id ?? null,
+          proximityRadiusMeters: venue.proximityAlertRadiusMeters,
+        },
       });
     } catch (e) {
       this.logger.warn(

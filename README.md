@@ -5,7 +5,7 @@ backend and **Expo (React Native)** mobile app.
 
 ## Startup
 
-npm run start:dev -> app
+npm run start:dev -> backend
 npm run dev -> admin
 npx expo run:ios --device
 
@@ -115,6 +115,8 @@ npm run start:dev      # default http://localhost:3005/api
 ```
 
 **Optional Redis** (multi-instance Socket.IO): `REDIS_URL=redis://127.0.0.1:6379` — e.g. `docker run -p 6379:6379 redis:7-alpine`.
+
+**Optional Mapbox** (partner portal address search on venue maps): `MAPBOX_ACCESS_TOKEN=pk....` — create a public token at [mapbox.com](https://www.mapbox.com/) with Geocoding scope. Free tier includes ~100k geocoding requests/month; the backend proxies requests so the token stays server-side.
 
 ## Loyalty app setup (`app-loyalty/`)
 

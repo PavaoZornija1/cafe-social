@@ -14,6 +14,7 @@ import {
 import { utcDayKey } from '../lib/day-key';
 import { utcDayKeyDaysAgo } from '../lib/engagement-dates';
 import { hiddenOpponentIdsForViewer } from './hidden-opponents.util';
+import { VenuePolygonSessionService } from './venue-polygon-session.service';
 
 const PRESENCE_TTL_MS = 10 * 60 * 1000;
 
@@ -32,6 +33,7 @@ export class DiscoveryService {
     private readonly config: ConfigService,
     private readonly push: PushService,
     private readonly venueOrderNudgeCopy: VenueOrderNudgeCopyService,
+    private readonly polygonSessions: VenuePolygonSessionService,
   ) {}
 
   /**
@@ -45,6 +47,9 @@ export class DiscoveryService {
    * for the next arrival.
    *
    * Also records **PlayerVenueVisitDay** for engagement stats (one row per UTC day per venue).
+   *
+   * **Polygon sessions:** Opens/closes {@link PlayerVenuePolygonSession} for pay-per-visit attribution
+   * (play geofence polygon only — not OS proximity ring).
    */
   async setPresence(playerId: string, venueId: string | null) {
     const now = new Date();
@@ -52,6 +57,7 @@ export class DiscoveryService {
     const player = await this.prisma.player.findUnique({
       where: { id: playerId },
       select: {
+        lastPresenceVenueId: true,
         venueNudgeSessionVenueId: true,
         venueNudgeSessionStartedAt: true,
         venueNudgeLastSentAt: true,
@@ -59,6 +65,8 @@ export class DiscoveryService {
         partnerMarketingPush: true,
       },
     });
+
+    const previousVenueId = player?.lastPresenceVenueId ?? null;
 
     let sessionVenueId: string | null = venueId;
     let sessionStartedAt: Date | null = player?.venueNudgeSessionStartedAt ?? null;
@@ -82,6 +90,12 @@ export class DiscoveryService {
         venueNudgeSessionStartedAt: sessionStartedAt,
       },
     });
+
+    await this.polygonSessions.onPolygonPresenceChange(
+      playerId,
+      previousVenueId,
+      venueId,
+    );
 
     if (venueId) {
       const dayKey = utcDayKey(now);

@@ -1,7 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
-import { DiscoveryService } from './discovery.service';
+import { VenueFunnelService } from '../venue/venue-funnel.service';
 import { ProximityArrivalService } from './proximity-arrival.service';
 import { GeofenceService } from './geofence.service';
 
@@ -13,10 +13,9 @@ describe('GeofenceService', () => {
       findUnique: jest.Mock;
       create: jest.Mock;
     };
-    player: { findUnique: jest.Mock };
   };
   let proximityArrival: { trySendOnEnter: jest.Mock };
-  let discovery: { setPresence: jest.Mock };
+  let funnel: { safeLog: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
@@ -25,17 +24,16 @@ describe('GeofenceService', () => {
         findUnique: jest.fn(),
         create: jest.fn(),
       },
-      player: { findUnique: jest.fn() },
     };
     proximityArrival = { trySendOnEnter: jest.fn().mockResolvedValue(undefined) };
-    discovery = { setPresence: jest.fn().mockResolvedValue(undefined) };
+    funnel = { safeLog: jest.fn() };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
         GeofenceService,
         { provide: PrismaService, useValue: prisma },
         { provide: ProximityArrivalService, useValue: proximityArrival },
-        { provide: DiscoveryService, useValue: discovery },
+        { provide: VenueFunnelService, useValue: funnel },
       ],
     }).compile();
 
@@ -84,7 +82,7 @@ describe('GeofenceService', () => {
     expect(proximityArrival.trySendOnEnter).not.toHaveBeenCalled();
   });
 
-  it('records enter and triggers proximity arrival push', async () => {
+  it('records ring enter, logs funnel, triggers nudge — does not set polygon presence', async () => {
     prisma.venue.findUnique.mockResolvedValue(baseVenue);
     prisma.playerVenueGeofenceEvent.findUnique.mockResolvedValue(null);
     prisma.playerVenueGeofenceEvent.create.mockResolvedValue({ id: 'evt-new' });
@@ -96,17 +94,28 @@ describe('GeofenceService', () => {
     });
 
     expect(out).toEqual({ id: 'evt-new' });
+    expect(prisma.playerVenueGeofenceEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        playerId: 'p1',
+        venueId: 'venue-1',
+        kind: 'enter',
+        boundaryType: 'proximity_ring',
+      }),
+    });
     expect(proximityArrival.trySendOnEnter).toHaveBeenCalledWith({
       playerId: 'p1',
       venueId: 'venue-1',
     });
-    expect(discovery.setPresence).toHaveBeenCalledWith('p1', 'venue-1');
+    expect(funnel.safeLog).toHaveBeenCalledWith({
+      venueId: 'venue-1',
+      playerId: 'p1',
+      kind: 'proximity_ring_enter',
+    });
   });
 
-  it('records exit without proximity arrival push', async () => {
+  it('records ring exit and logs funnel without clearing polygon presence', async () => {
     prisma.venue.findUnique.mockResolvedValue(baseVenue);
     prisma.playerVenueGeofenceEvent.create.mockResolvedValue({ id: 'evt-exit' });
-    prisma.player.findUnique.mockResolvedValue({ lastPresenceVenueId: 'venue-1' });
 
     await service.recordEvent({
       playerId: 'p1',
@@ -115,20 +124,10 @@ describe('GeofenceService', () => {
     });
 
     expect(proximityArrival.trySendOnEnter).not.toHaveBeenCalled();
-    expect(discovery.setPresence).toHaveBeenCalledWith('p1', null);
-  });
-
-  it('exit does not clear presence when player moved to another venue', async () => {
-    prisma.venue.findUnique.mockResolvedValue(baseVenue);
-    prisma.playerVenueGeofenceEvent.create.mockResolvedValue({ id: 'evt-exit' });
-    prisma.player.findUnique.mockResolvedValue({ lastPresenceVenueId: 'venue-2' });
-
-    await service.recordEvent({
-      playerId: 'p1',
+    expect(funnel.safeLog).toHaveBeenCalledWith({
       venueId: 'venue-1',
-      kind: 'exit',
+      playerId: 'p1',
+      kind: 'proximity_ring_exit',
     });
-
-    expect(discovery.setPresence).not.toHaveBeenCalled();
   });
 });

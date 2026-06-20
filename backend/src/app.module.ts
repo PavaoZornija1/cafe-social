@@ -25,6 +25,7 @@ import { EmailModule } from './email/email.module';
 import { RedisModule } from './redis/redis.module';
 import { QueueBotModule } from './queue-bot/queue-bot.module';
 import { PlatformQuestModule } from './platform-quest/platform-quest.module';
+import { GeocodeModule } from './geocode/geocode.module';
 
 @Module({
   imports: [
@@ -45,6 +46,8 @@ import { PlatformQuestModule } from './platform-quest/platform-quest.module';
       { name: 'redeem', ttl: 60000, limit: 20 },
       // Receipt upload: image payload, more expensive — tighter cap.
       { name: 'receipt', ttl: 60000, limit: 10 },
+      // Partner portal address search (Mapbox forward geocode proxy).
+      { name: 'geocode', ttl: 60000, limit: 40 },
     ]),
     EventEmitterModule.forRoot(),
     ConfigModule.forRoot({
@@ -71,6 +74,7 @@ import { PlatformQuestModule } from './platform-quest/platform-quest.module';
     StripeModule,
     QueueBotModule,
     PlatformQuestModule,
+    GeocodeModule,
   ],
   controllers: [HealthController],
   providers: [],

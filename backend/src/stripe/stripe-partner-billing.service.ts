@@ -10,6 +10,10 @@ import Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service';
 import { PartnerOrgAccessService } from '../owner/partner-org-access.service';
 import { isPayingPartnerOrg } from '../owner/partner-access.constants';
+import {
+  PARTNER_BILLING_MODEL_PAY_PER_VISIT,
+  StripePartnerPpvBillingService,
+} from './stripe-partner-ppv-billing.service';
 
 /**
  * Stripe Billing for partner / multi-location organizations (B2B SaaS).
@@ -27,6 +31,7 @@ export class StripePartnerBillingService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly partnerOrgAccess: PartnerOrgAccessService,
+    private readonly ppvBilling: StripePartnerPpvBillingService,
   ) {}
 
   private stripe(): Stripe {
@@ -157,6 +162,16 @@ export class StripePartnerBillingService {
       },
     });
 
+    const metaBillingModel = sub.metadata?.billingModel?.trim();
+    if (metaBillingModel === PARTNER_BILLING_MODEL_PAY_PER_VISIT) {
+      await this.ppvBilling.syncPpvSubscriptionItem(org.id, sub);
+    } else {
+      const ppvPriceId = this.ppvBilling.ppvMeteredPriceId();
+      if (ppvPriceId && sub.items.data.some((i) => i.price?.id === ppvPriceId)) {
+        await this.ppvBilling.syncPpvSubscriptionItem(org.id, sub);
+      }
+    }
+
     if (isPayingPartnerOrg(data.platformBillingStatus)) {
       await this.partnerOrgAccess.unlockTrialLockedVenuesForPaidOrganization(
         org.id,
@@ -251,6 +266,9 @@ export class StripePartnerBillingService {
       data: {
         stripeCustomerId: customerId,
         platformBillingSyncedAt: this.stripeSyncNow(),
+        ...(session.metadata?.billingModel === PARTNER_BILLING_MODEL_PAY_PER_VISIT
+          ? { platformBillingModel: PARTNER_BILLING_MODEL_PAY_PER_VISIT }
+          : {}),
       },
     });
   }

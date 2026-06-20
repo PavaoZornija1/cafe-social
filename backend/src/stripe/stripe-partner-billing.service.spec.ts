@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
 import { PartnerOrgAccessService } from '../owner/partner-org-access.service';
 import { StripePartnerBillingService } from './stripe-partner-billing.service';
+import { StripePartnerPpvBillingService } from './stripe-partner-ppv-billing.service';
 
 describe('StripePartnerBillingService', () => {
   let service: StripePartnerBillingService;
@@ -21,6 +22,10 @@ describe('StripePartnerBillingService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: ConfigService, useValue: config },
         { provide: PartnerOrgAccessService, useValue: {} },
+        {
+          provide: StripePartnerPpvBillingService,
+          useValue: { syncPpvSubscriptionItem: jest.fn(), ppvMeteredPriceId: jest.fn() },
+        },
       ],
     }).compile();
     service = moduleRef.get(StripePartnerBillingService);
