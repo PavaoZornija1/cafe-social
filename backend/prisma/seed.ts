@@ -658,11 +658,7 @@ async function main() {
 
   await seedPilotVenues(prisma);
 
-  // eslint-disable-next-line no-console
-  console.log('Seeding demo players, social, games, partner data…');
-  await seedDemoData(prisma);
-
-  // MVP heroes for Brawler mode.
+  // MVP heroes for Brawler mode — before demo data (GameParticipant FK).
   // Stable IDs so seed remains idempotent across environments.
   const brawlerHeroes = [
     {
@@ -821,6 +817,10 @@ async function main() {
       create: hero,
     });
   }
+
+  // eslint-disable-next-line no-console
+  console.log('Seeding demo players, social, games, partner data…');
+  await seedDemoData(prisma);
 
   // eslint-disable-next-line no-console
   console.log('Seed complete.');
