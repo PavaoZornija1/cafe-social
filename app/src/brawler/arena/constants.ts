@@ -12,6 +12,7 @@ export const GRAVITY = 2200;
 export const JUMP_VELOCITY = -640;
 export const GROUND_STRIP_H = 40;
 export const WALK_FRAME_MS = 140;
+export const IDLE_FRAME_MS = 400;
 
 export const DUMMY_W = 52;
 export const DUMMY_H = 52;
