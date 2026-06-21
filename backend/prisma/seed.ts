@@ -794,6 +794,34 @@ async function main() {
       attackKnockback: 1.0,
       version: 1,
     },
+    {
+      id: 'hero_tester_golem',
+      name: 'TesterGolem',
+      isActive: true,
+      archetype: 'Bruiser',
+      avatarImageUrl: 'https://cdn.playvibe.gg/heroes/blaze/avatar.webp',
+      portraitImageUrl: 'https://cdn.playvibe.gg/heroes/blaze/portrait.webp',
+      spriteSheetUrl: 'https://cdn.playvibe.gg/heroes/blaze/spritesheet.webp',
+      spriteMeta: {
+        frameWidth: 128,
+        frameHeight: 128,
+        fps: 12,
+        animations: {
+          idle: [0, 2],
+          run: [0, 7],
+          attack: [0, 2],
+          dash: [0, 2],
+          hit: [0, 2],
+          ko: [0, 2],
+        },
+      },
+      baseHp: 100,
+      moveSpeed: 1.0,
+      dashCooldownMs: 2200,
+      attackDamage: 14,
+      attackKnockback: 1.0,
+      version: 1,
+    },
   ];
 
   for (const hero of brawlerHeroes) {

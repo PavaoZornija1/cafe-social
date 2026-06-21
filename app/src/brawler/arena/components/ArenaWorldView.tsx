@@ -58,10 +58,12 @@ type Props = {
   lavaSurfaceY: number | null;
   px: number;
   py: number;
+  spriteDrawOffsetY: number;
   hitDrawOffsetX: number;
   heroSprite: HeroSpriteConfig | undefined;
   spriteAnim: HeroSpriteAnim;
   walkFrame: number;
+  idleFrame: number;
   hitFrame: number;
   facing: 'left' | 'right';
   spriteScale: number;
@@ -125,10 +127,12 @@ export function ArenaWorldView({
   lavaSurfaceY,
   px,
   py,
+  spriteDrawOffsetY,
   hitDrawOffsetX,
   heroSprite,
   spriteAnim,
   walkFrame,
+  idleFrame,
   hitFrame,
   facing,
   spriteScale,
@@ -233,7 +237,7 @@ export function ArenaWorldView({
               styles.playerWrap,
               {
                 left: px - hitDrawOffsetX,
-                top: py,
+                top: py + spriteDrawOffsetY,
                 zIndex: 5,
               },
             ]}
@@ -243,6 +247,7 @@ export function ArenaWorldView({
                 config={heroSprite}
                 anim={spriteAnim}
                 walkFrame={walkFrame}
+                idleFrame={idleFrame}
                 hitFrame={hitFrame}
                 facing={facing}
                 scale={spriteScale}

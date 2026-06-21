@@ -65,9 +65,13 @@ import {
   ATTACK_HIT_FORWARD,
   ATTACK_HIT_H,
   ATTACK_HIT_W,
-  ATTACK_HIT_Y_FROM_TOP,
 } from '../brawler/arena/constants';
 import { getHeroSpriteConfig, isArenaSpriteHero } from '../brawler/heroSpritesheets';
+import {
+  getAttackHitFromTopPx,
+  getBodyScale,
+  getSpriteDrawOffsetY,
+} from '../brawler/heroSpriteUtils';
 import type { RootStackParamList } from '../navigation/type';
 import { applyArenaSocketEvent } from '../brawler/arena/arenaRealtime';
 import { apiGet, apiPost } from '../lib/api';
@@ -240,8 +244,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const dmgFloatIdRef = useRef(1);
 
   const spriteScale = heroSprite?.displayScale ?? 1.65 * 0.75;
-  const bodyW = (heroSprite?.framePx.w ?? 64) * spriteScale;
-  const bodyH = (heroSprite?.framePx.h ?? 64) * spriteScale;
+  const bodyScale = getBodyScale(heroSprite);
+  const bodyW = (heroSprite?.framePx.w ?? 64) * bodyScale;
+  const bodyH = (heroSprite?.framePx.h ?? 64) * bodyScale;
+  const spriteDrawOffsetY = getSpriteDrawOffsetY(heroSprite);
 
   const FEET_W = bodyW * 0.22;
 
@@ -292,6 +298,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const spriteAnimRef = useRef<HeroSpriteAnim>('idle');
   const walkFrameRef = useRef(0);
   const walkAccum = useRef(0);
+  const idleFrameRef = useRef(0);
+  const idleAccum = useRef(0);
   const lastSpawnKey = useRef({
     w: 0,
     h: 0,
@@ -763,6 +771,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     spriteAnimRef.current = 'idle';
     walkFrameRef.current = 0;
     walkAccum.current = 0;
+    idleFrameRef.current = 0;
+    idleAccum.current = 0;
     matchEndedRef.current = false;
     matchClockRef.current = 0;
     preMatchLeftRef.current = devMatchTimerEnabled ? PRE_MATCH_COUNTDOWN_S : 0;
@@ -901,6 +911,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     spriteAnimRef,
     walkFrameRef,
     walkAccum,
+    idleFrameRef,
+    idleAccum,
     heroSpriteLiveRef,
   });
 
@@ -994,7 +1006,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const dummies = dummiesRef.current;
   const debugHitW = ATTACK_HIT_W;
   const debugHitH = ATTACK_HIT_H;
-  const debugHitY = playerY.current + ATTACK_HIT_Y_FROM_TOP;
+  const debugHitY = playerY.current + getAttackHitFromTopPx(heroSprite);
   const debugHitX =
     facing.current === 'right'
       ? playerX.current + bodyW + ATTACK_HIT_FORWARD
@@ -1094,10 +1106,12 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           lavaSurfaceY={lavaSurfaceY}
           px={px}
           py={py}
+          spriteDrawOffsetY={spriteDrawOffsetY}
           hitDrawOffsetX={hitDrawOffsetX}
           heroSprite={heroSprite}
           spriteAnim={spriteAnimRef.current}
           walkFrame={walkFrameRef.current}
+          idleFrame={idleFrameRef.current}
           hitFrame={hitFrameRef.current}
           facing={facing.current}
           spriteScale={spriteScale}

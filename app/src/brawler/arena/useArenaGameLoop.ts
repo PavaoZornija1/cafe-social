@@ -1,5 +1,12 @@
 import { useEffect, type MutableRefObject } from 'react';
 import type { HeroSpriteAnim } from '../../components/HeroSpriteView';
+import {
+  getAttackFrameCount,
+  getAttackHitFromTopPx,
+  getIdleFrameCount,
+  getPickupCenter,
+  getWalkFrameCount,
+} from '../heroSpriteUtils';
 import { apiPost } from '../../lib/api';
 import {
   HERO_FEET_EMBED_FLOATING_PLATFORM_PX,
@@ -14,7 +21,6 @@ import {
   ATTACK_HIT_FORWARD,
   ATTACK_HIT_H,
   ATTACK_HIT_W,
-  ATTACK_HIT_Y_FROM_TOP,
   DASH_DURATION_S,
   DASH_SPEED,
   DMG_FLOAT_LIFETIME_S,
@@ -31,6 +37,7 @@ import {
   POWERUP_MAX_ON_MAP,
   POWERUP_PICKUP_RADIUS_PX,
   POWERUP_SPAWN_INTERVAL_S,
+  IDLE_FRAME_MS,
   WALK_FRAME_MS,
 } from './constants';
 import type {
@@ -121,6 +128,8 @@ export type ArenaGameLoopConfig = {
   spriteAnimRef: MutableRefObject<HeroSpriteAnim>;
   walkFrameRef: MutableRefObject<number>;
   walkAccum: MutableRefObject<number>;
+  idleFrameRef: MutableRefObject<number>;
+  idleAccum: MutableRefObject<number>;
   heroSpriteLiveRef: MutableRefObject<
     import('../heroSpriteTypes').HeroSpriteConfig | undefined
   >;
@@ -199,6 +208,8 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
     spriteAnimRef,
     walkFrameRef,
     walkAccum,
+    idleFrameRef,
+    idleAccum,
     heroSpriteLiveRef,
   } = config;
 
@@ -452,8 +463,13 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
       ) {
         const human = participantsRef.current.find((p) => !p.isBot);
         if (human) {
-          const hx = playerX.current + bodyW / 2;
-          const hy = playerY.current + bodyH / 2;
+          const { hx, hy } = getPickupCenter(
+            heroSpriteLiveRef.current,
+            playerX.current,
+            playerY.current,
+            bodyW,
+            bodyH,
+          );
           const pending = powerupPickedPendingRef.current;
           for (const pu of powerupsOnMapRef.current) {
             if (pending.has(pu.spawnId)) continue;
@@ -563,16 +579,13 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
 
       if (attackTimeLeft.current > 0) {
         const cfg = heroSpriteLiveRef.current;
-        const strip =
-          facing.current === 'right'
-            ? cfg?.anim.attackRight
-            : cfg?.anim.attackLeft;
-        if (strip && strip.frameCount > 0) {
+        const attackFrames = getAttackFrameCount(cfg);
+        if (attackFrames > 1) {
           const elapsed = ATTACK_DURATION_S - attackTimeLeft.current;
           const t = Math.min(1, Math.max(0, elapsed / ATTACK_DURATION_S));
           hitFrameRef.current = Math.min(
-            strip.frameCount - 1,
-            Math.floor(t * strip.frameCount),
+            attackFrames - 1,
+            Math.floor(t * attackFrames),
           );
         }
       }
@@ -911,7 +924,9 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
           const hitW = ATTACK_HIT_W;
           const hitH = ATTACK_HIT_H;
 
-          const hitY = playerY.current + ATTACK_HIT_Y_FROM_TOP;
+          const hitY =
+            playerY.current +
+            getAttackHitFromTopPx(heroSpriteLiveRef.current);
           const hitX =
             facing.current === 'right'
               ? playerX.current + bodyW + ATTACK_HIT_FORWARD
@@ -1193,10 +1208,25 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
           walkAccum.current %= WALK_FRAME_MS;
           walkFrameRef.current =
             (walkFrameRef.current + 1) %
-            (heroSpriteLiveRef.current?.anim.walkRight.frameCount ?? 6);
+            getWalkFrameCount(heroSpriteLiveRef.current);
+        }
+        idleAccum.current = 0;
+      } else if (nextAnim === 'idle') {
+        walkAccum.current = 0;
+        const idleFrames = getIdleFrameCount(heroSpriteLiveRef.current);
+        if (idleFrames > 1) {
+          idleAccum.current += dt * 1000;
+          if (idleAccum.current >= IDLE_FRAME_MS) {
+            idleAccum.current %= IDLE_FRAME_MS;
+            idleFrameRef.current =
+              (idleFrameRef.current + 1) % idleFrames;
+          }
+        } else {
+          idleAccum.current = 0;
         }
       } else {
         walkAccum.current = 0;
+        idleAccum.current = 0;
       }
 
       bump();
