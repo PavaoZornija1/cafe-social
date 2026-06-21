@@ -232,6 +232,9 @@
   },
   "brawlerLobby": {
     "title": "Brawler lobby",
+    "heroTitle": "Pick your fighter",
+    "heroVenue": "Queue or practice at this café’s arena.",
+    "heroGlobal": "Solo practice runs locally — matchmaking needs a venue or subscription.",
     "subtitle": "Pick a hero. Solo is local practice. At a venue you can queue for a 1v1 (casual or ranked) or play vs the Chaos Bot on this device.",
     "venueLine": "Venue: {{venueId}}",
     "noVenueLine": "Venue: not set (home play)",
@@ -290,7 +293,13 @@
     "spectating": "Spectating",
     "spectatingPanHint": "Drag to move the camera",
     "playTimeExhaustedTitle": "Play time used up",
-    "playTimeExhaustedBody": "You’ve used your free active play time at this venue for today (UTC). You can buy more time in the app or come back tomorrow."
+    "playTimeExhaustedBody": "You’ve used your free active play time at this venue for today (UTC). You can buy more time in the app or come back tomorrow.",
+    "hudExit": "Leave arena",
+    "hudTitle": "Arena",
+    "hudDev": "Dev",
+    "hudReset": "Reset",
+    "hudLobby": "Lobby",
+    "hudHp": "HP"
   },
   "staff": {
     "venuesTitle": "Your venues",
@@ -606,6 +615,10 @@
   },
   "challenges": {
     "title": "Challenges",
+    "heroTitle": "Venue challenges",
+    "refreshA11y": "Refresh challenges",
+    "subtitleVenue": "Progress and perks at {{venue}}.",
+    "subtitleEmpty": "Check in at a partner café to see venue challenges.",
     "loading": "Loading…",
     "empty": "No challenges available yet.",
     "done": "Done",
@@ -614,6 +627,7 @@
     "requiresAtCafe": "Requires being at the café.",
     "worksFromHome": "Works from home.",
     "progressCta": "Progress +1",
+    "completedCta": "Completed",
     "updating": "Updating…",
     "loadError": "Failed to load challenges",
     "weekly": "Weekly challenge — progress resets each ISO week (UTC).",
@@ -988,7 +1002,12 @@
   },
   "peopleHere": {
     "title": "Who's here",
+    "heroTitle": "At this venue",
+    "refreshA11y": "Refresh who's here",
     "subtitle": "Players recently at this venue (respects privacy).",
+    "subtitleNamed": "Recently at {{venue}} — respects privacy settings.",
+    "count": "{{n}} visible",
+    "you": "you",
     "empty": "Nobody visible right now — check discoverability in Settings or try again in a minute.",
     "friend": "Friend",
     "stranger": "Here",

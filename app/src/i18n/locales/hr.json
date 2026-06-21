@@ -229,6 +229,9 @@
   },
   "brawlerLobby": {
     "title": "Brawler lobby",
+    "heroTitle": "Odaberi borca",
+    "heroVenue": "Red ili vježba u areni ovog kafića.",
+    "heroGlobal": "Solo je lokalno — matchmaking treba lokal ili pretplatu.",
     "subtitle": "Odaberi heroja. Solo je lokalna vježba. Na lokalu možeš u red za 1v1 (casual ili ranked) ili protiv Chaos Bota na ovom uređaju.",
     "venueLine": "Lokal: {{venueId}}",
     "noVenueLine": "Lokal: nije postavljen (kod kuće)",
@@ -283,7 +286,13 @@
     "spectating": "Promatranje",
     "spectatingPanHint": "Povuci prstom za pomicanje kamere",
     "playTimeExhaustedTitle": "Vrijeme igranja potrošeno",
-    "playTimeExhaustedBody": "Iskoristio si besplatno aktivno vrijeme u ovom lokalu za danas (UTC). Možeš kupiti više u aplikaciji ili se vratiti sutra."
+    "playTimeExhaustedBody": "Iskoristio si besplatno aktivno vrijeme u ovom lokalu za danas (UTC). Možeš kupiti više u aplikaciji ili se vratiti sutra.",
+    "hudExit": "Napusti arenu",
+    "hudTitle": "Arena",
+    "hudDev": "Dev",
+    "hudReset": "Reset",
+    "hudLobby": "Lobby",
+    "hudHp": "HP"
   },
   "staff": {
     "venuesTitle": "Tvoji lokali",
@@ -597,6 +606,10 @@
   },
   "challenges": {
     "title": "Izazovi",
+    "heroTitle": "Izazovi lokala",
+    "refreshA11y": "Osvježi izazove",
+    "subtitleVenue": "Napredak i pogodnosti u {{venue}}.",
+    "subtitleEmpty": "Prijavi se u partnerskom kafiću da vidiš izazove.",
     "loading": "Učitavanje…",
     "empty": "Još nema izazova.",
     "done": "Gotovo",
@@ -605,6 +618,7 @@
     "requiresAtCafe": "Potrebna fizička prisutnost u kafiću.",
     "worksFromHome": "Radi od kuće.",
     "progressCta": "Napredak +1",
+    "completedCta": "Dovršeno",
     "updating": "Ažuriranje…",
     "loadError": "Izazovi se nisu mogli učitati",
     "weekly": "Tjedni izazov — napredak se resetira svaki ISO tjedan (UTC).",
@@ -929,7 +943,12 @@
   },
   "peopleHere": {
     "title": "Tko je ovdje",
+    "heroTitle": "Na ovom lokalu",
+    "refreshA11y": "Osvježi listu",
     "subtitle": "Nedavno na lokalu (privatnost).",
+    "subtitleNamed": "Nedavno u {{venue}} — po postavkama privatnosti.",
+    "count": "{{n}} vidljivo",
+    "you": "ti",
     "empty": "Nitko vidljiv — provjeri postavke.",
     "friend": "Prijatelj",
     "stranger": "Ovdje",

@@ -1050,6 +1050,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <ArenaHud
         styles={styles}
+        iconColor={colors.text}
         heroHp={heroHpRef.current}
         heroHpMax={heroCombat.baseHp}
         heroIFramesLeft={heroIFramesLeftRef.current}
@@ -1060,8 +1061,12 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         phaseLabel={phaseShown}
         matchClockSeconds={matchClockShown}
         sessionId={sessionId}
+        exitLabel={t('brawlerMatch.hudExit')}
+        titleLabel={t('brawlerMatch.hudTitle')}
+        devLabel={t('brawlerMatch.hudDev')}
+        resetLabel={sessionId ? t('brawlerMatch.hudLobby') : t('brawlerMatch.hudReset')}
+        hpLabel={t('brawlerMatch.hudHp')}
         onToggleDev={() => setDevOpen((o) => !o)}
-        resetLabel={sessionId ? 'Lobby' : 'Reset'}
         onReset={resetArenaRound}
         onExit={requestExitFromHud}
       />

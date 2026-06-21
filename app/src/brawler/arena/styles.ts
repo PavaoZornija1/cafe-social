@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native';
 import type { AppColors } from '../../theme/colors';
+import { radii, spacing } from '../../theme/tokens';
 import { ACTION_ARC_H, ACTION_ARC_W, ACTION_CIRCLE_SIZE } from './constants';
 
 export function createArenaStyles(colors: AppColors) {
@@ -12,9 +13,12 @@ export function createArenaStyles(colors: AppColors) {
   hud: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    minHeight: 40,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    minHeight: 44,
+    backgroundColor: colors.bg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
   hudSideLeft: {
     flex: 1,
@@ -51,16 +55,20 @@ export function createArenaStyles(colors: AppColors) {
     fontVariant: ['tabular-nums'],
     textAlign: 'center',
   },
-  backBtn: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    backgroundColor: colors.bgElevated,
+  hudIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
   },
-  backText: { color: colors.text, fontWeight: '800', fontSize: 12 },
+  hudBtnPressed: { opacity: 0.88 },
   hudHpWrap: {
-    marginTop: 4,
-    width: 120,
+    width: 124,
   },
   hudHpTrack: {
     height: 8,
@@ -73,7 +81,7 @@ export function createArenaStyles(colors: AppColors) {
   },
   hudHpFill: {
     height: '100%',
-    backgroundColor: '#22c55e',
+    backgroundColor: colors.success,
   },
   hudHpText: {
     marginTop: 2,
@@ -112,13 +120,13 @@ export function createArenaStyles(colors: AppColors) {
     textTransform: 'uppercase',
   },
   resetBtn: {
-    marginTop: 6,
+    marginTop: spacing.xs,
     paddingVertical: 6,
     paddingHorizontal: 10,
-    borderRadius: 10,
-    backgroundColor: 'rgba(30, 41, 59, 0.85)',
-    borderWidth: 1,
-    borderColor: 'rgba(148, 163, 184, 0.25)',
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
   },
   resetBtnPressed: {
     opacity: 0.85,

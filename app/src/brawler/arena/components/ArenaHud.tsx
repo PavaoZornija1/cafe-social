@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { formatMatchClock } from '../combat';
@@ -5,6 +6,7 @@ import type { ArenaStyles } from '../styles';
 
 type Props = {
   styles: ArenaStyles;
+  iconColor: string;
   heroHp: number;
   heroHpMax: number;
   heroIFramesLeft: number;
@@ -15,14 +17,19 @@ type Props = {
   phaseLabel: string;
   matchClockSeconds: number;
   sessionId: string | undefined;
-  onToggleDev: () => void;
+  exitLabel: string;
+  titleLabel: string;
+  devLabel: string;
   resetLabel: string;
+  hpLabel: string;
+  onToggleDev: () => void;
   onReset: () => void;
   onExit: () => void;
 };
 
 export function ArenaHud({
   styles,
+  iconColor,
   heroHp,
   heroHpMax,
   heroIFramesLeft,
@@ -33,16 +40,27 @@ export function ArenaHud({
   phaseLabel,
   matchClockSeconds,
   sessionId,
-  onToggleDev,
+  exitLabel,
+  titleLabel,
+  devLabel,
   resetLabel,
+  hpLabel,
+  onToggleDev,
   onReset,
   onExit,
 }: Props) {
+  const hpPct = heroHpMax > 0 ? Math.round((heroHp / heroHpMax) * 100) : 0;
+
   return (
     <View style={styles.hud}>
       <View style={styles.hudSideLeft}>
-        <Pressable onPress={onExit} style={styles.backBtn}>
-          <Text style={styles.backText}>← Exit</Text>
+        <Pressable
+          onPress={onExit}
+          style={({ pressed }) => [styles.hudIconBtn, pressed && styles.hudBtnPressed]}
+          accessibilityRole="button"
+          accessibilityLabel={exitLabel}
+        >
+          <Ionicons name="close" size={18} color={iconColor} />
         </Pressable>
         <View style={styles.hudHpWrap} pointerEvents="none">
           <View style={styles.hudHpTrack}>
@@ -50,14 +68,14 @@ export function ArenaHud({
               style={[
                 styles.hudHpFill,
                 {
-                  width: `${Math.round((heroHp / heroHpMax) * 100)}%`,
+                  width: `${hpPct}%`,
                   opacity: heroIFramesLeft > 0 ? 0.7 : 1,
                 },
               ]}
             />
           </View>
           <Text style={styles.hudHpText}>
-            HP {Math.round(heroHp)}/{heroHpMax}
+            {hpLabel} {Math.round(heroHp)}/{heroHpMax}
           </Text>
           {showKdHud ? (
             <Text style={styles.hudKdText} pointerEvents="none">
@@ -76,20 +94,20 @@ export function ArenaHud({
       </View>
       <View style={styles.hudSideRight}>
         <View style={styles.hudRightRow}>
-          <Text style={styles.hudTitle}>Arena</Text>
+          <Text style={styles.hudTitle}>{titleLabel}</Text>
           {!sessionId ? (
             <Pressable
               onPress={onToggleDev}
-              style={({ pressed }) => [styles.devBtn, pressed && styles.devBtnPressed]}
-              accessibilityLabel="Toggle dev settings"
+              style={({ pressed }) => [styles.devBtn, pressed && styles.hudBtnPressed]}
+              accessibilityLabel={devLabel}
             >
-              <Text style={styles.devBtnText}>Dev</Text>
+              <Text style={styles.devBtnText}>{devLabel}</Text>
             </Pressable>
           ) : null}
         </View>
         <Pressable
           onPress={onReset}
-          style={({ pressed }) => [styles.resetBtn, pressed && styles.resetBtnPressed]}
+          style={({ pressed }) => [styles.resetBtn, pressed && styles.hudBtnPressed]}
         >
           <Text style={styles.resetBtnText}>{resetLabel}</Text>
         </Pressable>

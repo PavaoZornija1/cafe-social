@@ -229,6 +229,9 @@
   },
   "brawlerLobby": {
     "title": "Lobby Brawler",
+    "heroTitle": "Elige tu luchador",
+    "heroVenue": "Cola o práctica en la arena de este café.",
+    "heroGlobal": "Solo es local — el emparejamiento requiere local o suscripción.",
     "subtitle": "Elige un héroe. Solo es práctica local. En un local puedes hacer cola 1v1 (casual o ranked) o jugar contra el Chaos Bot en este dispositivo.",
     "venueLine": "Local: {{venueId}}",
     "noVenueLine": "Local: no definido (en casa)",
@@ -283,7 +286,13 @@
     "spectating": "Espectando",
     "spectatingPanHint": "Arrastra para mover la cámara",
     "playTimeExhaustedTitle": "Tiempo de juego agotado",
-    "playTimeExhaustedBody": "Has usado tu tiempo activo gratuito en este local para hoy (UTC). Puedes comprar más tiempo en la app o volver mañana."
+    "playTimeExhaustedBody": "Has usado tu tiempo activo gratuito en este local para hoy (UTC). Puedes comprar más tiempo en la app o volver mañana.",
+    "hudExit": "Salir de la arena",
+    "hudTitle": "Arena",
+    "hudDev": "Dev",
+    "hudReset": "Reiniciar",
+    "hudLobby": "Lobby",
+    "hudHp": "HP"
   },
   "staff": {
     "venuesTitle": "Tus locales",
@@ -597,6 +606,10 @@
   },
   "challenges": {
     "title": "Retos",
+    "heroTitle": "Retos del local",
+    "refreshA11y": "Actualizar retos",
+    "subtitleVenue": "Progreso y ventajas en {{venue}}.",
+    "subtitleEmpty": "Haz check-in en un café partner para ver retos.",
     "loading": "Cargando…",
     "empty": "Aún no hay retos.",
     "done": "Hecho",
@@ -605,6 +618,7 @@
     "requiresAtCafe": "Requiere estar en el café.",
     "worksFromHome": "Funciona desde casa.",
     "progressCta": "Progreso +1",
+    "completedCta": "Completado",
     "updating": "Actualizando…",
     "loadError": "No se pudieron cargar los retos",
     "weekly": "Reto semanal — el progreso se reinicia cada semana ISO (UTC).",
@@ -929,7 +943,12 @@
   },
   "peopleHere": {
     "title": "Quién hay aquí",
+    "heroTitle": "En este local",
+    "refreshA11y": "Actualizar lista",
     "subtitle": "Recientes en el local (privacidad).",
+    "subtitleNamed": "Recientes en {{venue}} — según privacidad.",
+    "count": "{{n}} visibles",
+    "you": "tú",
     "empty": "Nadie visible — revisa ajustes.",
     "friend": "Amigo",
     "stranger": "Aquí",

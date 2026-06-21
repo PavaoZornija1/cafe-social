@@ -229,6 +229,9 @@
   },
   "brawlerLobby": {
     "title": "Brawler-Lobby",
+    "heroTitle": "Wähle deinen Kämpfer",
+    "heroVenue": "Warteschlange oder Training in der Arena dieses Cafés.",
+    "heroGlobal": "Solo läuft lokal — Matchmaking braucht ein Venue oder Abo.",
     "subtitle": "Wähle einen Helden. Solo ist lokales Training. Am Venue kannst du dich für 1v1 (casual oder ranked) einreihen oder auf diesem Gerät gegen den Chaos-Bot spielen.",
     "venueLine": "Venue: {{venueId}}",
     "noVenueLine": "Venue: nicht gesetzt (Zuhause)",
@@ -283,7 +286,13 @@
     "spectating": "Zuschauen",
     "spectatingPanHint": "Ziehen, um die Kamera zu bewegen",
     "playTimeExhaustedTitle": "Spielzeit aufgebraucht",
-    "playTimeExhaustedBody": "Du hast deine kostenlose aktive Spielzeit an diesem Ort für heute (UTC) verbraucht. Du kannst in der App mehr Zeit kaufen oder morgen wiederkommen."
+    "playTimeExhaustedBody": "Du hast deine kostenlose aktive Spielzeit an diesem Ort für heute (UTC) verbraucht. Du kannst in der App mehr Zeit kaufen oder morgen wiederkommen.",
+    "hudExit": "Arena verlassen",
+    "hudTitle": "Arena",
+    "hudDev": "Dev",
+    "hudReset": "Reset",
+    "hudLobby": "Lobby",
+    "hudHp": "HP"
   },
   "staff": {
     "venuesTitle": "Deine Venues",
@@ -597,6 +606,10 @@
   },
   "challenges": {
     "title": "Challenges",
+    "heroTitle": "Venue-Challenges",
+    "refreshA11y": "Challenges aktualisieren",
+    "subtitleVenue": "Fortschritt und Vorteile bei {{venue}}.",
+    "subtitleEmpty": "Check-in in einem Partner-Café, um Challenges zu sehen.",
     "loading": "Laden…",
     "empty": "Noch keine Challenges.",
     "done": "Fertig",
@@ -605,6 +618,7 @@
     "requiresAtCafe": "Erfordert Anwesenheit im Café.",
     "worksFromHome": "Funktioniert von zu Hause.",
     "progressCta": "Fortschritt +1",
+    "completedCta": "Abgeschlossen",
     "updating": "Aktualisiere…",
     "loadError": "Challenges konnten nicht geladen werden",
     "weekly": "Wöchentliche Challenge — Fortschritt setzt sich jede ISO-Woche (UTC) zurück.",
@@ -929,7 +943,12 @@
   },
   "peopleHere": {
     "title": "Wer ist hier",
+    "heroTitle": "An diesem Ort",
+    "refreshA11y": "Liste aktualisieren",
     "subtitle": "Kürzlich am Ort (Datenschutz beachtet).",
+    "subtitleNamed": "Kürzlich bei {{venue}} — mit Datenschutzeinstellungen.",
+    "count": "{{n}} sichtbar",
+    "you": "du",
     "empty": "Niemand sichtbar — Einstellungen prüfen.",
     "friend": "Freund",
     "stranger": "Hier",
