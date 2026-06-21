@@ -10,7 +10,10 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import ExplicitCheckInBanner from '../components/home/ExplicitCheckInBanner';
 import type { AppNavigationProps } from '../navigation/screenProps';
+import { usePlayVenueAccess } from '../hooks/usePlayVenueAccess';
+import { needsExplicitCheckInBanner } from '../lib/explicitCheckIn';
 import { useIsTabRoot } from '../navigation/useIsTabRoot';
 import type { AppColors } from '../theme/colors';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -27,31 +30,45 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
   const venueId = params?.venueId;
   const challengeId = params?.challengeId;
   const hasVenueContext = Boolean(venueId);
+  const { access, resolvedVenueId } = usePlayVenueAccess(venueId);
+  const showCheckIn = needsExplicitCheckInBanner(access);
+
+  const openQrCheckIn = () => {
+    const id = resolvedVenueId ?? venueId;
+    if (id) navigation.navigate('QrScan', { venueId: id });
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerRow}>
+        <View style={styles.titleRow}>
           {!isTabRoot ? (
             <Pressable
               onPress={() => navigation.goBack()}
               style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.back')}
             >
               <Ionicons name="arrow-back" size={22} color={colors.text} />
             </Pressable>
-          ) : (
-            <View style={styles.iconBtnPlaceholder} />
-          )}
+          ) : null}
+          <Text style={styles.title}>{t('chooseGame.title')}</Text>
           <Pressable
             onPress={() => navigation.navigate('DailyWord')}
             style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={t('dailyWord.title')}
           >
             <Ionicons name="calendar-outline" size={22} color={colors.textSecondary} />
           </Pressable>
         </View>
-
-        <Text style={styles.title}>{t('chooseGame.title')}</Text>
         <Text style={styles.subtitle}>{t('chooseGame.subtitle')}</Text>
+
+        {showCheckIn ? (
+          <View style={styles.checkInWrap}>
+            <ExplicitCheckInBanner colors={colors} onScan={openQrCheckIn} />
+          </View>
+        ) : null}
 
         <View style={styles.hero}>
           <Text style={styles.heroTitle}>{t('chooseGame.heroTitle')}</Text>
@@ -62,42 +79,48 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
 
         <Pressable
           onPress={() => navigation.navigate('WordLobby', { venueId, challengeId })}
-          style={({ pressed }) => [styles.card, styles.wordCard, pressed && styles.pressed]}
+          disabled={showCheckIn}
+          style={({ pressed }) => [
+            styles.card,
+            styles.wordCard,
+            showCheckIn && styles.cardDisabled,
+            pressed && styles.pressed,
+          ]}
         >
-          <View style={[styles.cardIcon, { backgroundColor: colors.primary }]}>
-            <Ionicons name="extension-puzzle" size={26} color={colors.textInverse} />
-          </View>
-          <View style={styles.cardBody}>
+          <View style={styles.cardHeaderRow}>
+            <View style={[styles.cardIcon, { backgroundColor: colors.primary }]}>
+              <Ionicons name="extension-puzzle" size={26} color={colors.textInverse} />
+            </View>
             <Text style={styles.cardTitle}>{t('chooseGame.wordTitle')}</Text>
-            <Text style={styles.cardDescription}>{t('chooseGame.wordDescription')}</Text>
-            <Text style={styles.cardMeta}>
-              {hasVenueContext ? t('chooseGame.wordCtaVenue') : t('chooseGame.wordCtaGlobal')}
-            </Text>
+            <Ionicons name="chevron-forward" size={22} color={colors.textMuted} />
           </View>
-          <Ionicons name="chevron-forward" size={22} color={colors.textMuted} />
+          <Text style={styles.cardDescription}>{t('chooseGame.wordDescription')}</Text>
+          <Text style={styles.cardMeta}>
+            {hasVenueContext ? t('chooseGame.wordCtaVenue') : t('chooseGame.wordCtaGlobal')}
+          </Text>
         </Pressable>
 
         <Pressable
           onPress={() => venueId && navigation.navigate('BrawlerLobby', { venueId })}
-          disabled={!hasVenueContext}
+          disabled={!hasVenueContext || showCheckIn}
           style={({ pressed }) => [
             styles.card,
             styles.brawlerCard,
-            !hasVenueContext && styles.cardDisabled,
+            (!hasVenueContext || showCheckIn) && styles.cardDisabled,
             pressed && styles.pressed,
           ]}
         >
-          <View style={[styles.cardIcon, { backgroundColor: colors.xp }]}>
-            <Ionicons name="fitness" size={26} color={colors.textInverse} />
-          </View>
-          <View style={styles.cardBody}>
+          <View style={styles.cardHeaderRow}>
+            <View style={[styles.cardIcon, { backgroundColor: colors.xp }]}>
+              <Ionicons name="fitness" size={26} color={colors.textInverse} />
+            </View>
             <Text style={styles.cardTitle}>{t('chooseGame.brawlerTitle')}</Text>
-            <Text style={styles.cardDescription}>{t('chooseGame.brawlerDescription')}</Text>
-            <Text style={styles.cardMeta}>
-              {hasVenueContext ? t('chooseGame.brawlerCta') : t('chooseGame.brawlerNeedVenue')}
-            </Text>
+            <Ionicons name="chevron-forward" size={22} color={colors.textMuted} />
           </View>
-          <Ionicons name="chevron-forward" size={22} color={colors.textMuted} />
+          <Text style={styles.cardDescription}>{t('chooseGame.brawlerDescription')}</Text>
+          <Text style={[styles.cardMeta, styles.brawlerMeta]}>
+            {hasVenueContext ? t('chooseGame.brawlerCta') : t('chooseGame.brawlerNeedVenue')}
+          </Text>
         </Pressable>
 
         <Text style={styles.dailyNote}>{t('chooseGame.dailyWordNote')}</Text>
@@ -111,12 +134,13 @@ function createStyles(colors: AppColors) {
     safe: { flex: 1, backgroundColor: colors.bg },
     scroll: {
       paddingHorizontal: spacing.xl,
+      paddingTop: spacing.md,
       paddingBottom: spacing.xxl,
     },
-    headerRow: {
+    titleRow: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
-      paddingTop: spacing.md,
+      alignItems: 'center',
+      gap: spacing.sm,
       marginBottom: spacing.sm,
     },
     iconBtn: {
@@ -128,9 +152,10 @@ function createStyles(colors: AppColors) {
       borderColor: colors.border,
       alignItems: 'center',
       justifyContent: 'center',
+      flexShrink: 0,
     },
-    iconBtnPlaceholder: { width: 44 },
     title: {
+      flex: 1,
       color: colors.text,
       fontSize: 28,
       fontWeight: '900',
@@ -143,6 +168,7 @@ function createStyles(colors: AppColors) {
       marginTop: spacing.sm,
       marginBottom: spacing.lg,
     },
+    checkInWrap: { marginBottom: spacing.md },
     hero: {
       backgroundColor: colors.hero,
       borderRadius: radii.xl,
@@ -163,30 +189,39 @@ function createStyles(colors: AppColors) {
       lineHeight: 20,
     },
     card: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
       backgroundColor: colors.surface,
       borderRadius: radii.lg,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
       padding: spacing.lg,
       marginBottom: spacing.md,
+      gap: spacing.sm,
+    },
+    cardHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
     },
     wordCard: { borderColor: colors.primary },
     brawlerCard: { borderColor: colors.xp },
     cardDisabled: { opacity: 0.5 },
     cardIcon: {
-      width: 52,
-      height: 52,
+      width: 44,
+      height: 44,
       borderRadius: radii.md,
       alignItems: 'center',
       justifyContent: 'center',
+      flexShrink: 0,
     },
-    cardBody: { flex: 1, gap: 4 },
-    cardTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
+    cardTitle: {
+      flex: 1,
+      color: colors.text,
+      fontSize: 18,
+      fontWeight: '800',
+    },
     cardDescription: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
-    cardMeta: { color: colors.primary, fontSize: 12, fontWeight: '700', marginTop: 4 },
+    cardMeta: { color: colors.primary, fontSize: 12, fontWeight: '700' },
+    brawlerMeta: { color: colors.xp },
     dailyNote: {
       color: colors.textMuted,
       fontSize: 12,

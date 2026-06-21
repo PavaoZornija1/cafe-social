@@ -7,6 +7,7 @@ import {
   Pressable,
   SafeAreaView,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -15,22 +16,26 @@ import QRCode from 'react-native-qrcode-svg';
 import { useTranslation } from 'react-i18next';
 
 import LinearGradientFill from '../components/ui/LinearGradientFill';
+import {
+  buildFriendInviteDeepLink,
+  buildFriendInviteQrPayload,
+  createFriendInvite,
+} from '../lib/friendInviteApi';
+import {
+  cacheFriendInvite,
+  isFriendInviteValid,
+  loadCachedFriendInvite,
+  type CachedFriendInvite,
+} from '../lib/friendInviteCache';
+import { fetchMyMemberCard } from '../lib/memberCardApi';
 import type { RootStackParamList } from '../navigation/type';
-import { fetchMyMemberCard, type MemberCardDto } from '../lib/memberCardApi';
-import { cacheMemberCard, loadCachedMemberCard } from '../lib/memberCardCache';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'MemberCard'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'FriendCard'>;
 
-function memberInitial(username: string): string {
-  const trimmed = username.trim();
-  if (!trimmed) return '?';
-  return trimmed.charAt(0).toUpperCase();
-}
-
-const MemberQrCode = React.memo(function MemberQrCode({
+const FriendQrCode = React.memo(function FriendQrCode({
   payload,
   foreground,
   background,
@@ -44,61 +49,113 @@ const MemberQrCode = React.memo(function MemberQrCode({
   );
 });
 
-export default function MemberCardScreen({ navigation }: Props) {
+function memberInitial(username: string): string {
+  const trimmed = username.trim();
+  if (!trimmed) return '?';
+  return trimmed.charAt(0).toUpperCase();
+}
+
+function formatExpiry(iso: string, locale: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleString(locale, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+export default function FriendCardScreen({ navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
 
-  const [card, setCard] = useState<MemberCardDto | null>(null);
+  const [invite, setInvite] = useState<CachedFriendInvite | null>(null);
   const [initializing, setInitializing] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [offline, setOffline] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const cardRef = useRef<MemberCardDto | null>(null);
-  cardRef.current = card;
+  const inviteRef = useRef<CachedFriendInvite | null>(null);
+  inviteRef.current = invite;
 
-  const syncCard = useCallback(async (mode: 'initial' | 'refresh') => {
-    if (!isLoaded) return;
+  const buildInvite = useCallback(
+    async (token: string, username: string, forceNew: boolean): Promise<CachedFriendInvite> => {
+      const jwt = await getTokenRef.current();
+      if (!jwt) throw new Error('Not authenticated');
 
-    const hasCard = Boolean(cardRef.current);
-    if (mode === 'initial' && !hasCard) {
-      setInitializing(true);
-    } else if (mode === 'refresh') {
-      setRefreshing(true);
-    }
+      let inviteToken = token;
+      let expiresAt = inviteRef.current?.expiresAt ?? '';
 
-    const token = await getTokenRef.current();
-    if (!token) {
-      setInitializing(false);
-      setRefreshing(false);
-      return;
-    }
-
-    try {
-      const fresh = await fetchMyMemberCard(token);
-      await cacheMemberCard(fresh);
-      setCard(fresh);
-      setOffline(false);
-      setError(null);
-    } catch (e) {
-      const cached = cardRef.current ?? (await loadCachedMemberCard());
-      if (cached) {
-        setCard(cached);
-        setOffline(true);
-        setError(null);
-      } else {
-        setCard(null);
-        setOffline(false);
-        setError((e as Error).message || t('memberCard.loadError'));
+      if (forceNew || !inviteToken || !isFriendInviteValid(expiresAt)) {
+        const created = await createFriendInvite(jwt);
+        inviteToken = created.token;
+        expiresAt = created.expiresAt;
       }
-    } finally {
-      setInitializing(false);
-      setRefreshing(false);
-    }
-  }, [isLoaded, t]);
+
+      const next: CachedFriendInvite = {
+        token: inviteToken,
+        expiresAt,
+        qrPayload: buildFriendInviteQrPayload(inviteToken),
+        username,
+      };
+      await cacheFriendInvite(next);
+      return next;
+    },
+    [],
+  );
+
+  const syncInvite = useCallback(
+    async (mode: 'initial' | 'refresh') => {
+      if (!isLoaded) return;
+
+      const hasInvite = Boolean(inviteRef.current);
+      if (mode === 'initial' && !hasInvite) {
+        setInitializing(true);
+      } else if (mode === 'refresh') {
+        setRefreshing(true);
+      }
+      setError(null);
+
+      try {
+        const jwt = await getTokenRef.current();
+        if (!jwt) return;
+
+        const memberCard = await fetchMyMemberCard(jwt).catch(() => null);
+        const username = memberCard?.username?.trim() || t('friendCard.memberFallback');
+
+        const cached = inviteRef.current ?? (await loadCachedFriendInvite());
+        const useCache = cached && isFriendInviteValid(cached.expiresAt);
+        const next = await buildInvite(
+          useCache && mode !== 'refresh' ? cached!.token : '',
+          cached?.username || username,
+          mode === 'refresh' || !useCache,
+        );
+
+        if (!next.username || next.username === t('friendCard.memberFallback')) {
+          next.username = username;
+          await cacheFriendInvite(next);
+        }
+
+        setInvite(next);
+      } catch (e) {
+        const cached = inviteRef.current ?? (await loadCachedFriendInvite());
+        if (cached && isFriendInviteValid(cached.expiresAt)) {
+          setInvite(cached);
+          setError(t('friendCard.offlineHint'));
+        } else {
+          setInvite(null);
+          setError((e as Error).message || t('friendCard.loadError'));
+        }
+      } finally {
+        setInitializing(false);
+        setRefreshing(false);
+      }
+    },
+    [buildInvite, isLoaded, t],
+  );
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -106,18 +163,17 @@ export default function MemberCardScreen({ navigation }: Props) {
     let cancelled = false;
 
     async function bootstrap() {
-      const cached = await loadCachedMemberCard();
+      const cached = await loadCachedFriendInvite();
       if (cancelled) return;
 
-      if (cached) {
-        setCard(cached);
-        cardRef.current = cached;
+      if (cached && isFriendInviteValid(cached.expiresAt)) {
+        setInvite(cached);
+        inviteRef.current = cached;
         setInitializing(false);
-        void syncCard('refresh');
         return;
       }
 
-      await syncCard('initial');
+      await syncInvite('initial');
     }
 
     void bootstrap();
@@ -125,13 +181,23 @@ export default function MemberCardScreen({ navigation }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [isLoaded, syncCard]);
+  }, [isLoaded, syncInvite]);
 
   const handleRefresh = useCallback(() => {
-    void syncCard(cardRef.current ? 'refresh' : 'initial');
-  }, [syncCard]);
+    void syncInvite(inviteRef.current ? 'refresh' : 'initial');
+  }, [syncInvite]);
 
-  const showInitialSpinner = initializing && !card;
+  const shareLink = useCallback(async () => {
+    if (!invite) return;
+    const url = buildFriendInviteDeepLink(invite.token);
+    await Share.share({
+      message: t('friends.shareFriendInviteMessage', { url, raw: invite.token }),
+      title: 'Cafe Social',
+    });
+  }, [invite, t]);
+
+  const showInitialSpinner = initializing && !invite;
+  const expired = invite ? !isFriendInviteValid(invite.expiresAt) : false;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -149,13 +215,13 @@ export default function MemberCardScreen({ navigation }: Props) {
           >
             <Ionicons name="arrow-back" size={22} color={colors.text} />
           </Pressable>
-          <Text style={styles.title}>{t('memberCard.title')}</Text>
+          <Text style={styles.title}>{t('friendCard.title')}</Text>
           <Pressable
             onPress={handleRefresh}
             disabled={refreshing}
             style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
             accessibilityRole="button"
-            accessibilityLabel={t('memberCard.refreshA11y')}
+            accessibilityLabel={t('friendCard.refreshA11y')}
           >
             {refreshing ? (
               <ActivityIndicator color={colors.primary} size="small" />
@@ -165,62 +231,70 @@ export default function MemberCardScreen({ navigation }: Props) {
           </Pressable>
         </View>
 
-        <Text style={styles.subtitle}>{t('memberCard.lead')}</Text>
+        <Text style={styles.subtitle}>{t('friendCard.lead')}</Text>
 
-        {offline ? (
-          <View style={styles.offlineBanner}>
-            <Ionicons name="cloud-offline-outline" size={18} color={colors.warning} />
-            <Text style={styles.offlineBannerText}>{t('memberCard.offlineHint')}</Text>
-          </View>
-        ) : null}
+        {error ? <Text style={styles.warnBanner}>{error}</Text> : null}
 
         {showInitialSpinner ? (
           <View style={styles.centerBlock}>
             <ActivityIndicator color={colors.primary} />
-            <Text style={styles.loadingText}>{t('memberCard.loading')}</Text>
+            <Text style={styles.loadingText}>{t('friendCard.loading')}</Text>
           </View>
-        ) : card ? (
+        ) : invite ? (
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <LinearGradientFill from={colors.primaryDark} to={colors.primary} />
               <View style={styles.cardHeaderContent}>
                 <View style={styles.cardHeaderIcon}>
-                  <Ionicons name="qr-code" size={22} color={colors.textInverse} />
+                  <Ionicons name="person-add" size={22} color={colors.textInverse} />
                 </View>
-                <Text style={styles.cardHeaderTitle}>{t('memberCard.showAtTill')}</Text>
+                <Text style={styles.cardHeaderTitle}>{t('friendCard.scanToAdd')}</Text>
               </View>
             </View>
 
             <View style={styles.cardBody}>
               <View style={styles.memberRow}>
                 <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{memberInitial(card.username)}</Text>
+                  <Text style={styles.avatarText}>{memberInitial(invite.username)}</Text>
                 </View>
                 <View style={styles.memberMeta}>
-                  <Text style={styles.memberLabel}>{t('memberCard.memberLabel')}</Text>
+                  <Text style={styles.memberLabel}>{t('friendCard.addLabel')}</Text>
                   <Text style={styles.username} numberOfLines={1}>
-                    {card.username}
+                    {invite.username}
                   </Text>
                 </View>
               </View>
 
               <View style={styles.qrWrap}>
-                {card.qrPayload ? (
-                  <MemberQrCode
-                    payload={card.qrPayload}
-                    foreground={colors.primaryDark}
-                    background={colors.surface}
-                  />
-                ) : null}
+                <FriendQrCode
+                  payload={invite.qrPayload}
+                  foreground={colors.primaryDark}
+                  background={colors.surface}
+                />
               </View>
 
-              <Text style={styles.scanHint}>{t('memberCard.scanHint')}</Text>
+              <Text style={styles.expiryText}>
+                {expired
+                  ? t('friendCard.expired')
+                  : t('friendCard.validUntil', {
+                      date: formatExpiry(invite.expiresAt, i18n.language),
+                    })}
+              </Text>
+              <Text style={styles.scanHint}>{t('friendCard.scanHint')}</Text>
+
+              <Pressable
+                style={({ pressed }) => [styles.shareBtn, pressed && styles.pressed]}
+                onPress={() => void shareLink()}
+              >
+                <Ionicons name="share-outline" size={18} color={colors.primary} />
+                <Text style={styles.shareBtnText}>{t('friendCard.shareLink')}</Text>
+              </Pressable>
             </View>
           </View>
         ) : (
           <View style={styles.centerBlock}>
             <Ionicons name="qr-code-outline" size={40} color={colors.textMuted} />
-            <Text style={styles.errorText}>{error ?? t('memberCard.loadError')}</Text>
+            <Text style={styles.errorText}>{error ?? t('friendCard.loadError')}</Text>
             <Pressable
               style={({ pressed }) => [styles.retryBtn, pressed && styles.pressed]}
               onPress={handleRefresh}
@@ -230,19 +304,19 @@ export default function MemberCardScreen({ navigation }: Props) {
           </View>
         )}
 
-        {card ? (
+        {invite ? (
           <View style={styles.tipsCard}>
             <View style={styles.tipRow}>
               <View style={styles.tipIcon}>
-                <Ionicons name="storefront-outline" size={18} color={colors.primary} />
+                <Ionicons name="scan-outline" size={18} color={colors.primary} />
               </View>
-              <Text style={styles.tipText}>{t('memberCard.tipVisit')}</Text>
+              <Text style={styles.tipText}>{t('friendCard.tipScan')}</Text>
             </View>
             <View style={styles.tipRow}>
               <View style={styles.tipIcon}>
-                <Ionicons name="phone-portrait-outline" size={18} color={colors.primary} />
+                <Ionicons name="time-outline" size={18} color={colors.primary} />
               </View>
-              <Text style={styles.tipText}>{t('memberCard.tipOffline')}</Text>
+              <Text style={styles.tipText}>{t('friendCard.tipExpiry')}</Text>
             </View>
           </View>
         ) : null}
@@ -290,23 +364,11 @@ function createStyles(colors: AppColors) {
       marginTop: spacing.sm,
       marginBottom: spacing.lg,
     },
-    offlineBanner: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: spacing.sm,
-      backgroundColor: colors.warningBg,
-      borderRadius: radii.lg,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.warningBorder,
-      padding: spacing.md,
-      marginBottom: spacing.lg,
-    },
-    offlineBannerText: {
-      flex: 1,
+    warnBanner: {
       color: colors.warning,
       fontSize: 13,
       fontWeight: '700',
-      lineHeight: 18,
+      marginBottom: spacing.md,
     },
     centerBlock: {
       alignItems: 'center',
@@ -314,10 +376,7 @@ function createStyles(colors: AppColors) {
       paddingVertical: spacing.xxl,
       gap: spacing.md,
     },
-    loadingText: {
-      color: colors.textMuted,
-      fontSize: 14,
-    },
+    loadingText: { color: colors.textMuted, fontSize: 14 },
     card: {
       backgroundColor: colors.surface,
       borderRadius: radii.xl,
@@ -326,10 +385,7 @@ function createStyles(colors: AppColors) {
       overflow: 'hidden',
       marginBottom: spacing.lg,
     },
-    cardHeader: {
-      height: 72,
-      overflow: 'hidden',
-    },
+    cardHeader: { height: 72, overflow: 'hidden' },
     cardHeaderContent: {
       flex: 1,
       flexDirection: 'row',
@@ -355,7 +411,7 @@ function createStyles(colors: AppColors) {
     cardBody: {
       padding: spacing.lg,
       alignItems: 'center',
-      gap: spacing.lg,
+      gap: spacing.md,
     },
     memberRow: {
       flexDirection: 'row',
@@ -367,7 +423,7 @@ function createStyles(colors: AppColors) {
       width: 48,
       height: 48,
       borderRadius: radii.pill,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.accentPink,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -401,11 +457,31 @@ function createStyles(colors: AppColors) {
       alignItems: 'center',
       justifyContent: 'center',
     },
+    expiryText: {
+      color: colors.textSecondary,
+      fontSize: 13,
+      fontWeight: '700',
+      textAlign: 'center',
+    },
     scanHint: {
       color: colors.textMuted,
       fontSize: 13,
       textAlign: 'center',
       lineHeight: 18,
+    },
+    shareBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: radii.pill,
+      backgroundColor: colors.primaryMuted,
+    },
+    shareBtnText: {
+      color: colors.primary,
+      fontSize: 14,
+      fontWeight: '800',
     },
     errorText: {
       color: colors.error,
@@ -419,10 +495,7 @@ function createStyles(colors: AppColors) {
       paddingVertical: spacing.md,
       borderRadius: radii.md,
     },
-    retryBtnText: {
-      color: colors.primaryDark,
-      fontWeight: '800',
-    },
+    retryBtnText: { color: colors.primaryDark, fontWeight: '800' },
     tipsCard: {
       backgroundColor: colors.surface,
       borderRadius: radii.lg,

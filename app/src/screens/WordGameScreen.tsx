@@ -162,7 +162,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
     enabled: activePlayBudgetEnabled,
     onBudgetExhausted: () => {
       Alert.alert(t('wordGame.playTimeExhaustedTitle'), t('wordGame.playTimeExhaustedBody'), [
-        { text: 'OK', onPress: () => navigation.replace('Home') },
+        { text: 'OK', onPress: () => navigation.replace('MainTabs', { screen: 'HomeTab' }) },
       ]);
     },
   });

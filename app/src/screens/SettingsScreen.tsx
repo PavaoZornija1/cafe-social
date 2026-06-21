@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth, useClerk } from '@clerk/expo';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import Constants from 'expo-constants';
 import * as Location from 'expo-location';
@@ -19,6 +20,7 @@ import {
 } from 'react-native';
 import Purchases, { PURCHASES_ERROR_CODE, type PurchasesError } from 'react-native-purchases';
 import { useTranslation } from 'react-i18next';
+import SettingsNavRow from '../components/settings/SettingsNavRow';
 import type { RootStackParamList } from '../navigation/type';
 import { LANGUAGE_OPTIONS, type AppLanguage, setAppLanguage } from '../i18n';
 import { apiGet, apiPatch } from '../lib/api';
@@ -43,6 +45,7 @@ import {
 } from '../lib/locationPermissions';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
+import { radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
@@ -82,6 +85,9 @@ export default function SettingsScreen({ navigation }: Props) {
   const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '—';
   const rcNative = isRevenueCatNativeConfigured();
   const packageOrder = getPreferredPackageOrder();
+  const switchTrackOn = colors.primary;
+  const switchTrackOff = colors.borderStrong;
+  const switchThumb = colors.surface;
 
   const refreshSubscriptionOnly = useCallback(
     async (silent: boolean): Promise<boolean> => {
@@ -314,12 +320,17 @@ export default function SettingsScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Text style={styles.backText}>{t('common.back')}</Text>
+        <View style={styles.headerRow}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back')}
+          >
+            <Ionicons name="arrow-back" size={22} color={colors.text} />
           </Pressable>
-          <Text style={styles.title}>{t('settings.title')}</Text>
         </View>
+        <Text style={styles.title}>{t('settings.title')}</Text>
 
         <Text style={styles.sectionLabel}>{t('settings.language')}</Text>
         <Text style={styles.hint}>{t('settings.languageHint')}</Text>
@@ -336,8 +347,10 @@ export default function SettingsScreen({ navigation }: Props) {
                   pressed && styles.langRowPressed,
                 ]}
               >
-                <Text style={styles.langName}>{nativeName}</Text>
-                {active ? <Text style={styles.check}>✓</Text> : null}
+                <Text style={[styles.langName, active && styles.langNameActive]}>{nativeName}</Text>
+                {active ? (
+                  <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
+                ) : null}
               </Pressable>
             );
           })}
@@ -347,7 +360,7 @@ export default function SettingsScreen({ navigation }: Props) {
         <Text style={styles.hint}>{t('settings.privacyHint')}</Text>
         {privacyLoading ? (
           <View style={styles.privacyLoading}>
-            <ActivityIndicator color="#a78bfa" />
+            <ActivityIndicator color={colors.primary} />
           </View>
         ) : (
           <View style={styles.toggleCard}>
@@ -360,8 +373,8 @@ export default function SettingsScreen({ navigation }: Props) {
                   setDiscoverable(v);
                   void persistPrivacy({ discoverable: v });
                 }}
-                trackColor={{ true: '#6d28d9', false: '#374151' }}
-                thumbColor="#f4f4f5"
+                trackColor={{ true: switchTrackOn, false: switchTrackOff }}
+                thumbColor={switchThumb}
               />
             </View>
             <View style={[styles.toggleRow, styles.toggleRowBorder]}>
@@ -373,8 +386,8 @@ export default function SettingsScreen({ navigation }: Props) {
                   setTotalPrivacy(v);
                   void persistPrivacy({ totalPrivacy: v });
                 }}
-                trackColor={{ true: '#7f1d1d', false: '#374151' }}
-                thumbColor="#f4f4f5"
+                trackColor={{ true: colors.error, false: switchTrackOff }}
+                thumbColor={switchThumb}
               />
             </View>
           </View>
@@ -383,13 +396,9 @@ export default function SettingsScreen({ navigation }: Props) {
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.location')}</Text>
         <View style={styles.card}>
           <Text style={styles.cardText}>{t('settings.locationHint')}</Text>
-          <Text style={[styles.cardText, { marginTop: 12, color: '#9ca3af' }]}>
-            {t('settings.locationGeofenceHint')}
-          </Text>
+          <Text style={styles.cardTextSecondary}>{t('settings.locationGeofenceHint')}</Text>
           {Platform.OS !== 'web' && locationStatusKey ? (
-            <Text style={[styles.cardText, { marginTop: 12, color: '#c4b5fd' }]}>
-              {t(locationStatusKey)}
-            </Text>
+            <Text style={styles.locationStatus}>{t(locationStatusKey)}</Text>
           ) : null}
           {Platform.OS !== 'web' && locationPerms && !locationPerms.hasAlways ? (
             <Pressable
@@ -398,7 +407,7 @@ export default function SettingsScreen({ navigation }: Props) {
               onPress={() => void onRequestAlwaysLocation()}
             >
               {locationBusy ? (
-                <ActivityIndicator color="#e9d5ff" />
+                <ActivityIndicator color={colors.primary} />
               ) : (
                 <Text style={styles.secondaryBtnText}>{t('settings.locationEnableAlways')}</Text>
               )}
@@ -415,7 +424,7 @@ export default function SettingsScreen({ navigation }: Props) {
         <Text style={styles.hint}>{t('settings.notificationsHint')}</Text>
         {privacyLoading ? (
           <View style={styles.privacyLoading}>
-            <ActivityIndicator color="#a78bfa" />
+            <ActivityIndicator color={colors.primary} />
           </View>
         ) : (
           <View style={styles.toggleCard}>
@@ -428,8 +437,8 @@ export default function SettingsScreen({ navigation }: Props) {
                   setMatchActivityPush(v);
                   void persistPrivacy({ matchActivityPush: v });
                 }}
-                trackColor={{ true: '#6d28d9', false: '#374151' }}
-                thumbColor="#f4f4f5"
+                trackColor={{ true: switchTrackOn, false: switchTrackOff }}
+                thumbColor={switchThumb}
               />
             </View>
             <View style={[styles.toggleRow, styles.toggleRowBorder]}>
@@ -441,8 +450,8 @@ export default function SettingsScreen({ navigation }: Props) {
                   setPartnerMarketingPush(v);
                   void persistPrivacy({ partnerMarketingPush: v });
                 }}
-                trackColor={{ true: '#6d28d9', false: '#374151' }}
-                thumbColor="#f4f4f5"
+                trackColor={{ true: switchTrackOn, false: switchTrackOff }}
+                thumbColor={switchThumb}
               />
             </View>
             <View style={[styles.toggleRow, styles.toggleRowBorder]}>
@@ -454,8 +463,8 @@ export default function SettingsScreen({ navigation }: Props) {
                   setEmailNotifications(v);
                   void persistPrivacy({ emailNotifications: v });
                 }}
-                trackColor={{ true: '#6d28d9', false: '#374151' }}
-                thumbColor="#f4f4f5"
+                trackColor={{ true: switchTrackOn, false: switchTrackOff }}
+                thumbColor={switchThumb}
               />
             </View>
             <Text style={styles.pushFootnote}>{t('settings.pushPartnerFootnote')}</Text>
@@ -491,10 +500,12 @@ export default function SettingsScreen({ navigation }: Props) {
         {!subscriptionActive ? (
           <View style={styles.card}>
             <Text style={styles.sectionInnerLabel}>{t('settings.subscriptionBenefitsTitle')}</Text>
-            <Text style={[styles.cardText, { color: colors.text }]}>• {t('settings.subscriptionBenefitPlay')}</Text>
-            <Text style={[styles.cardText, { color: colors.text }]}>• {t('settings.subscriptionBenefitParties')}</Text>
-            <Text style={[styles.cardText, { color: colors.text }]}>• {t('settings.subscriptionBenefitGlobal')}</Text>
-            <Text style={[styles.cardTextMuted, { marginTop: 8 }]}>{t('settings.subscriptionBenefitFootnote')}</Text>
+            <Text style={styles.bulletText}>• {t('settings.subscriptionBenefitPlay')}</Text>
+            <Text style={styles.bulletText}>• {t('settings.subscriptionBenefitParties')}</Text>
+            <Text style={styles.bulletText}>• {t('settings.subscriptionBenefitGlobal')}</Text>
+            <Text style={[styles.cardTextMuted, styles.bulletFootnote]}>
+              {t('settings.subscriptionBenefitFootnote')}
+            </Text>
           </View>
         ) : null}
         {(rcNative && Platform.OS !== 'web') || SUBSCRIPTION_MANAGE_URL ? (
@@ -611,7 +622,7 @@ export default function SettingsScreen({ navigation }: Props) {
             <Text style={styles.hint}>{t('settings.venuePlayBudgetHint')}</Text>
             <View style={styles.card}>
               <Text style={styles.cardText}>{t('settings.venuePlayBudgetLead')}</Text>
-              <Text style={[styles.cardText, { marginTop: 10 }]}>{t('settings.venuePlayBudgetFairPlay')}</Text>
+              <Text style={styles.cardTextSecondary}>{t('settings.venuePlayBudgetFairPlay')}</Text>
               <Pressable
                 disabled={rcBusy || privacyLoading}
                 style={({ pressed }) => [
@@ -634,13 +645,13 @@ export default function SettingsScreen({ navigation }: Props) {
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('memberCard.title')}</Text>
         <Text style={styles.hint}>{t('settings.memberCardHint')}</Text>
-        <Pressable
-          style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+        <View style={styles.navList}>
+        <SettingsNavRow
+          colors={colors}
+          label={t('settings.openMemberCard')}
           onPress={() => navigation.navigate('MemberCard')}
-        >
-          <Text style={styles.actionRowText}>{t('settings.openMemberCard')}</Text>
-          <Text style={styles.actionRowChev}>›</Text>
-        </Pressable>
+        />
+        </View>
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.account')}</Text>
         <View style={styles.card}>
@@ -649,49 +660,39 @@ export default function SettingsScreen({ navigation }: Props) {
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.staffTitle')}</Text>
         <Text style={styles.hint}>{t('settings.staffHint')}</Text>
-        <Pressable
-          style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+        <View style={styles.navList}>
+        <SettingsNavRow
+          colors={colors}
+          label={t('settings.staffOpen')}
           onPress={() => navigation.navigate('StaffVenues')}
-        >
-          <Text style={styles.actionRowText}>{t('settings.staffOpen')}</Text>
-          <Text style={styles.actionRowChev}>›</Text>
-        </Pressable>
+        />
+        </View>
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.social')}</Text>
         <Text style={styles.hint}>{t('settings.friendInviteHint')}</Text>
-        <Pressable
-          style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+        <View style={styles.navList}>
+        <SettingsNavRow
+          colors={colors}
+          label={t('settings.openFriends')}
           onPress={() => navigation.navigate('Friends')}
-        >
-          <Text style={styles.actionRowText}>{t('settings.openFriends')}</Text>
-          <Text style={styles.actionRowChev}>›</Text>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+        />
+        <SettingsNavRow
+          colors={colors}
+          label={t('settings.openMyVenueReports')}
           onPress={() => navigation.navigate('MyVenueReports')}
-        >
-          <Text style={styles.actionRowText}>{t('settings.openMyVenueReports')}</Text>
-          <Text style={styles.actionRowChev}>›</Text>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [
-            styles.actionRow,
-            pressed && styles.actionRowPressed,
-            friendLinkBusy && styles.actionRowDisabled,
-          ]}
+        />
+        <SettingsNavRow
+          colors={colors}
+          label={friendLinkBusy ? '…' : t('settings.friendInviteLink')}
           onPress={() => void shareFriendLink()}
           disabled={friendLinkBusy}
-        >
-          <Text style={styles.actionRowText}>
-            {friendLinkBusy ? '…' : t('settings.friendInviteLink')}
-          </Text>
-          <Text style={styles.actionRowChev}>›</Text>
-        </Pressable>
+        />
+        </View>
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.about')}</Text>
         <View style={styles.card}>
           <Text style={styles.cardTextMuted}>{t('settings.version', { version: appVersion })}</Text>
-          <Text style={[styles.cardText, { marginTop: 10 }]}>Cafe Social — venue-locked games.</Text>
+          <Text style={[styles.cardText, styles.aboutTagline]}>Cafe Social — venue-locked games.</Text>
         </View>
 
         <Pressable
@@ -719,165 +720,237 @@ export default function SettingsScreen({ navigation }: Props) {
 
 
 function createStyles(colors: AppColors) {
-    return StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  scroll: { paddingHorizontal: 24, paddingBottom: 32 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20, paddingTop: 16 },
-  backBtn: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, backgroundColor: colors.surface },
-  backText: { color: colors.textSecondary, fontWeight: '600' },
-  title: { color: colors.text, fontSize: 22, fontWeight: '800' },
-  sectionLabel: { color: colors.text, fontSize: 14, fontWeight: '900', marginTop: 8 },
-  sectionSpacer: { marginTop: 22 },
-  hint: { color: colors.textMuted, fontSize: 12, marginTop: 6, lineHeight: 18 },
-  sectionInnerLabel: { color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 8 },
-  langList: { marginTop: 12, gap: 8 },
-  langRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  langRowActive: { borderColor: colors.honey, backgroundColor: colors.surface },
-  langRowPressed: { opacity: 0.92 },
-  langName: { color: colors.text, fontWeight: '700', fontSize: 16 },
-  check: { color: colors.honey, fontWeight: '900', fontSize: 18 },
-  privacyLoading: { marginTop: 16, alignItems: 'center' },
-  toggleCard: {
-    marginTop: 12,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 4,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  toggleRowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
-  toggleLabel: { color: colors.textSecondary, fontWeight: '700', fontSize: 15, flex: 1, paddingRight: 12 },
-  pushFootnote: {
-    color: colors.textMuted,
-    fontSize: 11,
-    lineHeight: 16,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    paddingTop: 4,
-  },
-  card: {
-    marginTop: 10,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-  },
-  cardText: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
-  cardTextMuted: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
-  secondaryBtn: {
-    marginTop: 14,
-    backgroundColor: colors.bgElevated,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  secondaryBtnText: { color: colors.honey, fontWeight: '800', fontSize: 14 },
-  btnDisabled: { opacity: 0.6 },
-  linkBtn: { marginTop: 10, paddingVertical: 8 },
-  linkBtnText: { color: colors.honeyDark, fontWeight: '700', fontSize: 14 },
-  logoutBtn: {
-    marginTop: 28,
-    backgroundColor: colors.surface,
-    borderColor: colors.error,
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  logoutBtnDisabled: { opacity: 0.6 },
-  logoutText: { color: colors.error, fontWeight: '800' },
-  actionRow: {
-    marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  actionRowPressed: { opacity: 0.9 },
-  actionRowDisabled: { opacity: 0.55 },
-  actionRowText: { color: colors.textSecondary, fontWeight: '800', fontSize: 15 },
-  actionRowChev: { color: colors.textMuted, fontSize: 20, fontWeight: '300' },
-  linkRow: {
-    marginTop: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.honeyMuted,
-  },
-  linkText: { color: colors.honeyDark, fontWeight: '800', fontSize: 14 },
-  paywallLead: {
-    color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 19,
-    marginTop: 8,
-  },
-  pendingStrip: {
-    marginTop: 12,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: colors.warningBg,
-    borderWidth: 1,
-    borderColor: colors.warningBorder,
-  },
-  pendingStripText: { color: colors.honeyDark, fontSize: 13, lineHeight: 18, fontWeight: '600' },
-  followUpStrip: {
-    marginTop: 12,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  followUpStripText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
-  refreshStatusBtn: {
-    marginTop: 10,
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: colors.bgElevated,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  refreshStatusBtnText: { color: colors.text, fontWeight: '800', fontSize: 13 },
-  offeringsIssueStrip: {
-    marginTop: 12,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: colors.honeyMuted,
-    borderWidth: 1,
-    borderColor: colors.honey,
-  },
-  offeringsIssueTitle: { color: colors.honeyDark, fontWeight: '900', fontSize: 13, marginBottom: 6 },
-  offeringsIssueBody: { color: colors.honey, fontSize: 12, lineHeight: 17 },
-  packageHint: { color: colors.textMuted, fontSize: 11, lineHeight: 16, marginTop: 10, fontStyle: 'italic' },
-
-    });
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.bg },
+    scroll: {
+      paddingHorizontal: spacing.xl,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
+    iconBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: radii.pill,
+      backgroundColor: colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: {
+      color: colors.text,
+      fontSize: 28,
+      fontWeight: '900',
+      letterSpacing: -0.4,
+      marginBottom: spacing.lg,
+    },
+    sectionLabel: {
+      color: colors.text,
+      fontSize: 17,
+      fontWeight: '900',
+      marginTop: spacing.sm,
+    },
+    sectionSpacer: { marginTop: spacing.xl },
+    hint: {
+      color: colors.textMuted,
+      fontSize: 13,
+      marginTop: spacing.sm,
+      lineHeight: 18,
+    },
+    sectionInnerLabel: {
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: '800',
+      marginBottom: spacing.sm,
+    },
+    langList: { marginTop: spacing.md, gap: spacing.sm },
+    langRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      borderRadius: radii.lg,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+    },
+    langRowActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryMuted,
+    },
+    langRowPressed: { opacity: 0.92 },
+    langName: { color: colors.text, fontWeight: '700', fontSize: 16 },
+    langNameActive: { color: colors.primaryDark },
+    privacyLoading: { marginTop: spacing.lg, alignItems: 'center' },
+    toggleCard: {
+      marginTop: spacing.md,
+      backgroundColor: colors.surface,
+      borderRadius: radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      paddingVertical: spacing.xs,
+      overflow: 'hidden',
+    },
+    toggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+    },
+    toggleRowBorder: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.border,
+    },
+    toggleLabel: {
+      color: colors.text,
+      fontWeight: '600',
+      fontSize: 15,
+      flex: 1,
+      paddingRight: spacing.md,
+    },
+    pushFootnote: {
+      color: colors.textMuted,
+      fontSize: 11,
+      lineHeight: 16,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.md,
+      paddingTop: spacing.xs,
+    },
+    card: {
+      marginTop: spacing.md,
+      backgroundColor: colors.surface,
+      borderRadius: radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      padding: spacing.lg,
+    },
+    cardText: { color: colors.textSecondary, fontSize: 14, lineHeight: 20 },
+    cardTextSecondary: {
+      color: colors.textMuted,
+      fontSize: 13,
+      lineHeight: 18,
+      marginTop: spacing.md,
+    },
+    cardTextMuted: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
+    locationStatus: {
+      color: colors.primary,
+      fontSize: 13,
+      fontWeight: '700',
+      marginTop: spacing.md,
+    },
+    bulletText: {
+      color: colors.text,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    bulletFootnote: { marginTop: spacing.sm },
+    aboutTagline: { marginTop: spacing.md },
+    secondaryBtn: {
+      marginTop: spacing.lg,
+      backgroundColor: colors.primaryMuted,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'rgba(37, 97, 233, 0.25)',
+      borderRadius: radii.md,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+    },
+    secondaryBtnText: { color: colors.primary, fontWeight: '800', fontSize: 14 },
+    btnDisabled: { opacity: 0.6 },
+    linkBtn: { marginTop: spacing.md, paddingVertical: spacing.sm },
+    linkBtnText: { color: colors.primary, fontWeight: '700', fontSize: 14 },
+    navList: { marginTop: spacing.md, gap: spacing.sm },
+    logoutBtn: {
+      marginTop: spacing.xl,
+      backgroundColor: colors.surface,
+      borderColor: colors.error,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: radii.lg,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+    },
+    logoutBtnDisabled: { opacity: 0.6 },
+    logoutText: { color: colors.error, fontWeight: '800', fontSize: 15 },
+    pressed: { opacity: 0.92 },
+    actionRowPressed: { opacity: 0.92 },
+    actionRowDisabled: { opacity: 0.55 },
+    linkRow: {
+      marginTop: spacing.md,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.md,
+      backgroundColor: colors.primaryMuted,
+      borderRadius: radii.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'rgba(37, 97, 233, 0.22)',
+    },
+    linkText: { color: colors.primary, fontWeight: '800', fontSize: 14 },
+    paywallLead: {
+      color: colors.textMuted,
+      fontSize: 13,
+      lineHeight: 19,
+      marginTop: spacing.sm,
+    },
+    pendingStrip: {
+      marginTop: spacing.md,
+      padding: spacing.md,
+      borderRadius: radii.md,
+      backgroundColor: colors.warningBg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.warningBorder,
+    },
+    pendingStripText: {
+      color: colors.honeyDark,
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: '600',
+    },
+    followUpStrip: {
+      marginTop: spacing.md,
+      padding: spacing.md,
+      borderRadius: radii.md,
+      backgroundColor: colors.surfaceMuted,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    followUpStripText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
+    refreshStatusBtn: {
+      marginTop: spacing.sm,
+      alignSelf: 'flex-start',
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: radii.sm,
+      backgroundColor: colors.primaryMuted,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'rgba(37, 97, 233, 0.22)',
+    },
+    refreshStatusBtnText: { color: colors.primary, fontWeight: '800', fontSize: 13 },
+    offeringsIssueStrip: {
+      marginTop: spacing.md,
+      padding: spacing.md,
+      borderRadius: radii.md,
+      backgroundColor: colors.honeyMuted,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.honey,
+    },
+    offeringsIssueTitle: {
+      color: colors.honeyDark,
+      fontWeight: '900',
+      fontSize: 13,
+      marginBottom: spacing.sm,
+    },
+    offeringsIssueBody: { color: colors.honey, fontSize: 12, lineHeight: 17 },
+    packageHint: {
+      color: colors.textMuted,
+      fontSize: 11,
+      lineHeight: 16,
+      marginTop: spacing.sm,
+      fontStyle: 'italic',
+    },
+  });
 }
