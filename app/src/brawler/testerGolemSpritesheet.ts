@@ -8,7 +8,7 @@ export const TESTER_GOLEM_DISPLAY_SCALE = GORGON_DISPLAY_SCALE * 1.5;
 
 export const TESTER_GOLEM_ARENA_HERO_ID = 'hero_tester_golem';
 
-/** Hand-drawn strip sprites in assets/brawlerHeroes/bruiser/. */
+/** Hand-drawn strip sprites in assets/brawlerHeroes/golem/. */
 export const TESTER_GOLEM_HERO_SPRITE_CONFIG: HeroSpriteConfig = {
   heroId: TESTER_GOLEM_ARENA_HERO_ID,
   framePx: TESTER_GOLEM_FRAME_PX,
@@ -21,20 +21,44 @@ export const TESTER_GOLEM_HERO_SPRITE_CONFIG: HeroSpriteConfig = {
   hitFineOffsetSheetPx: { right: 0, left: 0 },
   strips: {
     idleRight: {
-      source: require('../../assets/brawlerHeroes/bruiser/idle_right.png'),
-      frameCount: 3,
+      source: require('../../assets/brawlerHeroes/golem/idle_right.png'),
+      frameCount: 4,
     },
     idleLeft: {
-      source: require('../../assets/brawlerHeroes/bruiser/idle_left.png'),
-      frameCount: 3,
+      source: require('../../assets/brawlerHeroes/golem/idle_left.png'),
+      frameCount: 4,
     },
     walkRight: {
-      source: require('../../assets/brawlerHeroes/bruiser/walk_right.png'),
+      source: require('../../assets/brawlerHeroes/golem/walk_right.png'),
       frameCount: 8,
     },
     walkLeft: {
-      source: require('../../assets/brawlerHeroes/bruiser/walk_left.png'),
+      source: require('../../assets/brawlerHeroes/golem/walk_left.png'),
       frameCount: 8,
+    },
+    attackRight: {
+      source: require('../../assets/brawlerHeroes/golem/attack_right.png'),
+      frameCount: 12,
+    },
+    attackLeft: {
+      source: require('../../assets/brawlerHeroes/golem/attack_left.png'),
+      frameCount: 12,
+    },
+    jumpRight: {
+      source: require('../../assets/brawlerHeroes/golem/jump_right.png'),
+      frameCount: 5,
+    },
+    jumpLeft: {
+      source: require('../../assets/brawlerHeroes/golem/jump_left.png'),
+      frameCount: 5,
+    },
+    dashRight: {
+      source: require('../../assets/brawlerHeroes/golem/dash_right.png'),
+      frameCount: 4,
+    },
+    dashLeft: {
+      source: require('../../assets/brawlerHeroes/golem/dash_left.png'),
+      frameCount: 4,
     },
   },
 };
