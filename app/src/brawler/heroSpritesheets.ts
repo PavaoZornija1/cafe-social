@@ -1,9 +1,12 @@
 import type { HeroSpriteConfig } from './heroSpriteTypes';
 import { VESPERA_HERO_SPRITE_CONFIG } from './boltSpritesheet';
 import { GORGON_HERO_SPRITE_CONFIG } from './bruiserSpritesheet';
-import { MAGE_HERO_SPRITE_CONFIG } from './mageSpritesheet';
+import { IGNIS_ARENA_HERO_ID, MAGE_HERO_SPRITE_CONFIG } from './mageSpritesheet';
 import { TARIEL_HERO_SPRITE_CONFIG } from './riftSpritesheet';
-import { TESTER_GOLEM_HERO_SPRITE_CONFIG } from './testerGolemSpritesheet';
+import {
+  TESTER_GOLEM_ARENA_HERO_ID,
+  TESTER_GOLEM_HERO_SPRITE_CONFIG,
+} from './testerGolemSpritesheet';
 
 const ARENA_HERO_SPRITES: Record<string, HeroSpriteConfig> = {
   [GORGON_HERO_SPRITE_CONFIG.heroId]: GORGON_HERO_SPRITE_CONFIG,
@@ -12,6 +15,19 @@ const ARENA_HERO_SPRITES: Record<string, HeroSpriteConfig> = {
   [MAGE_HERO_SPRITE_CONFIG.heroId]: MAGE_HERO_SPRITE_CONFIG,
   [TESTER_GOLEM_HERO_SPRITE_CONFIG.heroId]: TESTER_GOLEM_HERO_SPRITE_CONFIG,
 };
+
+/** Temporary: heroes shown on the lobby picker while strip art is WIP. */
+export const LOBBY_SELECTABLE_HERO_IDS = [
+  IGNIS_ARENA_HERO_ID,
+  TESTER_GOLEM_ARENA_HERO_ID,
+] as const;
+
+export function isLobbySelectableHero(heroId: string | null | undefined): boolean {
+  return (
+    heroId != null &&
+    (LOBBY_SELECTABLE_HERO_IDS as readonly string[]).includes(heroId)
+  );
+}
 
 export const ARENA_SPRITE_HERO_IDS = Object.keys(
   ARENA_HERO_SPRITES,

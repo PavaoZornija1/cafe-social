@@ -15,7 +15,7 @@ import {
 import { apiGet, apiPost } from '../lib/api';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
-import { isArenaSpriteHero } from '../brawler/heroSpritesheets';
+import { isArenaSpriteHero, isLobbySelectableHero } from '../brawler/heroSpritesheets';
 import { BrawlerPowerupLegend } from '../brawler/components/BrawlerPowerupLegend';
 import type { BrawlerPowerupDef } from '../brawler/arena/types';
 import type { BrawlerArenaHeroStats, RootStackParamList } from '../navigation/type';
@@ -83,9 +83,10 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
           apiGet<BrawlerPowerupDef[]>('/brawler/powerups', token),
         ]);
         if (cancelled) return;
-        setHeroes(rows);
+        const selectable = rows.filter((h) => isLobbySelectableHero(h.id));
+        setHeroes(selectable);
         setPowerups(powerupRows);
-        setSelectedHeroId(rows[0]?.id ?? null);
+        setSelectedHeroId(selectable[0]?.id ?? null);
       } catch (e) {
         if (cancelled) return;
         Alert.alert(t('common.error'), (e as Error).message || t('brawlerLobby.loadHeroesFailed'));
@@ -310,7 +311,9 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
                     pressed && styles.heroCardPressed,
                   ]}
                 >
-                  <Text style={styles.heroName}>{hero.name}</Text>
+                  <Text style={[styles.heroName, selected && styles.heroNameSelected]}>
+                    {hero.name}
+                  </Text>
                   <Text style={styles.heroArchetype}>{hero.archetype ?? 'All-Rounder'}</Text>
                 </Pressable>
               );
@@ -573,6 +576,7 @@ function createStyles(colors: AppColors) {
   },
   heroCardPressed: { opacity: 0.88 },
   heroName: { color: colors.text, fontSize: 16, fontWeight: '800' },
+  heroNameSelected: { color: '#ffffff' },
   heroArchetype: { color: '#93c5fd', fontSize: 12, marginTop: 4 },
   statsCard: {
     marginTop: 6,
