@@ -65,6 +65,20 @@ export function getAttackFrameCount(
   return config?.anim?.attackRight?.frameCount ?? 1;
 }
 
+export function getJumpFrameCount(
+  config: HeroSpriteConfig | null | undefined,
+): number {
+  if (config?.strips?.jumpRight) return config.strips.jumpRight.frameCount;
+  return 1;
+}
+
+export function getDashFrameCount(
+  config: HeroSpriteConfig | null | undefined,
+): number {
+  if (config?.strips?.dashRight) return config.strips.dashRight.frameCount;
+  return 1;
+}
+
 export function getStripForAnim(
   config: HeroSpriteConfig,
   anim: HeroSpriteAnim,

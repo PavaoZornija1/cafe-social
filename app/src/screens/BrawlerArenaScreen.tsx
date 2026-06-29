@@ -292,6 +292,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const dashTimeLeft = useRef(0);
   const dashCooldownLeft = useRef(0);
   const hitFrameRef = useRef(0);
+  const jumpFrameRef = useRef(0);
+  const dashFrameRef = useRef(0);
   const dashHitAppliedRef = useRef(false);
 
   const [renderTick, setRenderTick] = useState(0);
@@ -768,6 +770,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     dashTimeLeft.current = 0;
     dashCooldownLeft.current = 0;
     hitFrameRef.current = 0;
+    jumpFrameRef.current = 0;
+    dashFrameRef.current = 0;
     spriteAnimRef.current = 'idle';
     walkFrameRef.current = 0;
     walkAccum.current = 0;
@@ -907,6 +911,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     dashTimeLeft,
     attackTimeLeft,
     hitFrameRef,
+    jumpFrameRef,
+    dashFrameRef,
     dashHitAppliedRef,
     spriteAnimRef,
     walkFrameRef,
@@ -1113,6 +1119,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           walkFrame={walkFrameRef.current}
           idleFrame={idleFrameRef.current}
           hitFrame={hitFrameRef.current}
+          jumpFrame={jumpFrameRef.current}
+          dashFrame={dashFrameRef.current}
           facing={facing.current}
           spriteScale={spriteScale}
           enemies={enemiesRef.current}

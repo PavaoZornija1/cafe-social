@@ -11,6 +11,8 @@ type Props = {
   walkFrame: number;
   hitFrame: number;
   idleFrame: number;
+  jumpFrame: number;
+  dashFrame: number;
   facing: 'left' | 'right';
   scale?: number;
 };
@@ -118,6 +120,8 @@ function resolveStripClip(
   walkFrame: number,
   hitFrame: number,
   idleFrame: number,
+  jumpFrame: number,
+  dashFrame: number,
 ): ClipRect {
   const { w: fw, h: fh } = config.framePx;
   const strip = getStripForAnim(config, anim, facing)!;
@@ -125,6 +129,8 @@ function resolveStripClip(
   if (anim === 'walk') frameIndex = walkFrame;
   else if (anim === 'hit') frameIndex = hitFrame;
   else if (anim === 'idle') frameIndex = idleFrame;
+  else if (anim === 'jump') frameIndex = jumpFrame;
+  else if (anim === 'dash') frameIndex = dashFrame;
   const col = frameIndex % strip.frameCount;
   const sheetW = strip.frameCount * fw;
   return {
@@ -144,6 +150,8 @@ export function HeroSpriteView({
   walkFrame,
   hitFrame,
   idleFrame,
+  jumpFrame,
+  dashFrame,
   facing,
   scale: scaleOverride,
 }: Props) {
@@ -158,10 +166,12 @@ export function HeroSpriteView({
         walkFrame,
         hitFrame,
         idleFrame,
+        jumpFrame,
+        dashFrame,
       );
     }
     return resolveSheetClip(config, anim, facing, walkFrame, hitFrame);
-  }, [anim, config, facing, hitFrame, idleFrame, walkFrame]);
+  }, [anim, config, dashFrame, facing, hitFrame, idleFrame, jumpFrame, walkFrame]);
 
   const displayW = clipW * scale;
   const displayH = clipH * scale;

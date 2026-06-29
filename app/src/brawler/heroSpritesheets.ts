@@ -1,7 +1,7 @@
 import type { HeroSpriteConfig } from './heroSpriteTypes';
 import { VESPERA_HERO_SPRITE_CONFIG } from './boltSpritesheet';
 import { GORGON_HERO_SPRITE_CONFIG } from './bruiserSpritesheet';
-import { IGNIS_HERO_SPRITE_CONFIG } from './fireMageSpritesheet';
+import { MAGE_HERO_SPRITE_CONFIG } from './mageSpritesheet';
 import { TARIEL_HERO_SPRITE_CONFIG } from './riftSpritesheet';
 import { TESTER_GOLEM_HERO_SPRITE_CONFIG } from './testerGolemSpritesheet';
 
@@ -9,7 +9,7 @@ const ARENA_HERO_SPRITES: Record<string, HeroSpriteConfig> = {
   [GORGON_HERO_SPRITE_CONFIG.heroId]: GORGON_HERO_SPRITE_CONFIG,
   [TARIEL_HERO_SPRITE_CONFIG.heroId]: TARIEL_HERO_SPRITE_CONFIG,
   [VESPERA_HERO_SPRITE_CONFIG.heroId]: VESPERA_HERO_SPRITE_CONFIG,
-  [IGNIS_HERO_SPRITE_CONFIG.heroId]: IGNIS_HERO_SPRITE_CONFIG,
+  [MAGE_HERO_SPRITE_CONFIG.heroId]: MAGE_HERO_SPRITE_CONFIG,
   [TESTER_GOLEM_HERO_SPRITE_CONFIG.heroId]: TESTER_GOLEM_HERO_SPRITE_CONFIG,
 };
 
