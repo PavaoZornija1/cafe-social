@@ -9,7 +9,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useAuth } from '@clerk/expo';
@@ -21,8 +20,13 @@ import { useWordMatchSocket } from '../lib/useWordMatchSocket';
 import { toApiWordLanguage } from '../lib/wordDeckLanguage';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { useVenueActivePlayBudgetSync } from '../lib/useVenueActivePlayBudgetSync';
+import { triggerFeedback } from '../lib/feedback';
 import { emitPlatformQuestProgressChanged } from '../lib/platformQuestEvents';
-import VenuePlayTimeBar from '../components/VenuePlayTimeBar';
+import WordGameClueCard from '../components/word/WordGameClueCard';
+import WordGameHeader from '../components/word/WordGameHeader';
+import WordGameHud from '../components/word/WordGameHud';
+import WordGameResultPanel from '../components/word/WordGameResultPanel';
+import WordGameVersusBoard from '../components/word/WordGameVersusBoard';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
@@ -79,39 +83,6 @@ function secondsPerWord(diff?: string): number {
   return 60;
 }
 
-type WordGameStyles = ReturnType<typeof createStyles>;
-
-function WordGameHeader({
-  colors,
-  styles,
-  title,
-  onBack,
-  backLabel,
-}: {
-  colors: AppColors;
-  styles: WordGameStyles;
-  title: string;
-  onBack: () => void;
-  backLabel: string;
-}) {
-  return (
-    <View style={styles.titleRow}>
-      <Pressable
-        onPress={onBack}
-        style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-        accessibilityRole="button"
-        accessibilityLabel={backLabel}
-      >
-        <Ionicons name="arrow-back" size={22} color={colors.text} />
-      </Pressable>
-      <Text style={styles.headerTitle} numberOfLines={1}>
-        {title}
-      </Text>
-      <View style={styles.iconBtnSpacer} />
-    </View>
-  );
-}
-
 export default function WordGameScreen({ navigation, route }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -153,6 +124,8 @@ export default function WordGameScreen({ navigation, route }: Props) {
   const mpBootDoneRef = useRef(false);
   const submittingRef = useRef(false);
   const timeUpFiredRef = useRef(false);
+  const timerUrgentFiredRef = useRef(false);
+  const matchEndFeedbackFiredRef = useRef(false);
   const matchSnapshotRevRef = useRef<number | undefined>(undefined);
 
   const matchMode = matchSessionId ? mode : 'solo';
@@ -530,6 +503,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
     if (submittingRef.current) return;
     if (timeUpFiredRef.current) return;
     timeUpFiredRef.current = true;
+    triggerFeedback('timerUp');
     try {
       if (matchMode === 'coop' && matchSessionId) {
         const token = await getTokenRef.current();
@@ -643,6 +617,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
         );
         if (res.finished) {
           emitPlatformQuestProgressChanged();
+          triggerFeedback('matchWin');
           await finishSession({ claimChallenge: false });
         }
         return;
@@ -657,6 +632,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
 
   useEffect(() => {
     timeUpFiredRef.current = false;
+    timerUrgentFiredRef.current = false;
   }, [timerWordKey]);
 
   useEffect(() => {
@@ -664,6 +640,21 @@ export default function WordGameScreen({ navigation, route }: Props) {
       emitPlatformQuestProgressChanged();
     }
   }, [matchState?.status]);
+
+  useEffect(() => {
+    if (matchState?.status !== 'FINISHED') {
+      matchEndFeedbackFiredRef.current = false;
+      return;
+    }
+    if (matchEndFeedbackFiredRef.current) return;
+    matchEndFeedbackFiredRef.current = true;
+    const result = matchState.participants.find((p) => p.isYou)?.result ?? null;
+    if (matchMode === 'coop' || result === 'WIN') {
+      triggerFeedback('matchWin');
+    } else {
+      triggerFeedback('matchLoss');
+    }
+  }, [matchState?.status, matchState?.participants, matchMode]);
 
   useEffect(() => {
     const mpFinished = matchState?.status === 'FINISHED';
@@ -674,6 +665,10 @@ export default function WordGameScreen({ navigation, route }: Props) {
       if (submittingRef.current) return;
       left -= 1;
       setTimeLeft(left);
+      if (left === 10 && !timerUrgentFiredRef.current) {
+        timerUrgentFiredRef.current = true;
+        triggerFeedback('timerUrgent');
+      }
       if (left <= 0) {
         clearInterval(id);
         void handleTimeUp();
@@ -720,8 +715,10 @@ export default function WordGameScreen({ navigation, route }: Props) {
         }
         if (!res.correct) {
           setWrongFeedback(t('wordGame.wrongGuess'));
+          triggerFeedback('wrong');
           return;
         }
+        triggerFeedback('correct');
         setWrongFeedback(null);
         setExtraHintRevealed(false);
         setGuess('');
@@ -773,8 +770,10 @@ export default function WordGameScreen({ navigation, route }: Props) {
         }
         if (!res.correct) {
           setWrongFeedback(t('wordGame.wrongGuess'));
+          triggerFeedback('wrong');
           return;
         }
+        triggerFeedback('correct');
         setWrongFeedback(null);
         setExtraHintRevealed(false);
         setGuess('');
@@ -834,8 +833,10 @@ export default function WordGameScreen({ navigation, route }: Props) {
       );
       if (!res.correct) {
         setWrongFeedback(t('wordGame.wrongGuess'));
+        triggerFeedback('wrong');
         return;
       }
+      triggerFeedback('correct');
       setWrongFeedback(null);
       setCorrectCount((c) => c + 1);
       setExtraHintRevealed(false);
@@ -845,6 +846,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
       setIdx(res.wordIndex);
       if (res.finished) {
         emitPlatformQuestProgressChanged();
+        triggerFeedback('matchWin');
         await finishSession({ claimChallenge: true });
         return;
       }
@@ -856,12 +858,28 @@ export default function WordGameScreen({ navigation, route }: Props) {
   const showFinished = matchState?.status === 'FINISHED';
   const myResult = matchState?.participants.find((p) => p.isYou)?.result ?? null;
 
+  const progressLineLabel =
+    matchMode === 'coop'
+      ? t('wordGame.coopProgress', { current: progressCurrent, total: progressTotal })
+      : t('wordGame.progressLine', {
+          current: progressCurrent,
+          total: progressTotal,
+          difficulty: difficultyShort,
+        });
+
+  const categoryLabel = currentWord
+    ? t('wordGame.category', {
+        category: t(`categories.${currentWord.category}`, {
+          defaultValue: currentWord.category,
+        }),
+      })
+    : null;
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
         <WordGameHeader
           colors={colors}
-          styles={styles}
           title={t('wordGame.title')}
           onBack={leaveGame}
           backLabel={t('common.back')}
@@ -879,7 +897,6 @@ export default function WordGameScreen({ navigation, route }: Props) {
       <SafeAreaView style={styles.safe}>
         <WordGameHeader
           colors={colors}
-          styles={styles}
           title={t('wordGame.title')}
           onBack={leaveGame}
           backLabel={t('common.back')}
@@ -939,137 +956,52 @@ export default function WordGameScreen({ navigation, route }: Props) {
       <SafeAreaView style={styles.safe}>
         <WordGameHeader
           colors={colors}
-          styles={styles}
           title={t('wordGame.matchOver')}
           onBack={leaveGame}
           backLabel={t('common.back')}
         />
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <View style={[styles.resultHero, won ? styles.resultHeroWin : styles.resultHeroLoss]}>
-            <View style={[styles.resultIconWrap, !won && styles.resultIconWrapLoss]}>
-              <Ionicons
-                name={won ? 'trophy' : 'flag-outline'}
-                size={28}
-                color={won ? colors.textInverse : colors.text}
-              />
-            </View>
-            <Text style={[styles.resultTitle, !won && styles.resultTitleLoss]}>
-              {t('wordGame.matchOver')}
-            </Text>
-            <Text style={[styles.resultSub, !won && styles.resultSubLoss]}>
-              {won ? t('wordGame.matchWon') : t('wordGame.matchLost')}
-            </Text>
-          </View>
-
-          {matchMode === 'versus' && matchState ? (
-            <View style={styles.scoresCard}>
-              {matchState.participants.map((p) => (
-                <View key={p.id} style={[styles.scoreRow, p.isYou && styles.scoreRowMe]}>
-                  <Text style={styles.scoreName} numberOfLines={1}>
-                    {p.username}
-                    {p.isYou ? ` · ${t('wordGame.you')}` : ''}
-                  </Text>
-                  <Text style={styles.scoreValue}>
-                    {p.score}
-                    {p.result === 'WIN' ? ' 🏆' : ''}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
-
-          {matchSessionId ? (
-            <Pressable
-              style={({ pressed }) => [
-                styles.secondaryBtn,
-                styles.secondaryBtnFull,
-                rematchBusy && styles.btnDisabled,
-                pressed && styles.pressed,
-              ]}
-              disabled={rematchBusy}
-              onPress={() => void onRematch()}
-            >
-              <Text style={styles.secondaryBtnText}>
-                {rematchBusy ? t('wordGame.rematchBusy') : t('wordGame.rematch')}
-              </Text>
-            </Pressable>
-          ) : null}
-          <Pressable
-            style={({ pressed }) => [styles.primaryBtn, styles.primaryBtnFull, pressed && styles.pressed]}
-            onPress={() =>
-              void finishSession({
-                claimChallenge: !!challengeId && won,
-              })
-            }
-          >
-            <Text style={styles.primaryBtnText}>{t('wordGame.back')}</Text>
-          </Pressable>
-        </ScrollView>
+        <WordGameResultPanel
+          colors={colors}
+          won={won}
+          matchMode={matchMode}
+          participants={matchState?.participants ?? []}
+          showRematch={Boolean(matchSessionId)}
+          rematchBusy={rematchBusy}
+          onRematch={onRematch}
+          onDone={() =>
+            void finishSession({
+              claimChallenge: !!challengeId && won,
+            })
+          }
+        />
       </SafeAreaView>
     );
   }
-
-  const progressPct =
-    progressTotal > 0 ? Math.min(1, Math.max(0, progressCurrent / progressTotal)) : 0;
 
   return (
     <SafeAreaView style={styles.safe}>
       <WordGameHeader
         colors={colors}
-        styles={styles}
         title={t('wordGame.title')}
         onBack={leaveGame}
         backLabel={t('common.back')}
       />
-      {venueId ? (
-        <VenuePlayTimeBar
-          venueId={venueId}
-          getToken={() => getTokenRef.current()}
-          subscriptionActive={subscriptionActive}
-        />
-      ) : null}
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.progressBlock}>
-          <View style={styles.progressMeta}>
-            <Text style={styles.progressLabel}>
-              {matchMode === 'coop'
-                ? t('wordGame.coopProgress', { current: progressCurrent, total: progressTotal })
-                : t('wordGame.progressLine', {
-                    current: progressCurrent,
-                    total: progressTotal,
-                    difficulty: difficultyShort,
-                  })}
-            </Text>
-            <Text style={styles.scoreInline}>{t('wordGame.correct', { count: correctCount })}</Text>
-          </View>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${Math.round(progressPct * 100)}%` }]} />
-          </View>
-        </View>
-
-        {matchMode === 'versus' && (matchState?.ranked ?? rankedRoute) ? (
-          <View style={styles.metaChip}>
-            <Ionicons name="ribbon-outline" size={14} color={colors.honeyDark} />
-            <Text style={styles.metaChipText}>{t('wordMatch.rankedBadge')}</Text>
-          </View>
-        ) : null}
-
-        {currentWord ? (
-          <View style={[styles.metaChip, timeLeft <= 15 && styles.metaChipUrgent]}>
-            <Ionicons
-              name="timer-outline"
-              size={14}
-              color={timeLeft <= 15 ? colors.error : colors.textSecondary}
-            />
-            <Text style={[styles.metaChipText, timeLeft <= 15 && styles.metaChipTextUrgent]}>
-              {t('wordGame.timeLeft', { s: Math.max(0, timeLeft) })}
-            </Text>
-          </View>
-        ) : null}
+        <WordGameHud
+          colors={colors}
+          progressCurrent={progressCurrent}
+          progressTotal={progressTotal}
+          progressLabel={progressLineLabel}
+          correctCount={correctCount}
+          timeLeft={currentWord ? timeLeft : null}
+          matchMode={matchMode}
+          difficultyLabel={difficultyShort}
+          ranked={matchMode === 'versus' ? Boolean(matchState?.ranked ?? rankedRoute) : false}
+        />
 
         {matchSessionId && matchState?.deckLanguage ? (
           <Text style={styles.deckLang}>
@@ -1090,109 +1022,33 @@ export default function WordGameScreen({ navigation, route }: Props) {
         ) : null}
 
         {matchMode === 'versus' && matchState ? (
-          <View style={styles.versusCard}>
-            {matchState.participants.map((p) => (
-              <View key={p.id} style={[styles.versusRow, p.isYou && styles.versusRowMe]}>
-                <Text style={styles.versusName} numberOfLines={1}>
-                  {p.username}
-                  {p.isYou ? ` · ${t('wordGame.you')}` : ''}
-                </Text>
-                <Text style={styles.versusScore}>{p.score}</Text>
-              </View>
-            ))}
-          </View>
+          <WordGameVersusBoard colors={colors} participants={matchState.participants} />
         ) : null}
 
         {matchMode === 'coop' ? (
-          <Text style={styles.coopHint}>{t('wordGame.coopHint')}</Text>
+          <View style={styles.coopBanner}>
+            <Ionicons name="people-outline" size={16} color={colors.primary} />
+            <Text style={styles.coopHint}>{t('wordGame.coopHint')}</Text>
+          </View>
         ) : null}
 
-        <View style={styles.wordCard}>
-          <View style={styles.wordCardHeader}>
-            <View style={styles.wordCardIcon}>
-              <Ionicons name="bulb-outline" size={22} color={colors.textInverse} />
-            </View>
-            <View style={styles.wordCardHeaderText}>
-              <Text style={styles.wordTitle}>{t('wordGame.guessTitle')}</Text>
-              {currentWord ? (
-                <Text style={styles.categoryText}>
-                  {t('wordGame.category', {
-                    category: t(`categories.${currentWord.category}`, {
-                      defaultValue: currentWord.category,
-                    }),
-                  })}
-                </Text>
-              ) : null}
-            </View>
-          </View>
-
-          <Text style={styles.clueLabel}>{t('wordGame.clueLabel')}</Text>
-          <Text style={styles.clueBody}>{primaryClue}</Text>
-          {showExtraHintButton && extraHintRevealed ? (
-            <Text style={styles.hint}>{extraHintText}</Text>
-          ) : null}
-
-          <TextInput
-            style={styles.input}
-            placeholder={t('wordGame.guessPlaceholder')}
-            placeholderTextColor={colors.textMuted}
-            value={guess}
-            onChangeText={(text) => {
-              setWrongFeedback(null);
-              setGuess(text);
-            }}
-            autoCorrect={false}
-            autoCapitalize="none"
-            editable={!submitting}
-          />
-          {wrongFeedback ? <Text style={styles.wrongHint}>{wrongFeedback}</Text> : null}
-
-          {showExtraHintButton ? (
-            <View style={styles.actionRow}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.secondaryBtn,
-                  extraHintRevealed && styles.btnDisabled,
-                  pressed && styles.pressed,
-                ]}
-                onPress={() => setExtraHintRevealed(true)}
-                disabled={extraHintRevealed}
-              >
-                <Text style={styles.secondaryBtnText}>
-                  {extraHintRevealed ? t('wordGame.extraHintShown') : t('wordGame.showExtraHint')}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.primaryBtn,
-                  submitting && styles.btnDisabled,
-                  pressed && styles.pressed,
-                ]}
-                onPress={() => void handleSubmitGuess()}
-                disabled={submitting}
-              >
-                <Text style={styles.primaryBtnText}>
-                  {submitting ? t('wordGame.checking') : t('wordGame.submit')}
-                </Text>
-              </Pressable>
-            </View>
-          ) : (
-            <Pressable
-              style={({ pressed }) => [
-                styles.primaryBtn,
-                styles.primaryBtnFull,
-                submitting && styles.btnDisabled,
-                pressed && styles.pressed,
-              ]}
-              onPress={() => void handleSubmitGuess()}
-              disabled={submitting}
-            >
-              <Text style={styles.primaryBtnText}>
-                {submitting ? t('wordGame.checking') : t('wordGame.submit')}
-              </Text>
-            </Pressable>
-          )}
-        </View>
+        <WordGameClueCard
+          colors={colors}
+          categoryLabel={categoryLabel}
+          primaryClue={primaryClue}
+          extraHintText={extraHintText || null}
+          extraHintRevealed={extraHintRevealed}
+          showExtraHintButton={showExtraHintButton}
+          guess={guess}
+          wrongFeedback={wrongFeedback}
+          submitting={submitting}
+          onGuessChange={(text) => {
+            setWrongFeedback(null);
+            setGuess(text);
+          }}
+          onRevealHint={() => setExtraHintRevealed(true)}
+          onSubmit={() => void handleSubmitGuess()}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -1207,35 +1063,8 @@ function createStyles(colors: AppColors) {
       paddingTop: spacing.sm,
       paddingBottom: spacing.xxl,
       flexGrow: 1,
+      gap: spacing.md,
     },
-    titleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      paddingHorizontal: spacing.xl,
-      paddingTop: spacing.md,
-      paddingBottom: spacing.sm,
-    },
-    iconBtn: {
-      width: 44,
-      height: 44,
-      borderRadius: radii.pill,
-      backgroundColor: colors.surface,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.border,
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
-    },
-    iconBtnSpacer: { width: 44, height: 44, flexShrink: 0 },
-    headerTitle: {
-      flex: 1,
-      color: colors.text,
-      fontSize: 22,
-      fontWeight: '900',
-      letterSpacing: -0.3,
-    },
-    pressed: { opacity: 0.88 },
     centerBlock: {
       flex: 1,
       alignItems: 'center',
@@ -1261,67 +1090,25 @@ function createStyles(colors: AppColors) {
       fontSize: 15,
       lineHeight: 22,
     },
-    progressBlock: { marginBottom: spacing.md, gap: spacing.sm },
-    progressMeta: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: spacing.sm,
-    },
-    progressLabel: {
-      flex: 1,
-      color: colors.textSecondary,
-      fontSize: 13,
-      fontWeight: '700',
-    },
-    scoreInline: { color: colors.xp, fontSize: 13, fontWeight: '800' },
-    progressTrack: {
-      height: 8,
+    primaryBtn: {
       borderRadius: radii.pill,
-      backgroundColor: colors.surface,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.border,
-      overflow: 'hidden',
-    },
-    progressFill: {
-      height: '100%',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xl,
       backgroundColor: colors.primary,
-      borderRadius: radii.pill,
-    },
-    metaChip: {
-      flexDirection: 'row',
       alignItems: 'center',
-      alignSelf: 'flex-start',
-      gap: spacing.xs,
-      paddingVertical: spacing.xs,
-      paddingHorizontal: spacing.sm,
-      borderRadius: radii.pill,
-      backgroundColor: colors.surface,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.border,
-      marginBottom: spacing.sm,
     },
-    metaChipUrgent: {
-      borderColor: colors.error,
-      backgroundColor: colors.errorMuted,
-    },
-    metaChipText: {
-      color: colors.textSecondary,
-      fontSize: 12,
-      fontWeight: '800',
-    },
-    metaChipTextUrgent: { color: colors.error },
+    primaryBtnText: { color: colors.textInverse, fontWeight: '900', fontSize: 15 },
+    pressed: { opacity: 0.88 },
     deckLang: {
       color: colors.textMuted,
-      marginBottom: spacing.sm,
       fontSize: 11,
       fontWeight: '700',
+      marginTop: -spacing.xs,
     },
     socketBanner: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.sm,
-      marginBottom: spacing.sm,
       paddingVertical: spacing.sm,
       paddingHorizontal: spacing.md,
       borderRadius: radii.lg,
@@ -1335,189 +1122,23 @@ function createStyles(colors: AppColors) {
       fontSize: 12,
       fontWeight: '800',
     },
-    coopHint: {
-      color: colors.honeyDark,
-      fontSize: 12,
-      marginBottom: spacing.sm,
-      fontWeight: '700',
-      lineHeight: 18,
-    },
-    versusCard: {
-      marginBottom: spacing.md,
-      padding: spacing.md,
-      borderRadius: radii.lg,
-      backgroundColor: colors.surface,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.border,
-      gap: spacing.xs,
-    },
-    versusRow: {
+    coopBanner: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
       gap: spacing.sm,
-      paddingVertical: spacing.xs,
-    },
-    versusRowMe: {
-      backgroundColor: colors.primaryMuted,
-      marginHorizontal: -spacing.xs,
-      paddingHorizontal: spacing.xs,
-      borderRadius: radii.md,
-    },
-    versusName: {
-      flex: 1,
-      color: colors.textSecondary,
-      fontSize: 13,
-      fontWeight: '700',
-    },
-    versusScore: { color: colors.xp, fontSize: 13, fontWeight: '900' },
-    wordCard: {
-      backgroundColor: colors.surface,
-      borderRadius: radii.xl,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.primary,
-      padding: spacing.lg,
-      gap: spacing.sm,
-    },
-    wordCardHeader: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: spacing.md,
-      marginBottom: spacing.xs,
-    },
-    wordCardIcon: {
-      width: 44,
-      height: 44,
-      borderRadius: radii.md,
-      backgroundColor: colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
-    },
-    wordCardHeaderText: { flex: 1, gap: 2 },
-    wordTitle: { color: colors.text, fontWeight: '900', fontSize: 18 },
-    categoryText: { color: colors.honeyDark, fontWeight: '800', fontSize: 12 },
-    clueLabel: {
-      color: colors.textMuted,
-      fontWeight: '800',
-      fontSize: 11,
-      textTransform: 'uppercase',
-      letterSpacing: 0.6,
-    },
-    clueBody: {
-      color: colors.textSecondary,
-      fontSize: 16,
-      lineHeight: 24,
-      fontWeight: '600',
-    },
-    hint: {
-      color: colors.honey,
-      fontSize: 13,
-      lineHeight: 18,
-      fontWeight: '700',
-    },
-    wrongHint: {
-      color: colors.warning,
-      fontSize: 13,
-      fontWeight: '700',
-    },
-    input: {
-      marginTop: spacing.sm,
-      borderRadius: radii.lg,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.border,
-      backgroundColor: colors.bgElevated,
+      paddingVertical: spacing.sm,
       paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
-      color: colors.text,
-      fontSize: 16,
-      fontWeight: '600',
-    },
-    actionRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-    primaryBtn: {
-      flex: 1,
       borderRadius: radii.lg,
-      paddingVertical: spacing.md,
-      backgroundColor: colors.primary,
-      alignItems: 'center',
-    },
-    primaryBtnFull: { flex: undefined, width: '100%', marginTop: spacing.md },
-    primaryBtnText: { color: colors.textInverse, fontWeight: '900', fontSize: 15 },
-    secondaryBtn: {
-      flex: 1,
-      borderRadius: radii.lg,
-      paddingVertical: spacing.md,
-      backgroundColor: colors.surface,
+      backgroundColor: colors.primaryMuted,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
-      alignItems: 'center',
     },
-    secondaryBtnFull: { flex: undefined, width: '100%', marginBottom: spacing.sm },
-    secondaryBtnText: { color: colors.textSecondary, fontWeight: '900', fontSize: 14 },
-    btnDisabled: { opacity: 0.55 },
-    resultHero: {
-      borderRadius: radii.xl,
-      padding: spacing.xl,
-      marginBottom: spacing.lg,
-      gap: spacing.sm,
-      alignItems: 'flex-start',
-    },
-    resultHeroWin: { backgroundColor: colors.hero },
-    resultHeroLoss: { backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
-    resultIconWrap: {
-      width: 48,
-      height: 48,
-      borderRadius: radii.md,
-      backgroundColor: 'rgba(255, 255, 255, 0.18)',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: spacing.xs,
-    },
-    resultIconWrapLoss: {
-      backgroundColor: colors.primaryMuted,
-    },
-    resultTitle: {
-      color: colors.textInverse,
-      fontSize: 22,
-      fontWeight: '900',
-    },
-    resultTitleLoss: { color: colors.text },
-    resultSub: {
-      color: colors.textInverse,
-      opacity: 0.92,
-      fontSize: 14,
-      fontWeight: '600',
-      lineHeight: 20,
-    },
-    resultSubLoss: { color: colors.textSecondary, opacity: 1 },
-    scoresCard: {
-      backgroundColor: colors.surface,
-      borderRadius: radii.lg,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.border,
-      padding: spacing.md,
-      marginBottom: spacing.lg,
-      gap: spacing.xs,
-    },
-    scoreRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: spacing.sm,
-      paddingVertical: spacing.xs,
-    },
-    scoreRowMe: {
-      backgroundColor: colors.primaryMuted,
-      marginHorizontal: -spacing.xs,
-      paddingHorizontal: spacing.xs,
-      borderRadius: radii.md,
-    },
-    scoreName: {
+    coopHint: {
       flex: 1,
-      color: colors.textSecondary,
-      fontSize: 14,
+      color: colors.primaryDark,
+      fontSize: 12,
       fontWeight: '700',
+      lineHeight: 18,
     },
-    scoreValue: { color: colors.xp, fontSize: 14, fontWeight: '900' },
   });
 }

@@ -17,6 +17,7 @@
   },
   "venuePlayBar": {
     "timeRemaining": "~{{minutes}} min de tiempo de juego hoy (UTC) en este local",
+    "compactRemaining": "~{{minutes}} min de juego en el café hoy",
     "outsideGeofence": "Entra en la geovalla del local para usar tu tiempo de juego.",
     "extend": "Ampliar"
   },
@@ -145,6 +146,15 @@
     "pushPartnerMarketing": "Ofertas y ventajas",
     "emailSocialActivity": "Correos de amigos y fiestas",
     "pushPartnerFootnote": "Los avisos de pedido siguen respetando “Privacidad total” en el servidor.",
+    "feedbackTitle": "Sensación de juego",
+    "feedbackHint": "Sonidos breves y vibración ligera en aciertos, partidas y sala de espera. No cambia los sonidos de notificaciones — usa Ajustes del dispositivo.",
+    "soundEffects": "Efectos de sonido",
+    "soundEffectsHint": "Aciertos y fallos, temporizador, resultado y eventos de lobby.",
+    "haptics": "Hápticos",
+    "hapticsHint": "Vibración ligera en los mismos momentos si tu dispositivo lo permite.",
+    "backgroundMusic": "Música de fondo",
+    "backgroundMusicHint": "Loops suaves en inicio y más animados en juegos. Suena junto a los efectos.",
+    "testFeedback": "Probar sonido y hápticos",
     "account": "Cuenta",
     "accountHint": "Gestiona correo y seguridad en tu perfil de Clerk (enlace más adelante).",
     "privacy": "Privacidad y visibilidad",
@@ -599,7 +609,9 @@
     "notSignedIn": "No has iniciado sesión",
     "globalRequiresSub": "La palabra global requiere suscripción activa.",
     "wordRoomsHint": "Para varias rondas con pistas (solo o salas), usa «Salas de palabras» en Inicio — esta pantalla es solo el puzzle diario.",
-    "hardModeBlurb": "La palabra del día es más dura: pistas extra solo tras más intentos.",
+    "hardModeBlurb": "La pista principal aparece al instante. Palabras clave y emojis extra se desbloquean tras más fallos.",
+    "clueLabel": "Pista de hoy",
+    "clueLoading": "Cargando la pista…",
     "hintSentence": "Pista: ",
     "hintWords": "Palabras clave: ",
     "hintEmoji": "Pistas emoji: "
@@ -626,6 +638,8 @@
   },
   "wordLobby": {
     "title": "Juego de palabras",
+    "heroKicker": "Salas de palabras",
+    "venueLineShort": "Configura una partida en este café socio.",
     "venueLine": "Local: {{venueId}}",
     "globalLine": "Modo global — sin local (suscripción).",
     "appLanguageDeck": "Idioma de palabras (solo y si eres anfitrión): {{lang}}",
@@ -663,6 +677,9 @@
   },
   "wordMatch": {
     "joinTitle": "Unirse a partida",
+    "joinHeroKicker": "Únete a amigos",
+    "joinCardTitle": "Introduce el código",
+    "joinInputHint": "Los códigos suelen tener 6 letras — pregunta a quien creó la sala.",
     "joinSubtitle": "Introduce el código de 6 letras.",
     "codePlaceholder": "ABCDEF",
     "codeTooShort": "Introduce el código completo.",
@@ -671,6 +688,9 @@
     "creating": "Creando sala…",
     "createFailed": "No se pudo crear la partida.",
     "waitTitle": "Sala de palabras",
+    "waitHeroKicker": "Sala de espera",
+    "waitPlayersTitle": "En la sala · {{count}}",
+    "waitShareCodeHint": "Comparte el código para que tus amigos entren desde el lobby de palabras.",
     "waitCoop": "Cooperativo: mismas palabras juntos.",
     "waitVersus": "Versus: carrera por terminar primero.",
     "roomCode": "Código",
@@ -692,6 +712,7 @@
     "deckWords": "{{n}} palabras",
     "rankedBadge": "Clasificatorio",
     "queueTitle": "Emparejamiento",
+    "queueHeroKicker": "Buscando jugador",
     "queueSubtitle": "Te emparejaremos con cualquier persona que juegue en el mismo modo, longitud del mazo, dificultad e idioma.",
     "queueJoining": "Entrando en cola…",
     "queueSearching": "Buscando a otro jugador…",
@@ -742,7 +763,10 @@
     "timeExpiredVersus": "Se acabó el tiempo — saliste de la partida.",
     "timerPassError": "No se pudo aplicar el tiempo. Reintenta o sal.",
     "playTimeExhaustedTitle": "Tiempo de juego agotado",
-    "playTimeExhaustedBody": "Has usado tu tiempo activo gratuito en este local para hoy (UTC). Puedes comprar más tiempo en la app o volver mañana."
+    "playTimeExhaustedBody": "Has usado tu tiempo activo gratuito en este local para hoy (UTC). Puedes comprar más tiempo en la app o volver mañana.",
+    "hudProgressKicker": "Progreso de la ronda",
+    "versusBoardTitle": "Marcador en vivo",
+    "finalScores": "Puntuación final"
   },
   "qr": {
     "title": "Check-in en el local",

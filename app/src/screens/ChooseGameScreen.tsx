@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useMemo } from 'react';
+import { useAuth } from '@clerk/expo';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   SafeAreaView,
@@ -11,9 +12,12 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import ExplicitCheckInBanner from '../components/home/ExplicitCheckInBanner';
+import VenuePlayTimeBar from '../components/VenuePlayTimeBar';
 import type { AppNavigationProps } from '../navigation/screenProps';
 import { usePlayVenueAccess } from '../hooks/usePlayVenueAccess';
 import { needsExplicitCheckInBanner } from '../lib/explicitCheckIn';
+import { apiGet } from '../lib/api';
+import type { MeSummaryDto } from '../lib/meSummary';
 import { useIsTabRoot } from '../navigation/useIsTabRoot';
 import type { AppColors } from '../theme/colors';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -32,6 +36,30 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
   const hasVenueContext = Boolean(venueId);
   const { access, resolvedVenueId } = usePlayVenueAccess(venueId);
   const showCheckIn = needsExplicitCheckInBanner(access);
+  const playVenueId = resolvedVenueId ?? venueId ?? null;
+
+  const { isLoaded, getToken } = useAuth();
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
+  const [subscriptionActive, setSubscriptionActive] = useState(false);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = await getTokenRef.current();
+        if (!token) return;
+        const summary = await apiGet<MeSummaryDto>('/players/me/summary', token);
+        if (!cancelled) setSubscriptionActive(Boolean(summary.subscriptionActive));
+      } catch {
+        /* non-blocking */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded]);
 
   const openQrCheckIn = () => {
     const id = resolvedVenueId ?? venueId;
@@ -76,6 +104,15 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
             {hasVenueContext ? t('chooseGame.heroVenue') : t('chooseGame.heroGlobal')}
           </Text>
         </View>
+
+        {playVenueId && !showCheckIn ? (
+          <VenuePlayTimeBar
+            venueId={playVenueId}
+            getToken={() => getTokenRef.current()}
+            subscriptionActive={subscriptionActive}
+            variant="compact"
+          />
+        ) : null}
 
         <Pressable
           onPress={() => navigation.navigate('WordLobby', { venueId, challengeId })}

@@ -11,6 +11,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import './src/lib/venueGeofenceTask';
 import AppNavigation from './src/navigation/AppNavigation';
 import type { RootStackParamList } from './src/navigation/type';
+import { initGameFeedback, preloadFeedbackSounds } from './src/lib/feedback';
 import { initI18n } from './src/i18n';
 import { ThemeProvider, useAppTheme } from './src/theme/ThemeContext';
 
@@ -54,9 +55,11 @@ function AppBoot({ linking }: { linking: LinkingOptions<RootStackParamList> }) {
 
   useEffect(() => {
     let cancelled = false;
-    void initI18n().finally(() => {
-      if (!cancelled) setI18nReady(true);
-    });
+    void Promise.all([initI18n(), initGameFeedback().then(() => preloadFeedbackSounds())]).finally(
+      () => {
+        if (!cancelled) setI18nReady(true);
+      },
+    );
     return () => {
       cancelled = true;
     };

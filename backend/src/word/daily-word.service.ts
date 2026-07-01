@@ -107,8 +107,8 @@ export class DailyWordService {
     }
     return {
       answerLength,
-      ...(attemptsSoFar >= 2 ? { sentenceHint: word.sentenceHint } : {}),
-      ...(attemptsSoFar >= 4 ? { wordHints: word.wordHints } : {}),
+      sentenceHint: word.sentenceHint,
+      ...(attemptsSoFar >= 3 ? { wordHints: word.wordHints } : {}),
       ...(attemptsSoFar >= 5 ? { emojiHints: word.emojiHints } : {}),
     };
   }

@@ -8,6 +8,7 @@ import {
   getWalkFrameCount,
 } from '../heroSpriteUtils';
 import { apiPost } from '../../lib/api';
+import { triggerFeedback } from '../../lib/feedback';
 import {
   HERO_FEET_EMBED_FLOATING_PLATFORM_PX,
   HERO_FEET_EMBED_GROUND_PLATFORM_PX,
@@ -885,6 +886,11 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
           });
 
           dashHitAppliedRef.current = true;
+          if (hitEnemy.hp <= 0 && enemyHpBefore > 0) {
+            triggerFeedback('brawlerKo');
+          } else {
+            triggerFeedback('brawlerHit');
+          }
           bump();
         } else {
           const hitDummy = dummiesRef.current.find(
@@ -912,6 +918,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
             });
 
             dashHitAppliedRef.current = true;
+            triggerFeedback('brawlerHit');
             bump();
           }
         }
@@ -968,6 +975,11 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
             }
 
             hitAppliedThisSwing.current = true;
+            if (hitEnemy.hp <= 0 && enemyHpBefore > 0) {
+              triggerFeedback('brawlerKo');
+            } else {
+              triggerFeedback('brawlerHit');
+            }
             bump();
           } else {
             const hitAny = dummiesRef.current.find(
@@ -993,6 +1005,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
 
               hitAppliedThisSwing.current = true;
               hitAny.flashLeft = 0.12;
+              triggerFeedback('brawlerHit');
               const dir = facing.current === 'right' ? 1 : -1;
               hitAny.knockVx = dir * 420;
               bump(); // force re-render to show HP drop
@@ -1122,6 +1135,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
           if (heroHpBefore > 0) {
             playerDeathsRef.current += 1;
           }
+          triggerFeedback('brawlerKo');
           setHeroDeadOpen(true);
           bump();
         }
@@ -1166,6 +1180,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
               if (heroHpBefore > 0) {
                 playerDeathsRef.current += 1;
               }
+              triggerFeedback('brawlerKo');
               setHeroDeadOpen(true);
             }
             bump();

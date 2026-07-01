@@ -75,6 +75,7 @@ import {
 import type { RootStackParamList } from '../navigation/type';
 import { applyArenaSocketEvent } from '../brawler/arena/arenaRealtime';
 import { apiGet, apiPost } from '../lib/api';
+import { triggerFeedback } from '../lib/feedback';
 import { emitPlatformQuestProgressChanged } from '../lib/platformQuestEvents';
 import { useBrawlerSocket } from '../lib/useBrawlerSocket';
 import type { MeSummaryDto } from '../lib/meSummary';
@@ -542,6 +543,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         });
         setResultsOverlay({ title: 'Match results', scoreboard });
         emitPlatformQuestProgressChanged();
+        const humanParticipant = participantsRef.current.find((p) => !p.isBot);
+        if (humanParticipant) {
+          triggerFeedback(winnerId === humanParticipant.id ? 'matchWin' : 'matchLoss');
+        }
       } catch (e) {
         finalizeStartedRef.current = false;
         Alert.alert('Finalize failed', (e as Error).message || 'Unknown error');

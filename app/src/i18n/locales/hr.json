@@ -17,6 +17,7 @@
   },
   "venuePlayBar": {
     "timeRemaining": "~{{minutes}} min igre danas (UTC) u ovom lokalu",
+    "compactRemaining": "~{{minutes}} min igranja u kafiću danas",
     "outsideGeofence": "Uđi u geofence partner lokala da koristiš svoje vrijeme igranja.",
     "extend": "Produži"
   },
@@ -145,6 +146,15 @@
     "pushPartnerMarketing": "Ponude i pogodnosti",
     "emailSocialActivity": "E-mail za prijatelje i party",
     "pushPartnerFootnote": "Podsjetnici za narudžbu i dalje poštuju „Potpunu privatnost” na serveru.",
+    "feedbackTitle": "Doživljaj igre",
+    "feedbackHint": "Kratki zvukovi i lagana vibracija za pogađanja, mečeve i čekanje u sobi. Ne mijenja zvukove obavijesti — to je u postavkama uređaja.",
+    "soundEffects": "Zvučni efekti",
+    "soundEffectsHint": "Točno/krivo, timer, rezultat meča i događaji u čekaonici.",
+    "haptics": "Haptika",
+    "hapticsHint": "Lagana vibracija u istim trenucima kad uređaj to podržava.",
+    "backgroundMusic": "Pozadinska glazba",
+    "backgroundMusicHint": "Blaga glazba na početku i življa tijekom igara. Svira uz zvučne efekte.",
+    "testFeedback": "Testiraj zvuk i haptiku",
     "account": "Račun",
     "accountHint": "E-poštu i sigurnost upravljaj u Clerk profilu (kasnije dublja poveznica).",
     "privacy": "Privatnost i vidljivost",
@@ -599,7 +609,9 @@
     "notSignedIn": "Nisi prijavljen",
     "globalRequiresSub": "Globalna dnevna riječ treba aktivnu pretplatu.",
     "wordRoomsHint": "Za više rundi s nagovještajima (solo ili sobe) koristi „Sobe za riječi“ na Početku — ovaj ekran je samo dnevna zagonetka.",
-    "hardModeBlurb": "Dnevna riječ strožija je: dodatni nagovještaji tek nakon više pokušaja.",
+    "hardModeBlurb": "Glavni nagovještaj odmah je vidljiv. Dodatne ključne riječi i emoji otključavaju se nakon više krivih pokušaja.",
+    "clueLabel": "Današnji nagovještaj",
+    "clueLoading": "Učitavanje nagovještaja…",
     "hintSentence": "Nagovještaj: ",
     "hintWords": "Ključne riječi: ",
     "hintEmoji": "Emoji nagovještaji: "
@@ -626,6 +638,8 @@
   },
   "wordLobby": {
     "title": "Igra riječima",
+    "heroKicker": "Sobe za riječi",
+    "venueLineShort": "Postavi igru u ovom partnerskom lokalu.",
     "venueLine": "Lokal: {{venueId}}",
     "globalLine": "Globalna igra — bez lokala (pretplata).",
     "appLanguageDeck": "Jezik riječi (solo i kad ti hostaš): {{lang}}",
@@ -663,6 +677,9 @@
   },
   "wordMatch": {
     "joinTitle": "Pridruži se meču",
+    "joinHeroKicker": "Pridruži se prijateljima",
+    "joinCardTitle": "Unesi kod sobe",
+    "joinInputHint": "Kodovi su obično od 6 slova — pitaj tko je otvorio sobu.",
     "joinSubtitle": "Upiši 6-znamenkasti kod sobe.",
     "codePlaceholder": "ABCDEF",
     "codeTooShort": "Upiši cijeli kod.",
@@ -671,6 +688,9 @@
     "creating": "Stvaram sobu…",
     "createFailed": "Nije moguće stvoriti meč.",
     "waitTitle": "Soba za riječi",
+    "waitHeroKicker": "Čekaonica",
+    "waitPlayersTitle": "U sobi · {{count}}",
+    "waitShareCodeHint": "Podijeli kod da se prijatelji mogu pridružiti iz Word Lobbyja.",
     "waitCoop": "Co-op: zajedno riješavate iste riječi.",
     "waitVersus": "Versus: tko prvi završi sve riječi.",
     "roomCode": "Kod sobe",
@@ -692,6 +712,7 @@
     "deckWords": "{{n}} riječi",
     "rankedBadge": "Rangirano",
     "queueTitle": "Matchmaking",
+    "queueHeroKicker": "Tražimo igrača",
     "queueSubtitle": "Uparit ćemo te s bilo kim tko igra u istom načinu, duljini špila, težini i jeziku.",
     "queueJoining": "Ulazak u red…",
     "queueSearching": "Tražimo drugog igrača…",
@@ -742,7 +763,10 @@
     "timeExpiredVersus": "Vrijeme je isteklo — napustio/la si meč.",
     "timerPassError": "Nije uspjelo primijeniti istek. Pokušaj ponovno ili izađi.",
     "playTimeExhaustedTitle": "Vrijeme igranja potrošeno",
-    "playTimeExhaustedBody": "Iskoristio si besplatno aktivno vrijeme u ovom lokalu za danas (UTC). Možeš kupiti više u aplikaciji ili se vratiti sutra."
+    "playTimeExhaustedBody": "Iskoristio si besplatno aktivno vrijeme u ovom lokalu za danas (UTC). Možeš kupiti više u aplikaciji ili se vratiti sutra.",
+    "hudProgressKicker": "Napredak runde",
+    "versusBoardTitle": "Rezultati uživo",
+    "finalScores": "Konačni rezultati"
   },
   "qr": {
     "title": "Prijava na lokalu",

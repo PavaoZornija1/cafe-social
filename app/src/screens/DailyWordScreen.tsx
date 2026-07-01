@@ -17,6 +17,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { apiGet, apiPost } from '../lib/api';
+import { triggerFeedback } from '../lib/feedback';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
 import { emitPlatformQuestProgressChanged } from '../lib/platformQuestEvents';
 import { toApiWordLanguage } from '../lib/wordDeckLanguage';
@@ -205,6 +206,13 @@ export default function DailyWordScreen({ navigation }: Props) {
       );
       if (res.solved) {
         emitPlatformQuestProgressChanged();
+        triggerFeedback('dailySolved');
+      } else if (!res.correct) {
+        if (res.attempts >= res.maxAttempts) {
+          triggerFeedback('dailyFailed');
+        } else {
+          triggerFeedback('wrong');
+        }
       }
       setGuess('');
     } catch (e) {
@@ -284,31 +292,33 @@ export default function DailyWordScreen({ navigation }: Props) {
             </View>
           ) : state ? (
             <View style={styles.body}>
-              <View style={styles.statsCard}>
+              <View style={styles.clueCard}>
+                <Text style={styles.clueKicker}>{t('dailyWord.clueLabel')}</Text>
+                <Text style={styles.clueBody}>
+                  {state.hints?.sentenceHint?.trim() ||
+                    state.hints?.wordHints?.join(', ') ||
+                    state.hints?.emojiHints?.join(' ') ||
+                    t('dailyWord.clueLoading')}
+                </Text>
+              </View>
+
+              <View style={styles.statsRow}>
                 <Text style={styles.meta}>
                   {t('dailyWord.day', { day: state.dayKey })} ·{' '}
                   {t('dailyWord.streak', { n: state.streak })}
+                </Text>
+                <Text style={styles.attempts}>
+                  {t('dailyWord.attempts', { current: state.attempts, max: state.maxAttempts })}
                 </Text>
                 <Text style={styles.hint}>
                   {t('dailyWord.answerLength', {
                     n: state.hints?.answerLength ?? state.answerLength,
                   })}
                 </Text>
-                <Text style={styles.attempts}>
-                  {t('dailyWord.attempts', { current: state.attempts, max: state.maxAttempts })}
-                </Text>
               </View>
 
-              {state.hints?.sentenceHint ? (
-                <View style={styles.hintCard}>
-                  <Text style={styles.progressiveHint}>
-                    <Text style={styles.hintLabel}>{t('dailyWord.hintSentence')}</Text>
-                    {state.hints.sentenceHint}
-                  </Text>
-                </View>
-              ) : null}
               {state.hints?.wordHints?.length ? (
-                <View style={styles.hintCard}>
+                <View style={styles.bonusHintCard}>
                   <Text style={styles.progressiveHint}>
                     <Text style={styles.hintLabel}>{t('dailyWord.hintWords')}</Text>
                     {state.hints.wordHints.join(', ')}
@@ -316,7 +326,7 @@ export default function DailyWordScreen({ navigation }: Props) {
                 </View>
               ) : null}
               {state.hints?.emojiHints?.length ? (
-                <View style={styles.hintCard}>
+                <View style={styles.bonusHintCard}>
                   <Text style={styles.progressiveHint}>
                     <Text style={styles.hintLabel}>{t('dailyWord.hintEmoji')}</Text>
                     {state.hints.emojiHints.join(' ')}
@@ -450,20 +460,41 @@ function createStyles(colors: AppColors) {
       padding: spacing.lg,
     },
     body: { gap: spacing.md },
-    statsCard: {
+    clueCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radii.xl,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.primary,
+      padding: spacing.lg,
+      gap: spacing.sm,
+    },
+    clueKicker: {
+      color: colors.textMuted,
+      fontWeight: '800',
+      fontSize: 11,
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+    },
+    clueBody: {
+      color: colors.text,
+      fontSize: 18,
+      lineHeight: 26,
+      fontWeight: '600',
+    },
+    statsRow: {
       backgroundColor: colors.surface,
       borderRadius: radii.lg,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
-      padding: spacing.lg,
-      gap: spacing.sm,
+      padding: spacing.md,
+      gap: spacing.xs,
     },
-    hintCard: {
+    bonusHintCard: {
       backgroundColor: colors.primaryMuted,
       borderRadius: radii.lg,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: 'rgba(37, 97, 233, 0.2)',
-      padding: spacing.lg,
+      padding: spacing.md,
     },
     guessCard: {
       backgroundColor: colors.surface,

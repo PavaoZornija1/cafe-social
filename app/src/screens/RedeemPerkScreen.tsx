@@ -16,6 +16,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiPost } from '../lib/api';
+import { triggerFeedback } from '../lib/feedback';
 import {
   fetchMyVenueRewards,
   fetchVenuePerkTeasers,
@@ -130,6 +131,7 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
       );
       setLastOk(res);
       setCode('');
+      triggerFeedback('perkRedeemed');
       try {
         const [list, mine] = await Promise.all([
           fetchVenuePerkTeasers(venueId, token),

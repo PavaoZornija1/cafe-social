@@ -15,6 +15,7 @@ import { useAuth } from '@clerk/expo';
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiPost } from '../lib/api';
+import { triggerFeedback } from '../lib/feedback';
 import { getCoordinatesForVenueDetect } from '../lib/locationForDetect';
 import { parseVenueIdFromQr } from '../lib/parseVenueQr';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -74,6 +75,7 @@ export default function QrScanScreen({ navigation, route }: Props) {
         throw e;
       }
 
+      triggerFeedback('checkIn');
       navigation.replace('MainTabs');
     } catch (e) {
       setError((e as Error).message || t('qr.unlockError'));

@@ -17,6 +17,7 @@
   },
   "venuePlayBar": {
     "timeRemaining": "~{{minutes}} min play time left today (UTC) at this venue",
+    "compactRemaining": "~{{minutes}} min café play left today",
     "outsideGeofence": "Step inside the venue geofence to use your play time.",
     "extend": "Extend"
   },
@@ -145,6 +146,15 @@
     "pushPartnerMarketing": "Partner offers & perks",
     "emailSocialActivity": "Friend & party emails",
     "pushPartnerFootnote": "Venue order nudges and perk alerts still respect “Total privacy” on the server.",
+    "feedbackTitle": "Game feel",
+    "feedbackHint": "Short sounds and light vibration for guesses, matches, and lobby updates. Does not change notification sounds — use your device Settings for those.",
+    "soundEffects": "Sound effects",
+    "soundEffectsHint": "Correct and wrong guesses, timers, match results, and lobby events.",
+    "haptics": "Haptics",
+    "hapticsHint": "Light vibration on the same moments when your device supports it.",
+    "backgroundMusic": "Background music",
+    "backgroundMusicHint": "Soft café loops on home and livelier loops during games. Plays alongside sound effects.",
+    "testFeedback": "Test sound & haptic",
     "account": "Account",
     "accountHint": "Manage email and security in your Clerk profile (we’ll link deeper later).",
     "privacy": "Privacy & discoverability",
@@ -608,7 +618,9 @@
     "notSignedIn": "Not signed in",
     "globalRequiresSub": "The global daily word needs an active subscription.",
     "wordRoomsHint": "For multi-round games with clues (solo or rooms), use Word rooms on Home — this screen is only the daily puzzle.",
-    "hardModeBlurb": "The daily is the tougher puzzle: you only get extra clues after more attempts.",
+    "hardModeBlurb": "You get the main clue right away. Extra keyword and emoji hints unlock after more wrong guesses.",
+    "clueLabel": "Today's clue",
+    "clueLoading": "Loading today's clue…",
     "hintSentence": "Clue: ",
     "hintWords": "Keywords: ",
     "hintEmoji": "Emoji hints: "
@@ -635,6 +647,8 @@
   },
   "wordLobby": {
     "title": "Word Game",
+    "heroKicker": "Word rooms",
+    "venueLineShort": "Set up a game at this partner café.",
     "venueLine": "Venue: {{venueId}}",
     "globalLine": "Global play — not tied to a venue (subscription).",
     "appLanguageDeck": "Word deck language (solo & when you host): {{lang}}",
@@ -672,6 +686,9 @@
   },
   "wordMatch": {
     "joinTitle": "Join word match",
+    "joinHeroKicker": "Join friends",
+    "joinCardTitle": "Enter room code",
+    "joinInputHint": "Codes are usually 6 letters — ask whoever created the room.",
     "joinSubtitle": "Enter the 6-character room code from your friend.",
     "codePlaceholder": "ABCDEF",
     "codeTooShort": "Enter the full room code.",
@@ -680,6 +697,9 @@
     "creating": "Creating room…",
     "createFailed": "Could not create match.",
     "waitTitle": "Word room",
+    "waitHeroKicker": "Waiting room",
+    "waitPlayersTitle": "In this room · {{count}}",
+    "waitShareCodeHint": "Share this code so friends can join from Word Lobby.",
     "waitCoop": "Co-op: work through the same words together.",
     "waitVersus": "Versus: race to finish the deck first.",
     "roomCode": "Room code",
@@ -701,6 +721,7 @@
     "deckWords": "{{n}} words",
     "rankedBadge": "Ranked",
     "queueTitle": "Matchmaking",
+    "queueHeroKicker": "Finding a player",
     "queueSubtitle": "We’ll pair you with anyone playing on the same mode, deck length, difficulty and language.",
     "queueJoining": "Joining queue…",
     "queueSearching": "Looking for another player…",
@@ -751,7 +772,10 @@
     "timeExpiredVersus": "Time’s up — you left the match.",
     "timerPassError": "Could not apply time-up. Try again or exit.",
     "playTimeExhaustedTitle": "Play time used up",
-    "playTimeExhaustedBody": "You’ve used your free active play time at this venue for today (UTC). You can buy more time in the app or come back tomorrow."
+    "playTimeExhaustedBody": "You’ve used your free active play time at this venue for today (UTC). You can buy more time in the app or come back tomorrow.",
+    "hudProgressKicker": "Round progress",
+    "versusBoardTitle": "Live scores",
+    "finalScores": "Final scores"
   },
   "qr": {
     "title": "Check in at venue",

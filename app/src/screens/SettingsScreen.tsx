@@ -24,6 +24,17 @@ import SettingsNavRow from '../components/settings/SettingsNavRow';
 import type { RootStackParamList } from '../navigation/type';
 import { LANGUAGE_OPTIONS, type AppLanguage, setAppLanguage } from '../i18n';
 import { apiGet, apiPatch } from '../lib/api';
+import {
+  getFeedbackPrefs,
+  loadFeedbackPrefs,
+  setBackgroundMusicEnabled as persistBackgroundMusicEnabled,
+  setHapticsEnabled as persistHapticsEnabled,
+  setSoundEffectsEnabled as persistSoundEffectsEnabled,
+  stopBackgroundMusic,
+  syncBackgroundMusicForRoute,
+  triggerFeedbackPreview,
+} from '../lib/feedback';
+import { navigationRef } from '../navigation/navigationRef';
 import { setBackgroundApiToken } from '../lib/backgroundApiToken';
 import { unregisterExpoPushTokenFromBackend } from '../lib/expoPush';
 import { createAndShareFriendInviteLink } from '../lib/friendInviteShare';
@@ -82,6 +93,9 @@ export default function SettingsScreen({ navigation }: Props) {
   const [offeringsIssue, setOfferingsIssue] = useState<'none' | 'no_current' | 'no_packages'>('none');
   const [locationPerms, setLocationPerms] = useState<LocationPermissionSummary | null>(null);
   const [locationBusy, setLocationBusy] = useState(false);
+  const [soundEffectsEnabled, setSoundEffectsEnabled] = useState(true);
+  const [hapticsEnabled, setHapticsEnabledState] = useState(true);
+  const [backgroundMusicEnabled, setBackgroundMusicEnabled] = useState(true);
   const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '—';
   const rcNative = isRevenueCatNativeConfigured();
   const packageOrder = getPreferredPackageOrder();
@@ -171,6 +185,12 @@ export default function SettingsScreen({ navigation }: Props) {
     useCallback(() => {
       void loadPrivacy();
       void refreshLocationPerms();
+      void loadFeedbackPrefs().then(() => {
+        const prefs = getFeedbackPrefs();
+        setSoundEffectsEnabled(prefs.soundEffectsEnabled);
+        setHapticsEnabledState(prefs.hapticsEnabled);
+        setBackgroundMusicEnabled(prefs.backgroundMusicEnabled);
+      });
     }, [loadPrivacy, refreshLocationPerms]),
   );
 
@@ -470,6 +490,69 @@ export default function SettingsScreen({ navigation }: Props) {
             <Text style={styles.pushFootnote}>{t('settings.pushPartnerFootnote')}</Text>
           </View>
         )}
+
+        <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.feedbackTitle')}</Text>
+        <Text style={styles.hint}>{t('settings.feedbackHint')}</Text>
+        <View style={styles.toggleCard}>
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleLabelStack}>
+              <Text style={styles.toggleLabel}>{t('settings.soundEffects')}</Text>
+              <Text style={styles.toggleSub}>{t('settings.soundEffectsHint')}</Text>
+            </View>
+            <Switch
+              value={soundEffectsEnabled}
+              onValueChange={(v) => {
+                setSoundEffectsEnabled(v);
+                void persistSoundEffectsEnabled(v);
+              }}
+              trackColor={{ true: switchTrackOn, false: switchTrackOff }}
+              thumbColor={switchThumb}
+            />
+          </View>
+          <View style={[styles.toggleRow, styles.toggleRowBorder]}>
+            <View style={styles.toggleLabelStack}>
+              <Text style={styles.toggleLabel}>{t('settings.haptics')}</Text>
+              <Text style={styles.toggleSub}>{t('settings.hapticsHint')}</Text>
+            </View>
+            <Switch
+              value={hapticsEnabled}
+              onValueChange={(v) => {
+                setHapticsEnabledState(v);
+                void persistHapticsEnabled(v);
+              }}
+              trackColor={{ true: switchTrackOn, false: switchTrackOff }}
+              thumbColor={switchThumb}
+            />
+          </View>
+          <View style={[styles.toggleRow, styles.toggleRowBorder]}>
+            <View style={styles.toggleLabelStack}>
+              <Text style={styles.toggleLabel}>{t('settings.backgroundMusic')}</Text>
+              <Text style={styles.toggleSub}>{t('settings.backgroundMusicHint')}</Text>
+            </View>
+            <Switch
+              value={backgroundMusicEnabled}
+              onValueChange={(v) => {
+                setBackgroundMusicEnabled(v);
+                void persistBackgroundMusicEnabled(v);
+                if (v) {
+                  syncBackgroundMusicForRoute(navigationRef.getCurrentRoute()?.name);
+                } else {
+                  void stopBackgroundMusic();
+                }
+              }}
+              trackColor={{ true: switchTrackOn, false: switchTrackOff }}
+              thumbColor={switchThumb}
+            />
+          </View>
+          {Platform.OS !== 'web' ? (
+            <Pressable
+              style={({ pressed }) => [styles.feedbackTestBtn, pressed && styles.pressed]}
+              onPress={() => triggerFeedbackPreview()}
+            >
+              <Text style={styles.feedbackTestBtnText}>{t('settings.testFeedback')}</Text>
+            </Pressable>
+          ) : null}
+        </View>
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.legalTitle')}</Text>
         <Text style={styles.hint}>{t('settings.legalHint')}</Text>
@@ -814,6 +897,31 @@ function createStyles(colors: AppColors) {
       fontSize: 15,
       flex: 1,
       paddingRight: spacing.md,
+    },
+    toggleLabelStack: {
+      flex: 1,
+      paddingRight: spacing.md,
+      gap: 2,
+    },
+    toggleSub: {
+      color: colors.textMuted,
+      fontSize: 12,
+      lineHeight: 16,
+      fontWeight: '500',
+    },
+    feedbackTestBtn: {
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.md,
+      marginTop: spacing.xs,
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+      borderRadius: radii.md,
+      backgroundColor: colors.surfaceMuted,
+    },
+    feedbackTestBtnText: {
+      color: colors.primary,
+      fontWeight: '700',
+      fontSize: 14,
     },
     pushFootnote: {
       color: colors.textMuted,

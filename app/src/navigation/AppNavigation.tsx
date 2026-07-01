@@ -10,6 +10,7 @@ import React, { useCallback, useMemo, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 
 import { syncBrawlerScreenOrientation } from '../brawler/screenOrientation';
+import { syncBackgroundMusicForRoute } from '../lib/feedback';
 import { ExpoPushRegistrar } from '../components/ExpoPushRegistrar';
 import RevenueCatIdentitySync from '../components/RevenueCatIdentitySync';
 import { NotificationNavigationEffect } from '../components/NotificationNavigationEffect';
@@ -73,6 +74,7 @@ export default function AppNavigation({ linking }: Props) {
     (state: NavigationState | undefined) => {
       void syncBrawlerScreenOrientation(state);
       runOnboardingGuard();
+      syncBackgroundMusicForRoute(navigationRef.getCurrentRoute()?.name);
     },
     [runOnboardingGuard],
   );
@@ -85,6 +87,7 @@ export default function AppNavigation({ linking }: Props) {
       onReady={() => {
         void syncBrawlerScreenOrientation(navigationRef.getRootState());
         runOnboardingGuard();
+        syncBackgroundMusicForRoute(navigationRef.getCurrentRoute()?.name);
       }}
       onStateChange={onStateChange}
     >

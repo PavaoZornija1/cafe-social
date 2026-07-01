@@ -17,6 +17,7 @@
   },
   "venuePlayBar": {
     "timeRemaining": "~{{minutes}} Min. Spielzeit heute (UTC) an diesem Ort übrig",
+    "compactRemaining": "~{{minutes}} Min. Café-Spielzeit heute übrig",
     "outsideGeofence": "Betritt die Geofence des Lokals, um deine Spielzeit zu nutzen.",
     "extend": "Verlängern"
   },
@@ -145,6 +146,15 @@
     "pushPartnerMarketing": "Angebote & Vorteile",
     "emailSocialActivity": "E-Mails zu Freunden & Partys",
     "pushPartnerFootnote": "Bestell-Hinweise respektieren weiterhin „Totale Privatsphäre“ auf dem Server.",
+    "feedbackTitle": "Spielgefühl",
+    "feedbackHint": "Kurze Sounds und leichte Vibration bei Tipps, Matches und Lobby. Ändert keine Benachrichtigungstöne — dafür die Geräteeinstellungen.",
+    "soundEffects": "Soundeffekte",
+    "soundEffectsHint": "Richtig/falsch, Timer, Matchergebnis und Lobby-Ereignisse.",
+    "haptics": "Haptik",
+    "hapticsHint": "Leichte Vibration zu denselben Momenten, wenn dein Gerät es unterstützt.",
+    "backgroundMusic": "Hintergrundmusik",
+    "backgroundMusicHint": "Sanfte Café-Loops auf der Startseite, lebhaftere während Spiele. Läuft parallel zu Soundeffekten.",
+    "testFeedback": "Sound & Haptik testen",
     "account": "Konto",
     "accountHint": "E-Mail und Sicherheit in deinem Clerk-Profil (später tiefer verlinkt).",
     "privacy": "Datenschutz & Auffindbarkeit",
@@ -599,7 +609,9 @@
     "notSignedIn": "Nicht angemeldet",
     "globalRequiresSub": "Das globale Tageswort braucht ein aktives Abo.",
     "wordRoomsHint": "Für mehrstufige Spiele mit Hinweisen (solo oder Räume) nutze „Worträume“ auf der Startseite — hier nur das Tagesrätsel.",
-    "hardModeBlurb": "Das Tageswort ist strenger: extra Hinweise erst nach mehr Versuchen.",
+    "hardModeBlurb": "Der Haupt-Hinweis steht sofort da. Zusätzliche Stichwörter und Emojis kommen nach weiteren falschen Versuchen.",
+    "clueLabel": "Hinweis des Tages",
+    "clueLoading": "Hinweis wird geladen…",
     "hintSentence": "Hinweis: ",
     "hintWords": "Stichwörter: ",
     "hintEmoji": "Emoji-Hinweise: "
@@ -626,6 +638,8 @@
   },
   "wordLobby": {
     "title": "Wortspiel",
+    "heroKicker": "Wort-Räume",
+    "venueLineShort": "Spiel in diesem Partner-Café einrichten.",
     "venueLine": "Lokal: {{venueId}}",
     "globalLine": "Global — kein Venue (Abo).",
     "appLanguageDeck": "Wortsprache (Solo & wenn du hostest): {{lang}}",
@@ -663,6 +677,9 @@
   },
   "wordMatch": {
     "joinTitle": "Match beitreten",
+    "joinHeroKicker": "Freunden beitreten",
+    "joinCardTitle": "Raumcode eingeben",
+    "joinInputHint": "Codes haben meist 6 Buchstaben — frag den Ersteller des Raums.",
     "joinSubtitle": "6-stelligen Raumcode eingeben.",
     "codePlaceholder": "ABCDEF",
     "codeTooShort": "Bitte den vollen Code eingeben.",
@@ -671,6 +688,9 @@
     "creating": "Raum wird erstellt…",
     "createFailed": "Match konnte nicht erstellt werden.",
     "waitTitle": "Wort-Raum",
+    "waitHeroKicker": "Warteraum",
+    "waitPlayersTitle": "Im Raum · {{count}}",
+    "waitShareCodeHint": "Teile den Code, damit Freunde über die Word-Lobby beitreten können.",
     "waitCoop": "Koop: gemeinsam dieselben Wörter.",
     "waitVersus": "Versus: wer zuerst alle Wörter schafft.",
     "roomCode": "Raumcode",
@@ -692,6 +712,7 @@
     "deckWords": "{{n}} Wörter",
     "rankedBadge": "Ranked",
     "queueTitle": "Matchmaking",
+    "queueHeroKicker": "Spieler wird gesucht",
     "queueSubtitle": "Wir matchen dich mit allen, die im gleichen Modus, Decklänge, Schwierigkeit und Sprache spielen.",
     "queueJoining": "Trete der Warteschlange bei…",
     "queueSearching": "Suche einen zweiten Spieler…",
@@ -742,7 +763,10 @@
     "timeExpiredVersus": "Zeit abgelaufen — du hast das Match verlassen.",
     "timerPassError": "Zeit-Aktion fehlgeschlagen. Erneut versuchen oder beenden.",
     "playTimeExhaustedTitle": "Spielzeit aufgebraucht",
-    "playTimeExhaustedBody": "Du hast deine kostenlose aktive Spielzeit an diesem Ort für heute (UTC) verbraucht. Du kannst in der App mehr Zeit kaufen oder morgen wiederkommen."
+    "playTimeExhaustedBody": "Du hast deine kostenlose aktive Spielzeit an diesem Ort für heute (UTC) verbraucht. Du kannst in der App mehr Zeit kaufen oder morgen wiederkommen.",
+    "hudProgressKicker": "Rundenfortschritt",
+    "versusBoardTitle": "Live-Punkte",
+    "finalScores": "Endstand"
   },
   "qr": {
     "title": "Vor Ort einchecken",

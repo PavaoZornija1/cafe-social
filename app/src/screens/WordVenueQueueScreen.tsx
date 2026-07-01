@@ -1,21 +1,28 @@
+import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useAuth } from '@clerk/expo';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { useAuth } from '@clerk/expo';
 import { useTranslation } from 'react-i18next';
-import type { RootStackParamList } from '../navigation/type';
+
+import WordGameHeader from '../components/word/WordGameHeader';
+import LinearGradientFill from '../components/ui/LinearGradientFill';
 import { apiGet, apiPost } from '../lib/api';
+import { triggerFeedback } from '../lib/feedback';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
 import { toApiWordLanguage } from '../lib/wordDeckLanguage';
+import type { RootStackParamList } from '../navigation/type';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
+import { radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WordVenueQueue'>;
 
@@ -58,6 +65,7 @@ export default function WordVenueQueueScreen({ navigation, route }: Props) {
     setPoll(s);
     if (s.status === 'matched' && s.sessionId && !navigatedRef.current) {
       navigatedRef.current = true;
+      triggerFeedback('lobbyFound');
       navigation.replace('WordMatchWait', {
         venueId,
         challengeId,
@@ -93,7 +101,6 @@ export default function WordVenueQueueScreen({ navigation, route }: Props) {
         };
 
         if (venueId) {
-          // Venue queueing: must be inside the geofence.
           const { venue, coords } = await fetchDetectedVenue();
           if (cancelled) return;
           if (!coords || venue?.id !== venueId) {
@@ -105,7 +112,6 @@ export default function WordVenueQueueScreen({ navigation, route }: Props) {
             token,
           );
         } else {
-          // Subscriber queueing from anywhere — backend enforces the subscription check.
           await apiPost<QueuePoll>('/words/matches/queue/enqueue', baseBody, token);
         }
 
@@ -137,7 +143,6 @@ export default function WordVenueQueueScreen({ navigation, route }: Props) {
       try {
         const token = await getTokenRef.current();
         if (token) {
-          // Subscriber queue rows have no venueId — backend handles `{}` by leaving whichever row.
           await apiPost('/words/matches/queue/leave', venueId ? { venueId } : {}, token);
         }
       } catch {
@@ -149,52 +154,96 @@ export default function WordVenueQueueScreen({ navigation, route }: Props) {
     })();
   };
 
+  const modeLabel =
+    mode === 'coop' ? t('wordLobby.modeCoop') : t('wordLobby.modeVersus');
+  const statusText = enrolling
+    ? t('wordMatch.queueJoining')
+    : error
+      ? error
+      : poll?.status === 'waiting' && poll.position != null
+        ? t('wordMatch.queuePosition', { n: poll.position })
+        : t('wordMatch.queueSearching');
+
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.navHeader}>
-        <Pressable onPress={onLeave} style={styles.navBack}>
-          <Text style={styles.navBackText}>{t('common.back')}</Text>
-        </Pressable>
-      </View>
-      <View style={styles.container}>
-        <Text style={styles.title}>{t('wordMatch.queueTitle')}</Text>
-        <Text style={styles.sub}>{t('wordMatch.queueSubtitle')}</Text>
-        {mode === 'versus' && ranked ? (
-          <Text style={styles.badge}>{t('wordMatch.rankedBadge')}</Text>
-        ) : null}
-        {enrolling ? (
-          <View style={styles.center}>
-            <ActivityIndicator color="#a78bfa" />
-            <Text style={styles.muted}>{t('wordMatch.queueJoining')}</Text>
+      <WordGameHeader
+        colors={colors}
+        title={t('wordMatch.queueTitle')}
+        onBack={onLeave}
+        backLabel={t('common.back')}
+      />
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.hero}>
+          <LinearGradientFill
+            from={colors.heroDark}
+            to={colors.hero}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.heroGradient}
+          />
+          <View style={styles.heroBadge}>
+            <Ionicons name="search-outline" size={12} color={colors.textInverse} />
+            <Text style={styles.heroBadgeText}>{t('wordMatch.queueHeroKicker')}</Text>
           </View>
-        ) : error ? (
-          <View style={styles.center}>
-            <Text style={styles.error}>{error}</Text>
-            <Pressable style={styles.btn} onPress={onLeave}>
-              <Text style={styles.btnText}>{t('common.back')}</Text>
+          <Text style={styles.heroTitle}>{t('wordMatch.queueSubtitle')}</Text>
+          <View style={styles.heroMetaRow}>
+            <View style={styles.heroPill}>
+              <Text style={styles.heroPillText}>{modeLabel}</Text>
+            </View>
+            <View style={styles.heroPill}>
+              <Text style={styles.heroPillText}>
+                {t('wordMatch.deckWords', { n: wordCount })}
+              </Text>
+            </View>
+            {mode === 'versus' && ranked ? (
+              <View style={[styles.heroPill, styles.heroPillRanked]}>
+                <Ionicons name="ribbon-outline" size={12} color={colors.xp} />
+                <Text style={[styles.heroPillText, styles.heroPillTextRanked]}>
+                  {t('wordMatch.rankedBadge')}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        {error && !enrolling ? (
+          <View style={styles.errorCard}>
+            <Ionicons name="alert-circle-outline" size={28} color={colors.error} />
+            <Text style={styles.errorText}>{error}</Text>
+            <Pressable
+              style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
+              onPress={onLeave}
+            >
+              <Text style={styles.secondaryBtnText}>{t('common.back')}</Text>
             </Pressable>
           </View>
         ) : (
-          <View style={styles.center}>
-            <ActivityIndicator color="#a78bfa" />
-            <Text style={styles.muted}>
-              {poll?.status === 'waiting' && poll.position != null
-                ? t('wordMatch.queuePosition', { n: poll.position })
-                : t('wordMatch.queueSearching')}
+          <View style={styles.statusCard}>
+            <View style={styles.spinnerWrap}>
+              <ActivityIndicator color={colors.primary} size="large" />
+            </View>
+            <Text style={styles.statusTitle}>
+              {enrolling ? t('wordMatch.queueJoining') : t('wordMatch.queueSearching')}
             </Text>
-            {!ranked ? (
-              <Text style={styles.hint}>
+            <Text style={styles.statusBody}>{statusText}</Text>
+            {!enrolling && !error && !ranked ? (
+              <Text style={styles.botHint}>
                 {t('wordMatch.queueBotFillHint', { seconds: 10 })}
               </Text>
             ) : null}
           </View>
         )}
+
         {!enrolling && !error ? (
-          <Pressable style={styles.link} onPress={onLeave}>
-            <Text style={styles.linkText}>{t('wordMatch.queueLeave')}</Text>
+          <Pressable
+            style={({ pressed }) => [styles.leaveBtn, pressed && styles.pressed]}
+            onPress={onLeave}
+          >
+            <Ionicons name="close-circle-outline" size={18} color={colors.primary} />
+            <Text style={styles.leaveBtnText}>{t('wordMatch.queueLeave')}</Text>
           </Pressable>
         ) : null}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -202,56 +251,146 @@ export default function WordVenueQueueScreen({ navigation, route }: Props) {
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: colors.bg },
-    navHeader: {
-      paddingHorizontal: 24,
-      paddingTop: 16,
-      paddingBottom: 4,
+    scroll: {
+      paddingHorizontal: spacing.xl,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.xxl,
+      gap: spacing.lg,
+    },
+    hero: {
+      borderRadius: radii.xl,
+      padding: spacing.lg,
+      gap: spacing.sm,
+      overflow: 'hidden',
+      backgroundColor: colors.heroDark,
+    },
+    heroGradient: { ...StyleSheet.absoluteFillObject },
+    heroBadge: {
       flexDirection: 'row',
       alignItems: 'center',
-    },
-    navBack: {
-      paddingVertical: 8,
-      paddingHorizontal: 10,
-      borderRadius: 10,
-      backgroundColor: colors.surface,
-    },
-    navBackText: { color: colors.textSecondary, fontWeight: '600' },
-    container: { flex: 1, paddingHorizontal: 24, paddingTop: 8 },
-    title: { color: colors.text, fontSize: 22, fontWeight: '900' },
-    sub: { color: colors.textMuted, marginTop: 8, fontSize: 14, lineHeight: 20 },
-    badge: {
-      marginTop: 10,
       alignSelf: 'flex-start',
-      paddingVertical: 6,
-      paddingHorizontal: 10,
-      borderRadius: 10,
-      backgroundColor: colors.honeyMuted,
-      color: colors.honeyDark,
-      fontWeight: '900',
-      fontSize: 12,
+      gap: spacing.xs,
+      paddingVertical: 4,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radii.pill,
+      backgroundColor: 'rgba(255,255,255,0.16)',
     },
-    center: { marginTop: 32, alignItems: 'center', gap: 14 },
-    muted: { color: colors.textSecondary, fontSize: 14, textAlign: 'center' },
-    error: { color: colors.error, fontWeight: '700', textAlign: 'center' },
-    btn: {
-      marginTop: 12,
-      paddingVertical: 12,
-      paddingHorizontal: 20,
-      borderRadius: 12,
+    heroBadgeText: {
+      color: colors.textInverse,
+      fontSize: 11,
+      fontWeight: '800',
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+    },
+    heroTitle: {
+      color: colors.textInverse,
+      fontSize: 16,
+      fontWeight: '700',
+      lineHeight: 22,
+    },
+    heroMetaRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.xs,
+      marginTop: spacing.xs,
+    },
+    heroPill: {
+      paddingVertical: 4,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radii.pill,
+      backgroundColor: 'rgba(255,255,255,0.14)',
+    },
+    heroPillRanked: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: 'rgba(255,255,255,0.92)',
+    },
+    heroPillText: {
+      color: colors.textInverse,
+      fontSize: 11,
+      fontWeight: '800',
+    },
+    heroPillTextRanked: { color: colors.honeyDark },
+    statusCard: {
       backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.borderStrong,
+      borderRadius: radii.xl,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      padding: spacing.xl,
+      alignItems: 'center',
+      gap: spacing.md,
     },
-    btnText: { color: colors.text, fontWeight: '800' },
-    link: { marginTop: 28, alignItems: 'center' },
-    linkText: { color: colors.textMuted, fontWeight: '700' },
-    hint: {
-      marginTop: 8,
+    spinnerWrap: {
+      width: 64,
+      height: 64,
+      borderRadius: radii.pill,
+      backgroundColor: colors.primaryMuted,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    statusTitle: {
+      color: colors.text,
+      fontSize: 18,
+      fontWeight: '900',
+      textAlign: 'center',
+    },
+    statusBody: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      fontWeight: '600',
+      lineHeight: 20,
+      textAlign: 'center',
+    },
+    botHint: {
       color: colors.textMuted,
       fontSize: 12,
       lineHeight: 17,
+      fontWeight: '600',
       textAlign: 'center',
-      paddingHorizontal: 8,
+      marginTop: spacing.xs,
     },
+    errorCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radii.xl,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      padding: spacing.xl,
+      alignItems: 'center',
+      gap: spacing.md,
+    },
+    errorText: {
+      color: colors.error,
+      fontWeight: '700',
+      textAlign: 'center',
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    secondaryBtn: {
+      borderRadius: radii.pill,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xl,
+      backgroundColor: colors.bgElevated,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    secondaryBtnText: { color: colors.textSecondary, fontWeight: '800', fontSize: 14 },
+    leaveBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.md,
+      borderRadius: radii.pill,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.primary,
+      backgroundColor: colors.surface,
+    },
+    leaveBtnText: {
+      color: colors.primaryDark,
+      fontWeight: '800',
+      fontSize: 14,
+    },
+    pressed: { opacity: 0.9 },
   });
 }

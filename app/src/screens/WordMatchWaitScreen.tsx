@@ -1,22 +1,29 @@
+import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useAuth } from '@clerk/expo';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { useAuth } from '@clerk/expo';
 import { useTranslation } from 'react-i18next';
-import type { RootStackParamList } from '../navigation/type';
+
+import WordGameHeader from '../components/word/WordGameHeader';
+import LinearGradientFill from '../components/ui/LinearGradientFill';
 import { apiGet, apiPost } from '../lib/api';
+import { triggerFeedback } from '../lib/feedback';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
 import { useWordMatchSocket } from '../lib/useWordMatchSocket';
 import { toApiWordLanguage } from '../lib/wordDeckLanguage';
+import type { RootStackParamList } from '../navigation/type';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
+import { radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WordMatchWait'>;
 
@@ -35,6 +42,14 @@ type MatchState = {
   participants: { playerId: string | null; username: string; isYou: boolean }[];
   snapshotRev?: number | null;
 };
+
+const AVATAR_COLORS = ['#FBBF24', '#F87171', '#34D399', '#60A5FA', '#A78BFA'];
+
+function initial(username: string): string {
+  const trimmed = username.trim();
+  if (!trimmed) return '?';
+  return trimmed.charAt(0).toUpperCase();
+}
 
 export default function WordMatchWaitScreen({ navigation, route }: Props) {
   const { colors } = useAppTheme();
@@ -64,6 +79,9 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
   const [starting, setStarting] = useState(false);
   const createdRef = useRef(false);
   const navigatedToGameRef = useRef(false);
+  const lobbyReadyFiredRef = useRef(false);
+  const lobbyCountInitializedRef = useRef(false);
+  const prevHumanCountRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -182,6 +200,7 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
     if (navigatedToGameRef.current) return;
     if (!sessionId || matchState?.status !== 'ACTIVE') return;
     navigatedToGameRef.current = true;
+    triggerFeedback('lobbyStart');
     navigation.replace('WordGame', {
       venueId,
       challengeId,
@@ -210,8 +229,29 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
   );
 
   const humanCount = matchState?.participants.filter((p) => p.playerId).length ?? 0;
-  const canStart =
-    isHost && matchState?.status === 'PENDING' && humanCount >= 2;
+  const canStart = isHost && matchState?.status === 'PENDING' && humanCount >= 2;
+
+  useEffect(() => {
+    if (!sessionId || !matchState || matchState.status !== 'PENDING') return;
+    if (lobbyReadyFiredRef.current) return;
+    lobbyReadyFiredRef.current = true;
+    triggerFeedback('lobbyReady');
+  }, [sessionId, matchState?.status, matchState]);
+
+  useEffect(() => {
+    if (!matchState || matchState.status !== 'PENDING') return;
+    if (!lobbyCountInitializedRef.current) {
+      lobbyCountInitializedRef.current = true;
+      prevHumanCountRef.current = humanCount;
+      return;
+    }
+    if (humanCount > prevHumanCountRef.current) {
+      triggerFeedback('lobbyJoined');
+    } else if (humanCount < prevHumanCountRef.current) {
+      triggerFeedback('lobbyLeft');
+    }
+    prevHumanCountRef.current = humanCount;
+  }, [humanCount, matchState]);
 
   const onStart = async () => {
     if (!sessionId) return;
@@ -267,14 +307,15 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <View style={styles.navHeader}>
-          <Pressable onPress={leaveWait} style={styles.navBack}>
-            <Text style={styles.navBackText}>{t('common.back')}</Text>
-          </Pressable>
-        </View>
-        <View style={styles.center}>
-          <ActivityIndicator color="#a78bfa" />
-          <Text style={styles.sub}>{t('wordMatch.creating')}</Text>
+        <WordGameHeader
+          colors={colors}
+          title={t('wordMatch.waitTitle')}
+          onBack={leaveWait}
+          backLabel={t('common.back')}
+        />
+        <View style={styles.centerBlock}>
+          <ActivityIndicator color={colors.primary} size="large" />
+          <Text style={styles.mutedCenter}>{t('wordMatch.creating')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -283,15 +324,20 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
   if (error && !sessionId) {
     return (
       <SafeAreaView style={styles.safe}>
-        <View style={styles.navHeader}>
-          <Pressable onPress={leaveWait} style={styles.navBack}>
-            <Text style={styles.navBackText}>{t('common.back')}</Text>
-          </Pressable>
-        </View>
-        <View style={styles.center}>
-          <Text style={styles.error}>{error}</Text>
-          <Pressable style={styles.btn} onPress={leaveWait}>
-            <Text style={styles.btnText}>{t('common.back')}</Text>
+        <WordGameHeader
+          colors={colors}
+          title={t('wordMatch.waitTitle')}
+          onBack={leaveWait}
+          backLabel={t('common.back')}
+        />
+        <View style={styles.centerBlock}>
+          <Ionicons name="alert-circle-outline" size={36} color={colors.error} />
+          <Text style={styles.errorCenter}>{error}</Text>
+          <Pressable
+            style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
+            onPress={leaveWait}
+          >
+            <Text style={styles.secondaryBtnText}>{t('common.back')}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -303,166 +349,430 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
   const deckLangLabel = t(`wordMatch.lang.${deckLangCode}`, {
     defaultValue: deckLangCode.toUpperCase(),
   });
+  const modeLabel =
+    mode === 'coop' ? t('wordLobby.modeCoop') : t('wordLobby.modeVersus');
+  const waitSubtitle = mode === 'coop' ? t('wordMatch.waitCoop') : t('wordMatch.waitVersus');
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.navHeader}>
-        <Pressable onPress={leaveWait} style={styles.navBack}>
-          <Text style={styles.navBackText}>{t('common.back')}</Text>
-        </Pressable>
-      </View>
-      <View style={styles.container}>
-        <Text style={styles.title}>{t('wordMatch.waitTitle')}</Text>
-        <Text style={styles.sub}>
-          {mode === 'coop' ? t('wordMatch.waitCoop') : t('wordMatch.waitVersus')}
-        </Text>
-        {mode === 'versus' && matchState?.ranked ? (
-          <Text style={styles.rankedBadge}>{t('wordMatch.rankedBadge')}</Text>
-        ) : null}
+      <WordGameHeader
+        colors={colors}
+        title={t('wordMatch.waitTitle')}
+        onBack={leaveWait}
+        backLabel={t('common.back')}
+      />
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.hero}>
+          <LinearGradientFill
+            from={colors.heroDark}
+            to={colors.hero}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.heroGradient}
+          />
+          <View style={styles.heroBadge}>
+            <Ionicons name="people-outline" size={12} color={colors.textInverse} />
+            <Text style={styles.heroBadgeText}>{t('wordMatch.waitHeroKicker')}</Text>
+          </View>
+          <Text style={styles.heroTitle}>{waitSubtitle}</Text>
+          <View style={styles.heroMetaRow}>
+            <View style={styles.heroPill}>
+              <Text style={styles.heroPillText}>{modeLabel}</Text>
+            </View>
+            {mode === 'versus' && (matchState?.ranked ?? rankedParam) ? (
+              <View style={[styles.heroPill, styles.heroPillRanked]}>
+                <Ionicons name="ribbon-outline" size={12} color={colors.xp} />
+                <Text style={[styles.heroPillText, styles.heroPillTextRanked]}>
+                  {t('wordMatch.rankedBadge')}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
         {matchState ? (
-          <>
-            <Text style={styles.deckLang}>
+          <View style={styles.deckMetaCard}>
+            <Text style={styles.deckMetaLine}>
               {t('wordMatch.deckLanguage', { lang: deckLangLabel })}
             </Text>
-            <Text style={styles.deckMeta}>
+            <Text style={styles.deckMetaLine}>
               {t('wordMatch.deckWords', { n: matchState.targetWordCount })}
               {matchState.deckCategory
                 ? ` · ${t(`categories.${matchState.deckCategory}`, { defaultValue: matchState.deckCategory })}`
                 : ` · ${t('wordLobby.categoryAll')}`}
             </Text>
-          </>
-        ) : null}
-        {sessionId && (socketStatus === 'reconnecting' || socketStatus === 'connecting') ? (
-          <Text style={styles.socketBanner}>{t('wordMatch.socketReconnecting')}</Text>
+          </View>
         ) : null}
 
-        <View style={styles.codeBox}>
-          <Text style={styles.codeLabel}>{t('wordMatch.roomCode')}</Text>
+        {sessionId && (socketStatus === 'reconnecting' || socketStatus === 'connecting') ? (
+          <View style={styles.socketBanner}>
+            <Ionicons name="cloud-offline-outline" size={14} color={colors.honeyDark} />
+            <Text style={styles.socketBannerText}>{t('wordMatch.socketReconnecting')}</Text>
+          </View>
+        ) : null}
+
+        <View style={styles.codeCard}>
+          <View style={styles.codeAccent} />
+          <Text style={styles.codeKicker}>{t('wordMatch.roomCode')}</Text>
           <Text style={styles.code}>{code}</Text>
+          <Text style={styles.codeHint}>{t('wordMatch.waitShareCodeHint')}</Text>
         </View>
 
-        <Text style={styles.players}>
-          {t('wordMatch.playersJoined', { count: humanCount })}
-        </Text>
+        <View style={styles.playersCard}>
+          <Text style={styles.playersKicker}>
+            {t('wordMatch.waitPlayersTitle', { count: humanCount })}
+          </Text>
+          {(matchState?.participants ?? []).length > 0 ? (
+            <View style={styles.playerList}>
+              {matchState!.participants.map((p, index) => (
+                <View key={p.playerId ?? p.username} style={[styles.playerRow, p.isYou && styles.playerRowYou]}>
+                  <View
+                    style={[
+                      styles.avatar,
+                      { backgroundColor: AVATAR_COLORS[index % AVATAR_COLORS.length] },
+                    ]}
+                  >
+                    <Text style={styles.avatarText}>{initial(p.username)}</Text>
+                  </View>
+                  <Text style={styles.playerName} numberOfLines={1}>
+                    {p.username}
+                    {p.isYou ? ` · ${t('wordGame.you')}` : ''}
+                  </Text>
+                  {p.playerId ? (
+                    <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+                  ) : (
+                    <View style={styles.pendingDot} />
+                  )}
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.playersEmpty}>{t('wordMatch.waitForFriend')}</Text>
+          )}
+        </View>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? (
+          <View style={styles.errorRow}>
+            <Ionicons name="alert-circle" size={16} color={colors.error} />
+            <Text style={styles.errorInline}>{error}</Text>
+          </View>
+        ) : null}
 
         {canStart ? (
           <Pressable
-            style={[styles.btnPrimary, starting && styles.btnDisabled]}
+            style={({ pressed }) => [
+              styles.primaryBtn,
+              starting && styles.btnDisabled,
+              pressed && styles.pressed,
+            ]}
             onPress={() => void onStart()}
             disabled={starting}
           >
             {starting ? (
               <ActivityIndicator color={colors.textInverse} />
             ) : (
-              <Text style={styles.btnPrimaryText}>{t('wordMatch.startMatch')}</Text>
+              <>
+                <Text style={styles.primaryBtnText}>{t('wordMatch.startMatch')}</Text>
+                <Ionicons name="play" size={18} color={colors.textInverse} />
+              </>
             )}
           </Pressable>
         ) : (
-          <Text style={styles.hint}>
-            {isHost
-              ? t('wordMatch.waitForFriend')
-              : t('wordMatch.waitHostStarts')}
-          </Text>
+          <View style={styles.statusCard}>
+            <ActivityIndicator color={colors.primary} />
+            <Text style={styles.statusText}>
+              {isHost ? t('wordMatch.waitForFriend') : t('wordMatch.waitHostStarts')}
+            </Text>
+          </View>
         )}
 
-        <Pressable style={styles.link} onPress={() => leaveWait()}>
-          <Text style={styles.linkText}>{t('wordMatch.cancelToHome')}</Text>
+        <Pressable
+          style={({ pressed }) => [styles.linkBtn, pressed && styles.pressed]}
+          onPress={() => leaveWait()}
+        >
+          <Text style={styles.linkBtnText}>{t('wordMatch.cancelToHome')}</Text>
         </Pressable>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-
 function createStyles(colors: AppColors) {
-    return StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  navHeader: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  navBack: {
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    backgroundColor: colors.surface,
-  },
-  navBackText: { color: colors.textSecondary, fontWeight: '600' },
-  container: { flex: 1, paddingHorizontal: 24, paddingTop: 8 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  title: { color: colors.text, fontSize: 22, fontWeight: '900' },
-  sub: { color: colors.textMuted, marginTop: 8, fontSize: 14, lineHeight: 20 },
-  rankedBadge: {
-    marginTop: 8,
-    alignSelf: 'flex-start',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    backgroundColor: colors.honeyMuted,
-    color: colors.honeyDark,
-    fontWeight: '900',
-    fontSize: 12,
-  },
-  deckLang: { color: colors.textMuted, marginTop: 6, fontSize: 12, fontWeight: '700' },
-  deckMeta: { color: colors.textMuted, marginTop: 4, fontSize: 12 },
-  socketBanner: {
-    marginTop: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: colors.warningBg,
-    color: colors.honeyDark,
-    fontSize: 12,
-    fontWeight: '800',
-    textAlign: 'center',
-    overflow: 'hidden',
-  },
-  codeBox: {
-    marginTop: 24,
-    padding: 20,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-  },
-  codeLabel: { color: colors.textMuted, fontWeight: '700', fontSize: 12 },
-  code: {
-    color: colors.text,
-    fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: 6,
-    marginTop: 8,
-  },
-  players: { color: colors.textSecondary, marginTop: 16, fontWeight: '800' },
-  hint: { color: colors.honeyDark, marginTop: 20, fontSize: 13, lineHeight: 18 },
-  error: { color: colors.error, marginTop: 12, fontWeight: '700' },
-  btn: {
-    marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  btnText: { color: colors.text, fontWeight: '800' },
-  btnPrimary: {
-    marginTop: 20,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-  },
-  btnPrimaryText: { color: colors.textInverse, fontWeight: '900', fontSize: 16 },
-  btnDisabled: { opacity: 0.7 },
-  link: { marginTop: 24, alignItems: 'center' },
-  linkText: { color: colors.textMuted, fontWeight: '700' },
-
-    });
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.bg },
+    scroll: {
+      paddingHorizontal: spacing.xl,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.xxl,
+      gap: spacing.md,
+    },
+    centerBlock: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: spacing.xl,
+      gap: spacing.md,
+    },
+    mutedCenter: {
+      color: colors.textMuted,
+      fontSize: 14,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+    errorCenter: {
+      color: colors.error,
+      fontWeight: '800',
+      textAlign: 'center',
+      fontSize: 15,
+      lineHeight: 22,
+    },
+    hero: {
+      borderRadius: radii.xl,
+      padding: spacing.lg,
+      gap: spacing.sm,
+      overflow: 'hidden',
+      backgroundColor: colors.heroDark,
+    },
+    heroGradient: { ...StyleSheet.absoluteFillObject },
+    heroBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: spacing.xs,
+      paddingVertical: 4,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radii.pill,
+      backgroundColor: 'rgba(255,255,255,0.16)',
+    },
+    heroBadgeText: {
+      color: colors.textInverse,
+      fontSize: 11,
+      fontWeight: '800',
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+    },
+    heroTitle: {
+      color: colors.textInverse,
+      fontSize: 17,
+      fontWeight: '700',
+      lineHeight: 24,
+    },
+    heroMetaRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.xs,
+      marginTop: spacing.xs,
+    },
+    heroPill: {
+      paddingVertical: 4,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radii.pill,
+      backgroundColor: 'rgba(255,255,255,0.14)',
+    },
+    heroPillRanked: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: 'rgba(255,255,255,0.92)',
+    },
+    heroPillText: {
+      color: colors.textInverse,
+      fontSize: 11,
+      fontWeight: '800',
+    },
+    heroPillTextRanked: { color: colors.honeyDark },
+    deckMetaCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      padding: spacing.md,
+      gap: 4,
+    },
+    deckMetaLine: {
+      color: colors.textSecondary,
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    socketBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: radii.lg,
+      backgroundColor: colors.warningBg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.warningBorder,
+    },
+    socketBannerText: {
+      flex: 1,
+      color: colors.honeyDark,
+      fontSize: 12,
+      fontWeight: '800',
+    },
+    codeCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radii.xl,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      padding: spacing.lg,
+      alignItems: 'center',
+      overflow: 'hidden',
+      gap: spacing.xs,
+    },
+    codeAccent: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 4,
+      backgroundColor: colors.primary,
+    },
+    codeKicker: {
+      marginTop: spacing.xs,
+      color: colors.textMuted,
+      fontWeight: '800',
+      fontSize: 11,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+    },
+    code: {
+      color: colors.text,
+      fontSize: 32,
+      fontWeight: '900',
+      letterSpacing: 8,
+      fontVariant: ['tabular-nums'],
+    },
+    codeHint: {
+      color: colors.textMuted,
+      fontSize: 12,
+      lineHeight: 17,
+      fontWeight: '600',
+      textAlign: 'center',
+      marginTop: spacing.xs,
+    },
+    playersCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      padding: spacing.md,
+      gap: spacing.sm,
+    },
+    playersKicker: {
+      color: colors.textMuted,
+      fontSize: 11,
+      fontWeight: '800',
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
+    },
+    playerList: { gap: spacing.xs },
+    playerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.xs,
+      borderRadius: radii.md,
+    },
+    playerRowYou: {
+      backgroundColor: colors.primaryMuted,
+    },
+    avatar: {
+      width: 32,
+      height: 32,
+      borderRadius: radii.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarText: {
+      color: colors.textInverse,
+      fontWeight: '900',
+      fontSize: 13,
+    },
+    playerName: {
+      flex: 1,
+      color: colors.textSecondary,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    pendingDot: {
+      width: 10,
+      height: 10,
+      borderRadius: radii.pill,
+      backgroundColor: colors.borderStrong,
+    },
+    playersEmpty: {
+      color: colors.textMuted,
+      fontSize: 13,
+      fontWeight: '600',
+      lineHeight: 18,
+    },
+    errorRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    errorInline: {
+      flex: 1,
+      color: colors.error,
+      fontWeight: '700',
+      fontSize: 13,
+    },
+    statusCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.md,
+      backgroundColor: colors.primaryMuted,
+      borderRadius: radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      padding: spacing.lg,
+    },
+    statusText: {
+      flex: 1,
+      color: colors.primaryDark,
+      fontSize: 14,
+      fontWeight: '700',
+      lineHeight: 20,
+    },
+    primaryBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      backgroundColor: colors.primary,
+      borderRadius: radii.pill,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xl,
+      minHeight: 48,
+    },
+    primaryBtnText: {
+      color: colors.textInverse,
+      fontWeight: '900',
+      fontSize: 16,
+    },
+    secondaryBtn: {
+      borderRadius: radii.pill,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xl,
+      backgroundColor: colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    secondaryBtnText: { color: colors.textSecondary, fontWeight: '800', fontSize: 14 },
+    btnDisabled: { opacity: 0.55 },
+    linkBtn: {
+      alignItems: 'center',
+      paddingVertical: spacing.md,
+    },
+    linkBtnText: {
+      color: colors.textMuted,
+      fontWeight: '700',
+      fontSize: 14,
+    },
+    pressed: { opacity: 0.9 },
+  });
 }
