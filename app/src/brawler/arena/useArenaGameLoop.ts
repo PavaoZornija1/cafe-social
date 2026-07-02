@@ -1315,9 +1315,14 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
       else if (dashing) nextAnim = 'dash';
       else if (!onGround.current) nextAnim = 'jump';
       else if (Math.abs(vx.current) > 20) nextAnim = 'walk';
+      const prevAnim = spriteAnimRef.current;
       spriteAnimRef.current = nextAnim;
 
       if (nextAnim === 'walk') {
+        if (prevAnim !== 'walk') {
+          walkFrameRef.current = 0;
+          walkAccum.current = 0;
+        }
         walkAccum.current += dt * 1000;
         if (walkAccum.current >= WALK_FRAME_MS) {
           walkAccum.current %= WALK_FRAME_MS;
@@ -1327,6 +1332,10 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
         }
         idleAccum.current = 0;
       } else if (nextAnim === 'idle') {
+        if (prevAnim !== 'idle') {
+          idleFrameRef.current = 0;
+          idleAccum.current = 0;
+        }
         walkAccum.current = 0;
         jumpFrameRef.current = 0;
         const idleFrames = getIdleFrameCount(heroSpriteLiveRef.current);

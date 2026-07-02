@@ -1,9 +1,56 @@
-import React, { useMemo } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import {
+  Image,
+  type ImageSourcePropType,
+  PixelRatio,
+  StyleSheet,
+  View,
+} from 'react-native';
 import type { HeroSpriteAnim, HeroSpriteConfig } from '../brawler/heroSpriteTypes';
 import { getStripForAnim, usesStripSprites } from '../brawler/heroSpriteUtils';
 
 export type { HeroSpriteAnim };
+
+function roundPx(value: number): number {
+  return PixelRatio.roundToNearestPixel(value);
+}
+
+function getSourceKey(source: ImageSourcePropType): string | number {
+  if (typeof source === 'number') return source;
+  const resolved = Image.resolveAssetSource(source);
+  return resolved?.uri ?? JSON.stringify(source);
+}
+
+function layoutForClip(
+  clip: ClipRect,
+  scale: number,
+): {
+  displayW: number;
+  displayH: number;
+  imageStyle: {
+    position: 'absolute';
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  };
+} {
+  const displayW = roundPx(clip.clipW * scale);
+  const displayH = roundPx(clip.clipH * scale);
+  const scaledSheetW = roundPx(clip.sheetW * scale);
+  const scaledSheetH = roundPx(clip.sheetH * scale);
+  return {
+    displayW,
+    displayH,
+    imageStyle: {
+      position: 'absolute',
+      left: -roundPx(clip.sx * scale),
+      top: -roundPx(clip.sy * scale),
+      width: scaledSheetW,
+      height: scaledSheetH,
+    },
+  };
+}
 
 type Props = {
   config: HeroSpriteConfig;
@@ -18,7 +65,7 @@ type Props = {
 };
 
 type ClipRect = {
-  source: NonNullable<HeroSpriteConfig['source']>;
+  source: ImageSourcePropType;
   sx: number;
   sy: number;
   clipW: number;
@@ -144,6 +191,55 @@ function resolveStripClip(
   };
 }
 
+function HeroSpriteStripImage({
+  clip,
+  scale,
+}: {
+  clip: ClipRect;
+  scale: number;
+}) {
+  const sourceKey = getSourceKey(clip.source);
+  const [readyKey, setReadyKey] = useState(sourceKey);
+  const readyClipRef = useRef(clip);
+
+  if (sourceKey === readyKey) {
+    readyClipRef.current = clip;
+  }
+
+  const displayClip = sourceKey === readyKey ? clip : readyClipRef.current;
+  const { displayW, displayH, imageStyle } = layoutForClip(displayClip, scale);
+  const pendingLayout = layoutForClip(clip, scale);
+  const sourceSwapPending = sourceKey !== readyKey;
+
+  return (
+    <View
+      style={[styles.clip, { width: displayW, height: displayH }]}
+      collapsable={false}
+    >
+      <Image
+        key={readyKey}
+        source={displayClip.source}
+        fadeDuration={0}
+        resizeMode="stretch"
+        style={imageStyle}
+      />
+      {sourceSwapPending ? (
+        <Image
+          key={sourceKey}
+          source={clip.source}
+          fadeDuration={0}
+          resizeMode="stretch"
+          onLoad={() => {
+            readyClipRef.current = clip;
+            setReadyKey(sourceKey);
+          }}
+          style={[pendingLayout.imageStyle, styles.preloadImage]}
+        />
+      ) : null}
+    </View>
+  );
+}
+
 export function HeroSpriteView({
   config,
   anim,
@@ -157,7 +253,7 @@ export function HeroSpriteView({
 }: Props) {
   const scale = scaleOverride ?? config.displayScale;
 
-  const { source, sx, sy, clipW, clipH, sheetW, sheetH } = useMemo(() => {
+  const clip = useMemo(() => {
     if (usesStripSprites(config)) {
       return resolveStripClip(
         config,
@@ -173,26 +269,22 @@ export function HeroSpriteView({
     return resolveSheetClip(config, anim, facing, walkFrame, hitFrame);
   }, [anim, config, dashFrame, facing, hitFrame, idleFrame, jumpFrame, walkFrame]);
 
-  const displayW = clipW * scale;
-  const displayH = clipH * scale;
-  const scaledSheetW = sheetW * scale;
-  const scaledSheetH = sheetH * scale;
-  const tx = -Math.round(sx * scale);
-  const ty = -Math.round(sy * scale);
+  if (usesStripSprites(config)) {
+    return <HeroSpriteStripImage clip={clip} scale={scale} />;
+  }
+
+  const { displayW, displayH, imageStyle } = layoutForClip(clip, scale);
 
   return (
     <View
       style={[styles.clip, { width: displayW, height: displayH }]}
       collapsable={false}
-      renderToHardwareTextureAndroid
     >
       <Image
-        source={source}
-        style={{
-          width: scaledSheetW,
-          height: scaledSheetH,
-          transform: [{ translateX: tx }, { translateY: ty }],
-        }}
+        source={clip.source}
+        fadeDuration={0}
+        resizeMode="stretch"
+        style={imageStyle}
       />
     </View>
   );
@@ -200,4 +292,8 @@ export function HeroSpriteView({
 
 const styles = StyleSheet.create({
   clip: { overflow: 'hidden' },
+  preloadImage: {
+    opacity: 0,
+    pointerEvents: 'none',
+  },
 });

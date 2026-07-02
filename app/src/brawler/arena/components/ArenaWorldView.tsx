@@ -278,8 +278,8 @@ export function ArenaWorldView({
               style={[
                 styles.playerWrap,
                 {
-                  left: px - hitDrawOffsetX,
-                  top: py + spriteDrawOffsetY,
+                  left: Math.round(px - hitDrawOffsetX),
+                  top: Math.round(py + spriteDrawOffsetY),
                   zIndex: 5,
                 },
               ]}

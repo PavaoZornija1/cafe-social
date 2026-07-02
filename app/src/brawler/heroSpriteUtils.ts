@@ -1,5 +1,10 @@
+import { PixelRatio } from 'react-native';
 import type { HeroSpriteAnim, HeroSpriteConfig } from './heroSpriteTypes';
 import { ATTACK_HIT_Y_FROM_TOP } from './arena/constants';
+
+function roundPx(value: number): number {
+  return PixelRatio.roundToNearestPixel(value);
+}
 
 export function getBodyScale(
   config: HeroSpriteConfig | null | undefined,
@@ -14,7 +19,7 @@ export function getSpriteDrawOffsetY(
   if (!config) return 0;
   const bodyH = config.framePx.h * getBodyScale(config);
   const feetSheet = config.feetSheetPx ?? config.framePx.h;
-  return bodyH - feetSheet * config.displayScale;
+  return roundPx(bodyH - feetSheet * config.displayScale);
 }
 
 export function getAttackHitFromTopPx(

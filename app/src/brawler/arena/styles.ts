@@ -65,7 +65,7 @@ export function createArenaStyles(colors: AppColors) {
     paddingHorizontal: 8,
   },
   hudKdLabel: {
-    color: colors.textMuted,
+    color: '#e2e8f0',
     fontSize: 9,
     fontWeight: '800',
     textTransform: 'uppercase',
@@ -73,11 +73,14 @@ export function createArenaStyles(colors: AppColors) {
     textAlign: 'center',
   },
   hudKdValue: {
-    color: colors.text,
+    color: '#ffffff',
     fontSize: 14,
     fontWeight: '900',
     fontVariant: ['tabular-nums'],
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.45)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   hudClockPill: {
     alignItems: 'center',
@@ -801,7 +804,7 @@ export function createArenaStyles(colors: AppColors) {
     pointerEvents: 'none',
   },
   heroStatsHudTitle: {
-    color: '#c4b5fd',
+    color: '#ddd6fe',
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 0.8,
@@ -816,15 +819,18 @@ export function createArenaStyles(colors: AppColors) {
     paddingVertical: 2,
   },
   heroStatsHudLabel: {
-    color: colors.textSecondary,
+    color: '#e2e8f0',
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.4,
   },
   heroStatsHudValue: {
-    color: colors.text,
+    color: '#ffffff',
     fontSize: 11,
     fontWeight: '800',
+    textShadowColor: 'rgba(0, 0, 0, 0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   heroStatsHudBoosted: {
     color: '#4ade80',
