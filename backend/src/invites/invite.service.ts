@@ -6,15 +6,12 @@ import {
 import { InviteLinkKind } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlayerService } from '../player/player.service';
-import { SubscriptionRepository } from '../venue/subscription.repository';
 import { FriendshipService } from '../social/friendship.service';
 import { hashInviteToken, newInviteToken } from './invite-token.util';
 import {
   FREE_INVITE_LINKS_PER_UTC_DAY,
-  FREE_MAX_PARTY_MEMBERS,
-  SUB_INVITE_LINKS_PER_UTC_DAY,
-  SUB_MAX_PARTY_MEMBERS,
   INVITE_LINK_TTL_MS,
+  SUB_INVITE_LINKS_PER_UTC_DAY,
 } from '../party/party.constants';
 
 @Injectable()
@@ -22,7 +19,6 @@ export class InviteService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly players: PlayerService,
-    private readonly subs: SubscriptionRepository,
     private readonly friendships: FriendshipService,
   ) {}
 
@@ -36,7 +32,11 @@ export class InviteService {
   async assertDailyLinkBudget(createdById: string, isSubscriber: boolean) {
     const start = this.startOfUtcDay();
     const count = await this.prisma.inviteLink.count({
-      where: { createdById, createdAt: { gte: start } },
+      where: {
+        createdById,
+        kind: InviteLinkKind.PARTY,
+        createdAt: { gte: start },
+      },
     });
     const cap = isSubscriber
       ? SUB_INVITE_LINKS_PER_UTC_DAY
@@ -54,9 +54,6 @@ export class InviteService {
     maxUses: number;
   }> {
     const player = await this.players.findOrCreateByEmail(email);
-    const sub = await this.subs.isActiveSubscriber(player.id);
-    await this.assertDailyLinkBudget(player.id, sub);
-    const maxUses = sub ? SUB_MAX_PARTY_MEMBERS : FREE_MAX_PARTY_MEMBERS;
     const token = newInviteToken();
     const tokenHash = hashInviteToken(token);
     const row = await this.prisma.inviteLink.create({
@@ -65,7 +62,7 @@ export class InviteService {
         tokenHash,
         createdById: player.id,
         expiresAt: new Date(Date.now() + INVITE_LINK_TTL_MS),
-        maxUses,
+        maxUses: 0,
       },
     });
     return { token, expiresAt: row.expiresAt, maxUses: row.maxUses };
@@ -89,7 +86,10 @@ export class InviteService {
     if (!link) throw new NotFoundException('Invalid or unknown invite');
     if (link.revokedAt) throw new BadRequestException('Invite revoked');
     if (link.expiresAt < new Date()) throw new BadRequestException('Invite expired');
-    if (link.useCount >= link.maxUses) {
+    if (
+      link.kind !== InviteLinkKind.FRIEND &&
+      link.useCount >= link.maxUses
+    ) {
       throw new BadRequestException('Invite uses exhausted');
     }
 

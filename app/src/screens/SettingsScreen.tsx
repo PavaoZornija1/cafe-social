@@ -21,6 +21,7 @@ import {
 import Purchases, { PURCHASES_ERROR_CODE, type PurchasesError } from 'react-native-purchases';
 import { useTranslation } from 'react-i18next';
 import SettingsNavRow from '../components/settings/SettingsNavRow';
+import WordGameHeader from '../components/word/WordGameHeader';
 import type { RootStackParamList } from '../navigation/type';
 import { LANGUAGE_OPTIONS, type AppLanguage, setAppLanguage } from '../i18n';
 import { apiGet, apiPatch } from '../lib/api';
@@ -339,19 +340,17 @@ export default function SettingsScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={styles.headerRow}>
-          <Pressable
-            onPress={() => navigation.goBack()}
-            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.back')}
-          >
-            <Ionicons name="arrow-back" size={22} color={colors.text} />
-          </Pressable>
-        </View>
-        <Text style={styles.title}>{t('settings.title')}</Text>
-
+      <WordGameHeader
+        colors={colors}
+        title={t('settings.title')}
+        onBack={() => navigation.goBack()}
+        backLabel={t('common.back')}
+      />
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.sectionLabel}>{t('settings.language')}</Text>
         <Text style={styles.hint}>{t('settings.languageHint')}</Text>
         <View style={styles.langList}>
@@ -807,36 +806,14 @@ function createStyles(colors: AppColors) {
     safe: { flex: 1, backgroundColor: colors.bg },
     scroll: {
       paddingHorizontal: spacing.xl,
-      paddingTop: spacing.md,
+      paddingTop: spacing.sm,
       paddingBottom: spacing.xxl,
-    },
-    headerRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: spacing.sm,
-    },
-    iconBtn: {
-      width: 44,
-      height: 44,
-      borderRadius: radii.pill,
-      backgroundColor: colors.surface,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.border,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    title: {
-      color: colors.text,
-      fontSize: 28,
-      fontWeight: '900',
-      letterSpacing: -0.4,
-      marginBottom: spacing.lg,
     },
     sectionLabel: {
       color: colors.text,
-      fontSize: 17,
+      fontSize: 16,
       fontWeight: '900',
-      marginTop: spacing.sm,
+      marginTop: spacing.xs,
     },
     sectionSpacer: { marginTop: spacing.xl },
     hint: {
@@ -859,7 +836,7 @@ function createStyles(colors: AppColors) {
       backgroundColor: colors.surface,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
-      borderRadius: radii.lg,
+      borderRadius: radii.xl,
       paddingVertical: spacing.md,
       paddingHorizontal: spacing.lg,
     },
@@ -874,7 +851,7 @@ function createStyles(colors: AppColors) {
     toggleCard: {
       marginTop: spacing.md,
       backgroundColor: colors.surface,
-      borderRadius: radii.lg,
+      borderRadius: radii.xl,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
       paddingVertical: spacing.xs,
@@ -934,7 +911,7 @@ function createStyles(colors: AppColors) {
     card: {
       marginTop: spacing.md,
       backgroundColor: colors.surface,
-      borderRadius: radii.lg,
+      borderRadius: radii.xl,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
       padding: spacing.lg,
@@ -979,7 +956,7 @@ function createStyles(colors: AppColors) {
       backgroundColor: colors.surface,
       borderColor: colors.error,
       borderWidth: StyleSheet.hairlineWidth,
-      borderRadius: radii.lg,
+      borderRadius: radii.xl,
       paddingVertical: spacing.md,
       alignItems: 'center',
     },

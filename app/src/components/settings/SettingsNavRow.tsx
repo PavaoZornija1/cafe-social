@@ -41,7 +41,7 @@ function createStyles(colors: AppColors) {
       alignItems: 'center',
       justifyContent: 'space-between',
       backgroundColor: colors.surface,
-      borderRadius: radii.lg,
+      borderRadius: radii.xl,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
       paddingVertical: spacing.md,
