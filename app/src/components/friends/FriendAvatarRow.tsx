@@ -6,7 +6,7 @@ import { venueInitial } from '../../lib/geo';
 import type { AppColors } from '../../theme/colors';
 import { radii, spacing } from '../../theme/tokens';
 
-const AVATAR_COLORS = ['#2E6DED', '#E68A00', '#EC4899', '#16A34A', '#8B5CF6'];
+const AVATAR_COLORS = ['#2561E9', '#E68A00', '#EC4899', '#16A34A', '#8B5CF6'];
 
 type Props = {
   colors: AppColors;

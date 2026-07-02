@@ -25,10 +25,10 @@ type Props = {
   onPress: () => void;
 };
 
-const AVATAR_COLORS = ['#2E6DED', '#E68A00', '#EC4899', '#16A34A', '#8B5CF6'];
+const AVATAR_COLORS = ['#2561E9', '#E68A00', '#EC4899', '#16A34A', '#8B5CF6'];
 
-function friendInitial(username: string): string {
-  const trimmed = username.trim();
+function friendInitial(username: string | null | undefined): string {
+  const trimmed = (username ?? '').trim();
   if (!trimmed) return '?';
   return trimmed.charAt(0).toUpperCase();
 }

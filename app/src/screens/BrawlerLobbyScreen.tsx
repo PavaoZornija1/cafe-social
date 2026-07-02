@@ -1,5 +1,6 @@
 import { useAuth } from '@clerk/expo';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -21,6 +22,7 @@ import type { BrawlerPowerupDef } from '../brawler/arena/types';
 import type { BrawlerArenaHeroStats, RootStackParamList } from '../navigation/type';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
+import { radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BrawlerLobby'>;
 
@@ -220,6 +222,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
     navigation.navigate('BrawlerVenueQueue', {
       venueId,
       brawlerHeroId: selectedHeroId,
+      heroName: selectedHero?.name,
       ranked: queueRanked ? true : undefined,
       heroStats,
     });
@@ -242,6 +245,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
       : undefined;
     navigation.navigate('BrawlerVenueQueue', {
       brawlerHeroId: selectedHeroId,
+      heroName: selectedHero?.name,
       ranked: queueRanked ? true : undefined,
       heroStats,
     });
@@ -282,19 +286,35 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Pressable onPress={onBack} style={styles.backBtn}>
-          <Text style={styles.backText}>← {t('common.back')}</Text>
-        </Pressable>
-        <Text style={styles.title}>{t('brawlerLobby.title')}</Text>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.titleRow}>
+          <Pressable
+            onPress={onBack}
+            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back')}
+          >
+            <Ionicons name="arrow-back" size={22} color={colors.text} />
+          </Pressable>
+          <Text style={styles.title}>{t('brawlerLobby.title')}</Text>
+          <View style={styles.iconBtnSpacer} />
+        </View>
+
         <Text style={styles.subtitle}>{t('brawlerLobby.subtitle')}</Text>
-        <Text style={styles.meta}>
-          {venueId ? t('brawlerLobby.venueLine', { venueId }) : t('brawlerLobby.noVenueLine')}
-        </Text>
+
+        <View style={styles.hero}>
+          <View style={styles.heroIconWrap}>
+            <Ionicons name="fitness" size={28} color={colors.textInverse} />
+          </View>
+          <Text style={styles.heroTitle}>{t('brawlerLobby.heroTitle')}</Text>
+          <Text style={styles.heroSub}>
+            {venueId ? t('brawlerLobby.heroVenue') : t('brawlerLobby.heroGlobal')}
+          </Text>
+        </View>
 
         {loadingHeroes ? (
           <View style={styles.loadingWrap}>
-            <ActivityIndicator color="#a78bfa" />
+            <ActivityIndicator color={colors.primary} />
             <Text style={styles.loadingText}>{t('brawlerLobby.loadingHeroes')}</Text>
           </View>
         ) : (
@@ -308,39 +328,51 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
                   style={({ pressed }) => [
                     styles.heroCard,
                     selected && styles.heroCardSelected,
-                    pressed && styles.heroCardPressed,
+                    pressed && styles.pressed,
                   ]}
                 >
-                  <Text style={[styles.heroName, selected && styles.heroNameSelected]}>
-                    {hero.name}
-                  </Text>
-                  <Text style={styles.heroArchetype}>{hero.archetype ?? 'All-Rounder'}</Text>
+                  <View style={[styles.heroCardIcon, selected && styles.heroCardIconSelected]}>
+                    <Ionicons
+                      name="person"
+                      size={20}
+                      color={selected ? colors.textInverse : colors.textSecondary}
+                    />
+                  </View>
+                  <View style={styles.heroCardBody}>
+                    <Text style={styles.heroName}>{hero.name}</Text>
+                    <Text style={styles.heroArchetype}>{hero.archetype ?? 'All-Rounder'}</Text>
+                  </View>
+                  {selected ? (
+                    <Ionicons name="checkmark-circle" size={22} color={colors.xp} />
+                  ) : null}
                 </Pressable>
               );
             })}
           </View>
         )}
 
-        {selectedHero && (
+        {selectedHero ? (
           <View style={styles.statsCard}>
-            <Text style={styles.statsTitle}>{t('brawlerLobby.selectedHeroStats')}</Text>
-            <Text style={styles.statsText}>
-              {t('brawlerLobby.statHp', { value: selectedHero.baseHp })}
-            </Text>
-            <Text style={styles.statsText}>
-              {t('brawlerLobby.statSpeed', { value: selectedHero.moveSpeed })}
-            </Text>
-            <Text style={styles.statsText}>
-              {t('brawlerLobby.statDash', { value: selectedHero.dashCooldownMs })}
-            </Text>
-            <Text style={styles.statsText}>
-              {t('brawlerLobby.statAttack', { value: selectedHero.attackDamage })}
-            </Text>
-            <Text style={styles.statsText}>
-              {t('brawlerLobby.statKnockback', { value: selectedHero.attackKnockback })}
-            </Text>
+            <Text style={styles.sectionLabel}>{t('brawlerLobby.selectedHeroStats')}</Text>
+            <View style={styles.statsGrid}>
+              <Text style={styles.statsText}>
+                {t('brawlerLobby.statHp', { value: selectedHero.baseHp })}
+              </Text>
+              <Text style={styles.statsText}>
+                {t('brawlerLobby.statSpeed', { value: selectedHero.moveSpeed })}
+              </Text>
+              <Text style={styles.statsText}>
+                {t('brawlerLobby.statDash', { value: selectedHero.dashCooldownMs })}
+              </Text>
+              <Text style={styles.statsText}>
+                {t('brawlerLobby.statAttack', { value: selectedHero.attackDamage })}
+              </Text>
+              <Text style={styles.statsText}>
+                {t('brawlerLobby.statKnockback', { value: selectedHero.attackKnockback })}
+              </Text>
+            </View>
           </View>
-        )}
+        ) : null}
 
         <BrawlerPowerupLegend
           colors={colors}
@@ -350,14 +382,14 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
 
         {venueId || subscriptionActive ? (
           <View style={styles.rankCard}>
-            <Text style={styles.rankTitle}>{t('brawlerLobby.queueRankTitle')}</Text>
+            <Text style={styles.sectionLabel}>{t('brawlerLobby.queueRankTitle')}</Text>
             <View style={styles.rankRow}>
               <Pressable
                 onPress={() => setQueueRanked(false)}
                 style={({ pressed }) => [
                   styles.rankPill,
                   !queueRanked && styles.rankPillOn,
-                  pressed && styles.rankPillPressed,
+                  pressed && styles.pressed,
                 ]}
               >
                 <Text style={[styles.rankPillText, !queueRanked && styles.rankPillTextOn]}>
@@ -369,7 +401,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
                 style={({ pressed }) => [
                   styles.rankPill,
                   queueRanked && styles.rankPillOn,
-                  pressed && styles.rankPillPressed,
+                  pressed && styles.pressed,
                 ]}
               >
                 <Text style={[styles.rankPillText, queueRanked && styles.rankPillTextOn]}>
@@ -384,8 +416,8 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
                 disabled={!selectedHeroId || creating || loadingHeroes}
                 style={({ pressed }) => [
                   styles.queueCta,
-                  pressed && styles.startButtonPressed,
-                  (!selectedHeroId || creating || loadingHeroes) && styles.startButtonDisabled,
+                  pressed && styles.pressed,
+                  (!selectedHeroId || creating || loadingHeroes) && styles.ctaDisabled,
                 ]}
               >
                 <Text style={styles.queueCtaText}>{t('brawlerLobby.queueAtVenue')}</Text>
@@ -398,8 +430,8 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
                   disabled={!selectedHeroId || creating || loadingHeroes}
                   style={({ pressed }) => [
                     styles.queueCta,
-                    pressed && styles.startButtonPressed,
-                    (!selectedHeroId || creating || loadingHeroes) && styles.startButtonDisabled,
+                    pressed && styles.pressed,
+                    (!selectedHeroId || creating || loadingHeroes) && styles.ctaDisabled,
                   ]}
                 >
                   <Text style={styles.queueCtaText}>{t('brawlerLobby.queueAnywhere')}</Text>
@@ -413,7 +445,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
         )}
 
         <View style={styles.rosterCard}>
-          <Text style={styles.rosterTitle}>{t('brawlerLobby.practiceRosterTitle')}</Text>
+          <Text style={styles.sectionLabel}>{t('brawlerLobby.practiceRosterTitle')}</Text>
           <Text style={styles.rosterLine}>{t('brawlerLobby.practiceRosterYou')}</Text>
           <Text style={styles.rosterLine}>{t('brawlerLobby.practiceRosterBot')}</Text>
         </View>
@@ -425,8 +457,8 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
             style={({ pressed }) => [
               styles.startButton,
               styles.startButtonSolo,
-              pressed && styles.startButtonPressed,
-              (!selectedHeroId || creating || loadingHeroes) && styles.startButtonDisabled,
+              pressed && styles.pressed,
+              (!selectedHeroId || creating || loadingHeroes) && styles.ctaDisabled,
             ]}
           >
             <Text style={styles.startButtonTextDark}>{t('brawlerLobby.soloMode')}</Text>
@@ -439,8 +471,8 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
             style={({ pressed }) => [
               styles.startButton,
               styles.startButtonMulti,
-              pressed && styles.startButtonPressed,
-              (!selectedHeroId || creating || loadingHeroes) && styles.startButtonDisabled,
+              pressed && styles.pressed,
+              (!selectedHeroId || creating || loadingHeroes) && styles.ctaDisabled,
             ]}
           >
             <Text style={styles.startButtonText}>
@@ -544,223 +576,276 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
 
 
 function createStyles(colors: AppColors) {
-    return StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  container: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 28, gap: 12 },
-  backBtn: {
-    alignSelf: 'flex-start',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    backgroundColor: colors.bgElevated,
-    marginBottom: 2,
-  },
-  backText: { color: colors.text, fontWeight: '800', fontSize: 12 },
-  title: { color: colors.text, fontSize: 28, fontWeight: '900' },
-  subtitle: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
-  meta: { color: '#93c5fd', fontSize: 12, fontWeight: '700', marginBottom: 6 },
-  loadingWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
-  loadingText: { color: colors.textSecondary, fontSize: 13 },
-  heroList: { gap: 8, marginTop: 4 },
-  heroCard: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  heroCardSelected: {
-    borderColor: colors.honey,
-    backgroundColor: '#1f1638',
-  },
-  heroCardPressed: { opacity: 0.88 },
-  heroName: { color: colors.text, fontSize: 16, fontWeight: '800' },
-  heroNameSelected: { color: '#ffffff' },
-  heroArchetype: { color: '#93c5fd', fontSize: 12, marginTop: 4 },
-  statsCard: {
-    marginTop: 6,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    padding: 12,
-    gap: 4,
-  },
-  statsTitle: { color: colors.text, fontSize: 14, fontWeight: '900', marginBottom: 4 },
-  statsText: { color: colors.textSecondary, fontSize: 13 },
-  startRow: {
-    marginTop: 10,
-    flexDirection: 'row',
-    gap: 10,
-  },
-  startButton: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  startButtonSolo: {
-    backgroundColor: colors.bgElevated,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  startButtonMulti: {
-    backgroundColor: colors.primary,
-  },
-  startButtonPressed: { opacity: 0.9 },
-  startButtonDisabled: { opacity: 0.5 },
-  startButtonText: { color: colors.textInverse, fontSize: 15, fontWeight: '900' },
-  startButtonTextDark: { color: colors.text, fontSize: 15, fontWeight: '900' },
-  startButtonSubText: {
-    marginTop: 2,
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  startButtonSubTextInverse: {
-    marginTop: 2,
-    color: 'rgba(255, 255, 255, 0.82)',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  rosterCard: {
-    marginTop: 4,
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 6,
-  },
-  rosterTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  rosterLine: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
-
-  rankCard: {
-    marginTop: 6,
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    gap: 10,
-  },
-  rankTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  rankRow: { flexDirection: 'row', gap: 8 },
-  rankPill: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: colors.bgElevated,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    alignItems: 'center',
-  },
-  rankPillOn: {
-    backgroundColor: colors.primary,
-    borderColor: 'rgba(167, 139, 250, 0.55)',
-  },
-  rankPillPressed: { opacity: 0.9 },
-  rankPillText: { color: colors.textSecondary, fontSize: 13, fontWeight: '900' },
-  rankPillTextOn: { color: colors.textInverse },
-  rankHint: { color: colors.textMuted, fontSize: 11, fontWeight: '600', lineHeight: 16 },
-  queueCta: {
-    marginTop: 4,
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-    backgroundColor: colors.honeyMuted,
-    borderWidth: 1,
-    borderColor: colors.honey,
-  },
-  queueCtaText: { color: colors.honeyDark, fontSize: 14, fontWeight: '900' },
-  venueHint: {
-    marginTop: 4,
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 18,
-  },
-
-  soloOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 50,
-    justifyContent: 'flex-end',
-  },
-  soloBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-  },
-  soloSheet: {
-    paddingHorizontal: 18,
-    paddingTop: 16,
-    paddingBottom: 18,
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderColor: colors.borderStrong,
-    gap: 12,
-  },
-  soloTitle: { color: colors.text, fontSize: 18, fontWeight: '900' },
-  soloHint: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
-  soloRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  soloLabel: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '900' },
-  soloStepper: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  soloStepBtn: {
-    width: 36,
-    height: 30,
-    borderRadius: 10,
-    backgroundColor: colors.bgElevated,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  soloStepBtnPressed: { opacity: 0.85 },
-  soloStepBtnText: { color: colors.text, fontSize: 16, fontWeight: '900' },
-  soloValue: {
-    width: 24,
-    textAlign: 'center',
-    color: colors.textSecondary,
-    fontWeight: '900',
-    fontVariant: ['tabular-nums'],
-  },
-  soloPills: { flexDirection: 'row', gap: 8 },
-  soloPill: {
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    backgroundColor: colors.bgElevated,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  soloPillOn: {
-    backgroundColor: colors.primary,
-    borderColor: 'rgba(167, 139, 250, 0.55)',
-  },
-  soloPillPressed: { opacity: 0.9 },
-  soloPillText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900' },
-  soloPillTextOn: { color: colors.textInverse },
-  soloActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  soloBtn: {
-    flex: 1,
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  soloBtnPrimary: {
-    backgroundColor: colors.primary,
-  },
-  soloBtnSecondary: {
-    backgroundColor: colors.bgElevated,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  soloBtnPressed: { opacity: 0.9 },
-  soloBtnPrimaryText: { color: colors.textInverse, fontSize: 15, fontWeight: '900' },
-  soloBtnSecondaryText: { color: colors.text, fontSize: 15, fontWeight: '900' },
-
-    });
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.bg },
+    scroll: {
+      paddingHorizontal: spacing.xl,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    iconBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: radii.pill,
+      backgroundColor: colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    iconBtnSpacer: { width: 44, height: 44, flexShrink: 0 },
+    title: {
+      flex: 1,
+      color: colors.text,
+      fontSize: 28,
+      fontWeight: '900',
+      letterSpacing: -0.5,
+    },
+    subtitle: {
+      color: colors.textSecondary,
+      fontSize: 15,
+      lineHeight: 22,
+      marginBottom: spacing.lg,
+    },
+    hero: {
+      backgroundColor: colors.hero,
+      borderRadius: radii.xl,
+      padding: spacing.xl,
+      marginBottom: spacing.lg,
+      gap: spacing.sm,
+    },
+    heroIconWrap: {
+      width: 48,
+      height: 48,
+      borderRadius: radii.md,
+      backgroundColor: 'rgba(255, 255, 255, 0.18)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.xs,
+    },
+    heroTitle: {
+      color: colors.textInverse,
+      fontSize: 22,
+      fontWeight: '900',
+    },
+    heroSub: {
+      color: colors.textInverse,
+      opacity: 0.92,
+      fontSize: 14,
+      fontWeight: '600',
+      lineHeight: 20,
+    },
+    loadingWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.lg,
+    },
+    loadingText: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
+    heroList: { gap: spacing.sm, marginBottom: spacing.md },
+    heroCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      backgroundColor: colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      borderRadius: radii.lg,
+      padding: spacing.md,
+    },
+    heroCardSelected: {
+      borderColor: colors.xp,
+      backgroundColor: colors.primaryMuted,
+    },
+    heroCardIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.md,
+      backgroundColor: colors.bgElevated,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    heroCardIconSelected: { backgroundColor: colors.xp },
+    heroCardBody: { flex: 1, minWidth: 0 },
+    heroName: { color: colors.text, fontSize: 16, fontWeight: '800' },
+    heroArchetype: { color: colors.textMuted, fontSize: 12, marginTop: 2, fontWeight: '600' },
+    statsCard: {
+      backgroundColor: colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      borderRadius: radii.lg,
+      padding: spacing.lg,
+      marginBottom: spacing.md,
+      gap: spacing.sm,
+    },
+    sectionLabel: { color: colors.text, fontSize: 16, fontWeight: '900' },
+    statsGrid: { gap: spacing.xs },
+    statsText: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+    rankCard: {
+      padding: spacing.lg,
+      borderRadius: radii.lg,
+      backgroundColor: colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    rankRow: { flexDirection: 'row', gap: spacing.sm },
+    rankPill: {
+      flex: 1,
+      paddingVertical: spacing.sm,
+      borderRadius: radii.pill,
+      backgroundColor: colors.bgElevated,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      alignItems: 'center',
+    },
+    rankPillOn: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    rankPillText: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
+    rankPillTextOn: { color: colors.textInverse },
+    rankHint: { color: colors.textMuted, fontSize: 12, fontWeight: '600', lineHeight: 17 },
+    queueCta: {
+      marginTop: spacing.xs,
+      borderRadius: radii.lg,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+      backgroundColor: colors.honeyMuted,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.honey,
+    },
+    queueCtaText: { color: colors.honeyDark, fontSize: 14, fontWeight: '900' },
+    venueHint: {
+      color: colors.textMuted,
+      fontSize: 13,
+      fontWeight: '600',
+      lineHeight: 18,
+      marginBottom: spacing.md,
+    },
+    rosterCard: {
+      padding: spacing.lg,
+      borderRadius: radii.lg,
+      backgroundColor: colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      gap: spacing.xs,
+      marginBottom: spacing.md,
+    },
+    rosterLine: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+    startRow: { flexDirection: 'row', gap: spacing.sm },
+    startButton: {
+      flex: 1,
+      borderRadius: radii.lg,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+    },
+    startButtonSolo: {
+      backgroundColor: colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    startButtonMulti: { backgroundColor: colors.primary },
+    startButtonText: { color: colors.textInverse, fontSize: 15, fontWeight: '900' },
+    startButtonTextDark: { color: colors.text, fontSize: 15, fontWeight: '900' },
+    startButtonSubText: {
+      marginTop: 2,
+      color: colors.textMuted,
+      fontSize: 11,
+      fontWeight: '800',
+    },
+    startButtonSubTextInverse: {
+      marginTop: 2,
+      color: 'rgba(255, 255, 255, 0.82)',
+      fontSize: 11,
+      fontWeight: '800',
+    },
+    ctaDisabled: { opacity: 0.5 },
+    pressed: { opacity: 0.92 },
+    soloOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 50,
+      justifyContent: 'flex-end',
+    },
+    soloBackdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    },
+    soloSheet: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.xl,
+      borderTopLeftRadius: radii.xl,
+      borderTopRightRadius: radii.xl,
+      backgroundColor: colors.surface,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      gap: spacing.md,
+    },
+    soloTitle: { color: colors.text, fontSize: 20, fontWeight: '900' },
+    soloHint: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
+    soloRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+    soloLabel: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '800' },
+    soloStepper: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    soloStepBtn: {
+      width: 36,
+      height: 32,
+      borderRadius: radii.md,
+      backgroundColor: colors.bgElevated,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    soloStepBtnPressed: { opacity: 0.85 },
+    soloStepBtnText: { color: colors.text, fontSize: 16, fontWeight: '900' },
+    soloValue: {
+      width: 24,
+      textAlign: 'center',
+      color: colors.textSecondary,
+      fontWeight: '900',
+      fontVariant: ['tabular-nums'],
+    },
+    soloPills: { flexDirection: 'row', gap: spacing.sm },
+    soloPill: {
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: radii.pill,
+      backgroundColor: colors.bgElevated,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    soloPillOn: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    soloPillPressed: { opacity: 0.9 },
+    soloPillText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900' },
+    soloPillTextOn: { color: colors.textInverse },
+    soloActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
+    soloBtn: {
+      flex: 1,
+      borderRadius: radii.lg,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+    },
+    soloBtnPrimary: { backgroundColor: colors.primary },
+    soloBtnSecondary: {
+      backgroundColor: colors.bgElevated,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    soloBtnPressed: { opacity: 0.9 },
+    soloBtnPrimaryText: { color: colors.textInverse, fontSize: 15, fontWeight: '900' },
+    soloBtnSecondaryText: { color: colors.text, fontSize: 15, fontWeight: '900' },
+  });
 }

@@ -1,13 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import {
+  StyleSheet,
+  View,
+  type GestureResponderEvent,
+} from 'react-native';
 
 import type { AppColors } from '../theme/colors';
 import { useAppTheme } from '../theme/ThemeContext';
 
 const DEFAULT_SIZE = 120;
 /** Normalized stick magnitude below this snaps to 0 */
-const DEADZONE = 0.14;
+const DEADZONE = 0.1;
 
 export type StickVector = { x: number; y: number };
 
@@ -17,27 +20,44 @@ type Props = {
   size?: number;
   /** When false, touches are ignored and the stick resets to center. */
   enabled?: boolean;
-  /**
-   * Exposes the underlying pan gesture so other controls can explicitly allow
-   * simultaneous recognition (true multi-touch with attack buttons).
-   */
-  onGestureReady?: (gesture: unknown) => void;
+  /** Arena uses horizontal movement only; vertical axis is zeroed. */
+  horizontalOnly?: boolean;
+  /** When set, knob is driven externally (touch layer); view ignores touches. */
+  displayKnob?: { x: number; y: number };
 };
 
+function findTouch(
+  touches: ReadonlyArray<{
+    identifier: string;
+    locationX: number;
+    locationY: number;
+  }>,
+  id: string,
+) {
+  for (let i = 0; i < touches.length; i++) {
+    const t = touches[i];
+    if (t && t.identifier === id) return t;
+  }
+  return undefined;
+}
+
 /**
- * Touch joystick: updates `stickRef` on drag; vertical is available for future
- * use (e.g. aim); arena currently uses horizontal only.
+ * Native multi-touch joystick — avoids RNGH pan so a second finger can hit
+ * action buttons while the stick is held (iOS-friendly).
  */
 export function VirtualJoystick({
   stickRef,
   size = DEFAULT_SIZE,
   enabled = true,
-  onGestureReady,
+  horizontalOnly = true,
+  displayKnob,
 }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [knob, setKnob] = useState({ x: 0, y: 0 });
+  const knobPos = displayKnob ?? knob;
   const layoutRef = useRef({ w: size, h: size });
+  const trackingIdRef = useRef<string | null>(null);
   const knobRadius = Math.max(11, Math.min(24, size * 0.19));
   const ringInset = 12;
   const maxTravel = Math.max(8, size / 2 - knobRadius - 5);
@@ -53,8 +73,16 @@ export function VirtualJoystick({
       const kx = cx * scale;
       const ky = cy * scale;
       let nx = kx / maxTravel;
-      let ny = ky / maxTravel;
-      if (Math.hypot(nx, ny) < DEADZONE) {
+      let ny = horizontalOnly ? 0 : ky / maxTravel;
+      if (horizontalOnly) {
+        if (Math.abs(nx) < DEADZONE) {
+          nx = 0;
+          ny = 0;
+          setKnob({ x: 0, y: 0 });
+        } else {
+          setKnob({ x: kx, y: 0 });
+        }
+      } else if (Math.hypot(nx, ny) < DEADZONE) {
         nx = 0;
         ny = 0;
         setKnob({ x: 0, y: 0 });
@@ -64,107 +92,123 @@ export function VirtualJoystick({
       stickRef.current.x = nx;
       stickRef.current.y = ny;
     },
-    [maxTravel, stickRef],
+    [horizontalOnly, maxTravel, stickRef],
   );
 
   const release = useCallback(() => {
+    trackingIdRef.current = null;
     stickRef.current.x = 0;
     stickRef.current.y = 0;
     setKnob({ x: 0, y: 0 });
   }, [stickRef]);
 
   useEffect(() => {
-    if (!enabled) release();
-  }, [enabled, release]);
+    if (!enabled && displayKnob == null) release();
+  }, [displayKnob, enabled, release]);
 
-  const panGesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .enabled(enabled)
-        // Critical for iOS: don't cancel other touches (e.g. Hit/Dash/Jump) while panning.
-        .cancelsTouchesInView(false)
-        // Ensure callbacks run on JS even if Reanimated is present.
-        // (Without this, some Expo setups run gestures on the UI thread.)
-        .runOnJS(true)
-        .onBegin((e) => {
-          if (!enabled) return;
-          applyTouch(e.x, e.y);
-        })
-        .onUpdate((e) => {
-          if (!enabled) return;
-          applyTouch(e.x, e.y);
-        })
-        .onFinalize(() => {
-          release();
-        }),
-    [applyTouch, enabled, release],
+  const interactive = enabled && displayKnob == null;
+
+  const onTouchStart = useCallback(
+    (e: GestureResponderEvent) => {
+      if (!enabled || trackingIdRef.current != null) return;
+      const touch = e.nativeEvent.changedTouches[0];
+      if (!touch) return;
+      trackingIdRef.current = touch.identifier;
+      applyTouch(touch.locationX, touch.locationY);
+    },
+    [applyTouch, enabled],
   );
 
-  useEffect(() => {
-    onGestureReady?.(panGesture);
-  }, [onGestureReady, panGesture]);
+  const onTouchMove = useCallback(
+    (e: GestureResponderEvent) => {
+      if (!enabled || trackingIdRef.current == null) return;
+      const touch = findTouch(e.nativeEvent.touches, trackingIdRef.current);
+      if (!touch) return;
+      applyTouch(touch.locationX, touch.locationY);
+    },
+    [applyTouch, enabled],
+  );
+
+  const onTouchEnd = useCallback(
+    (e: GestureResponderEvent) => {
+      if (trackingIdRef.current == null) return;
+      const ended = e.nativeEvent.changedTouches;
+      for (let i = 0; i < ended.length; i++) {
+        if (ended[i]!.identifier === trackingIdRef.current) {
+          release();
+          return;
+        }
+      }
+    },
+    [release],
+  );
 
   return (
-    <GestureDetector gesture={panGesture}>
+    <View
+      style={[
+        styles.outer,
+        { width: size, height: size, borderRadius: size / 2 },
+        !enabled && styles.outerDisabled,
+      ]}
+      onLayout={(ev) => {
+        layoutRef.current.w = ev.nativeEvent.layout.width;
+        layoutRef.current.h = ev.nativeEvent.layout.height;
+      }}
+      pointerEvents={interactive ? 'auto' : 'none'}
+      onTouchStart={interactive ? onTouchStart : undefined}
+      onTouchMove={interactive ? onTouchMove : undefined}
+      onTouchEnd={interactive ? onTouchEnd : undefined}
+      onTouchCancel={interactive ? onTouchEnd : undefined}
+    >
       <View
+        pointerEvents="none"
         style={[
-          styles.outer,
-          { width: size, height: size, borderRadius: size / 2 },
-          !enabled && styles.outerDisabled,
+          styles.outerHighlight,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+          },
         ]}
-        onLayout={(e) => {
-          layoutRef.current.w = e.nativeEvent.layout.width;
-          layoutRef.current.h = e.nativeEvent.layout.height;
-        }}
+      />
+      <View
+        pointerEvents="none"
+        style={[
+          styles.ring,
+          {
+            width: size - ringInset,
+            height: size - ringInset,
+            borderRadius: (size - ringInset) / 2,
+          },
+        ]}
+      />
+      <View
+        pointerEvents="none"
+        style={[
+          styles.ringInner,
+          {
+            width: size - ringInset - 14,
+            height: size - ringInset - 14,
+            borderRadius: (size - ringInset - 14) / 2,
+          },
+        ]}
+      />
+      <View
+        pointerEvents="none"
+        style={[
+          styles.knob,
+          {
+            width: knobRadius * 2,
+            height: knobRadius * 2,
+            borderRadius: knobRadius,
+            transform: [{ translateX: knobPos.x }, { translateY: knobPos.y }],
+          },
+        ]}
       >
-        <View
-          pointerEvents="none"
-          style={[
-            styles.outerHighlight,
-            {
-              width: size,
-              height: size,
-              borderRadius: size / 2,
-            },
-          ]}
-        />
-        <View
-          style={[
-            styles.ring,
-            {
-              width: size - ringInset,
-              height: size - ringInset,
-              borderRadius: (size - ringInset) / 2,
-            },
-          ]}
-        />
-        <View
-          pointerEvents="none"
-          style={[
-            styles.ringInner,
-            {
-              width: size - ringInset - 14,
-              height: size - ringInset - 14,
-              borderRadius: (size - ringInset - 14) / 2,
-            },
-          ]}
-        />
-        <View
-          style={[
-            styles.knob,
-            {
-              width: knobRadius * 2,
-              height: knobRadius * 2,
-              borderRadius: knobRadius,
-              transform: [{ translateX: knob.x }, { translateY: knob.y }],
-            },
-          ]}
-        >
-          <View style={styles.knobHighlight} pointerEvents="none" />
-          <View style={styles.knobCore} pointerEvents="none" />
-        </View>
+        <View style={styles.knobHighlight} pointerEvents="none" />
+        <View style={styles.knobCore} pointerEvents="none" />
       </View>
-    </GestureDetector>
+    </View>
   );
 }
 

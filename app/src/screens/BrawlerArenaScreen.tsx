@@ -21,9 +21,11 @@ import {
   DEFAULT_SHOW_ATTACK_HITBOX_DEBUG,
   GROUND_STRIP_H,
   MARGIN_SCREEN,
+  MAX_AIR_JUMPS,
   PRE_MATCH_COUNTDOWN_S,
   FALLBACK_ARENA_HERO_STATS,
 } from '../brawler/arena/constants';
+import { resolveArenaSafeInsets } from '../brawler/arena/arenaSafeArea';
 import {
   arenaHeroCombat,
   computeLavaSurfaceY,
@@ -80,7 +82,6 @@ import { emitPlatformQuestProgressChanged } from '../lib/platformQuestEvents';
 import { useBrawlerSocket } from '../lib/useBrawlerSocket';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { useVenueActivePlayBudgetSync } from '../lib/useVenueActivePlayBudgetSync';
-import VenuePlayTimeBar from '../components/VenuePlayTimeBar';
 import { previewBrawlerWinXp } from '../lib/brawlerWinXp';
 import { useAppTheme } from '../theme/ThemeContext';
 
@@ -270,11 +271,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const facing = useRef<'left' | 'right'>('right');
   const joyRef = useRef({ x: 0, y: 0 });
   const jumpQueued = useRef(false);
+  const airJumpsLeftRef = useRef(1);
+  const dropThroughPlatformIndexRef = useRef(-1);
   const hitQueued = useRef(false);
   const dashQueued = useRef(false);
-
-  // Used to explicitly allow simultaneous recognition between joystick pan + action taps.
-  const [joystickGesture, setJoystickGesture] = useState<unknown | null>(null);
 
   const powerupDefsRef = useRef<BrawlerPowerupDef[]>([]);
   const powerupsOnMapRef = useRef<SpawnedPowerup[]>([]);
@@ -540,10 +540,13 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
             kills,
             deaths,
             xpGained,
-            resultLabel: row.result,
+            resultLabel:
+              row.result === 'WIN'
+                ? t('brawlerMatch.resultWin')
+                : t('brawlerMatch.resultLoss'),
           };
         });
-        setResultsOverlay({ title: 'Match results', scoreboard });
+        setResultsOverlay({ title: t('brawlerMatch.matchResultsTitle'), scoreboard });
         emitPlatformQuestProgressChanged();
         const humanParticipant = participantsRef.current.find((p) => !p.isBot);
         if (humanParticipant) {
@@ -551,10 +554,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         }
       } catch (e) {
         finalizeStartedRef.current = false;
-        Alert.alert('Finalize failed', (e as Error).message || 'Unknown error');
+        Alert.alert(t('brawlerMatch.finalizeFailedTitle'), (e as Error).message || t('common.error'));
       }
     },
-    [heroDeadOpen, route.params.venueId, sessionId],
+    [heroDeadOpen, route.params.venueId, sessionId, t],
   );
 
   useEffect(() => {
@@ -769,6 +772,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     joyRef.current.x = 0;
     joyRef.current.y = 0;
     jumpQueued.current = false;
+    airJumpsLeftRef.current = MAX_AIR_JUMPS;
+    dropThroughPlatformIndexRef.current = -1;
     hitQueued.current = false;
     dashQueued.current = false;
     attackTimeLeft.current = 0;
@@ -839,6 +844,11 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     ((heroSprite?.hitAnchorOffsetX ?? 0) + hitFineSheetPx) * spriteScale;
 
   const dashReady = dashCooldownLeft.current <= 0 && dashTimeLeft.current <= 0;
+  const dashCooldownSecondsLeft = Math.max(0, dashCooldownLeft.current);
+  const dashCooldownProgress =
+    heroCombat.dashCooldownS > 0
+      ? Math.max(0, Math.min(1, 1 - dashCooldownSecondsLeft / heroCombat.dashCooldownS))
+      : 1;
 
   const arenaReadyHud = arenaW >= 32 && arenaInnerH >= 32;
   const controlsLive = devMatchTimerEnabled
@@ -892,6 +902,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     facing,
     joyRef,
     jumpQueued,
+    airJumpsLeftRef,
+    dropThroughPlatformIndexRef,
     hitQueued,
     dashQueued,
     hitAppliedThisSwing,
@@ -959,14 +971,19 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const skyLeft = (arenaW - skyW) / 2;
   const skyTop = (arenaInnerH - skyH) / 2;
 
-  const bottomPad = Math.max(insets.bottom, 10);
-  const safeRight =
-    typeof insets.right === 'number' && Number.isFinite(insets.right)
-      ? Math.max(0, insets.right)
-      : 0;
+  const safeInsets = useMemo(() => resolveArenaSafeInsets(insets), [insets]);
   const actionArcRight =
-    Math.max(0, safeRight - ACTION_CONTROLS_SAFE_RIGHT_NUDGE_PX) +
+    Math.max(0, safeInsets.right - ACTION_CONTROLS_SAFE_RIGHT_NUDGE_PX) +
     ACTION_CONTROLS_RIGHT_GUTTER;
+  const controlLabels = useMemo(
+    () => ({
+      hit: t('brawlerMatch.ctrlHit'),
+      dash: t('brawlerMatch.ctrlDash'),
+      jump: t('brawlerMatch.ctrlJump'),
+      dashCd: t('brawlerMatch.ctrlDashCd'),
+    }),
+    [t],
+  );
 
   const abandonVenueTwoHumanAndLeave = useCallback(async () => {
     if (!sessionId) return;
@@ -1051,6 +1068,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     powerupPickupFlashRef.current,
   );
   const showHeroStatsHud =
+    !sessionId &&
     arenaReadyHud &&
     !showPreMatchOverlay &&
     !venueTwoHumanHold &&
@@ -1058,33 +1076,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     (controlsLive || isSpectating);
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      <ArenaHud
-        styles={styles}
-        heroHp={heroHpRef.current}
-        heroHpMax={heroCombat.baseHp}
-        heroIFramesLeft={heroIFramesLeftRef.current}
-        showKdHud={showKdHud}
-        kills={playerKillsRef.current}
-        deaths={playerDeathsRef.current}
-        showHudMatchClock={showHudMatchClock}
-        phaseLabel={phaseShown}
-        matchClockSeconds={matchClockShown}
-        sessionId={sessionId}
-        onToggleDev={() => setDevOpen((o) => !o)}
-        resetLabel={sessionId ? 'Lobby' : 'Reset'}
-        onReset={resetArenaRound}
-        onExit={requestExitFromHud}
-      />
-
-      {routeVenueId ? (
-        <VenuePlayTimeBar
-          venueId={routeVenueId}
-          getToken={() => getTokenRef.current()}
-          subscriptionActive={subscriptionActive}
-        />
-      ) : null}
-
+    <View style={styles.root}>
       <View style={styles.arenaFlex}>
         {showPowerupHud ? (
           <ArenaActivePowerupsHud
@@ -1092,6 +1084,12 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
             rows={activePowerupRows}
             pickupFlash={powerupPickupFlashRef.current}
             nowMs={matchNowMs}
+            pickupLabel={t('brawlerMatch.powerupPickup')}
+            insetStyle={{
+              top: safeInsets.top + 48,
+              left: safeInsets.left + 8,
+              right: safeInsets.right + 8,
+            }}
           />
         ) : null}
 
@@ -1128,6 +1126,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           dashFrame={dashFrameRef.current}
           facing={facing.current}
           spriteScale={spriteScale}
+          bodyW={bodyW}
+          heroHp={heroHpRef.current}
+          heroHpMax={heroCombat.baseHp}
+          heroIFramesLeft={heroIFramesLeftRef.current}
           enemies={enemiesRef.current}
           dummies={dummies}
           dmgFloats={dmgFloats}
@@ -1135,13 +1137,14 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           attackingNow={attackingNow}
           debugHitX={debugHitX}
           debugHitY={debugHitY}
-          bottomPad={bottomPad}
           actionArcRight={actionArcRight}
+          safeInsets={safeInsets}
           controlsLive={controlsLive}
           dashReady={dashReady}
-          joystickGesture={joystickGesture}
+          dashCooldownProgress={dashCooldownProgress}
+          dashCooldownSecondsLeft={dashCooldownSecondsLeft}
+          controlLabels={controlLabels}
           joyRef={joyRef}
-          onJoystickGestureReady={setJoystickGesture}
           onHitTap={() => {
             hitQueued.current = true;
           }}
@@ -1153,7 +1156,12 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           }}
           showPreMatchOverlay={showPreMatchOverlay}
           preMatchCeil={preMatchCeil}
+          preMatchLabel={t('brawlerMatch.preMatchLabel')}
           showMatchOverOverlay={gameOverOpen}
+          gameOverTitle={t('brawlerMatch.gameOverTitle')}
+          gameOverHint={t('brawlerMatch.gameOverHint')}
+          gameOverReplayLabel={t('brawlerMatch.gameOverReplay')}
+          gameOverExitLabel={t('brawlerMatch.gameOverExit')}
           showHeroDeadOverlay={deathChoiceOpen}
           heroDeadTitle={t('brawlerMatch.heroDeadTitle')}
           heroDeadBody={t('brawlerMatch.heroDeadBody')}
@@ -1171,6 +1179,24 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           onReplay={resetArenaRound}
           onExit={() => navigation.goBack()}
         />
+
+        <View style={[styles.hudOverlay, { top: safeInsets.top }]}>
+          <ArenaHud
+            styles={styles}
+            safeInsets={safeInsets}
+            showKdHud={showKdHud}
+            kills={playerKillsRef.current}
+            deaths={playerDeathsRef.current}
+            showHudMatchClock={showHudMatchClock}
+            phaseLabel={phaseShown}
+            matchClockSeconds={matchClockShown}
+            sessionId={sessionId}
+            onToggleDev={() => setDevOpen((o) => !o)}
+            resetLabel={sessionId ? t('brawlerMatch.hudLobby') : t('brawlerMatch.hudReset')}
+            onReset={resetArenaRound}
+            onExit={requestExitFromHud}
+          />
+        </View>
       </View>
 
       {!sessionId && devOpen ? (
@@ -1262,6 +1288,15 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         <ArenaResultsOverlay
           styles={styles}
           title={resultsOverlay.title}
+          tableLabels={{
+            subtitle: t('brawlerMatch.resultsSubtitle'),
+            player: t('brawlerMatch.resultsPlayer'),
+            kills: t('brawlerMatch.resultsKills'),
+            deaths: t('brawlerMatch.resultsDeaths'),
+            xp: t('brawlerMatch.resultsXp'),
+            outcome: t('brawlerMatch.resultsOutcome'),
+            backToLobby: t('brawlerMatch.backToLobby'),
+          }}
           scoreboard={resultsOverlay.scoreboard}
           onBackToLobby={() => {
             setResultsOverlay(null);

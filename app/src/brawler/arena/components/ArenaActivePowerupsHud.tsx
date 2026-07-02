@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, View } from 'react-native';
+import { Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { ActiveBuff, BrawlerPowerupDef } from '../types';
 import type { ArenaStyles } from '../styles';
 
@@ -51,16 +51,25 @@ type Props = {
   rows: ActivePowerupHudRow[];
   pickupFlash: PowerupPickupFlash | null;
   nowMs: number;
+  pickupLabel: string;
+  insetStyle?: StyleProp<ViewStyle>;
 };
 
-export function ArenaActivePowerupsHud({ styles, rows, pickupFlash, nowMs }: Props) {
+export function ArenaActivePowerupsHud({
+  styles,
+  rows,
+  pickupFlash,
+  nowMs,
+  pickupLabel,
+  insetStyle,
+}: Props) {
   const showPickupToast =
     pickupFlash != null && pickupFlash.endsAtMs > nowMs;
 
   if (!rows.length && !showPickupToast) return null;
 
   return (
-    <View style={styles.powerupHudWrap} pointerEvents="none">
+    <View style={[styles.powerupHudWrap, insetStyle]} pointerEvents="none">
       {showPickupToast ? (
         <View
           style={[
@@ -68,7 +77,7 @@ export function ArenaActivePowerupsHud({ styles, rows, pickupFlash, nowMs }: Pro
             { borderColor: EFFECT_COLORS[pickupFlash.effectType] },
           ]}
         >
-          <Text style={styles.powerupPickupToastLabel}>Power-up</Text>
+          <Text style={styles.powerupPickupToastLabel}>{pickupLabel}</Text>
           <Text
             style={[
               styles.powerupPickupToastName,

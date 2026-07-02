@@ -16,8 +16,8 @@ type Props = {
   onSettings: () => void;
 };
 
-function initial(name: string): string {
-  const t = name.trim();
+function initial(name: string | null | undefined): string {
+  const t = (name ?? '').trim();
   return t ? t.charAt(0).toUpperCase() : '?';
 }
 

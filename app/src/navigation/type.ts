@@ -18,11 +18,8 @@ export type RootStackParamList = {
     Onboarding: undefined;
     /** Signed-in shell: Home · Play · Venues · Friends · Me */
     MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
-    /** @deprecated Use MainTabs / HomeTab — kept for gradual migration */
-    Home: undefined;
     VenueHub: { venueId: string; venueName?: string };
     DiscoverHub: undefined;
-    PartnerVenuesMap: undefined;
     DailyWord: undefined;
     ChooseGame: { venueId?: string; challengeId?: string } | undefined;
     BrawlerLobby: { venueId?: string } | undefined;
@@ -34,6 +31,7 @@ export type RootStackParamList = {
     BrawlerVenueQueue: {
       venueId?: string;
       brawlerHeroId: string;
+      heroName?: string;
       ranked?: boolean;
       /** Same tuning as Practice vs bot — forwarded to `BrawlerArena` on match. */
       heroStats?: BrawlerArenaHeroStats;
@@ -50,11 +48,14 @@ export type RootStackParamList = {
       };
     };
     Challenges: { venueId?: string; venueName?: string } | undefined;
-    Leaderboard: undefined;
-    Profile: undefined;
+    Leaderboard:
+        | { venueId?: string; venueName?: string; scope?: 'venue' | 'city' | 'country' | 'global' }
+        | undefined;
     Friends: undefined;
     Settings: undefined;
     MemberCard: undefined;
+    FriendCard: undefined;
+    ScanFriendQr: undefined;
     Parties: undefined;
     PartyDetail: { partyId: string };
     RedeemInvite: { token?: string } | undefined;

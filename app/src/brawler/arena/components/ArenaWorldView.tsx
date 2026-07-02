@@ -1,13 +1,11 @@
 import React from 'react';
-import { LayoutChangeEvent, Text, View } from 'react-native';
+import { LayoutChangeEvent, Text, View, type ViewStyle } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { HeroSpriteView, type HeroSpriteAnim } from '../../../components/HeroSpriteView';
-import { VirtualJoystick } from '../../../components/VirtualJoystick';
 import type { HeroSpriteConfig } from '../../heroSpriteTypes';
 import type { PlatformWorld } from '../../arenaPlatforms';
-import { ACTION_ARC_LAYOUT } from '../actionArc';
+import type { ArenaSafeInsets } from '../arenaSafeArea';
 import {
-  ACTION_CONTROLS_BOTTOM_GUTTER,
   ARENA_SKY_LOTTIE,
   ATTACK_HIT_H,
   ATTACK_HIT_W,
@@ -15,7 +13,6 @@ import {
   DMG_FLOAT_RISE_PX,
   DUMMY_HP_MAX,
   ENEMY_HP_MAX,
-  JOYSTICK_SIZE,
 } from '../constants';
 import type { ArenaStyles } from '../styles';
 import type { BrawlerPowerupDef, Dummy, DmgFloat, Enemy, SpawnedPowerup } from '../types';
@@ -23,7 +20,8 @@ import {
   PowerupPickupIcon,
   powerupEffectTypeFromId,
 } from './PowerupPickupIcon';
-import { ActionTapButton } from './ActionTapButton';
+import { ArenaControlTouchLayer } from './ArenaControlTouchLayer';
+import { ArenaWorldHealthBar } from './ArenaWorldHealthBar';
 import { ArenaPlatformArt } from './ArenaPlatformArt';
 import type { MatchPhaseKey } from '../combat';
 import {
@@ -69,6 +67,10 @@ type Props = {
   dashFrame: number;
   facing: 'left' | 'right';
   spriteScale: number;
+  bodyW: number;
+  heroHp: number;
+  heroHpMax: number;
+  heroIFramesLeft: number;
   enemies: Enemy[];
   dummies: Dummy[];
   dmgFloats: DmgFloat[];
@@ -76,19 +78,25 @@ type Props = {
   attackingNow: boolean;
   debugHitX: number;
   debugHitY: number;
-  bottomPad: number;
   actionArcRight: number;
+  safeInsets: ArenaSafeInsets;
   controlsLive: boolean;
   dashReady: boolean;
-  joystickGesture: unknown | null;
+  dashCooldownProgress: number;
+  dashCooldownSecondsLeft: number;
+  controlLabels: { hit: string; dash: string; jump: string; dashCd: string };
   joyRef: React.MutableRefObject<{ x: number; y: number }>;
-  onJoystickGestureReady: (gesture: unknown | null) => void;
   onHitTap: () => void;
   onDashTap: () => void;
   onJumpTap: () => void;
   showPreMatchOverlay: boolean;
   preMatchCeil: number;
+  preMatchLabel: string;
   showMatchOverOverlay: boolean;
+  gameOverTitle: string;
+  gameOverHint: string;
+  gameOverReplayLabel: string;
+  gameOverExitLabel: string;
   showHeroDeadOverlay: boolean;
   heroDeadTitle: string;
   heroDeadBody: string;
@@ -140,6 +148,10 @@ export function ArenaWorldView({
   dashFrame,
   facing,
   spriteScale,
+  bodyW,
+  heroHp,
+  heroHpMax,
+  heroIFramesLeft,
   enemies,
   dummies,
   dmgFloats,
@@ -147,19 +159,25 @@ export function ArenaWorldView({
   attackingNow,
   debugHitX,
   debugHitY,
-  bottomPad,
   actionArcRight,
+  safeInsets,
   controlsLive,
   dashReady,
-  joystickGesture,
+  dashCooldownProgress,
+  dashCooldownSecondsLeft,
+  controlLabels,
   joyRef,
-  onJoystickGestureReady,
   onHitTap,
   onDashTap,
   onJumpTap,
   showPreMatchOverlay,
   preMatchCeil,
+  preMatchLabel,
   showMatchOverOverlay,
+  gameOverTitle,
+  gameOverHint,
+  gameOverReplayLabel,
+  gameOverExitLabel,
   showHeroDeadOverlay,
   heroDeadTitle,
   heroDeadBody,
@@ -180,12 +198,14 @@ export function ArenaWorldView({
   const arenaReadyHud = arenaW >= 32 && arenaInnerH >= 32;
   const debugHitW = ATTACK_HIT_W;
   const debugHitH = ATTACK_HIT_H;
+  const heroBarW = Math.max(52, Math.round(bodyW * 0.95));
+
   const skyLottie = (
     left: number,
     top: number,
     width: number,
     height: number,
-    transform?: Array<{ translateX?: number; translateY?: number; scale?: number }>,
+    transform?: ViewStyle['transform'],
   ) => (
     <LottieView
       source={ARENA_SKY_LOTTIE}
@@ -236,30 +256,49 @@ export function ArenaWorldView({
         })}
 
         {!isSpectating ? (
-          <View
-            style={[
-              styles.playerWrap,
-              {
-                left: px - hitDrawOffsetX,
-                top: py + spriteDrawOffsetY,
-                zIndex: 5,
-              },
-            ]}
-          >
-            {heroSprite ? (
-              <HeroSpriteView
-                config={heroSprite}
-                anim={spriteAnim}
-                walkFrame={walkFrame}
-                idleFrame={idleFrame}
-                hitFrame={hitFrame}
-                jumpFrame={jumpFrame}
-                dashFrame={dashFrame}
-                facing={facing}
-                scale={spriteScale}
+          <>
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                left: px + bodyW / 2 - heroBarW / 2,
+                top: py + spriteDrawOffsetY - 11,
+                zIndex: 6,
+              }}
+            >
+              <ArenaWorldHealthBar
+                hp={heroHp}
+                maxHp={heroHpMax}
+                width={heroBarW}
+                variant="hero"
+                iFrames={heroIFramesLeft > 0}
               />
-            ) : null}
-          </View>
+            </View>
+            <View
+              style={[
+                styles.playerWrap,
+                {
+                  left: px - hitDrawOffsetX,
+                  top: py + spriteDrawOffsetY,
+                  zIndex: 5,
+                },
+              ]}
+            >
+              {heroSprite ? (
+                <HeroSpriteView
+                  config={heroSprite}
+                  anim={spriteAnim}
+                  walkFrame={walkFrame}
+                  idleFrame={idleFrame}
+                  hitFrame={hitFrame}
+                  jumpFrame={jumpFrame}
+                  dashFrame={dashFrame}
+                  facing={facing}
+                  scale={spriteScale}
+                />
+              ) : null}
+            </View>
+          </>
         ) : null}
 
         {enemies.map((e, idx) => {
@@ -276,26 +315,24 @@ export function ArenaWorldView({
                 backgroundColor: e.flashLeft > 0 ? '#fca5a5' : '#dc2626',
                 borderWidth: 2,
                 borderColor: '#7f1d1d',
+                borderRadius: 6,
                 zIndex: 4,
               }}
             >
               <View
                 style={{
                   position: 'absolute',
-                  left: 0,
-                  top: -10,
-                  width: '100%',
-                  height: 6,
-                  backgroundColor: '#111827',
+                  left: e.w / 2 - Math.max(36, e.w * 0.9) / 2,
+                  top: -9,
+                  zIndex: 5,
                 }}
               >
-                <View
-                  style={{
-                    width: `${Math.round((e.hp / ENEMY_HP_MAX) * 100)}%`,
-                    height: '100%',
-                    backgroundColor: '#f97316',
-                    opacity: e.iFramesLeft > 0 ? 0.65 : 1,
-                  }}
+                <ArenaWorldHealthBar
+                  hp={e.hp}
+                  maxHp={ENEMY_HP_MAX}
+                  width={Math.max(36, Math.round(e.w * 0.9))}
+                  variant="enemy"
+                  iFrames={e.iFramesLeft > 0}
                 />
               </View>
             </View>
@@ -320,9 +357,7 @@ export function ArenaWorldView({
         ) : null}
 
         {dummies.map((d) => {
-          const alive = d.hp > 0;
-          if (!alive) return null;
-          const hpPct = d.hp / DUMMY_HP_MAX;
+          if (d.hp <= 0) return null;
           return (
             <View
               key={d.id}
@@ -335,25 +370,23 @@ export function ArenaWorldView({
                 backgroundColor: d.flashLeft > 0 ? '#fde047' : '#f59e0b',
                 borderWidth: 2,
                 borderColor: '#92400e',
+                borderRadius: 6,
                 zIndex: 4,
               }}
             >
               <View
                 style={{
                   position: 'absolute',
-                  left: 0,
-                  top: -10,
-                  width: '100%',
-                  height: 6,
-                  backgroundColor: '#111827',
+                  left: d.w / 2 - Math.max(36, d.w * 0.9) / 2,
+                  top: -9,
+                  zIndex: 5,
                 }}
               >
-                <View
-                  style={{
-                    width: `${Math.round(hpPct * 100)}%`,
-                    height: '100%',
-                    backgroundColor: '#ef4444',
-                  }}
+                <ArenaWorldHealthBar
+                  hp={d.hp}
+                  maxHp={DUMMY_HP_MAX}
+                  width={Math.max(36, Math.round(d.w * 0.9))}
+                  variant="dummy"
                 />
               </View>
             </View>
@@ -439,67 +472,34 @@ export function ArenaWorldView({
         </View>
       </View>
 
-      <View
-        style={[styles.controlsOverlay, { paddingBottom: bottomPad }]}
-        pointerEvents="box-none"
-      >
-        <View style={styles.controlsJoystickCluster} pointerEvents="box-none">
-          <View pointerEvents="auto">
-            <VirtualJoystick
-              stickRef={joyRef}
-              size={JOYSTICK_SIZE}
-              enabled={controlsLive}
-              onGestureReady={onJoystickGestureReady}
-            />
-          </View>
-        </View>
-        <View
-          style={[
-            styles.actionArcWrap,
-            { right: actionArcRight, bottom: ACTION_CONTROLS_BOTTOM_GUTTER },
-          ]}
-          pointerEvents="box-none"
-        >
-          <ActionTapButton
-            kind="hit"
-            enabled={controlsLive}
-            label="Hit"
-            left={ACTION_ARC_LAYOUT[0]!.left}
-            top={ACTION_ARC_LAYOUT[0]!.top}
-            joystickGesture={joystickGesture}
-            onTap={onHitTap}
-            styles={styles}
-          />
-          <ActionTapButton
-            kind="dash"
-            enabled={controlsLive && dashReady}
-            label="Dash"
-            subLabel={!dashReady ? 'CD' : undefined}
-            left={ACTION_ARC_LAYOUT[1]!.left}
-            top={ACTION_ARC_LAYOUT[1]!.top}
-            joystickGesture={joystickGesture}
-            onTap={onDashTap}
-            styles={styles}
-          />
-          <ActionTapButton
-            kind="jump"
-            enabled={controlsLive}
-            label="Jump"
-            left={ACTION_ARC_LAYOUT[2]!.left}
-            top={ACTION_ARC_LAYOUT[2]!.top}
-            joystickGesture={joystickGesture}
-            onTap={onJumpTap}
-            styles={styles}
-          />
-        </View>
-      </View>
+      <ArenaControlTouchLayer
+        styles={styles}
+        safeInsets={safeInsets}
+        actionArcRight={actionArcRight}
+        controlsLive={controlsLive}
+        dashReady={dashReady}
+        dashCooldownProgress={dashCooldownProgress}
+        dashCooldownSecondsLeft={dashCooldownSecondsLeft}
+        controlLabels={controlLabels}
+        joyRef={joyRef}
+        onHitTap={onHitTap}
+        onDashTap={onDashTap}
+        onJumpTap={onJumpTap}
+      />
 
       {showHeroStatsHud ? (
-        <ArenaHeroStatsHud styles={styles} rows={heroStatRows} />
+        <ArenaHeroStatsHud
+          styles={styles}
+          rows={heroStatRows}
+          insetStyle={{
+            bottom: safeInsets.bottom + 148,
+            left: safeInsets.left + 12,
+          }}
+        />
       ) : null}
 
       {showPreMatchOverlay ? (
-        <ArenaPreMatchOverlay styles={styles} countdown={preMatchCeil} />
+        <ArenaPreMatchOverlay styles={styles} label={preMatchLabel} countdown={preMatchCeil} />
       ) : null}
 
       {arenaReadyHud && phaseAnnounce && !showPreMatchOverlay ? (
@@ -514,15 +514,23 @@ export function ArenaWorldView({
       {arenaReadyHud && showMatchOverOverlay ? (
         <ArenaGameOverOverlay
           styles={styles}
-          title="Match over"
-          hint="Play again or return to the lobby."
+          title={gameOverTitle}
+          hint={gameOverHint}
+          replayLabel={gameOverReplayLabel}
+          exitLabel={gameOverExitLabel}
           onReplay={onReplay}
           onExit={onExit}
         />
       ) : null}
 
       {arenaReadyHud && isSpectating ? (
-        <View style={styles.spectateBanner} pointerEvents="none">
+        <View
+          style={[
+            styles.spectateBanner,
+            { top: safeInsets.top + 12 },
+          ]}
+          pointerEvents="none"
+        >
           <Text style={styles.spectateBannerText}>{spectatingLabel}</Text>
           <Text style={styles.spectateBannerHint}>{spectatingPanHint}</Text>
         </View>

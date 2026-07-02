@@ -22,6 +22,7 @@ const GAME_ROUTES = new Set([
   'WordMatchJoin',
   'ChooseGame',
   'BrawlerLobby',
+  'BrawlerVenueQueue',
 ]);
 
 const SILENT_ROUTES = new Set(['Login', 'SignUp', 'Onboarding']);

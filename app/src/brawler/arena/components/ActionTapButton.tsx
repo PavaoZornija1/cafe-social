@@ -1,49 +1,41 @@
-import React, { useMemo, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
 import { Text, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import type { ArenaStyles } from '../styles';
 
+type Kind = 'hit' | 'dash' | 'jump';
+
 type Props = {
-  kind: 'hit' | 'dash' | 'jump';
+  kind: Kind;
   enabled: boolean;
   label: string;
-  subLabel?: string;
   left: number;
   top: number;
-  joystickGesture: unknown | null;
-  onTap: () => void;
   styles: ArenaStyles;
+  pressed?: boolean;
+  /** 0 = just used, 1 = ready (dash recharge). */
+  dashCooldownProgress?: number;
+  dashCooldownSecondsLeft?: number;
+};
+
+const ICONS: Record<Kind, keyof typeof Ionicons.glyphMap> = {
+  hit: 'flash',
+  dash: 'arrow-forward-circle',
+  jump: 'arrow-up-circle',
 };
 
 export function ActionTapButton({
   kind,
   enabled,
   label,
-  subLabel,
   left,
   top,
-  joystickGesture,
-  onTap,
   styles,
+  pressed = false,
+  dashCooldownProgress = 1,
+  dashCooldownSecondsLeft = 0,
 }: Props) {
-  const [pressed, setPressed] = useState(false);
-
-  const tap = useMemo(() => {
-    let g = Gesture.Tap()
-      .enabled(enabled)
-      .runOnJS(true)
-      .maxDuration(600)
-      .onBegin(() => setPressed(true))
-      .onFinalize(() => setPressed(false))
-      .onEnd((_e, success) => {
-        if (success && enabled) onTap();
-      });
-    if (joystickGesture) {
-      g = g.simultaneousWithExternalGesture(joystickGesture as never);
-    }
-    return g;
-  }, [enabled, joystickGesture, onTap]);
-
+  const onDashCooldown = kind === 'dash' && dashCooldownProgress < 1;
   const baseStyle =
     kind === 'hit'
       ? styles.ctrlCircleHit
@@ -51,22 +43,61 @@ export function ActionTapButton({
         ? styles.ctrlCircleDash
         : styles.ctrlCircleJump;
 
+  const ringStyle =
+    kind === 'hit'
+      ? styles.ctrlRingHit
+      : kind === 'dash'
+        ? styles.ctrlRingDash
+        : styles.ctrlRingJump;
+
   return (
-    <GestureDetector gesture={tap}>
+    <View
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !enabled }}
+      pointerEvents="none"
+      style={[
+        styles.ctrlBtnOuter,
+        styles.ctrlCircleAbsolute,
+        { left, top },
+        pressed && styles.ctrlPressed,
+        !enabled && !onDashCooldown && styles.ctrlBtnDisabled,
+      ]}
+    >
+      <View style={[styles.ctrlRing, ringStyle, onDashCooldown && styles.ctrlRingCooldown]} />
       <View
-        accessibilityRole="button"
         style={[
           baseStyle,
-          styles.ctrlCircleAbsolute,
-          { left, top },
-          !enabled && styles.ctrlBtnDisabled,
-          pressed && styles.ctrlPressed,
+          onDashCooldown && styles.ctrlCircleOnCooldown,
+          pressed && styles.ctrlCirclePressed,
         ]}
       >
         <View style={styles.ctrlCircleGloss} pointerEvents="none" />
-        <Text style={styles.ctrlCircleLabel}>{label}</Text>
-        {subLabel ? <Text style={styles.ctrlCircleSub}>{subLabel}</Text> : null}
+        {onDashCooldown ? (
+          <>
+            <View
+              pointerEvents="none"
+              style={[
+                styles.ctrlCooldownSand,
+                { height: `${Math.round(dashCooldownProgress * 100)}%` },
+              ]}
+            />
+            <View style={styles.ctrlCooldownVeil} pointerEvents="none" />
+            <Ionicons name="hourglass" size={22} color="rgba(255,255,255,0.92)" />
+            <Text style={styles.ctrlCooldownSeconds}>
+              {Math.max(1, Math.ceil(dashCooldownSecondsLeft))}
+            </Text>
+          </>
+        ) : (
+          <>
+            <Ionicons
+              name={ICONS[kind]}
+              size={kind === 'hit' ? 26 : 24}
+              color="rgba(255,255,255,0.95)"
+            />
+            <Text style={styles.ctrlCircleLabel}>{label}</Text>
+          </>
+        )}
       </View>
-    </GestureDetector>
+    </View>
   );
 }

@@ -1,24 +1,29 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
-import React, { useCallback, useState, useMemo } from 'react';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Platform,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useTranslation } from 'react-i18next';
-import type { RootStackParamList } from '../navigation/type';
+
 import { parseMemberTokenFromQr } from '../lib/parseMemberCardQr';
-import { parseStaffVerificationFromQr } from '../lib/staffQr';
 import { scanAndRedeemStaffReward, scanMemberCardAtVenue } from '../lib/ownerStaffApi';
+import { parseStaffVerificationFromQr } from '../lib/staffQr';
+import type { RootStackParamList } from '../navigation/type';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
+import { radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'StaffQrScan'>;
 
@@ -27,9 +32,13 @@ export default function StaffQrScanScreen({ navigation, route }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
   const { isLoaded, getToken } = useAuth();
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
+
   const { venueId, venueName } = route.params;
   const [permission, requestPermission] = useCameraPermissions();
   const [scanEnabled, setScanEnabled] = useState(true);
+  const [busy, setBusy] = useState(false);
   const [manual, setManual] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -37,10 +46,9 @@ export default function StaffQrScanScreen({ navigation, route }: Props) {
 
   const goMatch = useCallback(
     (code: string) => {
-      const name = venueName ?? '';
       navigation.replace('StaffRedemptions', {
         venueId,
-        venueName: name,
+        venueName: venueName ?? '',
         highlightCode: code,
       });
     },
@@ -49,48 +57,59 @@ export default function StaffQrScanScreen({ navigation, route }: Props) {
 
   const scanMemberCard = useCallback(
     async (qrPayload: string) => {
-      if (!isLoaded) return;
-      const token = await getToken();
-      if (!token) {
-        setError(t('staff.signInFirst'));
-        return;
-      }
+      if (!isLoaded || busy) return;
+      setBusy(true);
+      setError(null);
       try {
+        const token = await getTokenRef.current();
+        if (!token) {
+          setError(t('staff.signInFirst'));
+          return;
+        }
         const res = await scanMemberCardAtVenue(token, venueId, qrPayload);
         Alert.alert(
           t('staff.memberScanSuccessTitle'),
           t('staff.memberScanSuccessBody', { name: res.username }),
+          [{ text: t('common.continue'), onPress: () => navigation.goBack() }],
         );
-        navigation.goBack();
       } catch (e) {
         setError((e as Error).message ?? t('staff.loadFailed'));
+        setScanEnabled(true);
+      } finally {
+        setBusy(false);
       }
     },
-    [getToken, isLoaded, navigation, t, venueId],
+    [busy, isLoaded, navigation, t, venueId],
   );
 
   const scanRedeem = useCallback(
     async (code: string) => {
-      if (!isLoaded) return;
-      const token = await getToken();
-      if (!token) {
-        setError(t('staff.signInFirst'));
-        return;
-      }
+      if (!isLoaded || busy) return;
+      setBusy(true);
+      setError(null);
       try {
+        const token = await getTokenRef.current();
+        if (!token) {
+          setError(t('staff.signInFirst'));
+          return;
+        }
         await scanAndRedeemStaffReward(token, venueId, code);
-        Alert.alert(t('staff.scanSuccessTitle'), t('staff.scanSuccessBody'));
-        goMatch(code);
+        Alert.alert(t('staff.scanSuccessTitle'), t('staff.scanSuccessBody'), [
+          { text: t('common.continue'), onPress: () => goMatch(code) },
+        ]);
       } catch (e) {
         setError((e as Error).message ?? t('staff.loadFailed'));
+        setScanEnabled(true);
+      } finally {
+        setBusy(false);
       }
     },
-    [getToken, goMatch, isLoaded, t, venueId],
+    [busy, goMatch, isLoaded, t, venueId],
   );
 
   const onBarcodeScanned = useCallback(
     ({ data }: { data: string }) => {
-      if (!scanEnabled) return;
+      if (!scanEnabled || busy) return;
       if (parseMemberTokenFromQr(data)) {
         setScanEnabled(false);
         setError(null);
@@ -106,10 +125,11 @@ export default function StaffQrScanScreen({ navigation, route }: Props) {
         setError(t('staff.qrUnrecognized'));
       }
     },
-    [scanEnabled, scanMemberCard, scanRedeem, t],
+    [busy, scanEnabled, scanMemberCard, scanRedeem, t],
   );
 
-  const applyManual = () => {
+  const applyManual = useCallback(() => {
+    if (busy) return;
     setError(null);
     if (parseMemberTokenFromQr(manual)) {
       void scanMemberCard(manual);
@@ -121,143 +141,260 @@ export default function StaffQrScanScreen({ navigation, route }: Props) {
       return;
     }
     void scanRedeem(code);
-  };
+  }, [busy, manual, scanMemberCard, scanRedeem, t]);
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backText}>{t('common.back')}</Text>
-        </Pressable>
-        <Text style={styles.title}>{t('staff.scanTitle')}</Text>
-      </View>
-      <Text style={styles.sub}>{t('staff.scanSubtitle')}</Text>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.titleRow}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back')}
+          >
+            <Ionicons name="arrow-back" size={22} color={colors.text} />
+          </Pressable>
+          <Text style={styles.title}>{t('staff.scanTitle')}</Text>
+          <View style={styles.iconBtnPlaceholder} />
+        </View>
 
-      <View style={styles.scannerWrap}>
+        <Text style={styles.subtitle}>{t('staff.scanSubtitle')}</Text>
+
+        <View style={styles.scannerWrap}>
+          {canUseCamera && permission?.granted ? (
+            <>
+              <CameraView
+                style={styles.camera}
+                facing="back"
+                barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                onBarcodeScanned={scanEnabled && !busy ? onBarcodeScanned : undefined}
+              />
+              {busy ? (
+                <View style={styles.scannerOverlay}>
+                  <ActivityIndicator color={colors.textInverse} size="large" />
+                </View>
+              ) : null}
+            </>
+          ) : (
+            <View style={styles.scannerFallback}>
+              <Ionicons name="camera-outline" size={36} color={colors.textMuted} />
+              <Text style={styles.fallbackText}>
+                {!canUseCamera
+                  ? t('qr.webNoCamera')
+                  : permission?.granted === false
+                    ? t('qr.cameraDenied')
+                    : t('qr.cameraPrompt')}
+              </Text>
+              {canUseCamera && permission && !permission.granted ? (
+                <Pressable
+                  style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
+                  onPress={() => void requestPermission()}
+                >
+                  <Text style={styles.primaryBtnText}>{t('qr.allowCamera')}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          )}
+        </View>
+
         {canUseCamera && permission?.granted ? (
-          <CameraView
-            style={styles.camera}
-            facing="back"
-            barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-            onBarcodeScanned={scanEnabled ? onBarcodeScanned : undefined}
-          />
-        ) : (
-          <View style={styles.fallback}>
-            <Text style={styles.fallbackText}>
-              {!canUseCamera
-                ? t('qr.webNoCamera')
-                : permission?.granted === false
-                  ? t('qr.cameraDenied')
-                  : t('qr.cameraPrompt')}
-            </Text>
-            {canUseCamera && permission && !permission.granted ? (
-              <Pressable style={styles.permBtn} onPress={() => void requestPermission()}>
-                <Text style={styles.permBtnText}>{t('qr.allowCamera')}</Text>
-              </Pressable>
-            ) : null}
+          <Pressable
+            style={({ pressed }) => [styles.scanAgainBtn, pressed && styles.pressed]}
+            onPress={() => {
+              setScanEnabled(true);
+              setError(null);
+            }}
+            disabled={busy}
+          >
+            <Ionicons name="scan-outline" size={16} color={colors.primary} />
+            <Text style={styles.scanAgainText}>{t('qr.scanAgain')}</Text>
+          </Pressable>
+        ) : null}
+
+        {error ? (
+          <View style={styles.errorBox}>
+            <Ionicons name="alert-circle-outline" size={18} color={colors.error} />
+            <Text style={styles.errorText}>{error}</Text>
           </View>
-        )}
-      </View>
+        ) : null}
 
-      {canUseCamera && permission?.granted ? (
-        <Pressable
-          style={styles.secondarySmall}
-          onPress={() => {
-            setScanEnabled(true);
-            setError(null);
-          }}
-        >
-          <Text style={styles.secondarySmallText}>{t('qr.scanAgain')}</Text>
-        </Pressable>
-      ) : null}
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <View style={styles.manual}>
-        <Text style={styles.manualLabel}>{t('staff.manualCode')}</Text>
-        <TextInput
-          value={manual}
-          onChangeText={setManual}
-          autoCapitalize="characters"
-          placeholder={t('staff.manualPlaceholder')}
-          placeholderTextColor={colors.textMuted}
-          style={styles.input}
-          editable={isLoaded}
-        />
-        <Pressable style={styles.applyBtn} onPress={applyManual}>
-          <Text style={styles.applyBtnText}>{t('staff.findOnList')}</Text>
-        </Pressable>
-      </View>
+        <View style={styles.manualCard}>
+          <Text style={styles.manualLabel}>{t('staff.manualCode')}</Text>
+          <TextInput
+            value={manual}
+            onChangeText={setManual}
+            autoCapitalize="characters"
+            placeholder={t('staff.manualPlaceholder')}
+            placeholderTextColor={colors.textMuted}
+            style={styles.input}
+            editable={isLoaded && !busy}
+          />
+          <Pressable
+            style={({ pressed }) => [
+              styles.primaryBtn,
+              pressed && styles.pressed,
+              busy && styles.disabled,
+            ]}
+            onPress={applyManual}
+            disabled={busy}
+          >
+            {busy ? (
+              <ActivityIndicator color={colors.textInverse} />
+            ) : (
+              <Text style={styles.primaryBtnText}>{t('staff.findOnList')}</Text>
+            )}
+          </Pressable>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-
 function createStyles(colors: AppColors) {
-    return StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 24,
-    paddingTop: 16,
-  },
-  backBtn: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, backgroundColor: colors.surface },
-  backText: { color: colors.textSecondary, fontWeight: '600' },
-  title: { color: colors.text, fontSize: 20, fontWeight: '800', flex: 1 },
-  sub: { color: colors.textMuted, fontSize: 13, marginHorizontal: 24, marginTop: 10, lineHeight: 18 },
-  scannerWrap: {
-    marginHorizontal: 24,
-    marginTop: 16,
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-    height: 240,
-    backgroundColor: '#000',
-  },
-  camera: { flex: 1 },
-  fallback: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    backgroundColor: colors.surface,
-  },
-  fallbackText: { color: colors.textMuted, textAlign: 'center' },
-  permBtn: {
-    marginTop: 12,
-    backgroundColor: '#6d28d9',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  permBtnText: { color: colors.textInverse, fontWeight: '800' },
-  secondarySmall: { alignSelf: 'center', marginTop: 10 },
-  secondarySmallText: { color: colors.honey, fontWeight: '700', fontSize: 13 },
-  error: { color: colors.error, marginHorizontal: 24, marginTop: 10, fontSize: 13 },
-  manual: { marginHorizontal: 24, marginTop: 20 },
-  manualLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '700', marginBottom: 8 },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: colors.text,
-    fontSize: 16,
-    letterSpacing: 1,
-  },
-  applyBtn: {
-    marginTop: 12,
-    backgroundColor: '#4c1d95',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  applyBtnText: { color: colors.honeyDark, fontWeight: '800' },
-
-    });
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.bg },
+    scroll: {
+      paddingHorizontal: spacing.xl,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    iconBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: radii.pill,
+      backgroundColor: colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    iconBtnPlaceholder: { width: 44, height: 44 },
+    title: {
+      flex: 1,
+      color: colors.text,
+      fontSize: 28,
+      fontWeight: '900',
+      letterSpacing: -0.5,
+    },
+    subtitle: {
+      color: colors.textSecondary,
+      fontSize: 15,
+      lineHeight: 22,
+      marginBottom: spacing.lg,
+    },
+    scannerWrap: {
+      borderRadius: radii.lg,
+      overflow: 'hidden',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      height: 260,
+      backgroundColor: '#000',
+    },
+    camera: { flex: 1 },
+    scannerOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    scannerFallback: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: spacing.lg,
+      backgroundColor: colors.surface,
+      gap: spacing.md,
+    },
+    fallbackText: {
+      color: colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    scanAgainBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.xs,
+      alignSelf: 'center',
+      marginTop: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    scanAgainText: {
+      color: colors.primary,
+      fontWeight: '700',
+      fontSize: 14,
+    },
+    errorBox: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+      marginTop: spacing.md,
+      padding: spacing.md,
+      borderRadius: radii.md,
+      backgroundColor: colors.errorMuted,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.error,
+    },
+    errorText: {
+      flex: 1,
+      color: colors.error,
+      fontSize: 13,
+      lineHeight: 18,
+    },
+    manualCard: {
+      marginTop: spacing.xl,
+      backgroundColor: colors.surface,
+      borderRadius: radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      padding: spacing.lg,
+      gap: spacing.sm,
+    },
+    manualLabel: {
+      color: colors.textMuted,
+      fontSize: 12,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+    },
+    input: {
+      backgroundColor: colors.bgElevated,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      color: colors.text,
+      fontSize: 16,
+      letterSpacing: 1,
+    },
+    primaryBtn: {
+      marginTop: spacing.sm,
+      backgroundColor: colors.primary,
+      borderRadius: radii.md,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 48,
+    },
+    primaryBtnText: {
+      color: colors.textInverse,
+      fontWeight: '800',
+      fontSize: 15,
+    },
+    pressed: { opacity: 0.88 },
+    disabled: { opacity: 0.6 },
+  });
 }

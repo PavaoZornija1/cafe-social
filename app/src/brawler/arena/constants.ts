@@ -10,6 +10,16 @@ export const ACTION_CIRCLE_SIZE = 66;
 export const BASE_MOVE_SPEED_PX = 260;
 export const GRAVITY = 2200;
 export const JUMP_VELOCITY = -640;
+/** Extra jumps allowed after leaving the ground (1 = double jump). */
+export const MAX_AIR_JUMPS = 1;
+/** Second jump impulse relative to the first. */
+export const DOUBLE_JUMP_VELOCITY_MUL = 0.9;
+/** Stick Y above this (pull down) while grounded drops through floating platforms. */
+export const DROP_THROUGH_JOY_THRESHOLD = 0.42;
+/** Downward nudge when starting a drop-through (px/s). */
+export const DROP_THROUGH_INITIAL_VY = 200;
+/** Feet must fall this far past a platform top before it can be landed on again. */
+export const DROP_THROUGH_CLEARANCE_PX = 10;
 export const GROUND_STRIP_H = 40;
 export const WALK_FRAME_MS = 140;
 export const IDLE_FRAME_MS = 400;
@@ -42,6 +52,12 @@ export const DMG_FLOAT_RISE_PX = 26;
 export const DEFAULT_MATCH_TIMER_ENABLED = false;
 
 export const ATTACK_DURATION_S = 0.28;
+/** Horizontal move speed multiplier while a swing is active (still steerable). */
+export const ATTACK_MOVE_SPEED_MUL = 1;
+export const MOVE_ACCEL = 24;
+export const MOVE_DECEL = 16;
+export const MOVE_ACCEL_ATTACK = 18;
+export const MOVE_DECEL_ATTACK = 14;
 export const DASH_DURATION_S = 0.18;
 export const DASH_SPEED = 560;
 
@@ -72,6 +88,7 @@ export const ACTION_ARC_CENTER_X = 132;
 export const ACTION_ARC_CENTER_Y = ACTION_ARC_H - 10;
 export const ACTION_ARC_ANGLES_HIT_DASH_JUMP = [156, 93, 32] as const;
 
-export const ACTION_CONTROLS_SAFE_RIGHT_NUDGE_PX = 44;
-export const ACTION_CONTROLS_RIGHT_GUTTER = 26;
-export const ACTION_CONTROLS_BOTTOM_GUTTER = 14;
+export const ACTION_CONTROLS_SAFE_RIGHT_NUDGE_PX = 28;
+export const ACTION_CONTROLS_RIGHT_GUTTER = 18;
+export const ACTION_CONTROLS_BOTTOM_GUTTER = 12;
+export const ACTION_CONTROLS_LEFT_GUTTER = 12;

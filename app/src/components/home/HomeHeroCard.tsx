@@ -3,211 +3,276 @@ import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import LinearGradientFill from '../ui/LinearGradientFill';
+
 import type { AppColors } from '../../theme/colors';
 import { radii, spacing } from '../../theme/tokens';
 import type { FriendAtVenueRow } from './types';
 
 type Props = {
   colors: AppColors;
+  displayName: string;
   streak: number;
   friendsHere: FriendAtVenueRow[];
   disabled: boolean;
-  lockedHint?: string;
   onPlay: () => void;
 };
 
-function friendInitial(username: string): string {
-  const trimmed = username.trim();
+const FRIEND_AVATAR_COLORS = ['#FBBF24', '#F87171', '#34D399', '#60A5FA', '#A78BFA'];
+
+function friendInitial(username: string | null | undefined): string {
+  const trimmed = (username ?? '').trim();
   if (!trimmed) return '?';
   return trimmed.charAt(0).toUpperCase();
 }
 
+function firstNameFromDisplay(displayName: string | null | undefined): string {
+  const trimmed = (displayName ?? '').trim();
+  if (!trimmed) return '';
+  return trimmed.split(/\s+/)[0] ?? trimmed;
+}
+
 export default function HomeHeroCard({
   colors,
+  displayName,
   streak,
   friendsHere,
   disabled,
-  lockedHint,
   onPlay,
 }: Props) {
   const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const visibleFriends = friendsHere.slice(0, 3);
   const extraCount = Math.max(0, friendsHere.length - visibleFriends.length);
+  const firstName = firstNameFromDisplay(displayName);
+  const streakLabel =
+    streak === 1
+      ? t('home.dashboard.streakDayOne')
+      : t('home.dashboard.streakDays', { count: streak });
 
   return (
     <Pressable
       onPress={onPlay}
       disabled={disabled}
       style={({ pressed }) => [
-        styles.card,
-        disabled && styles.cardDisabled,
+        styles.outer,
+        disabled && styles.outerDisabled,
         pressed && !disabled && styles.pressed,
       ]}
       accessibilityRole="button"
       accessibilityLabel={t('home.dashboard.heroA11y')}
       accessibilityState={{ disabled }}
     >
-      <View style={styles.topRow}>
-        <View style={styles.streakBlock}>
-          <Text style={styles.streakLabel}>{t('home.dashboard.streak')}</Text>
-          <Text style={styles.streakValue}>{streak}</Text>
+      <View style={styles.card}>
+        <LinearGradientFill
+          from={colors.heroDark}
+          to={colors.hero}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.cardGradient}
+        />
+
+        <View style={styles.badgeRow}>
+          <View style={styles.livePill}>
+            <Ionicons name="sparkles" size={12} color={colors.textInverse} />
+            <Text style={styles.livePillText}>{t('home.dashboard.liveGames')}</Text>
+          </View>
+          <View style={styles.streakPill}>
+            <Ionicons name="flame" size={14} color={colors.xp} />
+            <Text style={styles.streakPillText}>{streakLabel}</Text>
+          </View>
         </View>
-        <View style={styles.friendsBlock}>
-          <Text style={styles.friendsLabel}>{t('home.dashboard.friendsHere')}</Text>
-          {friendsHere.length === 0 ? (
-            <Text style={styles.friendsEmpty}>{t('home.dashboard.noFriendsHere')}</Text>
+
+        <Text style={styles.tapToPlay}>{t('home.dashboard.tapToPlayXp')}</Text>
+        <Text style={styles.headline}>
+          {firstName
+            ? t('home.dashboard.gameOnNamed', { name: firstName })
+            : t('home.dashboard.gameOn')}
+        </Text>
+
+        <View style={styles.friendsRow}>
+          {friendsHere.length > 0 ? (
+            <>
+              <View style={styles.avatarRow}>
+                {visibleFriends.map((friend, index) => (
+                  <View
+                    key={friend.id}
+                    style={[
+                      styles.friendAvatar,
+                      { backgroundColor: FRIEND_AVATAR_COLORS[index % FRIEND_AVATAR_COLORS.length] },
+                      index > 0 && styles.friendAvatarOverlap,
+                    ]}
+                  >
+                    <Text style={styles.friendInitial}>{friendInitial(friend.username)}</Text>
+                  </View>
+                ))}
+                {extraCount > 0 ? (
+                  <View style={[styles.friendAvatar, styles.friendAvatarOverlap, styles.friendMore]}>
+                    <Text style={styles.friendMoreText}>+{extraCount}</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text style={styles.friendsCaption} numberOfLines={2}>
+                {t('home.dashboard.friendsHereNow', { count: friendsHere.length })}
+              </Text>
+            </>
           ) : (
-            <View style={styles.avatarRow}>
-              {visibleFriends.map((friend, index) => (
-                <View
-                  key={friend.id}
-                  style={[styles.friendAvatar, index > 0 && styles.friendAvatarOverlap]}
-                >
-                  <Text style={styles.friendInitial}>{friendInitial(friend.username)}</Text>
-                </View>
-              ))}
-              {extraCount > 0 ? (
-                <View style={[styles.friendAvatar, styles.friendAvatarOverlap, styles.friendMore]}>
-                  <Text style={styles.friendMoreText}>+{extraCount}</Text>
-                </View>
-              ) : null}
-            </View>
+            <Text style={styles.friendsCaptionMuted}>{t('home.dashboard.noFriendsHere')}</Text>
           )}
         </View>
+
+        <View style={styles.ctaBar}>
+          <Text style={styles.ctaText}>{t('home.dashboard.pickGame')}</Text>
+          <View style={styles.ctaButton}>
+            <Ionicons name="arrow-forward" size={20} color={colors.textInverse} />
+          </View>
+        </View>
       </View>
-
-      <Text style={styles.headline}>{t('home.dashboard.gameOn')}</Text>
-      <Text style={styles.subline}>{t('home.dashboard.heroXpHint')}</Text>
-
-      <View style={styles.ctaRow}>
-        <Text style={styles.ctaText}>{t('home.dashboard.pickGame')}</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors.textInverse} />
-      </View>
-
-      {disabled && lockedHint ? (
-        <Text style={styles.lockedHint} numberOfLines={2}>
-          {lockedHint}
-        </Text>
-      ) : null}
     </Pressable>
   );
 }
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
+    outer: { gap: spacing.sm },
+    outerDisabled: { opacity: 0.88 },
+    pressed: { opacity: 0.96 },
     card: {
-      backgroundColor: colors.hero,
+      backgroundColor: colors.heroDark,
       borderRadius: radii.xl,
-      padding: spacing.xl,
-      gap: spacing.md,
+      padding: spacing.lg,
+      gap: spacing.sm,
+      overflow: 'hidden',
     },
-    cardDisabled: {
-      opacity: 0.72,
+    cardGradient: {
+      ...StyleSheet.absoluteFillObject,
     },
-    pressed: { opacity: 0.94 },
-    topRow: {
+    badgeRow: {
       flexDirection: 'row',
+      alignItems: 'center',
       justifyContent: 'space-between',
-      gap: spacing.lg,
+      gap: spacing.sm,
+      zIndex: 1,
     },
-    streakBlock: { flex: 1 },
-    streakLabel: {
+    livePill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      backgroundColor: 'rgba(255,255,255,0.18)',
+      borderRadius: radii.pill,
+      paddingVertical: 5,
+      paddingHorizontal: 10,
+    },
+    livePillText: {
       color: colors.textInverse,
-      opacity: 0.85,
+      fontSize: 10,
+      fontWeight: '800',
+      letterSpacing: 0.6,
+    },
+    streakPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: colors.surface,
+      borderRadius: radii.pill,
+      paddingVertical: 5,
+      paddingHorizontal: 10,
+    },
+    streakPillText: {
+      color: colors.xp,
+      fontSize: 11,
+      fontWeight: '800',
+    },
+    tapToPlay: {
+      color: colors.textInverse,
+      opacity: 0.88,
       fontSize: 11,
       fontWeight: '700',
-      letterSpacing: 0.5,
+      letterSpacing: 0.8,
       textTransform: 'uppercase',
+      marginTop: spacing.xs,
+      zIndex: 1,
     },
-    streakValue: {
+    headline: {
       color: colors.textInverse,
-      fontSize: 36,
+      fontSize: 30,
       fontWeight: '900',
-      marginTop: 2,
+      letterSpacing: -0.6,
+      lineHeight: 34,
+      zIndex: 1,
     },
-    friendsBlock: {
-      flex: 1,
-      alignItems: 'flex-end',
-    },
-    friendsLabel: {
-      color: colors.textInverse,
-      opacity: 0.85,
-      fontSize: 11,
-      fontWeight: '700',
-      letterSpacing: 0.5,
-      textTransform: 'uppercase',
-    },
-    friendsEmpty: {
-      color: colors.textInverse,
-      fontSize: 13,
-      fontWeight: '600',
-      marginTop: 8,
-      opacity: 0.9,
+    friendsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginTop: spacing.xs,
+      minHeight: 36,
+      zIndex: 1,
     },
     avatarRow: {
       flexDirection: 'row',
-      marginTop: 8,
     },
     friendAvatar: {
-      width: 32,
-      height: 32,
+      width: 30,
+      height: 30,
       borderRadius: radii.pill,
-      backgroundColor: colors.heroDark,
       borderWidth: 2,
-      borderColor: colors.hero,
+      borderColor: colors.heroDark,
       alignItems: 'center',
       justifyContent: 'center',
     },
     friendAvatarOverlap: {
-      marginLeft: -10,
+      marginLeft: -8,
     },
     friendInitial: {
       color: colors.textInverse,
-      fontSize: 13,
-      fontWeight: '800',
+      fontSize: 12,
+      fontWeight: '900',
     },
     friendMore: {
       backgroundColor: colors.surface,
     },
     friendMoreText: {
       color: colors.primary,
-      fontSize: 11,
+      fontSize: 10,
       fontWeight: '800',
     },
-    headline: {
+    friendsCaption: {
+      flex: 1,
       color: colors.textInverse,
-      fontSize: 28,
-      fontWeight: '900',
-      letterSpacing: -0.5,
-    },
-    subline: {
-      color: colors.textInverse,
-      opacity: 0.9,
-      fontSize: 15,
+      fontSize: 13,
       fontWeight: '600',
+      opacity: 0.95,
     },
-    ctaRow: {
+    friendsCaptionMuted: {
+      color: colors.textInverse,
+      fontSize: 13,
+      fontWeight: '600',
+      opacity: 0.85,
+    },
+    ctaBar: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+      backgroundColor: colors.surface,
+      borderRadius: radii.lg,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
       marginTop: spacing.sm,
-      paddingTop: spacing.md,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: 'rgba(255,255,255,0.25)',
+      zIndex: 1,
     },
     ctaText: {
-      color: colors.textInverse,
-      fontSize: 14,
+      color: colors.text,
+      fontSize: 16,
       fontWeight: '800',
-      letterSpacing: 0.4,
-      textTransform: 'uppercase',
     },
-    lockedHint: {
-      color: colors.textInverse,
-      fontSize: 12,
-      fontWeight: '600',
-      opacity: 0.95,
+    ctaButton: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.pill,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
   });
 }

@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
-import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useState, useMemo } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,10 +13,12 @@ import {
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+
 import type { RootStackParamList } from '../navigation/type';
 import { apiGet } from '../lib/api';
-import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
+import { useAppTheme } from '../theme/ThemeContext';
+import { radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MyVenueReports'>;
 
@@ -36,14 +38,27 @@ export default function MyVenueReportsScreen({ navigation }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
   const { isLoaded, getToken } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [rows, setRows] = useState<FiledReportRow[]>([]);
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
 
-  const load = useCallback(async () => {
+  const [initializing, setInitializing] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [rows, setRows] = useState<FiledReportRow[]>([]);
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+
+  const load = useCallback(async (mode: 'initial' | 'refresh') => {
     if (!isLoaded) return;
-    setLoading(true);
+
+    const hasRows = rowsRef.current.length > 0;
+    if (mode === 'initial' && !hasRows) {
+      setInitializing(true);
+    } else if (mode === 'refresh') {
+      setRefreshing(true);
+    }
+
     try {
-      const token = await getToken();
+      const token = await getTokenRef.current();
       if (!token) {
         setRows([]);
         return;
@@ -52,127 +67,227 @@ export default function MyVenueReportsScreen({ navigation }: Props) {
       setRows(Array.isArray(list) ? list : []);
     } catch {
       Alert.alert(t('common.error'), t('myReports.loadError'));
-      setRows([]);
+      if (!hasRows) setRows([]);
     } finally {
-      setLoading(false);
+      setInitializing(false);
+      setRefreshing(false);
     }
-  }, [getToken, isLoaded, t]);
+  }, [isLoaded, t]);
 
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load]),
+  useEffect(() => {
+    if (!isLoaded) return;
+    void load('initial');
+  }, [isLoaded, load]);
+
+  const handleRefresh = useCallback(() => {
+    void load(rowsRef.current.length > 0 ? 'refresh' : 'initial');
+  }, [load]);
+
+  const statusLabel = useCallback(
+    (status: string) => {
+      const s = status.toLowerCase();
+      if (s === 'open') return t('myReports.statusOpen');
+      if (s === 'dismissed') return t('myReports.statusDismissed');
+      return status;
+    },
+    [t],
   );
 
-  const statusLabel = (status: string) => {
-    const s = status.toLowerCase();
-    if (s === 'open') return t('myReports.statusOpen');
-    if (s === 'dismissed') return t('myReports.statusDismissed');
-    return status;
-  };
+  const showInitialSpinner = initializing && rows.length === 0;
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.back}>
-          <Text style={styles.backText}>{t('common.back')}</Text>
-        </Pressable>
-        <Text style={styles.title}>{t('myReports.title')}</Text>
-      </View>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <Text style={styles.sub}>{t('myReports.subtitle')}</Text>
-        <Pressable style={styles.secondaryBtn} onPress={() => void load()} disabled={loading}>
-          <Text style={styles.secondaryBtnText}>
-            {loading ? '…' : t('myReports.refresh')}
-          </Text>
-        </Pressable>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.titleRow}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back')}
+          >
+            <Ionicons name="arrow-back" size={22} color={colors.text} />
+          </Pressable>
+          <Text style={styles.title}>{t('myReports.title')}</Text>
+          <Pressable
+            onPress={handleRefresh}
+            disabled={refreshing}
+            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={t('myReports.refreshA11y')}
+          >
+            {refreshing ? (
+              <ActivityIndicator color={colors.primary} size="small" />
+            ) : (
+              <Ionicons name="refresh-outline" size={22} color={colors.textSecondary} />
+            )}
+          </Pressable>
+        </View>
 
-        {loading ? (
-          <View style={styles.centerRow}>
-            <ActivityIndicator color="#a78bfa" />
+        <Text style={styles.subtitle}>{t('myReports.subtitle')}</Text>
+
+        {showInitialSpinner ? (
+          <View style={styles.centerBlock}>
+            <ActivityIndicator color={colors.primary} />
           </View>
         ) : rows.length === 0 ? (
-          <Text style={styles.muted}>{t('myReports.empty')}</Text>
+          <View style={styles.emptyCard}>
+            <Ionicons name="document-text-outline" size={32} color={colors.textMuted} />
+            <Text style={styles.muted}>{t('myReports.empty')}</Text>
+          </View>
         ) : (
-          rows.map((r) => (
-            <View key={r.id} style={styles.card}>
-              <Text style={styles.venueName}>{r.venue.name}</Text>
-              <Text style={styles.statusLine}>
-                <Text style={styles.statusBadge}>{statusLabel(r.status)}</Text>
-                {' · '}
+          rows.map((r) => {
+            const isOpen = r.status.toLowerCase() === 'open';
+            return (
+              <View key={r.id} style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.venueName}>{r.venue.name}</Text>
+                  <View style={[styles.statusPill, isOpen ? styles.statusOpen : styles.statusClosed]}>
+                    <Text style={[styles.statusText, isOpen ? styles.statusOpenText : styles.statusClosedText]}>
+                      {statusLabel(r.status)}
+                    </Text>
+                  </View>
+                </View>
                 <Text style={styles.dateMuted}>
                   {t('myReports.filedAt', {
                     when: new Date(r.createdAt).toLocaleString(),
                   })}
                 </Text>
-              </Text>
-              <Text style={styles.reasonLabel}>{t('myReports.reasonLabel')}</Text>
-              <Text style={styles.reasonBody}>{r.reason}</Text>
-              {r.status.toLowerCase() === 'dismissed' && r.dismissalNoteToReporter ? (
-                <Text style={styles.staffNote}>
-                  <Text style={styles.staffNoteLabel}>{t('myReports.staffNote')}: </Text>
-                  {r.dismissalNoteToReporter}
-                </Text>
-              ) : null}
-            </View>
-          ))
+                <Text style={styles.reasonLabel}>{t('myReports.reasonLabel')}</Text>
+                <Text style={styles.reasonBody}>{r.reason}</Text>
+                {r.status.toLowerCase() === 'dismissed' && r.dismissalNoteToReporter ? (
+                  <View style={styles.staffNoteBox}>
+                    <Text style={styles.staffNoteLabel}>{t('myReports.staffNote')}</Text>
+                    <Text style={styles.staffNoteBody}>{r.dismissalNoteToReporter}</Text>
+                  </View>
+                ) : null}
+              </View>
+            );
+          })
         )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-
 function createStyles(colors: AppColors) {
-    return StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 8,
-  },
-  back: {
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    backgroundColor: colors.surface,
-  },
-  backText: { color: colors.textSecondary, fontWeight: '600' },
-  title: { color: colors.text, fontSize: 20, fontWeight: '800', flex: 1 },
-  scroll: { paddingHorizontal: 24, paddingBottom: 40 },
-  sub: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginBottom: 12 },
-  centerRow: { marginVertical: 24, alignItems: 'center' },
-  muted: { color: colors.textMuted, marginTop: 16, fontSize: 14 },
-  card: {
-    marginTop: 14,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-  },
-  venueName: { color: colors.text, fontWeight: '800', fontSize: 16 },
-  statusLine: { marginTop: 8, fontSize: 13 },
-  statusBadge: { color: colors.honey, fontWeight: '700' },
-  dateMuted: { color: colors.textMuted },
-  reasonLabel: { color: colors.textMuted, fontSize: 12, marginTop: 12, fontWeight: '700' },
-  reasonBody: { color: colors.textSecondary, fontSize: 14, marginTop: 4, lineHeight: 20 },
-  staffNote: { color: colors.honeyDark, fontSize: 13, marginTop: 12, lineHeight: 18 },
-  staffNoteLabel: { fontWeight: '800', color: colors.honeyDark },
-  secondaryBtn: {
-    alignSelf: 'flex-start',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    backgroundColor: colors.bgElevated,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    marginBottom: 8,
-  },
-  secondaryBtnText: { color: '#93c5fd', fontWeight: '700', fontSize: 13 },
-
-    });
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.bg },
+    scroll: {
+      paddingHorizontal: spacing.xl,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.xxl,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    iconBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: radii.pill,
+      backgroundColor: colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    title: {
+      flex: 1,
+      color: colors.text,
+      fontSize: 28,
+      fontWeight: '900',
+      letterSpacing: -0.5,
+    },
+    subtitle: {
+      color: colors.textSecondary,
+      fontSize: 15,
+      lineHeight: 22,
+      marginTop: spacing.sm,
+      marginBottom: spacing.lg,
+    },
+    centerBlock: {
+      alignItems: 'center',
+      paddingVertical: spacing.xxl,
+    },
+    emptyCard: {
+      alignItems: 'center',
+      gap: spacing.md,
+      backgroundColor: colors.surface,
+      borderRadius: radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      padding: spacing.xxl,
+    },
+    muted: { color: colors.textMuted, fontSize: 14, textAlign: 'center', lineHeight: 20 },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      padding: spacing.lg,
+      marginBottom: spacing.md,
+      gap: spacing.sm,
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: spacing.md,
+    },
+    venueName: {
+      flex: 1,
+      color: colors.text,
+      fontWeight: '800',
+      fontSize: 17,
+    },
+    statusPill: {
+      borderRadius: radii.pill,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+    },
+    statusOpen: { backgroundColor: colors.warningBg },
+    statusClosed: { backgroundColor: colors.primaryMuted },
+    statusText: { fontSize: 11, fontWeight: '800' },
+    statusOpenText: { color: colors.warning },
+    statusClosedText: { color: colors.primary },
+    dateMuted: { color: colors.textMuted, fontSize: 13 },
+    reasonLabel: {
+      color: colors.textMuted,
+      fontSize: 12,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+      marginTop: spacing.xs,
+    },
+    reasonBody: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    staffNoteBox: {
+      marginTop: spacing.sm,
+      backgroundColor: colors.bgElevated,
+      borderRadius: radii.md,
+      padding: spacing.md,
+      gap: spacing.xs,
+    },
+    staffNoteLabel: {
+      color: colors.primary,
+      fontWeight: '800',
+      fontSize: 12,
+    },
+    staffNoteBody: {
+      color: colors.textSecondary,
+      fontSize: 13,
+      lineHeight: 18,
+    },
+    pressed: { opacity: 0.88 },
+  });
 }

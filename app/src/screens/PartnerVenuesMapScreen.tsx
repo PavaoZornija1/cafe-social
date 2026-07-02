@@ -4,6 +4,7 @@ import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   FlatList,
   Platform,
   Pressable,
@@ -15,6 +16,10 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import PartnerVenueMapPreview from '../components/venues/PartnerVenueMapPreview';
+import PartnerVenuesMapView, {
+  type MapVenuePin,
+} from '../components/venues/PartnerVenuesMapView';
 import VenueNearbyCard from '../components/venues/VenueNearbyCard';
 import VenuesFilterChips, {
   type VenuesFilterKey,
@@ -63,13 +68,12 @@ type Region = {
   longitudeDelta: number;
 };
 
-const MAP_HEIGHT = 220;
+const MAP_HEIGHT = Math.min(
+  400,
+  Math.max(300, Math.round(Dimensions.get('window').height * 0.38)),
+);
 const ENRICH_LIMIT = 12;
 const NEAR_ME_RADIUS_KM = 25;
-
-const Maps = Platform.OS === 'web' ? null : require('react-native-maps');
-const MapView = Maps?.default;
-const Marker = Maps?.Marker;
 
 function regionFromVenues(venues: DiscoveryVenuePin[], userCoords: UserCoords | null): Region {
   const latLngs: { lat: number; lng: number }[] = venues.map((v) => ({
@@ -154,7 +158,6 @@ export default function PartnerVenuesMapScreen({ navigation }: Props) {
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
 
-  const mapRef = useRef<InstanceType<NonNullable<typeof MapView>> | null>(null);
   const [venues, setVenues] = useState<DiscoveryVenuePin[]>([]);
   const [enrichment, setEnrichment] = useState<Record<string, VenueEnrichment>>({});
   const [loading, setLoading] = useState(true);
@@ -173,7 +176,7 @@ export default function PartnerVenuesMapScreen({ navigation }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const coords = await resolveUserCoords(filters.nearMe);
+      const coords = await resolveUserCoords(true);
       setUserCoords(coords);
 
       if (filters.nearMe && !coords) {
@@ -249,24 +252,9 @@ export default function PartnerVenuesMapScreen({ navigation }: Props) {
     };
   }, [isLoaded, userCoords, venues]);
 
-  useEffect(() => {
-    if (Platform.OS === 'web' || venues.length === 0 || !mapRef.current) return;
-    const coords = venues.map((v) => ({
-      latitude: v.latitude,
-      longitude: v.longitude,
-    }));
-    mapRef.current.fitToCoordinates(coords, {
-      edgePadding: { top: 24, right: 24, bottom: 24, left: 24 },
-      animated: true,
-    });
-  }, [venues]);
-
-  const toggleFilter = (key: VenuesFilterKey) => {
-    setFilters((prev) => {
-      const next = { ...prev, [key]: !prev[key] };
-      return next;
-    });
-  };
+  const toggleFilter = useCallback((key: VenuesFilterKey) => {
+    setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
 
   const enrichedVenues = useMemo((): EnrichedVenue[] => {
     return venues.map((v) => {
@@ -285,6 +273,15 @@ export default function PartnerVenuesMapScreen({ navigation }: Props) {
       };
     });
   }, [detectedVenueId, enrichment, t, userCoords, venues]);
+
+  const mapVenues = useMemo((): MapVenuePin[] => {
+    return enrichedVenues.map((v) => ({
+      id: v.id,
+      latitude: v.latitude,
+      longitude: v.longitude,
+      isHere: v.isHere,
+    }));
+  }, [enrichedVenues]);
 
   const displayedVenues = useMemo(() => {
     let list = enrichedVenues;
@@ -310,14 +307,26 @@ export default function PartnerVenuesMapScreen({ navigation }: Props) {
     return list;
   }, [enrichedVenues, filters.friends, searchQuery]);
 
+  const selectedVenue = useMemo(
+    () => enrichedVenues.find((v) => v.id === selectedId) ?? null,
+    [enrichedVenues, selectedId],
+  );
+
   const initialRegion = useMemo(
     () => regionFromVenues(venues, userCoords),
     [userCoords, venues],
   );
 
+  const handleSelectVenue = useCallback((venueId: string) => {
+    setSelectedId(venueId);
+  }, []);
+
+  const handleMapPress = useCallback(() => {
+    setSelectedId(null);
+  }, []);
+
   const openVenue = useCallback(
     (venue: EnrichedVenue) => {
-      setSelectedId(venue.id);
       navigation.navigate('VenueHub', {
         venueId: venue.id,
         venueName: venue.name,
@@ -336,7 +345,10 @@ export default function PartnerVenuesMapScreen({ navigation }: Props) {
         walkMin={item.walkMin}
         isHere={item.isHere}
         offerLabel={item.isHere ? null : item.offerLabel}
-        friendsHere={item.friendsHere}
+        friendsHere={item.friendsHere.map((f) => ({
+          id: f.id,
+          username: f.username ?? '?',
+        }))}
         selected={selectedId === item.id}
         onPress={() => openVenue(item)}
       />
@@ -344,125 +356,129 @@ export default function PartnerVenuesMapScreen({ navigation }: Props) {
     [colors, openVenue, selectedId],
   );
 
-  const listHeader = useMemo(
-    () => (
-      <>
-        <View style={styles.headerRow}>
-          {!isTabRoot ? (
-            <Pressable
-              onPress={() => navigation.goBack()}
-              style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-              accessibilityRole="button"
-            >
-              <Ionicons name="arrow-back" size={22} color={colors.text} />
-            </Pressable>
-          ) : (
-            <View style={styles.iconBtnPlaceholder} />
-          )}
-          <View style={styles.headerSpacer} />
+  const showMap = !loading && !error && venues.length > 0 && Platform.OS !== 'web';
+
+  const listHeader = (
+    <>
+      <View style={styles.titleRow}>
+        {!isTabRoot ? (
           <Pressable
-            onPress={() => navigation.navigate('DiscoverHub')}
+            onPress={() => navigation.goBack()}
             style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
             accessibilityRole="button"
-            accessibilityLabel={t('home.navDiscoverHub')}
+            accessibilityLabel={t('common.back')}
           >
-            <Ionicons name="compass-outline" size={22} color={colors.textSecondary} />
+            <Ionicons name="arrow-back" size={22} color={colors.text} />
           </Pressable>
-          <Pressable
-            onPress={() => void load()}
-            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={t('partnerMap.refreshA11y')}
-          >
-            <Ionicons name="refresh-outline" size={22} color={colors.textSecondary} />
-          </Pressable>
-        </View>
-
-        <Text style={styles.title}>{t('partnerMap.title')}</Text>
-        <Text style={styles.subtitle}>{t('partnerMap.subtitle')}</Text>
-
-        <View style={styles.searchWrap}>
-          <Ionicons name="search-outline" size={20} color={colors.textMuted} />
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder={t('partnerMap.searchPlaceholder')}
-            placeholderTextColor={colors.textMuted}
-            style={styles.searchInput}
-            autoCorrect={false}
-            clearButtonMode="while-editing"
-          />
-        </View>
-
-        <VenuesFilterChips colors={colors} active={filters} onToggle={toggleFilter} />
-
-        {loading ? (
-          <View style={styles.centerBlock}>
-            <ActivityIndicator color={colors.primary} />
-            <Text style={styles.muted}>{t('partnerMap.loading')}</Text>
-          </View>
-        ) : error ? (
-          <View style={styles.centerBlock}>
-            <Text style={styles.errorText}>{error}</Text>
-            <Pressable style={styles.retryBtn} onPress={() => void load()}>
-              <Text style={styles.retryBtnText}>{t('common.retry')}</Text>
-            </Pressable>
-          </View>
-        ) : venues.length === 0 ? (
-          <View style={styles.centerBlock}>
-            <Text style={styles.muted}>{t('partnerMap.empty')}</Text>
-          </View>
-        ) : Platform.OS === 'web' || !MapView ? (
-          <Text style={styles.webHint}>{t('partnerMap.webListHint')}</Text>
-        ) : (
-          <View style={styles.mapWrap}>
-            <MapView
-              ref={mapRef}
-              style={StyleSheet.absoluteFillObject}
-              initialRegion={initialRegion}
-              showsUserLocation
-              showsMyLocationButton={Platform.OS === 'android'}
-            >
-              {venues.map((v) => (
-                <Marker
-                  key={v.id}
-                  coordinate={{ latitude: v.latitude, longitude: v.longitude }}
-                  pinColor={v.hasActiveOffer ? colors.xp : colors.primary}
-                  onPress={() => setSelectedId(v.id)}
-                />
-              ))}
-            </MapView>
-          </View>
-        )}
-
-        {!loading && !error && venues.length > 0 ? (
-          <View style={styles.listHeader}>
-            <View>
-              <Text style={styles.listTitle}>{t('partnerMap.nearbyTitle')}</Text>
-              <Text style={styles.listCount}>
-                {t('partnerMap.nearbyCount', { count: displayedVenues.length })}
-              </Text>
-            </View>
-            <Text style={styles.sortLabel}>{t('partnerMap.sortDistance')}</Text>
-          </View>
         ) : null}
-      </>
-    ),
-    [
-      colors,
-      displayedVenues.length,
-      error,
-      filters,
-      initialRegion,
-      isTabRoot,
-      load,
-      loading,
-      navigation,
-      searchQuery,
-      t,
-      toggleFilter,
-      venues,
-    ],
+        <Text style={styles.title}>{t('partnerMap.title')}</Text>
+        <Pressable
+          onPress={() => navigation.navigate('DiscoverHub')}
+          style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel={t('home.navDiscoverHub')}
+        >
+          <Ionicons name="compass-outline" size={22} color={colors.textSecondary} />
+        </Pressable>
+        <Pressable
+          onPress={() => void load()}
+          style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel={t('partnerMap.refreshA11y')}
+        >
+          <Ionicons name="refresh-outline" size={22} color={colors.textSecondary} />
+        </Pressable>
+      </View>
+      <Text style={styles.subtitle}>{t('partnerMap.subtitle')}</Text>
+
+      <View style={styles.searchWrap}>
+        <Ionicons name="search-outline" size={20} color={colors.textMuted} />
+        <TextInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder={t('partnerMap.searchPlaceholder')}
+          placeholderTextColor={colors.textMuted}
+          style={styles.searchInput}
+          autoCorrect={false}
+          clearButtonMode="while-editing"
+        />
+      </View>
+
+      <VenuesFilterChips colors={colors} active={filters} onToggle={toggleFilter} />
+
+      {loading ? (
+        <View style={styles.centerBlock}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={styles.muted}>{t('partnerMap.loading')}</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.centerBlock}>
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable style={styles.retryBtn} onPress={() => void load()}>
+            <Text style={styles.retryBtnText}>{t('common.retry')}</Text>
+          </Pressable>
+        </View>
+      ) : venues.length === 0 ? (
+        <View style={styles.centerBlock}>
+          <Text style={styles.muted}>{t('partnerMap.empty')}</Text>
+        </View>
+      ) : Platform.OS === 'web' ? (
+        <Text style={styles.webHint}>{t('partnerMap.webListHint')}</Text>
+      ) : null}
+
+      {showMap ? (
+        <View style={styles.mapHost}>
+          <PartnerVenuesMapView
+            colors={colors}
+            venues={mapVenues}
+            userCoords={userCoords}
+            initialRegion={initialRegion}
+            mapHeight={MAP_HEIGHT}
+            recenterA11y={t('partnerMap.mapRecenterA11y')}
+            selectedMarkerId={selectedId}
+            onSelectVenue={handleSelectVenue}
+            onMapPress={handleMapPress}
+          />
+          {selectedVenue ? (
+            <PartnerVenueMapPreview
+              colors={colors}
+              venue={{
+                id: selectedVenue.id,
+                name: selectedVenue.name,
+                area: selectedVenue.area,
+                distanceKm: selectedVenue.distanceKm,
+                walkMin: selectedVenue.walkMin,
+                isHere: selectedVenue.isHere,
+                offerLabel: selectedVenue.isHere ? null : selectedVenue.offerLabel,
+                friendsHere: selectedVenue.friendsHere.map((f) => ({
+                  id: f.id,
+                  username: f.username ?? '?',
+                })),
+              }}
+              previewA11y={t('partnerMap.mapPreviewA11y', { name: selectedVenue.name })}
+              walkMinLabel={
+                selectedVenue.walkMin != null
+                  ? t('partnerMap.walkMin', { n: selectedVenue.walkMin })
+                  : null
+              }
+              onOpen={() => openVenue(selectedVenue)}
+            />
+          ) : null}
+        </View>
+      ) : null}
+
+      {!loading && !error && venues.length > 0 ? (
+        <View style={styles.listHeader}>
+          <View>
+            <Text style={styles.listTitle}>{t('partnerMap.nearbyTitle')}</Text>
+            <Text style={styles.listCount}>
+              {t('partnerMap.nearbyCount', { count: displayedVenues.length })}
+            </Text>
+          </View>
+          <Text style={styles.sortLabel}>{t('partnerMap.sortDistance')}</Text>
+        </View>
+      ) : null}
+    </>
   );
 
   return (
@@ -491,12 +507,13 @@ function createStyles(colors: AppColors) {
     safe: { flex: 1, backgroundColor: colors.bg },
     scrollContent: {
       paddingHorizontal: spacing.xl,
+      paddingTop: spacing.md,
       paddingBottom: spacing.xxl,
     },
-    headerRow: {
+    titleRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingTop: spacing.md,
+      gap: spacing.sm,
       marginBottom: spacing.sm,
     },
     iconBtn: {
@@ -508,10 +525,10 @@ function createStyles(colors: AppColors) {
       backgroundColor: colors.surface,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
+      flexShrink: 0,
     },
-    iconBtnPlaceholder: { width: 44 },
-    headerSpacer: { flex: 1 },
     title: {
+      flex: 1,
       color: colors.text,
       fontSize: 28,
       fontWeight: '900',
@@ -543,13 +560,8 @@ function createStyles(colors: AppColors) {
       fontWeight: '500',
       paddingVertical: 0,
     },
-    mapWrap: {
-      height: MAP_HEIGHT,
-      borderRadius: radii.lg,
-      overflow: 'hidden',
-      marginVertical: spacing.md,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.border,
+    mapHost: {
+      position: 'relative',
     },
     centerBlock: {
       alignItems: 'center',

@@ -7,6 +7,8 @@ type GameOverProps = {
   styles: ArenaStyles;
   title: string;
   hint: string;
+  replayLabel: string;
+  exitLabel: string;
   onReplay: () => void;
   onExit: () => void;
 };
@@ -15,6 +17,8 @@ export function ArenaGameOverOverlay({
   styles,
   title,
   hint,
+  replayLabel,
+  exitLabel,
   onReplay,
   onExit,
 }: GameOverProps) {
@@ -32,7 +36,7 @@ export function ArenaGameOverOverlay({
               pressed && styles.gameOverBtnPressed,
             ]}
           >
-            <Text style={styles.gameOverBtnPrimaryText}>Replay</Text>
+            <Text style={styles.gameOverBtnPrimaryText}>{replayLabel}</Text>
           </Pressable>
           <Pressable
             onPress={onExit}
@@ -42,7 +46,7 @@ export function ArenaGameOverOverlay({
               pressed && styles.gameOverBtnPressed,
             ]}
           >
-            <Text style={styles.gameOverBtnSecondaryText}>Exit</Text>
+            <Text style={styles.gameOverBtnSecondaryText}>{exitLabel}</Text>
           </Pressable>
         </View>
       </View>
@@ -103,13 +107,14 @@ export function ArenaHeroDeadOverlay({
 
 type PreMatchProps = {
   styles: ArenaStyles;
+  label: string;
   countdown: number;
 };
 
-export function ArenaPreMatchOverlay({ styles, countdown }: PreMatchProps) {
+export function ArenaPreMatchOverlay({ styles, label, countdown }: PreMatchProps) {
   return (
     <View style={styles.preMatchOverlay}>
-      <Text style={styles.preMatchLabel}>Get ready</Text>
+      <Text style={styles.preMatchLabel}>{label}</Text>
       <Text style={styles.preMatchDigit}>{countdown}</Text>
     </View>
   );
@@ -146,9 +151,20 @@ export function ArenaVenuePvpHoldOverlay({
   );
 }
 
+type ResultsTableLabels = {
+  subtitle: string;
+  player: string;
+  kills: string;
+  deaths: string;
+  xp: string;
+  outcome: string;
+  backToLobby: string;
+};
+
 type ResultsProps = {
   styles: ArenaStyles;
   title: string;
+  tableLabels: ResultsTableLabels;
   scoreboard: BrawlerResultsScoreRow[];
   onBackToLobby: () => void;
 };
@@ -156,6 +172,7 @@ type ResultsProps = {
 export function ArenaResultsOverlay({
   styles,
   title,
+  tableLabels,
   scoreboard,
   onBackToLobby,
 }: ResultsProps) {
@@ -163,14 +180,14 @@ export function ArenaResultsOverlay({
     <View style={styles.resultsOverlay} pointerEvents="box-none">
       <View style={styles.resultsCard} pointerEvents="auto">
         <Text style={styles.resultsTitle}>{title}</Text>
-        <Text style={styles.resultsSubtitle}>Scoreboard</Text>
+        <Text style={styles.resultsSubtitle}>{tableLabels.subtitle}</Text>
         <View style={styles.resultsTable}>
           <View style={[styles.resultsTableRow, styles.resultsTableHeaderRow]}>
-            <Text style={[styles.resultsTh, styles.resultsColName]}>Player</Text>
-            <Text style={[styles.resultsTh, styles.resultsColStat]}>K</Text>
-            <Text style={[styles.resultsTh, styles.resultsColStat]}>D</Text>
-            <Text style={[styles.resultsTh, styles.resultsColXp]}>XP</Text>
-            <Text style={[styles.resultsTh, styles.resultsColResult]}>Out</Text>
+            <Text style={[styles.resultsTh, styles.resultsColName]}>{tableLabels.player}</Text>
+            <Text style={[styles.resultsTh, styles.resultsColStat]}>{tableLabels.kills}</Text>
+            <Text style={[styles.resultsTh, styles.resultsColStat]}>{tableLabels.deaths}</Text>
+            <Text style={[styles.resultsTh, styles.resultsColXp]}>{tableLabels.xp}</Text>
+            <Text style={[styles.resultsTh, styles.resultsColResult]}>{tableLabels.outcome}</Text>
           </View>
           {scoreboard.map((row, i) => (
             <View
@@ -196,7 +213,7 @@ export function ArenaResultsOverlay({
           onPress={onBackToLobby}
           style={({ pressed }) => [styles.resultsBtn, pressed && styles.resultsBtnPressed]}
         >
-          <Text style={styles.resultsBtnText}>Back to lobby</Text>
+          <Text style={styles.resultsBtnText}>{tableLabels.backToLobby}</Text>
         </Pressable>
       </View>
     </View>

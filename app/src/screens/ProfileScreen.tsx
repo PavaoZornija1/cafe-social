@@ -157,6 +157,20 @@ export default function ProfileScreen({ navigation }: Props) {
   const quickActions = useMemo((): MeQuickAction[] => {
     return [
       {
+        key: 'discover',
+        label: t('home.navDiscoverHub'),
+        icon: 'compass',
+        tint: colors.primaryDark,
+        onPress: () => navigation.navigate('DiscoverHub'),
+      },
+      {
+        key: 'redeem',
+        label: t('home.linkRedeemPerk'),
+        icon: 'ticket',
+        tint: colors.success,
+        onPress: () => navigation.navigate('RedeemPerk', {}),
+      },
+      {
         key: 'quests',
         label: t('profile.openQuestHub'),
         icon: 'gift',

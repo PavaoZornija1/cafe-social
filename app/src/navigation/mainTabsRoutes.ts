@@ -1,6 +1,7 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 
-/** Routes inside the signed-in bottom tab navigator. */
+/** Routes inside the signed-in bottom tab navigator.
+ *  Legacy stack routes `Home`, `Profile`, and `PartnerVenuesMap` were removed — use these tabs instead. */
 export type MainTabParamList = {
   HomeTab: undefined;
   PlayTab: { venueId?: string; challengeId?: string } | undefined;

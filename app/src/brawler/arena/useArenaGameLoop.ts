@@ -24,6 +24,7 @@ import {
   ATTACK_HIT_FORWARD,
   ATTACK_HIT_H,
   ATTACK_HIT_W,
+  ATTACK_MOVE_SPEED_MUL,
   DASH_DURATION_S,
   DASH_SPEED,
   DMG_FLOAT_LIFETIME_S,
@@ -36,7 +37,16 @@ import {
   GRAVITY,
   HERO_IFRAMES_S,
   JUMP_VELOCITY,
+  MAX_AIR_JUMPS,
+  DOUBLE_JUMP_VELOCITY_MUL,
+  DROP_THROUGH_CLEARANCE_PX,
+  DROP_THROUGH_INITIAL_VY,
+  DROP_THROUGH_JOY_THRESHOLD,
   MARGIN_SCREEN,
+  MOVE_ACCEL,
+  MOVE_ACCEL_ATTACK,
+  MOVE_DECEL,
+  MOVE_DECEL_ATTACK,
   POWERUP_MAX_ON_MAP,
   POWERUP_PICKUP_RADIUS_PX,
   POWERUP_SPAWN_INTERVAL_S,
@@ -99,6 +109,8 @@ export type ArenaGameLoopConfig = {
   facing: MutableRefObject<'left' | 'right'>;
   joyRef: MutableRefObject<{ x: number; y: number }>;
   jumpQueued: MutableRefObject<boolean>;
+  airJumpsLeftRef: MutableRefObject<number>;
+  dropThroughPlatformIndexRef: MutableRefObject<number>;
   hitQueued: MutableRefObject<boolean>;
   dashQueued: MutableRefObject<boolean>;
   hitAppliedThisSwing: MutableRefObject<boolean>;
@@ -185,6 +197,8 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
     facing,
     joyRef,
     jumpQueued,
+    airJumpsLeftRef,
+    dropThroughPlatformIndexRef,
     hitQueued,
     dashQueued,
     hitAppliedThisSwing,
@@ -799,8 +813,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
 
       if (
         hitQueued.current &&
-        attackTimeLeft.current <= 0 &&
-        dashTimeLeft.current <= 0
+        attackTimeLeft.current <= 0
       ) {
         hitQueued.current = false;
         attackTimeLeft.current = ATTACK_DURATION_S;
@@ -811,7 +824,6 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
       if (
         dashQueued.current &&
         dashCooldownLeft.current <= 0 &&
-        attackTimeLeft.current <= 0 &&
         dashTimeLeft.current <= 0
       ) {
         dashQueued.current = false;
@@ -1039,18 +1051,20 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
       if (dashing) {
         const dir = facing.current === 'right' ? 1 : -1;
         vx.current = dir * DASH_SPEED * dashSpeedMul;
-      } else if (!attacking) {
+      } else {
         const jx = joyRef.current.x;
+        const moveMul = attacking ? ATTACK_MOVE_SPEED_MUL : 1;
+        const accel = attacking ? MOVE_ACCEL_ATTACK : MOVE_ACCEL;
+        const decel = attacking ? MOVE_DECEL_ATTACK : MOVE_DECEL;
+
         if (Math.abs(jx) > 0.02) {
-          vx.current = jx * heroCombat.moveSpeedPx * moveSpeedMul;
+          const targetVx = jx * heroCombat.moveSpeedPx * moveSpeedMul * moveMul;
           facing.current = jx < 0 ? 'left' : 'right';
+          vx.current += (targetVx - vx.current) * Math.min(1, dt * accel);
         } else {
-          vx.current *= Math.pow(0.2, dt * 10);
+          vx.current *= Math.pow(0.2, dt * decel);
           if (Math.abs(vx.current) < 4) vx.current = 0;
         }
-      } else {
-        vx.current *= Math.pow(0.15, dt * 10);
-        if (Math.abs(vx.current) < 8) vx.current = 0;
       }
 
       playerX.current += vx.current * dt;
@@ -1060,11 +1074,42 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
 
       // Strict platformer: support checks use a narrow "feet" probe, not full body width.
       const feetX = playerX.current + (bodyW - FEET_W) / 2;
+      const holdingDown = joyRef.current.y >= DROP_THROUGH_JOY_THRESHOLD;
 
-      if (jumpQueued.current && onGround.current && !attacking) {
+      if (holdingDown && onGround.current) {
+        const feetBottom = playerY.current + bodyH;
+        for (let pi = 0; pi < plats.length - 1; pi++) {
+          const p = plats[pi]!;
+          if (!overlapX(feetX, FEET_W, p)) continue;
+          if (Math.abs(feetBottom - p.y - p.feetEmbedPx) < 12) {
+            dropThroughPlatformIndexRef.current = pi;
+            onGround.current = false;
+            vy.current = Math.max(vy.current, DROP_THROUGH_INITIAL_VY);
+            playerY.current += 3;
+            break;
+          }
+        }
+      }
+
+      const shouldSkipPlatformLanding = (pi: number, feetBottom: number) => {
+        const dropIdx = dropThroughPlatformIndexRef.current;
+        if (dropIdx < 0 || pi !== dropIdx || pi >= plats.length - 1) return false;
+        const dropped = plats[dropIdx]!;
+        return feetBottom <= dropped.y + DROP_THROUGH_CLEARANCE_PX;
+      };
+
+      if (jumpQueued.current && onGround.current) {
         vy.current = JUMP_VELOCITY * jumpMul;
         onGround.current = false;
         jumpQueued.current = false;
+        jumpFrameRef.current = 0;
+        idleAccum.current = 0;
+      } else if (jumpQueued.current && airJumpsLeftRef.current > 0) {
+        vy.current = JUMP_VELOCITY * DOUBLE_JUMP_VELOCITY_MUL * jumpMul;
+        airJumpsLeftRef.current -= 1;
+        jumpQueued.current = false;
+        jumpFrameRef.current = 0;
+        idleAccum.current = 0;
       }
 
       vy.current += GRAVITY * dt;
@@ -1078,11 +1123,15 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
 
       if (vy.current > 0) {
         let best: PlatformWorld | null = null;
-        for (const p of plats) {
+        for (let pi = 0; pi < plats.length; pi++) {
+          const p = plats[pi]!;
+          if (shouldSkipPlatformLanding(pi, newBottom)) continue;
           if (!overlapX(feetX, FEET_W, p)) continue;
           const pt = p.y;
           if (prevBottom <= pt + 14 && newBottom >= pt - 6) {
-            if (!best || pt < best.y) best = p;
+            if (!best || pt < best.y) {
+              best = p;
+            }
           }
         }
         if (best) {
@@ -1091,6 +1140,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
           vy.current = 0;
           onGround.current = true;
           newBottom = best.y + e;
+          dropThroughPlatformIndexRef.current = -1;
         }
       }
 
@@ -1098,7 +1148,9 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
       // through it toward a higher one (vy >= -40 would snag at jump apex).
       if (vy.current >= 0) {
         newBottom = playerY.current + bodyH;
-        for (const p of plats) {
+        for (let pi = 0; pi < plats.length; pi++) {
+          const p = plats[pi]!;
+          if (shouldSkipPlatformLanding(pi, newBottom)) continue;
           if (!overlapX(feetX, FEET_W, p)) continue;
           const pt = p.y;
           if (newBottom >= pt - 2 && newBottom <= pt + 18) {
@@ -1107,6 +1159,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
             vy.current = 0;
             onGround.current = true;
             newBottom = pt + e;
+            dropThroughPlatformIndexRef.current = -1;
             break;
           }
         }
@@ -1129,7 +1182,9 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
       } else {
         let supported = false;
         const feet = playerY.current + bodyH;
-        for (const p of plats) {
+        for (let pi = 0; pi < plats.length; pi++) {
+          const p = plats[pi]!;
+          if (shouldSkipPlatformLanding(pi, feet)) continue;
           if (!overlapX(feetX, FEET_W, p)) continue;
           if (
             Math.abs(feet - p.y - p.feetEmbedPx) < 10 &&
@@ -1140,6 +1195,18 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
           }
         }
         onGround.current = supported;
+      }
+
+      if (onGround.current) {
+        airJumpsLeftRef.current = MAX_AIR_JUMPS;
+      }
+
+      const dropIdx = dropThroughPlatformIndexRef.current;
+      if (dropIdx >= 0 && dropIdx < plats.length - 1) {
+        const dropped = plats[dropIdx]!;
+        if (playerY.current + bodyH > dropped.y + DROP_THROUGH_CLEARANCE_PX) {
+          dropThroughPlatformIndexRef.current = -1;
+        }
       }
 
       // Sudden-death lava: feet in lava = permanent death for this match.
@@ -1228,6 +1295,8 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
         vx.current = 0;
         vy.current = 0;
         onGround.current = true;
+        airJumpsLeftRef.current = MAX_AIR_JUMPS;
+        dropThroughPlatformIndexRef.current = -1;
       }
 
       prevPlayerY.current = playerY.current;
