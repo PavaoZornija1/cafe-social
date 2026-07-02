@@ -65,6 +65,8 @@ type Props = {
   walkFrame: number;
   idleFrame: number;
   hitFrame: number;
+  jumpFrame: number;
+  dashFrame: number;
   facing: 'left' | 'right';
   spriteScale: number;
   enemies: Enemy[];
@@ -134,6 +136,8 @@ export function ArenaWorldView({
   walkFrame,
   idleFrame,
   hitFrame,
+  jumpFrame,
+  dashFrame,
   facing,
   spriteScale,
   enemies,
@@ -249,6 +253,8 @@ export function ArenaWorldView({
                 walkFrame={walkFrame}
                 idleFrame={idleFrame}
                 hitFrame={hitFrame}
+                jumpFrame={jumpFrame}
+                dashFrame={dashFrame}
                 facing={facing}
                 scale={spriteScale}
               />

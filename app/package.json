@@ -7,6 +7,7 @@
     "start": "expo start",
     "start:clean": "expo start --clear",
     "fetch-audio": "node scripts/fetch-kenney-audio.mjs",
+    "fetch-seamless-music": "node scripts/fetch-seamless-music-alternates.mjs",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "ios:device": "expo run:ios --device",

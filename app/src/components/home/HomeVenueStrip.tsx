@@ -14,21 +14,9 @@ type Props = {
   venue: HomeVenue | null;
   access: HomeVenueAccess | null;
   menuUrl: string | null;
-  needsCheckIn?: boolean;
   onVenuePress: () => void;
   onFindVenues: () => void;
-  onCheckIn?: () => void;
 };
-
-function PinIcon({ colors, styles }: { colors: AppColors; styles: ReturnType<typeof createStyles> }) {
-  return (
-    <View style={styles.pinWrap}>
-      <View style={styles.pinCircle}>
-        <Ionicons name="location" size={20} color={colors.textInverse} />
-      </View>
-    </View>
-  );
-}
 
 export default function HomeVenueStrip({
   colors,
@@ -37,10 +25,8 @@ export default function HomeVenueStrip({
   venue,
   access,
   menuUrl,
-  needsCheckIn = false,
   onVenuePress,
   onFindVenues,
-  onCheckIn,
 }: Props) {
   const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -56,11 +42,8 @@ export default function HomeVenueStrip({
   if (loading) {
     return (
       <View style={styles.card}>
-        <PinIcon colors={colors} styles={styles} />
-        <View style={styles.main}>
-          <Text style={styles.metaMuted}>{t('home.detectingVenue')}</Text>
-        </View>
         <ActivityIndicator color={colors.primary} size="small" />
+        <Text style={styles.meta}>{t('home.detectingVenue')}</Text>
       </View>
     );
   }
@@ -68,7 +51,6 @@ export default function HomeVenueStrip({
   if (error) {
     return (
       <View style={[styles.card, styles.cardError]}>
-        <PinIcon colors={colors} styles={styles} />
         <Text style={styles.errorText} numberOfLines={2}>
           {error}
         </Text>
@@ -80,17 +62,15 @@ export default function HomeVenueStrip({
     return (
       <Pressable
         onPress={onFindVenues}
-        style={({ pressed }) => [styles.card, styles.cardEmpty, pressed && styles.pressed]}
+        style={({ pressed }) => [styles.card, pressed && styles.pressed]}
         accessibilityRole="button"
       >
-        <PinIcon colors={colors} styles={styles} />
+        <Ionicons name="location-outline" size={20} color={colors.primary} />
         <View style={styles.main}>
           <Text style={styles.title}>{t('home.noVenueShort')}</Text>
-          <Text style={styles.metaAction}>{t('home.dashboard.findVenuesHint')}</Text>
+          <Text style={styles.meta}>{t('home.dashboard.findVenuesHint')}</Text>
         </View>
-        <View style={styles.chevronCircle}>
-          <Ionicons name="chevron-forward" size={16} color={colors.primary} />
-        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
       </Pressable>
     );
   }
@@ -98,46 +78,29 @@ export default function HomeVenueStrip({
   return (
     <Pressable
       onPress={onVenuePress}
-      style={({ pressed }) => [styles.card, styles.cardActive, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
       accessibilityRole="button"
       accessibilityLabel={t('home.venueHubA11y', { name: venue.name })}
     >
-      <PinIcon colors={colors} styles={styles} />
+      <Ionicons name="location" size={20} color={colors.primary} />
       <View style={styles.main}>
         <View style={styles.titleRow}>
           <Text style={styles.title} numberOfLines={1}>
             {venue.name}
           </Text>
-          {access?.canEnterVenueContext && !needsCheckIn ? (
+          {access?.canEnterVenueContext ? (
             <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
           ) : null}
         </View>
-        <Text
-          style={[styles.meta, checkedIn && !needsCheckIn && styles.metaHighlight]}
-          numberOfLines={2}
-        >
-          {needsCheckIn
-            ? t('home.explicitCheckInChallengeLine')
-            : checkedIn
-              ? t('home.dashboard.checkedInXp')
-              : access?.canEnterVenueContext
-                ? t('home.dashboard.venueUnlocked')
-                : t('home.dashboard.tapToUnlock')}
+        <Text style={styles.meta} numberOfLines={1}>
+          {checkedIn
+            ? t('home.dashboard.checkedInXp')
+            : access?.canEnterVenueContext
+              ? t('home.dashboard.venueUnlocked')
+              : t('home.dashboard.tapToUnlock')}
         </Text>
       </View>
-      {needsCheckIn && onCheckIn ? (
-        <Pressable
-          onPress={(e) => {
-            e.stopPropagation?.();
-            onCheckIn();
-          }}
-          style={({ pressed }) => [styles.checkInBtn, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel={t('home.explicitCheckInCta')}
-        >
-          <Ionicons name="qr-code-outline" size={16} color={colors.textInverse} />
-        </Pressable>
-      ) : menuUrl ? (
+      {menuUrl ? (
         <Pressable
           onPress={(e) => {
             e.stopPropagation?.();
@@ -160,36 +123,12 @@ function createStyles(colors: AppColors) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.md,
-      backgroundColor: colors.surface,
+      backgroundColor: colors.primaryMuted,
       borderRadius: radii.lg,
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.border,
+      borderColor: colors.primary,
       paddingVertical: spacing.md,
-      paddingHorizontal: spacing.md,
-    },
-    cardEmpty: {
-      backgroundColor: colors.surface,
-      borderColor: colors.primaryMuted,
-    },
-    cardActive: {
-      backgroundColor: colors.surfaceMuted,
-      borderColor: 'rgba(37, 97, 233, 0.2)',
-    },
-    pinWrap: {
-      width: 44,
-      height: 44,
-      borderRadius: radii.pill,
-      backgroundColor: colors.primaryMuted,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    pinCircle: {
-      width: 36,
-      height: 36,
-      borderRadius: radii.pill,
-      backgroundColor: colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
     },
     cardError: {
       backgroundColor: colors.errorMuted,
@@ -208,25 +147,10 @@ function createStyles(colors: AppColors) {
       flexShrink: 1,
     },
     meta: {
-      color: colors.textSecondary,
+      color: colors.primaryDark,
       fontSize: 13,
       fontWeight: '600',
-      marginTop: 3,
-    },
-    metaHighlight: {
-      color: colors.primary,
-      fontWeight: '700',
-    },
-    metaAction: {
-      color: colors.primary,
-      fontSize: 13,
-      fontWeight: '700',
-      marginTop: 3,
-    },
-    metaMuted: {
-      color: colors.textMuted,
-      fontSize: 13,
-      fontWeight: '600',
+      marginTop: 2,
     },
     errorText: {
       color: colors.error,
@@ -234,35 +158,19 @@ function createStyles(colors: AppColors) {
       fontWeight: '600',
       flex: 1,
     },
-    chevronCircle: {
-      width: 32,
-      height: 32,
-      borderRadius: radii.pill,
-      backgroundColor: colors.primaryMuted,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     menuBtn: {
       backgroundColor: colors.surface,
-      borderRadius: radii.pill,
+      borderRadius: radii.md,
       paddingVertical: 8,
-      paddingHorizontal: 14,
+      paddingHorizontal: 12,
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: 'rgba(37, 97, 233, 0.25)',
+      borderColor: colors.border,
     },
     menuBtnText: {
-      color: colors.primary,
-      fontSize: 14,
-      fontWeight: '800',
+      color: colors.text,
+      fontSize: 13,
+      fontWeight: '700',
     },
-    checkInBtn: {
-      width: 44,
-      height: 44,
-      borderRadius: radii.pill,
-      backgroundColor: colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    pressed: { opacity: 0.92 },
+    pressed: { opacity: 0.9 },
   });
 }

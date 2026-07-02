@@ -1,8 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -15,7 +14,6 @@ import {
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { useTranslation } from 'react-i18next';
-
 import type { RootStackParamList } from '../navigation/type';
 import {
   fetchMyGlobalRewardClaims,
@@ -24,11 +22,8 @@ import {
 } from '../lib/venuePerksApi';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
-import { radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PerkWallet'>;
-
-type ClaimStatus = 'REDEEMABLE' | 'EXPIRED' | 'VOIDED' | 'REDEEMED';
 
 function statusLabelKey(status: string): string {
   switch (status) {
@@ -57,112 +52,6 @@ function formatExpiry(iso: string): string {
   }
 }
 
-const PerkRewardQr = React.memo(function PerkRewardQr({
-  payload,
-  foreground,
-  background,
-}: {
-  payload: string;
-  foreground: string;
-  background: string;
-}) {
-  return (
-    <QRCode value={payload} size={160} backgroundColor={background} color={foreground} />
-  );
-});
-
-type CardStyles = ReturnType<typeof createStyles>;
-
-type RewardClaimCardProps = {
-  r: GlobalRewardClaim;
-  styles: CardStyles;
-  colors: AppColors;
-  navigation: Props['navigation'];
-  showQr: boolean;
-};
-
-const RewardClaimCard = React.memo(function RewardClaimCard({
-  r,
-  styles,
-  colors,
-  navigation,
-  showQr,
-}: RewardClaimCardProps) {
-  const { t } = useTranslation();
-  const labelKey = statusLabelKey(r.status);
-  const statusText =
-    labelKey === 'perkWallet.statusOther' ? t(labelKey, { status: r.status }) : t(labelKey);
-
-  const statusStyle = useMemo(() => {
-    switch (r.status as ClaimStatus | string) {
-      case 'REDEEMABLE':
-        return { pill: styles.statusReady, text: styles.statusReadyText };
-      case 'EXPIRED':
-        return { pill: styles.statusMuted, text: styles.statusMutedText };
-      case 'VOIDED':
-        return { pill: styles.statusVoided, text: styles.statusVoidedText };
-      case 'REDEEMED':
-        return { pill: styles.statusDone, text: styles.statusDoneText };
-      default:
-        return { pill: styles.statusMuted, text: styles.statusMutedText };
-    }
-  }, [r.status, styles]);
-
-  const dimmed = r.status !== 'REDEEMABLE';
-
-  return (
-    <View style={[styles.card, dimmed && styles.cardDimmed]}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.venueName}>{r.venueName}</Text>
-        <View style={[styles.statusPill, statusStyle.pill]}>
-          <Text style={[styles.statusText, statusStyle.text]}>{statusText}</Text>
-        </View>
-      </View>
-
-      <Text style={styles.perkTitle}>{r.perkTitle}</Text>
-      {r.perkSubtitle ? <Text style={styles.perkSub}>{r.perkSubtitle}</Text> : null}
-
-      <Text style={styles.expiryLine}>
-        {t('perk.rewardExpires')} {formatExpiry(r.expiresAt)}
-      </Text>
-
-      {showQr && r.status === 'REDEEMABLE' ? (
-        <View style={styles.qrWrap}>
-          <PerkRewardQr
-            payload={r.qrPayload}
-            foreground={colors.primaryDark}
-            background={colors.surface}
-          />
-        </View>
-      ) : null}
-
-      <View style={styles.codeBox}>
-        <Text style={styles.codeLabel}>{t('perk.staffVerificationCode')}</Text>
-        <Text style={styles.codeValue}>{r.staffVerificationCode}</Text>
-      </View>
-
-      <View style={styles.cardActions}>
-        {r.status === 'REDEEMABLE' ? (
-          <Pressable
-            style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
-            onPress={() => navigation.navigate('RedeemPerk', { venueId: r.venueId })}
-          >
-            <Ionicons name="gift-outline" size={16} color={colors.textInverse} />
-            <Text style={styles.primaryBtnText}>{t('perkWallet.redeemAtVenue')}</Text>
-          </Pressable>
-        ) : null}
-        <Pressable
-          style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
-          onPress={() => navigation.navigate('VenueHub', { venueId: r.venueId, venueName: r.venueName })}
-        >
-          <Ionicons name="storefront-outline" size={16} color={colors.primary} />
-          <Text style={styles.secondaryBtnText}>{t('perkWallet.openVenue')}</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-});
-
 export default function PerkWalletScreen({ navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -173,58 +62,38 @@ export default function PerkWalletScreen({ navigation }: Props) {
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
 
-  const [initializing, setInitializing] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [payload, setPayload] = useState<GlobalRewardClaimsPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const payloadRef = useRef(payload);
-  payloadRef.current = payload;
-
   const fetchRewards = useCallback(async (mode: 'initial' | 'refresh') => {
     if (!isLoaded) return;
-
-    const hasData = Boolean(payloadRef.current);
-    if (mode === 'initial' && !hasData) {
-      setInitializing(true);
-    } else if (mode === 'refresh') {
-      setRefreshing(true);
-    }
+    if (mode === 'initial') setLoading(true);
+    else setRefreshing(true);
     setError(null);
-
     try {
       const token = await getTokenRef.current();
       if (!token) {
-        if (!hasData) setPayload(null);
+        setPayload(null);
         return;
       }
       const data = await fetchMyGlobalRewardClaims(token);
       setPayload(data);
     } catch {
       setError(tRef.current('perkWallet.loadError'));
-      if (!hasData) setPayload(null);
+      setPayload(null);
     } finally {
-      setInitializing(false);
-      setRefreshing(false);
+      if (mode === 'initial') setLoading(false);
+      else setRefreshing(false);
     }
   }, [isLoaded]);
 
-  useEffect(() => {
-    if (!isLoaded) return;
-    void fetchRewards('initial');
-  }, [isLoaded, fetchRewards]);
-
   useFocusEffect(
     useCallback(() => {
-      if (payloadRef.current) {
-        void fetchRewards('refresh');
-      }
+      void fetchRewards('initial');
     }, [fetchRewards]),
   );
-
-  const handleRefresh = useCallback(() => {
-    void fetchRewards(payloadRef.current ? 'refresh' : 'initial');
-  }, [fetchRewards]);
 
   const items: GlobalRewardClaim[] = payload?.items ?? [];
   const activeN = payload?.wallet.activeRedeemable ?? 0;
@@ -239,94 +108,38 @@ export default function PerkWalletScreen({ navigation }: Props) {
     return { redeemable: r, history: h };
   }, [items]);
 
-  const showInitialSpinner = initializing && !payload;
-
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
         contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={handleRefresh}
+            onRefresh={() => void fetchRewards('refresh')}
             tintColor={colors.primary}
           />
         }
       >
-        <View style={styles.titleRow}>
-          <Pressable
-            onPress={() => navigation.goBack()}
-            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.back')}
-          >
-            <Ionicons name="arrow-back" size={22} color={colors.text} />
-          </Pressable>
-          <Text style={styles.title}>{t('perkWallet.title')}</Text>
-          <Pressable
-            onPress={handleRefresh}
-            disabled={refreshing}
-            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={t('perkWallet.refreshA11y')}
-          >
-            {refreshing ? (
-              <ActivityIndicator color={colors.primary} size="small" />
-            ) : (
-              <Ionicons name="refresh-outline" size={22} color={colors.textSecondary} />
-            )}
-          </Pressable>
-        </View>
-
-        <Text style={styles.subtitle}>{t('perkWallet.subtitle')}</Text>
-
+        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Text style={styles.backText}>{t('common.back')}</Text>
+        </Pressable>
+        <Text style={styles.title}>{t('perkWallet.title')}</Text>
+        <Text style={styles.hint}>{t('perkWallet.subtitle')}</Text>
         {payload != null && activeN > 0 ? (
-          <View style={styles.activeBadge}>
-            <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-            <Text style={styles.activeBadgeText}>{t('perkWallet.activeCount', { n: activeN })}</Text>
-          </View>
+          <Text style={styles.meta}>{t('perkWallet.activeCount', { n: activeN })}</Text>
         ) : null}
 
-        {showInitialSpinner ? (
-          <View style={styles.centerBlock}>
-            <ActivityIndicator color={colors.primary} />
-          </View>
-        ) : null}
-
-        {error && !payload ? (
-          <View style={styles.centerBlock}>
-            <Ionicons name="alert-circle-outline" size={36} color={colors.error} />
-            <Text style={styles.errorText}>{error}</Text>
-            <Pressable
-              style={({ pressed }) => [styles.retryBtn, pressed && styles.pressed]}
-              onPress={handleRefresh}
-            >
-              <Text style={styles.retryBtnText}>{t('common.retry')}</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {!showInitialSpinner && !error && items.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Ionicons name="ticket-outline" size={36} color={colors.textMuted} />
-            <Text style={styles.emptyText}>{t('perkWallet.empty')}</Text>
-          </View>
+        {loading ? <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} /> : null}
+        {error ? <Text style={styles.err}>{error}</Text> : null}
+        {!loading && !error && items.length === 0 ? (
+          <Text style={styles.empty}>{t('perkWallet.empty')}</Text>
         ) : null}
 
         {redeemable.length > 0 ? (
           <>
             <Text style={styles.sectionTitle}>{t('perkWallet.sectionReady')}</Text>
             {redeemable.map((r) => (
-              <RewardClaimCard
-                key={r.redemptionId}
-                r={r}
-                styles={styles}
-                colors={colors}
-                navigation={navigation}
-                showQr
-              />
+              <RewardClaimCard key={r.redemptionId} r={r} styles={styles} navigation={navigation} showQr />
             ))}
           </>
         ) : null}
@@ -337,14 +150,7 @@ export default function PerkWalletScreen({ navigation }: Props) {
               {t('perkWallet.sectionHistory')}
             </Text>
             {history.map((r) => (
-              <RewardClaimCard
-                key={r.redemptionId}
-                r={r}
-                styles={styles}
-                colors={colors}
-                navigation={navigation}
-                showQr={false}
-              />
+              <RewardClaimCard key={r.redemptionId} r={r} styles={styles} navigation={navigation} showQr={false} />
             ))}
           </>
         ) : null}
@@ -353,203 +159,98 @@ export default function PerkWalletScreen({ navigation }: Props) {
   );
 }
 
+type RewardClaimCardProps = {
+  r: GlobalRewardClaim;
+  styles: ReturnType<typeof createStyles>;
+  navigation: Props['navigation'];
+  showQr: boolean;
+};
+
+function RewardClaimCard({ r, styles, navigation, showQr }: RewardClaimCardProps) {
+  const { t } = useTranslation();
+  const labelKey = statusLabelKey(r.status);
+  const statusText =
+    labelKey === 'perkWallet.statusOther' ? t(labelKey, { status: r.status }) : t(labelKey);
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.venueName}>{r.venueName}</Text>
+      <Text style={styles.perkTitle}>{r.perkTitle}</Text>
+      {r.perkSubtitle ? <Text style={styles.perkSub}>{r.perkSubtitle}</Text> : null}
+      <Text style={styles.meta}>
+        {t('perk.rewardStatus')}: {statusText} · {t('perk.rewardExpires')} {formatExpiry(r.expiresAt)}
+      </Text>
+      {showQr && r.status === 'REDEEMABLE' ? (
+        <View style={styles.qrWrap}>
+          <QRCode value={r.qrPayload} size={140} />
+        </View>
+      ) : null}
+      <Text style={styles.codeLine}>
+        {t('perk.staffVerificationCode')}: {r.staffVerificationCode}
+      </Text>
+      {r.status === 'REDEEMABLE' ? (
+        <Pressable
+          style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
+          onPress={() => navigation.navigate('RedeemPerk', { venueId: r.venueId })}
+        >
+          <Text style={styles.primaryBtnText}>{t('perkWallet.redeemAtVenue')}</Text>
+        </Pressable>
+      ) : null}
+      <Pressable
+        style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
+        onPress={() => navigation.navigate('VenueHub', { venueId: r.venueId, venueName: r.venueName })}
+      >
+        <Text style={styles.secondaryBtnText}>{t('perkWallet.openVenue')}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: colors.bg },
-    scroll: {
-      paddingHorizontal: spacing.xl,
-      paddingTop: spacing.md,
-      paddingBottom: spacing.xxl,
-    },
-    titleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      marginBottom: spacing.sm,
-    },
-    iconBtn: {
-      width: 44,
-      height: 44,
-      borderRadius: radii.pill,
-      backgroundColor: colors.surface,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.border,
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
-    },
-    title: {
-      flex: 1,
-      color: colors.text,
-      fontSize: 28,
-      fontWeight: '900',
-      letterSpacing: -0.5,
-    },
-    subtitle: {
-      color: colors.textSecondary,
-      fontSize: 15,
-      lineHeight: 22,
-      marginBottom: spacing.md,
-    },
-    activeBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      alignSelf: 'flex-start',
-      gap: spacing.xs,
-      backgroundColor: colors.successMuted,
-      borderRadius: radii.pill,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      marginBottom: spacing.lg,
-    },
-    activeBadgeText: {
-      color: colors.success,
-      fontSize: 13,
-      fontWeight: '700',
-    },
-    centerBlock: {
-      alignItems: 'center',
-      paddingVertical: spacing.xxl,
-      gap: spacing.md,
-    },
-    errorText: {
-      color: colors.error,
-      fontSize: 14,
-      textAlign: 'center',
-      lineHeight: 20,
-    },
-    retryBtn: {
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm,
-      borderRadius: radii.md,
-      backgroundColor: colors.primary,
-    },
-    retryBtnText: {
-      color: colors.textInverse,
-      fontWeight: '800',
-      fontSize: 14,
-    },
-    emptyCard: {
-      alignItems: 'center',
-      gap: spacing.md,
-      backgroundColor: colors.surface,
-      borderRadius: radii.lg,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.border,
-      padding: spacing.xxl,
-    },
-    emptyText: {
-      color: colors.textMuted,
-      fontSize: 14,
-      textAlign: 'center',
-      lineHeight: 20,
-    },
-    sectionTitle: {
-      marginTop: spacing.sm,
-      marginBottom: spacing.sm,
-      fontSize: 12,
-      fontWeight: '800',
-      color: colors.textMuted,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-    },
-    sectionTitleSpaced: { marginTop: spacing.xl },
+    scroll: { padding: 20, paddingBottom: 40 },
+    backBtn: { alignSelf: 'flex-start', marginBottom: 8 },
+    backText: { color: colors.primary, fontSize: 16 },
+    title: { fontSize: 22, fontWeight: '700', color: colors.text },
+    hint: { marginTop: 6, fontSize: 14, color: colors.textMuted },
+    meta: { marginTop: 8, fontSize: 13, color: colors.textMuted },
+    sectionTitle: { marginTop: 20, fontSize: 15, fontWeight: '700', color: colors.textSecondary },
+    sectionTitleSpaced: { marginTop: 28 },
+    err: { marginTop: 12, color: colors.error, fontSize: 14 },
+    empty: { marginTop: 16, fontSize: 15, color: colors.textMuted },
     card: {
-      marginBottom: spacing.md,
-      padding: spacing.lg,
-      borderRadius: radii.lg,
+      marginTop: 12,
+      padding: 16,
+      borderRadius: 12,
       backgroundColor: colors.surface,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.border,
-      gap: spacing.sm,
-    },
-    cardDimmed: { opacity: 0.88 },
-    cardHeader: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      justifyContent: 'space-between',
-      gap: spacing.md,
-    },
-    venueName: {
-      flex: 1,
-      fontSize: 13,
-      fontWeight: '800',
-      color: colors.primary,
-    },
-    statusPill: {
-      borderRadius: radii.pill,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs,
-    },
-    statusText: { fontSize: 11, fontWeight: '800' },
-    statusReady: { backgroundColor: colors.successMuted },
-    statusReadyText: { color: colors.success },
-    statusDone: { backgroundColor: colors.primaryMuted },
-    statusDoneText: { color: colors.primary },
-    statusMuted: { backgroundColor: colors.bgElevated },
-    statusMutedText: { color: colors.textMuted },
-    statusVoided: { backgroundColor: colors.errorMuted },
-    statusVoidedText: { color: colors.error },
-    perkTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
-    perkSub: { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
-    expiryLine: { fontSize: 13, color: colors.textMuted },
-    qrWrap: {
-      alignItems: 'center',
-      marginTop: spacing.sm,
-      padding: spacing.lg,
-      backgroundColor: colors.bgElevated,
-      borderRadius: radii.lg,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderWidth: 1,
       borderColor: colors.border,
     },
-    codeBox: {
-      marginTop: spacing.xs,
-      backgroundColor: colors.bgElevated,
-      borderRadius: radii.md,
-      padding: spacing.md,
-      gap: spacing.xs,
-    },
-    codeLabel: {
-      fontSize: 11,
-      fontWeight: '700',
-      color: colors.textMuted,
-      textTransform: 'uppercase',
-      letterSpacing: 0.4,
-    },
-    codeValue: {
-      fontSize: 18,
-      fontWeight: '900',
-      color: colors.primary,
-      letterSpacing: 1,
-    },
-    cardActions: {
-      marginTop: spacing.sm,
-      gap: spacing.sm,
-    },
+    venueName: { fontSize: 12, fontWeight: '600', color: colors.primary, marginBottom: 4 },
+    perkTitle: { fontSize: 17, fontWeight: '600', color: colors.text },
+    perkSub: { marginTop: 4, fontSize: 14, color: colors.textMuted },
+    qrWrap: { alignItems: 'center', marginTop: 12 },
+    codeLine: { marginTop: 10, fontSize: 12, color: colors.textMuted },
     primaryBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing.xs,
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.lg,
-      borderRadius: radii.md,
+      marginTop: 12,
+      alignSelf: 'flex-start',
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 8,
       backgroundColor: colors.primary,
     },
-    primaryBtnText: { color: colors.textInverse, fontSize: 14, fontWeight: '800' },
+    primaryBtnText: { color: colors.textInverse, fontSize: 14, fontWeight: '600' },
     secondaryBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing.xs,
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.lg,
-      borderRadius: radii.md,
-      borderWidth: StyleSheet.hairlineWidth,
+      marginTop: 10,
+      alignSelf: 'flex-start',
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 8,
+      borderWidth: 1,
       borderColor: colors.border,
-      backgroundColor: colors.bgElevated,
     },
-    secondaryBtnText: { color: colors.primary, fontSize: 14, fontWeight: '700' },
-    pressed: { opacity: 0.88 },
+    secondaryBtnText: { color: colors.text, fontSize: 14, fontWeight: '500' },
+    pressed: { opacity: 0.85 },
   });
 }

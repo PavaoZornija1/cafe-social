@@ -7,7 +7,7 @@ backend and **Expo (React Native)** mobile app.
 
 npm run start:dev -> backend
 npm run dev -> admin
-npx expo run:ios --device -> app
+npx expo run:ios --device
 
 ## Repo layout
 
@@ -54,7 +54,7 @@ npx expo run:ios --device -> app
 
 - **Clerk** sign-in (email/password + Google where configured). **Sign in with Apple** disabled for personal-team signing.
 - **i18n**: **English, German, Spanish, Croatian** — language persists (AsyncStorage), overrides device locale when set in **Settings**.
-- **Home** (`MainTabs` → **Home** tab): Detected venue + access strip, **explicit QR check-in** banner when required, **venue daily word** chip when unlocked, featured offer / order / menu from `public-card`, engagement badges, quick links (Parties, Who’s here, invites, daily word, redeem perk), venue feed when in context. Header **Discover** (compass) opens **Discover hub** (map, cross-venue challenges, QR check-in, redeem perk). **PLAY** lives on the **Play** tab; **partner map** on **Venues**; **Friends** and **Me** (profile, settings entry, staff mode) on their tabs. **Global presence heartbeat** (~5 min + foreground) keeps geofence presence fresh for dwell-based venue nudges. Tap **`venue_order_nudge`** opens ordering/menu URL, then Home tab.
+- **Home**: Venue detection, access, challenges, **PLAY** → word flow, **XP / tier**, nav to Challenges / Leaderboard / Profile / Settings; **partner card** (**featured offer**, **Order** / **Menu** links from `public-card`, friend visit aggregate, **badges** / visits-this-week from **engagement**); **quick links** (Parties, Who’s here, Redeem invite, **Daily word**, **Redeem perk**); **venue feed** (“At this venue”) when unlocked; **weekly** challenges labeled in copy; **presence** → `POST /social/me/presence` when detected venue changes. **Global venue presence heartbeat** (every ~5 min + on app foreground) while signed in keeps geofence presence updated on the server for **any** screen so **dwell‑based venue nudges** measure time **at the venue in general**, not time in a match. **Tap** on **`venue_order_nudge`** opens **ordering/menu** URL when present, then **Home**.
 - **Daily word** screen: **Global** vs **Venue** scope (venue requires detection), guesses via API, streak display; deck **language** follows app locale.
 - **Parties**: list/create, party detail (leader: **kick**, **transfer leadership**, share invite via **Share sheet**, mesh friend-requests, leave).
 - **Redeem invite**: paste token or **`cafesocial://redeem?token=...`** (linking configured).
@@ -65,7 +65,7 @@ npx expo run:ios --device -> app
 - **Word game**: Solo / **co-op** / **versus** (room code, host starts), difficulty, deck language follows app locale with **EN fallback**; challenge progress when rules allow. **Socket.IO** `/word-match` with **reconnecting** banner; **Expo push** + **tap notification** opens the word match (**wait** or **game**) when possible.
 - **QR unlock**: **`expo-camera`** QR scan (native) + manual venue UUID; supports raw UUID, `/venue/<uuid>`, query `venueId`, `cafesocial://…`, JSON `{ venueId }`.
 - **Challenges**: list + progress (+1) with refetch.
-- **Profile** (`MainTabs` → **Me** tab): server summary (XP, tier, `playerId`); quick actions for **Discover**, **redeem perk**, quests, rewards, staff tools; **share friend invite**; link to Settings.
+- **Profile**: server summary (includes `playerId`, XP, tier); **share friend invite** (same as Settings).
 - **Friends**: **add by username**, cancel **outgoing** requests, incoming + **Accept**, **share invite** from the screen.
 - **Staff mode** (Clerk users on **`VenueStaff`**): **Settings → Staff mode** — list assigned venues, **UTC-day** perk redemptions (`GET /owner/venues/.../redemptions`), **filter**, **QR scan** / manual code (8-char code or redemption UUID / JSON payload) to highlight the row.
 - **Receipt proof (JWT)**: `POST /venue-context/:venueId/receipts` `{ imageData (data URL base64), mimeType?, notePlayer?, detectedVenueId? }` — same presence rule as perks; **90-day** `retentionUntil` target. Owners: `GET /owner/venues/:venueId/receipts`, `GET .../receipts/:id` (includes image), `POST .../receipts/:id/review` `{ status: APPROVED|REJECTED, staffNote?, abuseFlag? }`.

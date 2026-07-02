@@ -29,9 +29,9 @@ const ICON_MAP: Record<PlatformQuestIcon, ComponentProps<typeof Ionicons>['name'
 };
 
 const ICON_BG: Record<PlatformQuestIcon, string> = {
-  location: '#2561E9',
+  location: '#2E6DED',
   trophy: '#EC4899',
-  'game-controller': '#1E2D68',
+  'game-controller': '#1E4FC4',
   sparkles: '#6B7280',
   flash: '#E68A00',
   map: '#16A34A',

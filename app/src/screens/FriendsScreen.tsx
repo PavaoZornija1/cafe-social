@@ -269,29 +269,10 @@ export default function FriendsScreen({ navigation }: Props) {
           </Pressable>
           <Pressable
             style={({ pressed }) => [styles.quickTile, pressed && styles.pressed]}
-            onPress={() => navigation.navigate('FriendCard')}
-            accessibilityRole="button"
-          >
-            <Ionicons name="qr-code-outline" size={24} color={colors.accentPink} />
-            <Text style={styles.quickLabel}>{t('friends.myFriendQr')}</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.quickRow}>
-          <Pressable
-            style={({ pressed }) => [styles.quickTile, pressed && styles.pressed]}
-            onPress={() => navigation.navigate('ScanFriendQr')}
-            accessibilityRole="button"
-          >
-            <Ionicons name="scan-outline" size={24} color={colors.primary} />
-            <Text style={styles.quickLabel}>{t('friends.scanFriendQr')}</Text>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.quickTile, pressed && styles.pressed]}
             onPress={() => navigation.navigate('RedeemInvite', {})}
             accessibilityRole="button"
           >
-            <Ionicons name="link-outline" size={24} color={colors.xp} />
+            <Ionicons name="link-outline" size={24} color={colors.honey} />
             <Text style={styles.quickLabel}>{t('home.linkRedeemInvite')}</Text>
           </Pressable>
         </View>

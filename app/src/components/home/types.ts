@@ -34,6 +34,6 @@ export type HomePublicCard = {
 
 export type FriendAtVenueRow = {
   id: string;
-  username: string | null;
+  username: string;
   hereNow: boolean;
 };

@@ -13,11 +13,10 @@ type Props = {
   xp: number | null;
   loadingXp: boolean;
   onSettings: () => void;
-  onDiscover?: () => void;
 };
 
-function avatarInitial(name: string | null | undefined): string {
-  const trimmed = (name ?? '').trim();
+function avatarInitial(name: string): string {
+  const trimmed = name.trim();
   if (!trimmed) return '?';
   return trimmed.charAt(0).toUpperCase();
 }
@@ -29,7 +28,6 @@ export default function HomeDashboardHeader({
   xp,
   loadingXp,
   onSettings,
-  onDiscover,
 }: Props) {
   const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -53,19 +51,9 @@ export default function HomeDashboardHeader({
       </View>
       <View style={styles.actions}>
         <View style={styles.xpPill} accessibilityLabel={t('home.dashboard.xpA11y', { xp: xp ?? 0 })}>
-          <Ionicons name="trophy" size={16} color={colors.xp} />
+          <Ionicons name="trophy" size={16} color={colors.accentPink} />
           <Text style={styles.xpText}>{loadingXp ? '…' : `${xp ?? 0} XP`}</Text>
         </View>
-        {onDiscover ? (
-          <Pressable
-            onPress={onDiscover}
-            style={({ pressed }) => [styles.settingsBtn, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={t('home.navDiscoverHub')}
-          >
-            <Ionicons name="compass-outline" size={22} color={colors.textSecondary} />
-          </Pressable>
-        ) : null}
         <Pressable
           onPress={onSettings}
           style={({ pressed }) => [styles.settingsBtn, pressed && styles.pressed]}
@@ -135,9 +123,9 @@ function createStyles(colors: AppColors) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      backgroundColor: colors.honeyMuted,
+      backgroundColor: colors.surface,
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: 'rgba(230, 138, 0, 0.25)',
+      borderColor: colors.border,
       borderRadius: radii.pill,
       paddingVertical: 8,
       paddingHorizontal: 12,

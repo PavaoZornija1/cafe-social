@@ -82,49 +82,8 @@
     "staffBody": "Verifica canjes y escanea códigos de personal. Abre Ajustes → Personal del local en cualquier momento.",
     "staffHint": "Si también juegas como invitado, lo habitual está en la app principal; las herramientas de personal van en Ajustes."
   },
-  "memberCard": {
-    "title": "Mi QR de miembro",
-    "lead": "Muestra este código en caja para que el personal registre tu visita y puntos de fidelidad. Es el mismo para tu cuenta.",
-    "showAtTill": "Mostrar en caja",
-    "memberLabel": "Miembro",
-    "scanHint": "El personal escanea esto con la app de socios — funciona sin conexión una vez cargado en este dispositivo.",
-    "loadError": "No se pudo cargar tu tarjeta de miembro.",
-    "loading": "Cargando tu código QR…",
-    "refreshA11y": "Actualizar QR de miembro",
-    "offlineHint": "Mostrando tarjeta guardada — conéctate para actualizar si te registraste recientemente.",
-    "offlineNoCache": "Conéctate una vez para cargar tu QR personal; después funciona sin conexión.",
-    "tipVisit": "El personal escanea esto en cafés socios para registrar visitas y fidelidad.",
-    "tipOffline": "Tu QR se guarda en este dispositivo y funciona sin conexión una vez cargado."
-  },
-  "friendCard": {
-    "title": "QR de amistad",
-    "lead": "Deja que alguien escanee este código para añadirte como amigo al instante — sin nombre de usuario.",
-    "scanToAdd": "Escanea para añadirme",
-    "addLabel": "Añadir",
-    "memberFallback": "Tú",
-    "scanHint": "Abre Amigos → Escanear QR de amigo en Cafe Social y apunta la cámara aquí.",
-    "loadError": "No se pudo cargar tu QR de amistad.",
-    "loading": "Preparando tu código QR…",
-    "refreshA11y": "Generar nuevo QR de amistad",
-    "offlineHint": "Mostrando tu último QR guardado — actualiza si ha caducado.",
-    "validUntil": "Válido hasta {{date}}",
-    "expired": "Este QR ha caducado — pulsa actualizar para uno nuevo.",
-    "shareLink": "Compartir enlace de invitación",
-    "tipScan": "Al escanear os añade como amigos al instante — sin solicitud que aceptar.",
-    "tipExpiry": "Los códigos caducan a las 24 horas. Actualiza si el tuyo es antiguo."
-  },
-  "scanFriendQr": {
-    "title": "Escanear QR de amigo",
-    "subtitle": "Apunta la cámara al QR de un amigo para conectar al instante.",
-    "unrecognized": "Ese QR no es una invitación de amistad de Cafe Social.",
-    "redeemFailed": "No se pudo añadir a este amigo.",
-    "adding": "Añadiendo amigo…",
-    "notAuthenticated": "Inicia sesión para añadir amigos."
-  },
   "settings": {
     "title": "Ajustes",
-    "openMemberCard": "Mi QR de miembro",
-    "memberCardHint": "Código personal asignado al registrarte — escaneado por el personal en locales socios.",
     "language": "Idioma",
     "languageHint": "Se aplica al instante. Se guarda en este dispositivo.",
     "about": "Acerca de",
@@ -239,9 +198,6 @@
   },
   "brawlerLobby": {
     "title": "Lobby Brawler",
-    "heroTitle": "Elige tu luchador",
-    "heroVenue": "Cola o práctica en la arena de este café.",
-    "heroGlobal": "Solo es local — el emparejamiento requiere local o suscripción.",
     "subtitle": "Elige un héroe. Solo es práctica local. En un local puedes hacer cola 1v1 (casual o ranked) o jugar contra el Chaos Bot en este dispositivo.",
     "venueLine": "Local: {{venueId}}",
     "noVenueLine": "Local: no definido (en casa)",
@@ -296,13 +252,7 @@
     "spectating": "Espectando",
     "spectatingPanHint": "Arrastra para mover la cámara",
     "playTimeExhaustedTitle": "Tiempo de juego agotado",
-    "playTimeExhaustedBody": "Has usado tu tiempo activo gratuito en este local para hoy (UTC). Puedes comprar más tiempo en la app o volver mañana.",
-    "hudExit": "Salir de la arena",
-    "hudTitle": "Arena",
-    "hudDev": "Dev",
-    "hudReset": "Reiniciar",
-    "hudLobby": "Lobby",
-    "hudHp": "HP"
+    "playTimeExhaustedBody": "Has usado tu tiempo activo gratuito en este local para hoy (UTC). Puedes comprar más tiempo en la app o volver mañana."
   },
   "staff": {
     "venuesTitle": "Tus locales",
@@ -329,10 +279,7 @@
     "modOpenAppeals": "{{n}} apelaciones abiertas",
     "modPartnerToolsHint": "Los gestores actúan en el portal partner; esto es solo lectura para el personal.",
     "scanSuccessTitle": "Recompensa canjeada",
-    "scanSuccessBody": "QR verificado y recompensa marcada como canjeada.",
-    "refreshA11y": "Actualizar canjes",
-    "prevDayA11y": "Día anterior",
-    "nextDayA11y": "Día siguiente"
+    "scanSuccessBody": "QR verificado y recompensa marcada como canjeada."
   },
   "home": {
     "appTitle": "Cafe Social",
@@ -452,36 +399,25 @@
       "tapToUnlock": "Toca para ver el local",
       "menu": "Carta",
       "findVenuesHint": "Explora cafés asociados en el mapa",
-      "liveGames": "JUEGOS EN VIVO",
-      "streakDayOne": "Racha de 1 día",
-      "streakDays": "Racha de {{count}} días",
-      "friendsHereNow": "{{count}} amigos están aquí ahora",
+      "streak": "Racha",
+      "friendsHere": "Amigos aquí",
       "noFriendsHere": "Aún no hay amigos aquí",
-      "gameOn": "A jugar.",
-      "gameOnNamed": "A jugar, {{name}}.",
-      "tapToPlayXp": "Toca para jugar · +60 XP",
+      "gameOn": "A jugar",
+      "heroXpHint": "+60 XP por victoria en este local",
       "pickGame": "Elige un juego",
       "heroA11y": "Elige un juego y empieza a jugar",
-      "rewardsTitle": "Recompensas",
-      "rewardsXpLine": "{{xp}} XP para gastar",
-      "seeAll": "Todo",
+      "rewardsTitle": "Recompensas de socios",
+      "rewardsSubtitle": "{{xp}} XP total · desbloquea perks al subir de nivel",
+      "seeAll": "Ver todo",
       "noRewardsYet": "Sin ofertas aún",
       "noRewardsHint": "Las recompensas aparecen cuando estás en un café.",
-      "browseVenuesCta": "Ver cafés asociados →",
-      "pickOfDay": "Elección del día",
-      "rewardAtPartner": "En cualquier café asociado",
-      "availableNow": "Disponible ahora",
-      "redeemCta": "Canjear →"
+      "featured": "Destacado",
+      "viewOffer": "Ver oferta"
     }
   },
   "discoverHub": {
     "title": "Descubrir",
     "subtitle": "Mapa de socios, retos en todos los locales y tu progreso.",
-    "heroTitle": "Explora la red",
-    "heroSub": "Encuentra cafés socios, únete a retos y sigue tu progreso.",
-    "sectionExplore": "Explorar",
-    "sectionProgress": "Tu progreso",
-    "refreshA11y": "Actualizar hub Descubrir",
     "loadError": "No se pudo cargar el hub.",
     "openMap": "Mapa de socios",
     "openMapHint": "Explora cafés con Cafe Social.",
@@ -491,8 +427,6 @@
     "leaderboardHint": "Compara XP con otros.",
     "qrCheckIn": "Check-in QR",
     "qrCheckInHint": "Escanea el QR del local si hace falta.",
-    "redeemPerkTitle": "Canjear código de beneficio",
-    "redeemPerkHint": "Introduce un código del staff mientras estás en un café partner.",
     "progressTitle": "Tu nivel",
     "crossVenueStats": "En todos los locales"
   },
@@ -540,8 +474,7 @@
     "challengesEmptyShort": "No hay retos activos para este local ahora.",
     "myRewardsHereTitle": "Tus recompensas aquí",
     "myRewardsHereEmpty": "Aún no hay perks canjeables — mira los retos.",
-    "myRewardsSeeCrossVenue": "Todas las recompensas (todos los locales)",
-    "refreshA11y": "Actualizar local"
+    "myRewardsSeeCrossVenue": "Todas las recompensas (todos los locales)"
   },
   "partnerMap": {
     "title": "Locales asociados",
@@ -549,6 +482,7 @@
     "searchPlaceholder": "Buscar por nombre del café…",
     "chipNearMe": "Cerca de mí",
     "chipHasOffer": "Con oferta",
+    "chipOpenNow": "Abierto ahora",
     "chipFriends": "Amigos",
     "nearbyTitle": "Cerca",
     "nearbyCount": "{{count}} cafés",
@@ -571,12 +505,9 @@
     "loadError": "No se pudieron cargar los locales.",
     "empty": "Aún no hay locales listados.",
     "openInMaps": "Abrir en mapas",
+    "checkInQr": "Entrar con QR",
     "hintAtVenue": "Al llegar, mantén la ubicación activa — los juegos se desbloquean en la zona (o con suscripción desde cualquier sitio).",
-    "webListHint": "El mapa en el navegador es limitado — toca un local para detalles y cómo llegar.",
-    "mapPreviewA11y": "Ver {{name}}",
-    "mapRecenterA11y": "Mostrar locales y mi ubicación",
-    "mapDismissA11y": "Cerrar vista previa",
-    "openVenueCta": "Abrir local"
+    "webListHint": "El mapa en el navegador es limitado — toca un local para detalles y cómo llegar."
   },
   "receiptSubmit": {
     "title": "Enviar ticket",
@@ -618,10 +549,6 @@
   },
   "challenges": {
     "title": "Retos",
-    "heroTitle": "Retos del local",
-    "refreshA11y": "Actualizar retos",
-    "subtitleVenue": "Progreso y ventajas en {{venue}}.",
-    "subtitleEmpty": "Haz check-in en un café partner para ver retos.",
     "loading": "Cargando…",
     "empty": "Aún no hay retos.",
     "done": "Hecho",
@@ -630,7 +557,6 @@
     "requiresAtCafe": "Requiere estar en el café.",
     "worksFromHome": "Funciona desde casa.",
     "progressCta": "Progreso +1",
-    "completedCta": "Completado",
     "updating": "Actualizando…",
     "loadError": "No se pudieron cargar los retos",
     "weekly": "Reto semanal — el progreso se reinicia cada semana ISO (UTC).",
@@ -815,11 +741,8 @@
   },
   "leaderboard": {
     "title": "Clasificación",
-    "heroTitle": "Rankings",
-    "refreshA11y": "Actualizar clasificación",
     "subtitle": "XP en el local actual.",
     "subtitleVenue": "XP en el local donde estás ahora.",
-    "subtitleVenueNamed": "XP por local en {{venue}}.",
     "subtitleGlobal": "XP total sumada en todos los locales partner.",
     "subtitleCountry": "XP total en locales con país {{country}}.",
     "subtitleCountryGeneric": "XP por país (país del local detectado).",
@@ -836,7 +759,6 @@
     "loadError": "No se pudo cargar la clasificación.",
     "xp": "XP",
     "you": "Tú",
-    "yourRank": "Estás en el puesto #{{rank}} · {{xp}} XP",
     "emptyBoard": "Aún no hay XP. ¡Juega para ganar!",
     "report": "Reportar"
   },
@@ -882,8 +804,7 @@
     "loadError": "No se pudieron cargar tus reportes.",
     "refresh": "Actualizar",
     "filedAt": "Enviado {{when}}",
-    "reasonLabel": "Lo que reportaste",
-    "refreshA11y": "Actualizar reportes"
+    "reasonLabel": "Lo que reportaste"
   },
   "friends": {
     "title": "Amigos",
@@ -896,8 +817,6 @@
     "noOutgoing": "Nadie espera tu solicitud.",
     "pendingTheirAccept": "(esperando que acepten)",
     "inviteShare": "Compartir invitación de amigo",
-    "myFriendQr": "Mi QR de amigo",
-    "scanFriendQr": "Escanear QR de amigo",
     "addByUsername": "Añadir por nombre de usuario",
     "addByUsernameHint": "Sin distinguir mayúsculas. Recibirán una solicitud.",
     "usernamePlaceholder": "Usuario",
@@ -937,8 +856,7 @@
     "statusRedeemed": "Canjeada",
     "statusOther": "{{status}}",
     "pullToRefresh": "Desliza para actualizar",
-    "redeemAtVenue": "Canjear en el café",
-    "refreshA11y": "Actualizar códigos de perks"
+    "redeemAtVenue": "Canjear en el café"
   },
   "perk": {
     "title": "Canjear beneficio",
@@ -967,12 +885,7 @@
   },
   "peopleHere": {
     "title": "Quién hay aquí",
-    "heroTitle": "En este local",
-    "refreshA11y": "Actualizar lista",
     "subtitle": "Recientes en el local (privacidad).",
-    "subtitleNamed": "Recientes en {{venue}} — según privacidad.",
-    "count": "{{n}} visibles",
-    "you": "tú",
     "empty": "Nadie visible — revisa ajustes.",
     "friend": "Amigo",
     "stranger": "Aquí",

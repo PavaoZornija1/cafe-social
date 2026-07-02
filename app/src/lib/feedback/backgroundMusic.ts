@@ -3,13 +3,9 @@ import { AppState, type AppStateStatus, Platform } from 'react-native';
 
 import { ensureAudioSession } from './audioSession';
 import { getFeedbackPrefs } from './feedbackPrefs';
+import { getMusicTrackSources, type BackgroundMusicTrack } from './musicPack';
 
-export type BackgroundMusicTrack = 'home' | 'game';
-
-const TRACK_SOURCES: Record<BackgroundMusicTrack, number> = {
-  home: require('../../../assets/sounds/music/cafe_home.m4a'),
-  game: require('../../../assets/sounds/music/cafe_game.m4a'),
-};
+export type { BackgroundMusicTrack } from './musicPack';
 
 const TRACK_VOLUME: Record<BackgroundMusicTrack, number> = {
   home: 0.24,
@@ -58,7 +54,7 @@ async function unloadMusic(): Promise<void> {
 async function loadTrack(track: BackgroundMusicTrack): Promise<Audio.Sound> {
   if (musicSound && activeTrack === track) return musicSound;
   await unloadMusic();
-  const { sound } = await Audio.Sound.createAsync(TRACK_SOURCES[track], {
+  const { sound } = await Audio.Sound.createAsync(getMusicTrackSources()[track], {
     isLooping: true,
     shouldPlay: false,
     volume: TRACK_VOLUME[track],

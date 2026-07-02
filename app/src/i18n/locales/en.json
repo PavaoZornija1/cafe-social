@@ -85,41 +85,10 @@
   "memberCard": {
     "title": "My member QR",
     "lead": "Show this code at the till so staff can record your visit and loyalty points. It stays the same for your account.",
-    "showAtTill": "Show at the till",
-    "memberLabel": "Member",
     "scanHint": "Staff scan this with the partner app — works offline once loaded on this device.",
     "loadError": "Could not load your member card.",
-    "loading": "Loading your QR code…",
-    "refreshA11y": "Refresh member QR",
     "offlineHint": "Showing your saved card — connect to refresh if you recently registered.",
-    "offlineNoCache": "Connect once to load your personal QR, then it works offline.",
-    "tipVisit": "Staff scan this at partner cafés to log your visit and loyalty.",
-    "tipOffline": "Your QR is saved on this device and works without a connection once loaded."
-  },
-  "friendCard": {
-    "title": "Friend QR",
-    "lead": "Let someone scan this code to add you as a friend instantly — no username needed.",
-    "scanToAdd": "Scan to add me",
-    "addLabel": "Add",
-    "memberFallback": "You",
-    "scanHint": "They open Friends → Scan friend QR in Cafe Social and point the camera here.",
-    "loadError": "Could not load your friend QR.",
-    "loading": "Preparing your QR code…",
-    "refreshA11y": "Generate new friend QR",
-    "offlineHint": "Showing your last saved QR — tap refresh if it has expired.",
-    "validUntil": "Valid until {{date}}",
-    "expired": "This QR has expired — tap refresh for a new one.",
-    "shareLink": "Share invite link",
-    "tipScan": "Scanning adds you as friends right away — no request to accept.",
-    "tipExpiry": "Codes expire after 24 hours. Refresh if yours is old or you hit the daily limit."
-  },
-  "scanFriendQr": {
-    "title": "Scan friend QR",
-    "subtitle": "Point your camera at a friend’s QR code to connect instantly.",
-    "unrecognized": "That QR isn’t a Cafe Social friend invite.",
-    "redeemFailed": "Could not add this friend.",
-    "adding": "Adding friend…",
-    "notAuthenticated": "Sign in to add friends."
+    "offlineNoCache": "Connect once to load your personal QR, then it works offline."
   },
   "settings": {
     "title": "Settings",
@@ -242,9 +211,6 @@
   },
   "brawlerLobby": {
     "title": "Brawler lobby",
-    "heroTitle": "Pick your fighter",
-    "heroVenue": "Queue or practice at this café’s arena.",
-    "heroGlobal": "Solo practice runs locally — matchmaking needs a venue or subscription.",
     "subtitle": "Pick a hero. Solo is local practice. At a venue you can queue for a 1v1 (casual or ranked) or play vs the Chaos Bot on this device.",
     "venueLine": "Venue: {{venueId}}",
     "noVenueLine": "Venue: not set (home play)",
@@ -303,13 +269,7 @@
     "spectating": "Spectating",
     "spectatingPanHint": "Drag to move the camera",
     "playTimeExhaustedTitle": "Play time used up",
-    "playTimeExhaustedBody": "You’ve used your free active play time at this venue for today (UTC). You can buy more time in the app or come back tomorrow.",
-    "hudExit": "Leave arena",
-    "hudTitle": "Arena",
-    "hudDev": "Dev",
-    "hudReset": "Reset",
-    "hudLobby": "Lobby",
-    "hudHp": "HP"
+    "playTimeExhaustedBody": "You’ve used your free active play time at this venue for today (UTC). You can buy more time in the app or come back tomorrow."
   },
   "staff": {
     "venuesTitle": "Your venues",
@@ -338,10 +298,7 @@
     "modOpenAppeals": "{{n}} open appeals",
     "modPartnerToolsHint": "Managers can take action in the partner portal; this is a read-only signal for on-site staff.",
     "scanSuccessTitle": "Reward redeemed",
-    "scanSuccessBody": "QR verified and reward marked as redeemed.",
-    "refreshA11y": "Refresh redemptions",
-    "prevDayA11y": "Previous day",
-    "nextDayA11y": "Next day"
+    "scanSuccessBody": "QR verified and reward marked as redeemed."
   },
   "home": {
     "appTitle": "Cafe Social",
@@ -461,36 +418,25 @@
       "tapToUnlock": "Tap for venue details",
       "menu": "Menu",
       "findVenuesHint": "Browse partner cafés on the map",
-      "liveGames": "LIVE GAMES",
-      "streakDayOne": "1-day streak",
-      "streakDays": "{{count}}-day streak",
-      "friendsHereNow": "{{count}} friends are here right now",
+      "streak": "Streak",
+      "friendsHere": "Friends here",
       "noFriendsHere": "No friends here yet",
-      "gameOn": "Game on.",
-      "gameOnNamed": "Game on, {{name}}.",
-      "tapToPlayXp": "Tap to play · +60 XP",
+      "gameOn": "Game on",
+      "heroXpHint": "+60 XP per win at this venue",
       "pickGame": "Pick a game",
       "heroA11y": "Pick a game and start playing",
-      "rewardsTitle": "Rewards",
-      "rewardsXpLine": "{{xp}} XP to spend",
-      "seeAll": "All",
+      "rewardsTitle": "Partner rewards",
+      "rewardsSubtitle": "{{xp}} XP total · unlock perks as you climb",
+      "seeAll": "See all",
       "noRewardsYet": "No offers yet",
       "noRewardsHint": "Partner rewards show up when you're at a café.",
-      "browseVenuesCta": "Browse partner cafés →",
-      "pickOfDay": "Pick of the day",
-      "rewardAtPartner": "At any partner café",
-      "availableNow": "Available now",
-      "redeemCta": "Redeem →"
+      "featured": "Featured",
+      "viewOffer": "View offer"
     }
   },
   "discoverHub": {
     "title": "Discover",
     "subtitle": "Partner map, challenges across venues, and your overall progress.",
-    "heroTitle": "Explore the network",
-    "heroSub": "Find partner cafés, join challenges, and track how you play across the city.",
-    "sectionExplore": "Explore",
-    "sectionProgress": "Your progress",
-    "refreshA11y": "Refresh discover hub",
     "loadError": "Could not load discover hub.",
     "openMap": "Partner map",
     "openMapHint": "Browse all cafés where Cafe Social runs.",
@@ -500,8 +446,6 @@
     "leaderboardHint": "Compare XP with other players.",
     "qrCheckIn": "QR check-in",
     "qrCheckInHint": "Scan a venue QR to unlock games when required.",
-    "redeemPerkTitle": "Redeem perk code",
-    "redeemPerkHint": "Enter a staff code while you're at a partner café.",
     "progressTitle": "Your level",
     "crossVenueStats": "Across venues"
   },
@@ -549,8 +493,7 @@
     "challengesEmptyShort": "No active challenges for this venue right now.",
     "myRewardsHereTitle": "Your rewards here",
     "myRewardsHereEmpty": "No redeemable perk rewards at this venue yet — check challenges.",
-    "myRewardsSeeCrossVenue": "All rewards (every venue)",
-    "refreshA11y": "Refresh venue"
+    "myRewardsSeeCrossVenue": "All rewards (every venue)"
   },
   "partnerMap": {
     "title": "Partner venues",
@@ -558,6 +501,7 @@
     "searchPlaceholder": "Search by café name…",
     "chipNearMe": "Near me",
     "chipHasOffer": "Has offer",
+    "chipOpenNow": "Open now",
     "chipFriends": "Friends",
     "nearbyTitle": "Nearby",
     "nearbyCount": "{{count}} cafés",
@@ -580,12 +524,9 @@
     "loadError": "Could not load partner venues.",
     "empty": "No partner venues are listed yet. Check back soon.",
     "openInMaps": "Open in Maps",
+    "checkInQr": "Check in with QR",
     "hintAtVenue": "When you arrive, keep location on — games unlock inside the partner zone (or use a subscription from anywhere).",
-    "webListHint": "Maps in the browser are limited — tap a venue for details and directions.",
-    "mapPreviewA11y": "View {{name}}",
-    "mapRecenterA11y": "Show venues and my location",
-    "mapDismissA11y": "Dismiss venue preview",
-    "openVenueCta": "Open venue"
+    "webListHint": "Maps in the browser are limited — tap a venue for details and directions."
   },
   "receiptSubmit": {
     "title": "Submit receipt",
@@ -627,10 +568,6 @@
   },
   "challenges": {
     "title": "Challenges",
-    "heroTitle": "Venue challenges",
-    "refreshA11y": "Refresh challenges",
-    "subtitleVenue": "Progress and perks at {{venue}}.",
-    "subtitleEmpty": "Check in at a partner café to see venue challenges.",
     "loading": "Loading…",
     "empty": "No challenges available yet.",
     "done": "Done",
@@ -639,7 +576,6 @@
     "requiresAtCafe": "Requires being at the café.",
     "worksFromHome": "Works from home.",
     "progressCta": "Progress +1",
-    "completedCta": "Completed",
     "updating": "Updating…",
     "loadError": "Failed to load challenges",
     "weekly": "Weekly challenge — progress resets each ISO week (UTC).",
@@ -828,11 +764,8 @@
   },
   "leaderboard": {
     "title": "Leaderboard",
-    "heroTitle": "Rankings",
-    "refreshA11y": "Refresh leaderboard",
     "subtitle": "XP at your current venue (per-venue stats).",
     "subtitleVenue": "XP at the venue you’re detected at right now.",
-    "subtitleVenueNamed": "Per-venue XP at {{venue}}.",
     "subtitleGlobal": "Total XP summed across all partner venues.",
     "subtitleCountry": "Total XP in venues tagged {{country}}.",
     "subtitleCountryGeneric": "Total XP by country (uses detected venue’s country).",
@@ -849,7 +782,6 @@
     "loadError": "Could not load leaderboard.",
     "xp": "XP",
     "you": "You",
-    "yourRank": "You’re #{{rank}} · {{xp}} XP",
     "emptyBoard": "No scores yet. Play to earn XP!",
     "report": "Report"
   },
@@ -895,8 +827,7 @@
     "loadError": "Could not load your reports.",
     "refresh": "Refresh",
     "filedAt": "Filed {{when}}",
-    "reasonLabel": "What you reported",
-    "refreshA11y": "Refresh reports"
+    "reasonLabel": "What you reported"
   },
   "friends": {
     "title": "Friends",
@@ -910,8 +841,6 @@
     "noOutgoing": "No invites waiting on others.",
     "pendingTheirAccept": "(waiting for them to accept)",
     "inviteShare": "Share friend invite",
-    "myFriendQr": "My friend QR",
-    "scanFriendQr": "Scan friend QR",
     "addByUsername": "Add by username",
     "addByUsernameHint": "Search is case-insensitive. They’ll get a request to accept.",
     "usernamePlaceholder": "Username",
@@ -990,8 +919,7 @@
     "statusVoided": "Voided",
     "statusRedeemed": "Redeemed",
     "statusOther": "{{status}}",
-    "redeemAtVenue": "Redeem at café",
-    "refreshA11y": "Refresh perk codes"
+    "redeemAtVenue": "Redeem at café"
   },
   "perk": {
     "title": "Redeem perk",
@@ -1026,12 +954,7 @@
   },
   "peopleHere": {
     "title": "Who's here",
-    "heroTitle": "At this venue",
-    "refreshA11y": "Refresh who's here",
     "subtitle": "Players recently at this venue (respects privacy).",
-    "subtitleNamed": "Recently at {{venue}} — respects privacy settings.",
-    "count": "{{n}} visible",
-    "you": "you",
     "empty": "Nobody visible right now — check discoverability in Settings or try again in a minute.",
     "friend": "Friend",
     "stranger": "Here",

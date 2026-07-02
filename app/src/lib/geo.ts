@@ -27,8 +27,8 @@ export function formatDistanceKm(distanceKm: number): string {
   return `${distanceKm.toFixed(1)} km`;
 }
 
-export function venueInitial(name: string | null | undefined): string {
-  const trimmed = (name ?? '').trim();
+export function venueInitial(name: string): string {
+  const trimmed = name.trim();
   if (!trimmed) return '?';
   return trimmed.charAt(0).toUpperCase();
 }

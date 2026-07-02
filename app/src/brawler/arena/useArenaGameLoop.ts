@@ -3,7 +3,9 @@ import type { HeroSpriteAnim } from '../../components/HeroSpriteView';
 import {
   getAttackFrameCount,
   getAttackHitFromTopPx,
+  getDashFrameCount,
   getIdleFrameCount,
+  getJumpFrameCount,
   getPickupCenter,
   getWalkFrameCount,
 } from '../heroSpriteUtils';
@@ -125,6 +127,8 @@ export type ArenaGameLoopConfig = {
   dashTimeLeft: MutableRefObject<number>;
   attackTimeLeft: MutableRefObject<number>;
   hitFrameRef: MutableRefObject<number>;
+  jumpFrameRef: MutableRefObject<number>;
+  dashFrameRef: MutableRefObject<number>;
   dashHitAppliedRef: MutableRefObject<boolean>;
   spriteAnimRef: MutableRefObject<HeroSpriteAnim>;
   walkFrameRef: MutableRefObject<number>;
@@ -205,6 +209,8 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
     dashTimeLeft,
     attackTimeLeft,
     hitFrameRef,
+    jumpFrameRef,
+    dashFrameRef,
     dashHitAppliedRef,
     spriteAnimRef,
     walkFrameRef,
@@ -591,6 +597,21 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
         }
       }
 
+      if (dashTimeLeft.current > 0) {
+        const cfg = heroSpriteLiveRef.current;
+        const dashFrames = getDashFrameCount(cfg);
+        if (dashFrames > 1) {
+          const elapsed = DASH_DURATION_S - dashTimeLeft.current;
+          const t = Math.min(1, Math.max(0, elapsed / DASH_DURATION_S));
+          dashFrameRef.current = Math.min(
+            dashFrames - 1,
+            Math.floor(t * dashFrames),
+          );
+        }
+      } else {
+        dashFrameRef.current = 0;
+      }
+
       // Dummies: respawn / flash / knockback (runs every frame)
       let dummiesChanged = false;
       for (const d of dummiesRef.current) {
@@ -799,6 +820,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
           facing.current = jx < 0 ? 'left' : 'right';
         }
         dashTimeLeft.current = DASH_DURATION_S;
+        dashFrameRef.current = 0;
         dashHitAppliedRef.current = false;
       }
 
@@ -1228,6 +1250,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
         idleAccum.current = 0;
       } else if (nextAnim === 'idle') {
         walkAccum.current = 0;
+        jumpFrameRef.current = 0;
         const idleFrames = getIdleFrameCount(heroSpriteLiveRef.current);
         if (idleFrames > 1) {
           idleAccum.current += dt * 1000;
@@ -1239,9 +1262,27 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
         } else {
           idleAccum.current = 0;
         }
+      } else if (nextAnim === 'jump') {
+        walkAccum.current = 0;
+        idleAccum.current = 0;
+        const jumpFrames = getJumpFrameCount(heroSpriteLiveRef.current);
+        if (jumpFrames > 1) {
+          const fallVy = 640;
+          const t = Math.min(
+            1,
+            Math.max(0, (vy.current - JUMP_VELOCITY) / (fallVy - JUMP_VELOCITY)),
+          );
+          jumpFrameRef.current = Math.min(
+            jumpFrames - 1,
+            Math.floor(t * jumpFrames),
+          );
+        }
       } else {
         walkAccum.current = 0;
         idleAccum.current = 0;
+        if (nextAnim !== 'dash') {
+          jumpFrameRef.current = 0;
+        }
       }
 
       bump();

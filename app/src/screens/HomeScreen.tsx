@@ -5,14 +5,11 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 import { useTranslation } from 'react-i18next';
 
 import HomeDashboardHeader from '../components/home/HomeDashboardHeader';
-import ExplicitCheckInBanner from '../components/home/ExplicitCheckInBanner';
 import HomeHeroCard from '../components/home/HomeHeroCard';
 import HomeRewardsSection from '../components/home/HomeRewardsSection';
-import HomeVenueDailyWordChip from '../components/home/HomeVenueDailyWordChip';
 import HomeVenueStrip from '../components/home/HomeVenueStrip';
 import type { FriendAtVenueRow } from '../components/home/types';
 import { apiGet, apiPost } from '../lib/api';
-import { needsExplicitCheckInBanner } from '../lib/explicitCheckIn';
 import { emitPlatformQuestProgressChanged } from '../lib/platformQuestEvents';
 import { setBackgroundApiToken } from '../lib/backgroundApiToken';
 import { isLikelyNetworkFailure } from '../lib/isNetworkError';
@@ -104,9 +101,9 @@ export default function HomeScreen({ navigation }: Props) {
     getTokenRef.current = getToken;
 
     const displayName =
-        [user?.firstName, user?.primaryEmailAddress?.emailAddress].find(
-            (value) => typeof value === 'string' && value.trim().length > 0,
-        )?.trim() ?? t('home.guestName');
+        user?.firstName ||
+        user?.primaryEmailAddress?.emailAddress ||
+        t('home.guestName');
 
     const [detectedVenue, setDetectedVenue] = useState<Venue | null>(null);
     const [access, setAccess] = useState<VenueAccess | null>(null);
@@ -120,9 +117,42 @@ export default function HomeScreen({ navigation }: Props) {
     const [venueDailyWord, setVenueDailyWord] = useState<VenueDailyWordState | null>(null);
     const [friendsAtVenue, setFriendsAtVenue] = useState<FriendAtVenueRow[]>([]);
 
+    const locked = useMemo(() => {
+        if (!access) return false;
+        return !access.canEnterVenueContext;
+    }, [access]);
+
+    const venueAdminLocked = useMemo(
+        () => Boolean(access?.locked || detectedVenue?.locked),
+        [access?.locked, detectedVenue?.locked],
+    );
+
     const canPlayVenueContext = Boolean(detectedVenue && access?.canEnterVenueContext);
     const canPlayGlobal = Boolean(meSummary?.subscriptionActive);
     const gamesPlayable = canPlayVenueContext || canPlayGlobal;
+
+    const needsExplicitCheckIn = Boolean(
+        access?.requiresExplicitCheckIn &&
+            access?.isPhysicallyAtVenue &&
+            !access?.hasExplicitCheckIn,
+    );
+
+    const venueGamesLockedExplanation = useMemo(() => {
+        if (!locked || !detectedVenue) return '';
+        if (access?.bannedFromVenue) return t('home.bannedFromVenue');
+        if (venueAdminLocked) return t('home.venueTemporarilyUnavailable');
+        if (needsExplicitCheckIn) return t('home.explicitCheckInRequired');
+        return detectedVenue.isPremium
+            ? t('home.lockedHintPremium')
+            : t('home.lockedHintStandard');
+    }, [
+        locked,
+        detectedVenue,
+        venueAdminLocked,
+        access?.bannedFromVenue,
+        needsExplicitCheckIn,
+        t,
+    ]);
 
     const loadMeSummary = useCallback(async () => {
         if (!isLoaded) return;
@@ -380,16 +410,18 @@ export default function HomeScreen({ navigation }: Props) {
     };
 
     const streak = venueDailyWord?.streak ?? 0;
-    const showCheckInBanner = needsExplicitCheckInBanner(access);
-    const openQrCheckIn = useCallback(() => {
-        if (!detectedVenue) return;
-        navigation.navigate('QrScan', { venueId: detectedVenue.id });
-    }, [detectedVenue, navigation]);
-
     const rewardOffers = useMemo(
         () => (publicCard?.offers ?? []).filter((o) => !o.globallyExhausted).slice(0, 8),
         [publicCard?.offers],
     );
+
+    const heroLockedHint = !gamesPlayable
+        ? needsExplicitCheckIn
+            ? t('home.playLockedExplicitCheckIn')
+            : locked
+              ? venueGamesLockedExplanation
+              : t('home.playLockedHint')
+        : undefined;
 
     return (
         <SafeAreaView style={styles.safe}>
@@ -405,7 +437,6 @@ export default function HomeScreen({ navigation }: Props) {
                     xp={meSummary?.xp ?? null}
                     loadingXp={loadingSummary}
                     onSettings={() => navigation.navigate('Settings')}
-                    onDiscover={() => navigation.navigate('DiscoverHub')}
                 />
 
                 <HomeVenueStrip
@@ -415,26 +446,9 @@ export default function HomeScreen({ navigation }: Props) {
                     venue={detectedVenue}
                     access={access}
                     menuUrl={publicCard?.menuUrl ?? null}
-                    needsCheckIn={showCheckInBanner}
                     onVenuePress={openVenueHub}
                     onFindVenues={() => navigation.navigate('VenuesTab')}
-                    onCheckIn={openQrCheckIn}
                 />
-
-                {showCheckInBanner ? (
-                    <ExplicitCheckInBanner colors={colors} onScan={openQrCheckIn} />
-                ) : null}
-
-                {venueDailyWord && detectedVenue && access?.canEnterVenueContext ? (
-                    <HomeVenueDailyWordChip
-                        colors={colors}
-                        streak={venueDailyWord.streak}
-                        solved={venueDailyWord.solved}
-                        attempts={venueDailyWord.attempts}
-                        maxAttempts={venueDailyWord.maxAttempts}
-                        onPress={() => navigation.navigate('DailyWord')}
-                    />
-                ) : null}
 
                 {access?.bannedFromVenue && detectedVenue ? (
                     <Pressable
@@ -453,10 +467,10 @@ export default function HomeScreen({ navigation }: Props) {
 
                 <HomeHeroCard
                     colors={colors}
-                    displayName={displayName}
                     streak={streak}
                     friendsHere={friendsAtVenue}
                     disabled={loadingVenue || !gamesPlayable}
+                    lockedHint={heroLockedHint}
                     onPlay={handlePlay}
                 />
 
@@ -472,7 +486,6 @@ export default function HomeScreen({ navigation }: Props) {
                         }
                     }}
                     onOfferPress={() => openVenueHub()}
-                    onBrowseVenues={() => navigation.navigate('VenuesTab')}
                 />
             </ScrollView>
         </SafeAreaView>

@@ -82,49 +82,8 @@
     "staffBody": "Potvrdi iskoristive perkove i skeniraj STAFF kodove. Otvori Postavke → Osoblje lokala kad god trebaš.",
     "staffHint": "Ako i dalje igraš kao gost, sve je na početnom ekranu — alati za osoblje su u Postavkama."
   },
-  "memberCard": {
-    "title": "Moj QR član",
-    "lead": "Pokaži ovaj kod na blagajni da osoblje zabilježi posjet i bodove lojalnosti. Ostaje isti za tvoj račun.",
-    "showAtTill": "Pokaži na blagajni",
-    "memberLabel": "Član",
-    "scanHint": "Osoblje skenira ovaj kod partnerskom aplikacijom — radi offline nakon učitavanja na ovom uređaju.",
-    "loadError": "Nije moguće učitati člansku karticu.",
-    "loading": "Učitavanje QR koda…",
-    "refreshA11y": "Osvježi QR člana",
-    "offlineHint": "Prikaz spremljene kartice — spoji se za osvježavanje ako si se nedavno registrirao.",
-    "offlineNoCache": "Spoji se jednom da učitaš svoj QR, zatim radi offline.",
-    "tipVisit": "Osoblje skenira ovo u partnerskim kafićima za evidenciju posjeta i lojalnosti.",
-    "tipOffline": "QR je spremljen na ovom uređaju i radi bez interneta nakon učitavanja."
-  },
-  "friendCard": {
-    "title": "QR za prijatelje",
-    "lead": "Neka netko skenira ovaj kod da te odmah doda kao prijatelja — bez korisničkog imena.",
-    "scanToAdd": "Skeniraj me",
-    "addLabel": "Dodaj",
-    "memberFallback": "Ti",
-    "scanHint": "Otvore Prijatelji → Skeniraj QR prijatelja u Cafe Social i usmjeri kameru ovdje.",
-    "loadError": "QR za prijatelje nije moguće učitati.",
-    "loading": "Priprema QR koda…",
-    "refreshA11y": "Generiraj novi QR",
-    "offlineHint": "Prikaz zadnjeg spremljenog QR-a — osvježi ako je istekao.",
-    "validUntil": "Vrijedi do {{date}}",
-    "expired": "QR je istekao — osvježi za novi.",
-    "shareLink": "Podijeli pozivnicu",
-    "tipScan": "Skeniranje odmah dodaje prijateljstvo — bez zahtjeva za prihvaćanje.",
-    "tipExpiry": "Kodovi traju 24 sata. Osvježi ako je tvoj star ili si dosegao dnevni limit."
-  },
-  "scanFriendQr": {
-    "title": "Skeniraj QR prijatelja",
-    "subtitle": "Usmjeri kameru na QR prijatelja za trenutno povezivanje.",
-    "unrecognized": "Taj QR nije Cafe Social pozivnica za prijateljstvo.",
-    "redeemFailed": "Nije moguće dodati prijatelja.",
-    "adding": "Dodavanje prijatelja…",
-    "notAuthenticated": "Prijavi se za dodavanje prijatelja."
-  },
   "settings": {
     "title": "Postavke",
-    "openMemberCard": "Moj QR član",
-    "memberCardHint": "Osobni kod dodijeljen pri registraciji — osoblje ga skenira u partnerskim lokale.",
     "language": "Jezik",
     "languageHint": "Primjenjuje se odmah. Sprema se na ovom uređaju.",
     "about": "O aplikaciji",
@@ -239,9 +198,6 @@
   },
   "brawlerLobby": {
     "title": "Brawler lobby",
-    "heroTitle": "Odaberi borca",
-    "heroVenue": "Red ili vježba u areni ovog kafića.",
-    "heroGlobal": "Solo je lokalno — matchmaking treba lokal ili pretplatu.",
     "subtitle": "Odaberi heroja. Solo je lokalna vježba. Na lokalu možeš u red za 1v1 (casual ili ranked) ili protiv Chaos Bota na ovom uređaju.",
     "venueLine": "Lokal: {{venueId}}",
     "noVenueLine": "Lokal: nije postavljen (kod kuće)",
@@ -296,13 +252,7 @@
     "spectating": "Promatranje",
     "spectatingPanHint": "Povuci prstom za pomicanje kamere",
     "playTimeExhaustedTitle": "Vrijeme igranja potrošeno",
-    "playTimeExhaustedBody": "Iskoristio si besplatno aktivno vrijeme u ovom lokalu za danas (UTC). Možeš kupiti više u aplikaciji ili se vratiti sutra.",
-    "hudExit": "Napusti arenu",
-    "hudTitle": "Arena",
-    "hudDev": "Dev",
-    "hudReset": "Reset",
-    "hudLobby": "Lobby",
-    "hudHp": "HP"
+    "playTimeExhaustedBody": "Iskoristio si besplatno aktivno vrijeme u ovom lokalu za danas (UTC). Možeš kupiti više u aplikaciji ili se vratiti sutra."
   },
   "staff": {
     "venuesTitle": "Tvoji lokali",
@@ -329,10 +279,7 @@
     "modOpenAppeals": "{{n}} otvorenih žalbi",
     "modPartnerToolsHint": "Manageri rade u partnerskom portalu; ovo je samo za čitanje za osoblje na licu mjesta.",
     "scanSuccessTitle": "Nagrada iskorištena",
-    "scanSuccessBody": "QR potvrđen i nagrada označena kao iskorištena.",
-    "refreshA11y": "Osvježi iskorištenja",
-    "prevDayA11y": "Prethodni dan",
-    "nextDayA11y": "Sljedeći dan"
+    "scanSuccessBody": "QR potvrđen i nagrada označena kao iskorištena."
   },
   "home": {
     "appTitle": "Cafe Social",
@@ -452,36 +399,25 @@
       "tapToUnlock": "Dodirni za detalje lokala",
       "menu": "Jelovnik",
       "findVenuesHint": "Pregledaj partnerske kafiće na karti",
-      "liveGames": "IGRE UŽIVO",
-      "streakDayOne": "Niz od 1 dan",
-      "streakDays": "Niz od {{count}} dana",
-      "friendsHereNow": "{{count}} prijatelja je ovdje sada",
+      "streak": "Niz",
+      "friendsHere": "Prijatelji ovdje",
       "noFriendsHere": "Još nema prijatelja ovdje",
-      "gameOn": "Igra kreće.",
-      "gameOnNamed": "Igra kreće, {{name}}.",
-      "tapToPlayXp": "Dodirni za igru · +60 XP",
+      "gameOn": "Igra kreće",
+      "heroXpHint": "+60 XP po pobjedi u ovom lokalu",
       "pickGame": "Odaberi igru",
       "heroA11y": "Odaberi igru i kreni igrati",
-      "rewardsTitle": "Nagrade",
-      "rewardsXpLine": "{{xp}} XP za potrošiti",
-      "seeAll": "Sve",
+      "rewardsTitle": "Partnerske nagrade",
+      "rewardsSubtitle": "{{xp}} XP ukupno · otključavaj perkove dok napreduješ",
+      "seeAll": "Vidi sve",
       "noRewardsYet": "Još nema ponuda",
       "noRewardsHint": "Partnerske nagrade se pojavljuju kad si u kafiću.",
-      "browseVenuesCta": "Pregledaj kafiće →",
-      "pickOfDay": "Izbor dana",
-      "rewardAtPartner": "U bilo kojem partnerskom kafiću",
-      "availableNow": "Dostupno sada",
-      "redeemCta": "Iskoristi →"
+      "featured": "Istaknuto",
+      "viewOffer": "Pogledaj ponudu"
     }
   },
   "discoverHub": {
     "title": "Otkrij",
     "subtitle": "Karta partnera, izazovi na svim lokalima i tvoj napredak.",
-    "heroTitle": "Istraži mrežu",
-    "heroSub": "Pronađi partnerske kafiće, sudjeluj u izazovima i prati napredak.",
-    "sectionExplore": "Istraži",
-    "sectionProgress": "Tvoj napredak",
-    "refreshA11y": "Osvježi stranicu Otkrij",
     "loadError": "Nije moguće učitati otkrivanje.",
     "openMap": "Karta partnera",
     "openMapHint": "Pregledaj sve kafiće s Cafe Socialom.",
@@ -491,8 +427,6 @@
     "leaderboardHint": "Usporedi XP s drugima.",
     "qrCheckIn": "QR prijava",
     "qrCheckInHint": "Skeniraj QR lokala kad je potrebna prijava.",
-    "redeemPerkTitle": "Iskoristi kod pogodnosti",
-    "redeemPerkHint": "Unesi staff kod dok si u partnerskom kafiću.",
     "progressTitle": "Tvoja razina",
     "crossVenueStats": "Na svim lokalima"
   },
@@ -540,8 +474,7 @@
     "challengesEmptyShort": "Trenutno nema aktivnih izazova za ovaj lokal.",
     "myRewardsHereTitle": "Tvoje nagrade ovdje",
     "myRewardsHereEmpty": "Još nema iskoristivih perk nagrada — pogledaj izazove.",
-    "myRewardsSeeCrossVenue": "Sve nagrade (svi lokali)",
-    "refreshA11y": "Osvježi lokal"
+    "myRewardsSeeCrossVenue": "Sve nagrade (svi lokali)"
   },
   "partnerMap": {
     "title": "Partnerski lokali",
@@ -549,6 +482,7 @@
     "searchPlaceholder": "Pretraži po imenu kafića…",
     "chipNearMe": "U blizini",
     "chipHasOffer": "Ima ponudu",
+    "chipOpenNow": "Otvoreno",
     "chipFriends": "Prijatelji",
     "nearbyTitle": "U blizini",
     "nearbyCount": "{{count}} kafića",
@@ -571,12 +505,9 @@
     "loadError": "Ne mogu učitati partnere.",
     "empty": "Još nema upisanih partnera.",
     "openInMaps": "Otvori u kartama",
+    "checkInQr": "Prijava QR kodom",
     "hintAtVenue": "Kad stigneš, ostavi lokaciju uključenu — igre se otvaraju unutar zone (ili pretplata odakle god).",
-    "webListHint": "Karta u pregledniku je ograničena — dodirni lokal za detalje i navigaciju.",
-    "mapPreviewA11y": "Pogledaj {{name}}",
-    "mapRecenterA11y": "Prikaži lokale i moju lokaciju",
-    "mapDismissA11y": "Zatvori pregled",
-    "openVenueCta": "Otvori lokal"
+    "webListHint": "Karta u pregledniku je ograničena — dodirni lokal za detalje i navigaciju."
   },
   "receiptSubmit": {
     "title": "Pošalji račun",
@@ -618,10 +549,6 @@
   },
   "challenges": {
     "title": "Izazovi",
-    "heroTitle": "Izazovi lokala",
-    "refreshA11y": "Osvježi izazove",
-    "subtitleVenue": "Napredak i pogodnosti u {{venue}}.",
-    "subtitleEmpty": "Prijavi se u partnerskom kafiću da vidiš izazove.",
     "loading": "Učitavanje…",
     "empty": "Još nema izazova.",
     "done": "Gotovo",
@@ -630,7 +557,6 @@
     "requiresAtCafe": "Potrebna fizička prisutnost u kafiću.",
     "worksFromHome": "Radi od kuće.",
     "progressCta": "Napredak +1",
-    "completedCta": "Dovršeno",
     "updating": "Ažuriranje…",
     "loadError": "Izazovi se nisu mogli učitati",
     "weekly": "Tjedni izazov — napredak se resetira svaki ISO tjedan (UTC).",
@@ -815,11 +741,8 @@
   },
   "leaderboard": {
     "title": "Ljestvica",
-    "heroTitle": "Rang liste",
-    "refreshA11y": "Osvježi ljestvicu",
     "subtitle": "XP na trenutnom mjestu (po lokalu).",
     "subtitleVenue": "XP na lokalu na kojem si trenutno.",
-    "subtitleVenueNamed": "XP po lokalu u {{venue}}.",
     "subtitleGlobal": "Ukupni XP zbrojen preko svih partner lokala.",
     "subtitleCountry": "Ukupni XP u lokalima označenim s {{country}}.",
     "subtitleCountryGeneric": "Ukupni XP po državi (iz detektiranog lokala).",
@@ -836,7 +759,6 @@
     "loadError": "Ljestvica se nije učitala.",
     "xp": "XP",
     "you": "Ti",
-    "yourRank": "Na #{{rank}} si · {{xp}} XP",
     "emptyBoard": "Još nema XP-a. Igraj da skupljaš!",
     "report": "Prijavi"
   },
@@ -882,8 +804,7 @@
     "loadError": "Prijave se nisu učitale.",
     "refresh": "Osvježi",
     "filedAt": "Poslano {{when}}",
-    "reasonLabel": "Što si prijavio/la",
-    "refreshA11y": "Osvježi prijave"
+    "reasonLabel": "Što si prijavio/la"
   },
   "friends": {
     "title": "Prijatelji",
@@ -896,8 +817,6 @@
     "noOutgoing": "Nitko ne čeka tvoj zahtjev.",
     "pendingTheirAccept": "(čekamo da prihvate)",
     "inviteShare": "Podijeli poziv za prijatelja",
-    "myFriendQr": "Moj QR prijatelj",
-    "scanFriendQr": "Skeniraj QR prijatelja",
     "addByUsername": "Dodaj po korisničkom imenu",
     "addByUsernameHint": "Nije osjetljivo na velika/mala slova. Oni vide zahtjev za prihvat.",
     "usernamePlaceholder": "Korisničko ime",
@@ -937,8 +856,7 @@
     "statusRedeemed": "Iskorišteno",
     "statusOther": "{{status}}",
     "pullToRefresh": "Povuci za osvježavanje",
-    "redeemAtVenue": "Iskoristi u kafiću",
-    "refreshA11y": "Osvježi perk kodove"
+    "redeemAtVenue": "Iskoristi u kafiću"
   },
   "perk": {
     "title": "Iskoristi pogodnost",
@@ -967,12 +885,7 @@
   },
   "peopleHere": {
     "title": "Tko je ovdje",
-    "heroTitle": "Na ovom lokalu",
-    "refreshA11y": "Osvježi listu",
     "subtitle": "Nedavno na lokalu (privatnost).",
-    "subtitleNamed": "Nedavno u {{venue}} — po postavkama privatnosti.",
-    "count": "{{n}} vidljivo",
-    "you": "ti",
     "empty": "Nitko vidljiv — provjeri postavke.",
     "friend": "Prijatelj",
     "stranger": "Ovdje",

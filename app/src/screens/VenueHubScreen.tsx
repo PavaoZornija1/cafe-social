@@ -2,7 +2,7 @@ import { useAuth } from '@clerk/expo';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useState, useMemo, useRef } from 'react';
 import {
     ActivityIndicator,
     Linking,
@@ -15,12 +15,8 @@ import {
     View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import LinearGradientFill from '../components/ui/LinearGradientFill';
-import ExplicitCheckInBanner from '../components/home/ExplicitCheckInBanner';
 import type { RootStackParamList } from '../navigation/type';
 import { apiGet } from '../lib/api';
-import { venueInitial } from '../lib/geo';
-import { needsExplicitCheckInBanner } from '../lib/explicitCheckIn';
 import { openOrderingOrMenu } from '../lib/openOrderingLinks';
 import {
     fetchMyVenueRewards,
@@ -31,21 +27,12 @@ import {
 import { isLikelyNetworkFailure } from '../lib/isNetworkError';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
-import { radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VenueHub'>;
 
 type VenueAccess = {
     canEnterVenueContext: boolean;
     bannedFromVenue?: boolean;
-    requiresExplicitCheckIn?: boolean;
-    hasExplicitCheckIn?: boolean;
-    isPhysicallyAtVenue?: boolean;
-};
-
-type LeaderboardPreviewRow = {
-    venueXp: number;
-    player: { id: string; username: string };
 };
 
 type VenuePublicOffer = {
@@ -160,34 +147,20 @@ export default function VenueHubScreen({ navigation, route }: Props) {
 
     const [loadError, setLoadError] = useState<string | null>(null);
     const [publicCard, setPublicCard] = useState<VenuePublicCard | null>(null);
-    const [initializingCard, setInitializingCard] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const publicCardRef = useRef(publicCard);
-    publicCardRef.current = publicCard;
+    const [loadingCard, setLoadingCard] = useState(true);
     const [access, setAccess] = useState<VenueAccess | null>(null);
     const [friendsVisit, setFriendsVisit] = useState<FriendsVisitSummary | null>(null);
     const [friendsAtVenue, setFriendsAtVenue] = useState<FriendAtVenueRow[]>([]);
     const [engagement, setEngagement] = useState<Engagement | null>(null);
     const [venuePerks, setVenuePerks] = useState<VenuePerkPublicTeaser[]>([]);
     const [venueFeed, setVenueFeed] = useState<VenueFeedItem[]>([]);
-    const [refreshingSocial, setRefreshingSocial] = useState(false);
-    const hasSocialDataRef = useRef(false);
+    const [loadingSocial, setLoadingSocial] = useState(false);
     const [hubChallenges, setHubChallenges] = useState<HubVenueChallenge[]>([]);
     const [peopleHereCount, setPeopleHereCount] = useState(0);
     const [myVenueRewards, setMyVenueRewards] = useState<VenueRedeemableReward[]>([]);
-    const [leaderboardPreview, setLeaderboardPreview] = useState<LeaderboardPreviewRow[]>([]);
 
-    const displayName = publicCard?.name ?? title;
-    const venueLogoInitial = venueInitial(displayName);
-    const addressPreview = publicCard ? venueAddressLines(publicCard)[0] ?? null : null;
-
-    const loadCard = useCallback(async (mode: 'initial' | 'refresh') => {
-        const hasCard = Boolean(publicCardRef.current);
-        if (mode === 'initial' && !hasCard) {
-            setInitializingCard(true);
-        } else if (mode === 'refresh') {
-            setRefreshing(true);
-        }
+    const loadCard = useCallback(async () => {
+        setLoadingCard(true);
         setLoadError(null);
         try {
             const card = await apiGet<VenuePublicCard>(`/venues/${encodeURIComponent(venueId)}/public-card`);
@@ -196,32 +169,27 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                 offers: Array.isArray(card.offers) ? card.offers : [],
             });
         } catch (e) {
-            if (!hasCard) setPublicCard(null);
+            setPublicCard(null);
             setLoadError(
                 isLikelyNetworkFailure(e)
                     ? t('home.venueErrorNetwork')
                     : (e as Error).message || t('venueHub.loadError'),
             );
         } finally {
-            setInitializingCard(false);
-            setRefreshing(false);
+            setLoadingCard(false);
         }
     }, [venueId, t]);
 
-    const loadAuthenticated = useCallback(async (mode: 'initial' | 'refresh') => {
+    const loadAuthenticated = useCallback(async () => {
         if (!isLoaded) return;
         const token = await getTokenRef.current();
         if (!token) {
             setHubChallenges([]);
             setPeopleHereCount(0);
             setMyVenueRewards([]);
-            setLeaderboardPreview([]);
-            hasSocialDataRef.current = false;
             return;
         }
-        if (mode === 'refresh' || hasSocialDataRef.current) {
-            setRefreshingSocial(true);
-        }
+        setLoadingSocial(true);
         try {
             const a = await apiGet<VenueAccess>(
                 `/venue-context/${encodeURIComponent(venueId)}/access`,
@@ -229,7 +197,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
             );
             setAccess(a);
 
-            const [fv, fat, eng, perks, chList, peopleList, rewardsList, boardList] = await Promise.all([
+            const [fv, fat, eng, perks, chList, peopleList, rewardsList] = await Promise.all([
                 apiGet<FriendsVisitSummary>(
                     `/social/venues/${encodeURIComponent(venueId)}/friends-visit-summary`,
                     token,
@@ -249,10 +217,6 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                     token,
                 ).catch(() => []),
                 fetchMyVenueRewards(venueId, token).catch(() => []),
-                apiGet<LeaderboardPreviewRow[]>(
-                    `/venues/${encodeURIComponent(venueId)}/leaderboard/xp`,
-                    token,
-                ).catch(() => []),
             ]);
             setFriendsVisit(fv);
             setFriendsAtVenue(Array.isArray(fat.friends) ? fat.friends : []);
@@ -261,8 +225,6 @@ export default function VenueHubScreen({ navigation, route }: Props) {
             setHubChallenges(Array.isArray(chList) ? chList : []);
             setPeopleHereCount(Array.isArray(peopleList) ? peopleList.length : 0);
             setMyVenueRewards(Array.isArray(rewardsList) ? rewardsList : []);
-            setLeaderboardPreview(Array.isArray(boardList) ? boardList.slice(0, 3) : []);
-            hasSocialDataRef.current = true;
 
             if (a.canEnterVenueContext) {
                 const feed = await apiGet<VenueFeedItem[]>(
@@ -274,57 +236,31 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                 setVenueFeed([]);
             }
         } catch {
-            if (!hasSocialDataRef.current) {
-                setAccess(null);
-                setFriendsVisit(null);
-                setFriendsAtVenue([]);
-                setEngagement(null);
-                setVenuePerks([]);
-                setVenueFeed([]);
-                setHubChallenges([]);
-                setPeopleHereCount(0);
-                setMyVenueRewards([]);
-                setLeaderboardPreview([]);
-            }
+            setAccess(null);
+            setFriendsVisit(null);
+            setFriendsAtVenue([]);
+            setEngagement(null);
+            setVenuePerks([]);
+            setVenueFeed([]);
+            setHubChallenges([]);
+            setPeopleHereCount(0);
+            setMyVenueRewards([]);
         } finally {
-            setRefreshingSocial(false);
+            setLoadingSocial(false);
         }
     }, [venueId, isLoaded]);
 
-    useEffect(() => {
-        setPublicCard(null);
-        setLoadError(null);
-        hasSocialDataRef.current = false;
-    }, [venueId]);
-
-    useEffect(() => {
-        void loadCard('initial');
-    }, [venueId, loadCard]);
-
     useFocusEffect(
         useCallback(() => {
-            if (publicCardRef.current) {
-                void loadCard('refresh');
-            }
+            void loadCard();
         }, [loadCard]),
     );
 
-    useEffect(() => {
-        void loadAuthenticated('initial');
-    }, [loadAuthenticated]);
-
     useFocusEffect(
         useCallback(() => {
-            if (hasSocialDataRef.current) {
-                void loadAuthenticated('refresh');
-            }
+            void loadAuthenticated();
         }, [loadAuthenticated]),
     );
-
-    const handleRefresh = useCallback(() => {
-        void loadCard(publicCardRef.current ? 'refresh' : 'initial');
-        void loadAuthenticated(hasSocialDataRef.current ? 'refresh' : 'initial');
-    }, [loadAuthenticated, loadCard]);
 
     const badgeLabel = (key: string): string => {
         if (key === 'regular_this_week') return t('home.badgeRegularWeek');
@@ -332,132 +268,34 @@ export default function VenueHubScreen({ navigation, route }: Props) {
         return key;
     };
 
-    const showCheckInBanner = needsExplicitCheckInBanner(access);
-    const openQrCheckIn = () => navigation.navigate('QrScan', { venueId });
-
     return (
         <SafeAreaView style={styles.safe}>
+            <View style={styles.topBar}>
+                <Pressable
+                    onPress={() => navigation.goBack()}
+                    style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('venueHub.backA11y')}
+                >
+                    <Ionicons name="chevron-back" size={26} color={colors.text} />
+                </Pressable>
+                <Text style={styles.topTitle} numberOfLines={1}>
+                    {t('venueHub.title', { name: title })}
+                </Text>
+                <View style={styles.topBarSpacer} />
+            </View>
+
             <ScrollView
                 style={styles.scroll}
                 contentContainerStyle={styles.scrollContent}
                 keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
             >
-                <View style={styles.titleRow}>
-                    <Pressable
-                        onPress={() => navigation.goBack()}
-                        style={({ pressed }) => [styles.iconBtn, pressed && styles.ctaPressed]}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('venueHub.backA11y')}
-                    >
-                        <Ionicons name="arrow-back" size={22} color={colors.text} />
-                    </Pressable>
-                    <Text style={styles.screenTitle} numberOfLines={1}>
-                        {displayName}
-                    </Text>
-                    <Pressable
-                        onPress={handleRefresh}
-                        disabled={refreshing || refreshingSocial}
-                        style={({ pressed }) => [styles.iconBtn, pressed && styles.ctaPressed]}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('venueHub.refreshA11y')}
-                    >
-                        {refreshing || refreshingSocial ? (
-                            <ActivityIndicator color={colors.primary} size="small" />
-                        ) : (
-                            <Ionicons name="refresh-outline" size={22} color={colors.textSecondary} />
-                        )}
-                    </Pressable>
-                </View>
-
-                <Text style={styles.subtitle}>{t('venueHub.subtitle')}</Text>
-
-                {loadError && !publicCard ? (
-                    <View style={styles.errorBlock}>
-                        <Ionicons name="alert-circle-outline" size={32} color={colors.error} />
-                        <Text style={styles.errorBanner}>{loadError}</Text>
-                        <Pressable style={styles.retryBtn} onPress={handleRefresh}>
-                            <Text style={styles.retryBtnText}>{t('common.retry')}</Text>
-                        </Pressable>
-                    </View>
+                {loadError && !loadingCard ? (
+                    <Text style={styles.errorBanner}>{loadError}</Text>
                 ) : null}
 
-                {initializingCard && !publicCard ? (
-                    <View style={styles.centerBlock}>
-                        <ActivityIndicator color={colors.primary} />
-                    </View>
-                ) : null}
-
-                {publicCard ? (
-                    <View style={styles.heroCard}>
-                        <LinearGradientFill
-                            from={colors.heroDark}
-                            to={colors.hero}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.heroGradient}
-                        />
-                        <View style={styles.heroContent}>
-                            <View style={styles.heroTop}>
-                                <View style={styles.heroLogo}>
-                                    <Text style={styles.heroLogoText}>{venueLogoInitial}</Text>
-                                </View>
-                                <View style={styles.heroText}>
-                                    <Text style={styles.heroName}>{publicCard.name}</Text>
-                                    {addressPreview ? (
-                                        <Text style={styles.heroAddress} numberOfLines={2}>
-                                            {addressPreview}
-                                        </Text>
-                                    ) : null}
-                                </View>
-                            </View>
-                            <View style={styles.quickActions}>
-                                {isSignedIn ? (
-                                    <Pressable
-                                        style={({ pressed }) => [styles.quickChip, pressed && styles.ctaPressed]}
-                                        onPress={() => navigation.navigate('ChooseGame', { venueId })}
-                                    >
-                                        <Ionicons name="game-controller-outline" size={16} color={colors.textInverse} />
-                                        <Text style={styles.quickChipText}>{t('venueHub.playGamesCta')}</Text>
-                                    </Pressable>
-                                ) : null}
-                                {publicCard.geofence ? (
-                                    <Pressable
-                                        style={({ pressed }) => [styles.quickChip, pressed && styles.ctaPressed]}
-                                        onPress={() => openVenueInMaps(publicCard)}
-                                    >
-                                        <Ionicons name="navigate-outline" size={16} color={colors.textInverse} />
-                                        <Text style={styles.quickChipText}>{t('partnerMap.openInMaps')}</Text>
-                                    </Pressable>
-                                ) : null}
-                                {publicCard.orderingUrl?.trim() ? (
-                                    <Pressable
-                                        style={({ pressed }) => [styles.quickChip, pressed && styles.ctaPressed]}
-                                        onPress={() => void openOrderingOrMenu(publicCard.orderingUrl, null)}
-                                    >
-                                        <Ionicons name="cart-outline" size={16} color={colors.textInverse} />
-                                        <Text style={styles.quickChipText}>{t('home.openOrdering')}</Text>
-                                    </Pressable>
-                                ) : publicCard.menuUrl?.trim() ? (
-                                    <Pressable
-                                        style={({ pressed }) => [styles.quickChip, pressed && styles.ctaPressed]}
-                                        onPress={() => void openOrderingOrMenu(null, publicCard.menuUrl)}
-                                    >
-                                        <Ionicons name="restaurant-outline" size={16} color={colors.textInverse} />
-                                        <Text style={styles.quickChipText}>{t('home.openMenu')}</Text>
-                                    </Pressable>
-                                ) : null}
-                            </View>
-                        </View>
-                    </View>
-                ) : null}
-
-                {loadError && publicCard ? (
-                    <Text style={styles.errorInline}>{loadError}</Text>
-                ) : null}
-
-                {showCheckInBanner ? (
-                    <ExplicitCheckInBanner colors={colors} onScan={openQrCheckIn} />
+                {loadingCard && !publicCard ? (
+                    <ActivityIndicator color={colors.honey} style={{ marginVertical: 24 }} />
                 ) : null}
 
                 {publicCard ? (
@@ -570,7 +408,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                 {friendsAtVenue.length > 0 ? (
                     <View style={styles.card}>
                         <Text style={styles.cardTitle}>{t('home.friendsAtVenueTitle')}</Text>
-                        {refreshingSocial ? (
+                        {loadingSocial ? (
                             <ActivityIndicator color={colors.honey} style={{ marginTop: 8 }} />
                         ) : (
                             friendsAtVenue.map((f) => (
@@ -608,39 +446,6 @@ export default function VenueHubScreen({ navigation, route }: Props) {
 
                 {isSignedIn ? (
                     <>
-                        {leaderboardPreview.length > 0 ? (
-                            <View style={styles.card}>
-                                <Text style={styles.cardTitle}>{t('venueHub.sectionLeaderboard')}</Text>
-                                {leaderboardPreview.map((row, index) => (
-                                    <View key={row.player.id} style={styles.leaderboardRow}>
-                                        <Text style={styles.leaderboardRank}>{index + 1}</Text>
-                                        <Text style={styles.leaderboardName} numberOfLines={1}>
-                                            {row.player.username}
-                                        </Text>
-                                        <Text style={styles.leaderboardXp}>
-                                            {t('venueHub.leaderboardXp', { xp: row.venueXp })}
-                                        </Text>
-                                    </View>
-                                ))}
-                                <Pressable
-                                    style={({ pressed }) => [
-                                        styles.pillBtn,
-                                        styles.pillBtnSpaced,
-                                        pressed && styles.ctaPressed,
-                                    ]}
-                                    onPress={() =>
-                                        navigation.navigate('Leaderboard', {
-                                            venueId,
-                                            venueName: title,
-                                            scope: 'venue',
-                                        })
-                                    }
-                                >
-                                    <Text style={styles.pillBtnText}>{t('venueHub.openLeaderboard')}</Text>
-                                </Pressable>
-                            </View>
-                        ) : null}
-
                         <View style={styles.card}>
                             <Text style={styles.cardTitle}>{t('venueHub.playGamesTitle')}</Text>
                             <Text style={styles.muted}>{t('venueHub.playGamesHint')}</Text>
@@ -658,7 +463,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
 
                         <View style={styles.card}>
                             <Text style={styles.cardTitle}>{t('venueHub.peopleHereTitle')}</Text>
-                            {refreshingSocial ? (
+                            {loadingSocial ? (
                                 <ActivityIndicator color={colors.honey} style={{ marginTop: 8 }} />
                             ) : (
                                 <>
@@ -686,7 +491,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
 
                         <View style={styles.card}>
                             <Text style={styles.cardTitle}>{t('venueHub.challengesAtVenueTitle')}</Text>
-                            {refreshingSocial && hubChallenges.length === 0 ? (
+                            {loadingSocial && hubChallenges.length === 0 ? (
                                 <ActivityIndicator color={colors.honey} style={{ marginTop: 8 }} />
                             ) : hubChallenges.length === 0 ? (
                                 <Text style={styles.muted}>{t('venueHub.challengesEmptyShort')}</Text>
@@ -732,7 +537,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
 
                         <View style={styles.card}>
                             <Text style={styles.cardTitle}>{t('venueHub.myRewardsHereTitle')}</Text>
-                            {refreshingSocial && myVenueRewards.length === 0 ? (
+                            {loadingSocial && myVenueRewards.length === 0 ? (
                                 <ActivityIndicator color={colors.honey} style={{ marginTop: 8 }} />
                             ) : myVenueRewards.filter((r) => r.status === 'REDEEMABLE').length === 0 ? (
                                 <Text style={styles.muted}>{t('venueHub.myRewardsHereEmpty')}</Text>
@@ -799,7 +604,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
 
                 <View style={styles.card}>
                     <Text style={styles.cardTitle}>{t('home.venuePerksTitle')}</Text>
-                    {refreshingSocial && venuePerks.length === 0 ? (
+                    {loadingSocial && venuePerks.length === 0 ? (
                         <ActivityIndicator color={colors.honey} style={{ marginTop: 8 }} />
                     ) : venuePerks.length === 0 ? (
                         <Text style={styles.muted}>{t('home.venuePerksEmpty')}</Text>
@@ -860,248 +665,130 @@ export default function VenueHubScreen({ navigation, route }: Props) {
 
 function createStyles(colors: AppColors) {
     return StyleSheet.create({
+
     safe: { flex: 1, backgroundColor: colors.bg },
-    scroll: { flex: 1 },
-    scrollContent: {
-        paddingHorizontal: spacing.xl,
-        paddingTop: spacing.md,
-        paddingBottom: spacing.xxl,
-    },
-    titleRow: {
+    topBar: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: spacing.sm,
-        marginBottom: spacing.sm,
+        paddingHorizontal: 8,
+        paddingVertical: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
     },
-    iconBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: radii.pill,
-        backgroundColor: colors.surface,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: colors.border,
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-    },
-    screenTitle: {
+    backBtn: { padding: 8, borderRadius: 12 },
+    backBtnPressed: { opacity: 0.8 },
+    topTitle: {
         flex: 1,
         color: colors.text,
-        fontSize: 28,
+        fontSize: 17,
         fontWeight: '900',
-        letterSpacing: -0.5,
+        textAlign: 'center',
     },
-    subtitle: {
-        color: colors.textSecondary,
-        fontSize: 15,
-        lineHeight: 22,
-        marginBottom: spacing.lg,
-    },
-    centerBlock: {
-        alignItems: 'center',
-        paddingVertical: spacing.xxl,
-    },
-    errorBlock: {
-        alignItems: 'center',
-        gap: spacing.md,
-        paddingVertical: spacing.xxl,
-    },
+    topBarSpacer: { width: 42 },
+    scroll: { flex: 1 },
+    scrollContent: { padding: 20, paddingBottom: 32 },
     errorBanner: {
         color: colors.error,
-        fontSize: 14,
-        textAlign: 'center',
-        lineHeight: 20,
-    },
-    errorInline: {
-        color: colors.error,
         fontSize: 13,
-        marginBottom: spacing.md,
+        marginBottom: 12,
         lineHeight: 18,
-    },
-    retryBtn: {
-        backgroundColor: colors.primary,
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.sm,
-        borderRadius: radii.md,
-    },
-    retryBtnText: {
-        color: colors.textInverse,
-        fontWeight: '800',
-        fontSize: 14,
-    },
-    heroCard: {
-        borderRadius: radii.lg,
-        overflow: 'hidden',
-        marginBottom: spacing.lg,
-    },
-    heroGradient: {
-        ...StyleSheet.absoluteFillObject,
-    },
-    heroContent: {
-        padding: spacing.lg,
-        gap: spacing.md,
-    },
-    heroTop: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.md,
-    },
-    heroLogo: {
-        width: 56,
-        height: 56,
-        borderRadius: radii.md,
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    heroLogoText: {
-        color: colors.textInverse,
-        fontSize: 26,
-        fontWeight: '900',
-    },
-    heroText: {
-        flex: 1,
-        minWidth: 0,
-        gap: spacing.xs,
-    },
-    heroName: {
-        color: colors.textInverse,
-        fontSize: 22,
-        fontWeight: '900',
-        letterSpacing: -0.3,
-    },
-    heroAddress: {
-        color: 'rgba(255,255,255,0.85)',
-        fontSize: 14,
-        fontWeight: '600',
-        lineHeight: 20,
-    },
-    quickActions: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: spacing.sm,
-    },
-    quickChip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.xs,
-        backgroundColor: 'rgba(255,255,255,0.18)',
-        borderRadius: radii.pill,
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.md,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: 'rgba(255,255,255,0.25)',
-    },
-    quickChipText: {
-        color: colors.textInverse,
-        fontSize: 13,
-        fontWeight: '800',
     },
     card: {
         backgroundColor: colors.surface,
-        borderRadius: radii.lg,
-        borderWidth: StyleSheet.hairlineWidth,
+        borderRadius: 16,
+        borderWidth: 1,
         borderColor: colors.border,
-        padding: spacing.lg,
-        marginBottom: spacing.md,
+        padding: 14,
+        marginBottom: 14,
     },
-    cardTitle: {
-        color: colors.text,
-        fontSize: 12,
-        fontWeight: '800',
-        marginBottom: spacing.sm,
-        textTransform: 'uppercase',
-        letterSpacing: 0.4,
-    },
+    cardTitle: { color: colors.text, fontSize: 14, fontWeight: '900', marginBottom: 10 },
     featuredBox: {
-        backgroundColor: colors.primaryMuted,
-        borderRadius: radii.md,
-        padding: spacing.md,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: colors.primary,
+        backgroundColor: colors.surface,
+        borderRadius: 12,
+        padding: 12,
+        borderWidth: 1,
+        borderColor: '#4c1d95',
     },
-    featuredLabel: { color: colors.primary, fontSize: 11, fontWeight: '800', marginBottom: 6 },
+    featuredLabel: { color: '#c4b5fd', fontSize: 11, fontWeight: '800', marginBottom: 6 },
     featuredTitle: { color: colors.text, fontSize: 16, fontWeight: '900' },
     featuredBody: { color: colors.textSecondary, fontSize: 13, marginTop: 8, lineHeight: 18 },
     cta: {
         alignSelf: 'flex-start',
-        marginTop: spacing.sm,
-        backgroundColor: colors.primary,
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.md,
-        borderRadius: radii.md,
+        marginTop: 12,
+        backgroundColor: colors.honeyMuted,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 10,
     },
     ctaPressed: { opacity: 0.88 },
-    ctaText: { color: colors.textInverse, fontWeight: '800', fontSize: 12 },
-    moreOffers: { marginTop: spacing.sm, gap: spacing.sm },
+    ctaText: { color: colors.honeyDark, fontWeight: '800', fontSize: 12 },
+    moreOffers: { marginTop: 12, gap: 10 },
     offerRow: {
-        backgroundColor: colors.bgElevated,
-        borderRadius: radii.md,
-        padding: spacing.md,
-        borderWidth: StyleSheet.hairlineWidth,
+        backgroundColor: colors.surface,
+        borderRadius: 12,
+        padding: 12,
+        borderWidth: 1,
         borderColor: colors.border,
     },
     offerTitle: { color: colors.text, fontSize: 14, fontWeight: '800' },
     offerBody: { color: colors.textSecondary, fontSize: 12, marginTop: 6, lineHeight: 17 },
     exhausted: { color: colors.error, fontSize: 12, marginTop: 8, fontWeight: '700' },
     link: { alignSelf: 'flex-start', marginTop: 8 },
-    linkText: { color: colors.primary, fontWeight: '800', fontSize: 12 },
-    partnerLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
+    linkText: { color: colors.honey, fontWeight: '800', fontSize: 12 },
+    partnerLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
     pillBtn: {
-        backgroundColor: colors.primaryMuted,
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.md,
-        borderRadius: radii.md,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: colors.primary,
+        backgroundColor: colors.honeyMuted,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        borderRadius: 12,
     },
-    pillBtnSpaced: { marginTop: spacing.sm, alignSelf: 'flex-start' },
-    pillBtnText: { color: colors.primaryDark, fontWeight: '800', fontSize: 13 },
+    pillBtnSpaced: { marginTop: 12, alignSelf: 'flex-start' },
+    pillBtnText: { color: colors.honeyDark, fontWeight: '800', fontSize: 13 },
     locationLine: { color: colors.textSecondary, fontSize: 13, marginTop: 6, lineHeight: 18 },
     mapBtn: {
-        marginTop: spacing.sm,
+        marginTop: 12,
         alignSelf: 'flex-start',
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.md,
-        borderRadius: radii.md,
-        backgroundColor: colors.bgElevated,
-        borderWidth: StyleSheet.hairlineWidth,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        borderRadius: 12,
+        backgroundColor: colors.surfaceMuted,
+        borderWidth: 1,
         borderColor: colors.border,
     },
-    mapBtnText: { color: colors.primary, fontWeight: '800', fontSize: 13 },
+    mapBtnText: { color: colors.link, fontWeight: '800', fontSize: 13 },
     hubChallengeRow: {
-        marginTop: spacing.sm,
-        paddingBottom: spacing.sm,
-        borderBottomWidth: StyleSheet.hairlineWidth,
+        marginTop: 12,
+        paddingBottom: 12,
+        borderBottomWidth: 1,
         borderBottomColor: colors.border,
     },
     hubChallengeTitle: { color: colors.text, fontSize: 14, fontWeight: '800' },
     hubChallengeMeta: { color: colors.textMuted, fontSize: 12, marginTop: 4, fontWeight: '600' },
     hubRewardHint: { color: colors.textSecondary, fontSize: 12, marginTop: 6, fontWeight: '600' },
     rewardRow: {
-        marginTop: spacing.sm,
+        marginTop: 12,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: spacing.sm,
+        gap: 10,
     },
     rewardMain: { flex: 1, minWidth: 0 },
     redeemMiniBtn: {
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.sm,
-        borderRadius: radii.md,
-        backgroundColor: colors.primary,
+        paddingVertical: 8,
+        paddingHorizontal: 10,
+        borderRadius: 10,
+        backgroundColor: colors.honeyMuted,
     },
-    redeemMiniBtnText: { color: colors.textInverse, fontSize: 12, fontWeight: '800' },
-    linkSpaced: { marginTop: spacing.sm },
-    friendsLine: { color: colors.primary, fontSize: 12, fontWeight: '700', marginBottom: spacing.md },
+    redeemMiniBtnText: { color: colors.honeyDark, fontSize: 12, fontWeight: '800' },
+    linkSpaced: { marginTop: 12 },
+    friendsLine: { color: colors.honey, fontSize: 12, fontWeight: '700', marginBottom: 12 },
     friendRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: spacing.sm,
-        paddingVertical: spacing.sm,
-        borderBottomWidth: StyleSheet.hairlineWidth,
+        gap: 10,
+        paddingVertical: 10,
+        borderBottomWidth: 1,
         borderBottomColor: colors.border,
     },
     friendMain: { flex: 1, minWidth: 0 },
@@ -1114,7 +801,7 @@ function createStyles(colors: AppColors) {
         backgroundColor: colors.successMuted,
         paddingHorizontal: 8,
         paddingVertical: 3,
-        borderRadius: radii.sm,
+        borderRadius: 8,
         overflow: 'hidden',
         alignSelf: 'flex-start',
     },
@@ -1122,10 +809,10 @@ function createStyles(colors: AppColors) {
     reportBtn: {
         paddingVertical: 6,
         paddingHorizontal: 10,
-        borderRadius: radii.md,
+        borderRadius: 10,
         backgroundColor: colors.bgElevated,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: colors.border,
+        borderWidth: 1,
+        borderColor: colors.borderStrong,
     },
     reportText: { color: colors.error, fontSize: 11, fontWeight: '800' },
     metaLine: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
@@ -1134,15 +821,15 @@ function createStyles(colors: AppColors) {
         backgroundColor: colors.successMuted,
         paddingHorizontal: 10,
         paddingVertical: 4,
-        borderRadius: radii.pill,
+        borderRadius: 999,
     },
     badgeText: { color: colors.success, fontSize: 11, fontWeight: '800' },
     perkRow: {
-        marginTop: spacing.sm,
+        marginTop: 10,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: spacing.sm,
+        gap: 8,
     },
     perkTitle: { color: colors.textSecondary, fontSize: 13, fontWeight: '700', flex: 1 },
     perkPill: {
@@ -1152,55 +839,27 @@ function createStyles(colors: AppColors) {
         backgroundColor: colors.successMuted,
         paddingHorizontal: 8,
         paddingVertical: 4,
-        borderRadius: radii.sm,
+        borderRadius: 8,
         overflow: 'hidden',
     },
     muted: { color: colors.textMuted, fontSize: 12, marginTop: 4, lineHeight: 17 },
     mutedSmall: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
-    feedRow: {
-        paddingVertical: spacing.sm,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: colors.border,
-    },
+    feedRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
     feedLine: { color: colors.text, fontSize: 12, fontWeight: '700' },
     feedSub: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
     appealBtn: {
         alignSelf: 'stretch',
-        marginTop: spacing.sm,
-        paddingVertical: spacing.md,
-        paddingHorizontal: spacing.md,
-        borderRadius: radii.md,
+        marginTop: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        borderRadius: 12,
         backgroundColor: colors.warningBg,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: colors.warningBorder,
+        borderWidth: 1,
+        borderColor: '#ca8a04',
         alignItems: 'center',
     },
-    appealText: { color: colors.warning, fontWeight: '800', fontSize: 13 },
-    leaderboardRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.sm,
-        paddingVertical: spacing.sm,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: colors.border,
-    },
-    leaderboardRank: {
-        width: 28,
-        color: colors.textMuted,
-        fontWeight: '800',
-        fontSize: 14,
-    },
-    leaderboardName: {
-        flex: 1,
-        color: colors.text,
-        fontWeight: '700',
-        fontSize: 14,
-    },
-    leaderboardXp: {
-        color: colors.primary,
-        fontWeight: '800',
-        fontSize: 13,
-    },
+    appealText: { color: colors.honeyDark, fontWeight: '800', fontSize: 13 },
+
     });
 }
 

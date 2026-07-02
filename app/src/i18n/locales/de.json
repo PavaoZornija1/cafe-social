@@ -82,49 +82,8 @@
     "staffBody": "Einlösungen prüfen und Staff-Codes scannen: Einstellungen → Venue-Personal (Personalmodus).",
     "staffHint": "Als Gast spielst du in der App wie gewohnt — Personal-Tools liegen unter Einstellungen."
   },
-  "memberCard": {
-    "title": "Mein Mitglieder-QR",
-    "lead": "Zeige diesen Code an der Kasse, damit das Personal deinen Besuch und Treuepunkte erfasst. Er bleibt für dein Konto gleich.",
-    "showAtTill": "An der Kasse zeigen",
-    "memberLabel": "Mitglied",
-    "scanHint": "Personal scannt dies mit der Partner-App — funktioniert offline, sobald es auf diesem Gerät geladen wurde.",
-    "loadError": "Mitgliedskarte konnte nicht geladen werden.",
-    "loading": "QR-Code wird geladen…",
-    "refreshA11y": "Mitglieder-QR aktualisieren",
-    "offlineHint": "Gespeicherte Karte wird angezeigt — verbinde dich zum Aktualisieren, falls du dich kürzlich registriert hast.",
-    "offlineNoCache": "Einmal verbinden, um deinen QR zu laden — danach offline nutzbar.",
-    "tipVisit": "Personal scannt dies in Partner-Cafés für Besuch und Treue.",
-    "tipOffline": "Dein QR ist auf diesem Gerät gespeichert und funktioniert ohne Verbindung nach dem Laden."
-  },
-  "friendCard": {
-    "title": "Freundes-QR",
-    "lead": "Lass jemanden diesen Code scannen, um dich sofort als Freund hinzuzufügen — ohne Benutzernamen.",
-    "scanToAdd": "Scanne mich",
-    "addLabel": "Hinzufügen",
-    "memberFallback": "Du",
-    "scanHint": "Freunde → Freundes-QR scannen in Cafe Social, Kamera hierhin halten.",
-    "loadError": "Freundes-QR konnte nicht geladen werden.",
-    "loading": "QR-Code wird vorbereitet…",
-    "refreshA11y": "Neuen Freundes-QR erzeugen",
-    "offlineHint": "Letzter gespeicherter QR — tippe Aktualisieren, wenn er abgelaufen ist.",
-    "validUntil": "Gültig bis {{date}}",
-    "expired": "QR abgelaufen — tippe Aktualisieren für einen neuen.",
-    "shareLink": "Einladungslink teilen",
-    "tipScan": "Scannen fügt euch sofort als Freunde hinzu — keine Anfrage nötig.",
-    "tipExpiry": "Codes laufen nach 24 Stunden ab. Aktualisieren, wenn deiner alt ist."
-  },
-  "scanFriendQr": {
-    "title": "Freundes-QR scannen",
-    "subtitle": "Halte die Kamera auf den QR-Code eines Freundes, um euch sofort zu verbinden.",
-    "unrecognized": "Dieser QR ist keine Cafe-Social-Freundeseinladung.",
-    "redeemFailed": "Freund konnte nicht hinzugefügt werden.",
-    "adding": "Freund wird hinzugefügt…",
-    "notAuthenticated": "Melde dich an, um Freunde hinzuzufügen."
-  },
   "settings": {
     "title": "Einstellungen",
-    "openMemberCard": "Mein Mitglieder-QR",
-    "memberCardHint": "Persönlicher Code bei der Registrierung — vom Personal in Partner-Lokalen gescannt.",
     "language": "Sprache",
     "languageHint": "Gilt sofort. Wird auf diesem Gerät gespeichert.",
     "about": "Über",
@@ -239,9 +198,6 @@
   },
   "brawlerLobby": {
     "title": "Brawler-Lobby",
-    "heroTitle": "Wähle deinen Kämpfer",
-    "heroVenue": "Warteschlange oder Training in der Arena dieses Cafés.",
-    "heroGlobal": "Solo läuft lokal — Matchmaking braucht ein Venue oder Abo.",
     "subtitle": "Wähle einen Helden. Solo ist lokales Training. Am Venue kannst du dich für 1v1 (casual oder ranked) einreihen oder auf diesem Gerät gegen den Chaos-Bot spielen.",
     "venueLine": "Venue: {{venueId}}",
     "noVenueLine": "Venue: nicht gesetzt (Zuhause)",
@@ -296,13 +252,7 @@
     "spectating": "Zuschauen",
     "spectatingPanHint": "Ziehen, um die Kamera zu bewegen",
     "playTimeExhaustedTitle": "Spielzeit aufgebraucht",
-    "playTimeExhaustedBody": "Du hast deine kostenlose aktive Spielzeit an diesem Ort für heute (UTC) verbraucht. Du kannst in der App mehr Zeit kaufen oder morgen wiederkommen.",
-    "hudExit": "Arena verlassen",
-    "hudTitle": "Arena",
-    "hudDev": "Dev",
-    "hudReset": "Reset",
-    "hudLobby": "Lobby",
-    "hudHp": "HP"
+    "playTimeExhaustedBody": "Du hast deine kostenlose aktive Spielzeit an diesem Ort für heute (UTC) verbraucht. Du kannst in der App mehr Zeit kaufen oder morgen wiederkommen."
   },
   "staff": {
     "venuesTitle": "Deine Venues",
@@ -329,10 +279,7 @@
     "modOpenAppeals": "{{n}} offene Einsprüche",
     "modPartnerToolsHint": "Manager können im Partner-Portal handeln; hier nur Lesen für Personal vor Ort.",
     "scanSuccessTitle": "Belohnung eingelöst",
-    "scanSuccessBody": "QR verifiziert und Belohnung als eingelöst markiert.",
-    "refreshA11y": "Einlösungen aktualisieren",
-    "prevDayA11y": "Vorheriger Tag",
-    "nextDayA11y": "Nächster Tag"
+    "scanSuccessBody": "QR verifiziert und Belohnung als eingelöst markiert."
   },
   "home": {
     "appTitle": "Cafe Social",
@@ -452,36 +399,25 @@
       "tapToUnlock": "Tippen für Lokaldetails",
       "menu": "Speisekarte",
       "findVenuesHint": "Partner-Cafés auf der Karte entdecken",
-      "liveGames": "LIVE-SPIELE",
-      "streakDayOne": "1-Tage-Serie",
-      "streakDays": "{{count}}-Tage-Serie",
-      "friendsHereNow": "{{count}} Freunde sind gerade hier",
+      "streak": "Serie",
+      "friendsHere": "Freunde hier",
       "noFriendsHere": "Noch keine Freunde hier",
-      "gameOn": "Los geht's.",
-      "gameOnNamed": "Los geht's, {{name}}.",
-      "tapToPlayXp": "Tippen zum Spielen · +60 XP",
+      "gameOn": "Los geht's",
+      "heroXpHint": "+60 XP pro Sieg in diesem Lokal",
       "pickGame": "Spiel wählen",
       "heroA11y": "Spiel wählen und starten",
-      "rewardsTitle": "Belohnungen",
-      "rewardsXpLine": "{{xp}} XP zum Einlösen",
-      "seeAll": "Alle",
+      "rewardsTitle": "Partner-Belohnungen",
+      "rewardsSubtitle": "{{xp}} XP gesamt · Perks beim Aufstieg freischalten",
+      "seeAll": "Alle anzeigen",
       "noRewardsYet": "Noch keine Angebote",
       "noRewardsHint": "Partner-Belohnungen erscheinen, wenn du in einem Café bist.",
-      "browseVenuesCta": "Partner-Cafés entdecken →",
-      "pickOfDay": "Tipp des Tages",
-      "rewardAtPartner": "In jedem Partner-Café",
-      "availableNow": "Jetzt verfügbar",
-      "redeemCta": "Einlösen →"
+      "featured": "Highlight",
+      "viewOffer": "Angebot ansehen"
     }
   },
   "discoverHub": {
     "title": "Entdecken",
     "subtitle": "Partner-Karte, Challenges über alle Orte und dein Fortschritt.",
-    "heroTitle": "Das Netzwerk entdecken",
-    "heroSub": "Partner-Cafés finden, Challenges mitmachen und deinen Fortschritt verfolgen.",
-    "sectionExplore": "Entdecken",
-    "sectionProgress": "Dein Fortschritt",
-    "refreshA11y": "Discover-Hub aktualisieren",
     "loadError": "Discover-Hub konnte nicht geladen werden.",
     "openMap": "Partner-Karte",
     "openMapHint": "Alle Cafés mit Cafe Social finden.",
@@ -491,8 +427,6 @@
     "leaderboardHint": "XP mit anderen vergleichen.",
     "qrCheckIn": "QR-Check-in",
     "qrCheckInHint": "Venue-QR scannen, wenn ein Check-in nötig ist.",
-    "redeemPerkTitle": "Vorteilscode einlösen",
-    "redeemPerkHint": "Staff-Code eingeben, während du in einem Partner-Café bist.",
     "progressTitle": "Dein Level",
     "crossVenueStats": "Über alle Orte"
   },
@@ -540,8 +474,7 @@
     "challengesEmptyShort": "Aktuell keine aktiven Challenges für dieses Lokal.",
     "myRewardsHereTitle": "Deine Belohnungen hier",
     "myRewardsHereEmpty": "Noch keine einlösbaren Perk-Belohnungen — schau bei den Challenges.",
-    "myRewardsSeeCrossVenue": "Alle Belohnungen (alle Orte)",
-    "refreshA11y": "Lokal aktualisieren"
+    "myRewardsSeeCrossVenue": "Alle Belohnungen (alle Orte)"
   },
   "partnerMap": {
     "title": "Partner-Cafés",
@@ -549,6 +482,7 @@
     "searchPlaceholder": "Nach Café-Name suchen…",
     "chipNearMe": "In der Nähe",
     "chipHasOffer": "Mit Angebot",
+    "chipOpenNow": "Jetzt offen",
     "chipFriends": "Freunde",
     "nearbyTitle": "In der Nähe",
     "nearbyCount": "{{count}} Cafés",
@@ -571,12 +505,9 @@
     "loadError": "Partner-Orte konnten nicht geladen werden.",
     "empty": "Noch keine Partner-Orte eingetragen.",
     "openInMaps": "In Maps öffnen",
+    "checkInQr": "Check-in per QR",
     "hintAtVenue": "Vor Ort Standort aktiv lassen — Spiele gelten in der Partner-Zone (oder Abo von überall).",
-    "webListHint": "Karten im Browser sind begrenzt — tippe auf ein Café für Details und Route.",
-    "mapPreviewA11y": "{{name}} ansehen",
-    "mapRecenterA11y": "Orte und meinen Standort anzeigen",
-    "mapDismissA11y": "Vorschau schließen",
-    "openVenueCta": "Lokal öffnen"
+    "webListHint": "Karten im Browser sind begrenzt — tippe auf ein Café für Details und Route."
   },
   "receiptSubmit": {
     "title": "Beleg senden",
@@ -618,10 +549,6 @@
   },
   "challenges": {
     "title": "Challenges",
-    "heroTitle": "Venue-Challenges",
-    "refreshA11y": "Challenges aktualisieren",
-    "subtitleVenue": "Fortschritt und Vorteile bei {{venue}}.",
-    "subtitleEmpty": "Check-in in einem Partner-Café, um Challenges zu sehen.",
     "loading": "Laden…",
     "empty": "Noch keine Challenges.",
     "done": "Fertig",
@@ -630,7 +557,6 @@
     "requiresAtCafe": "Erfordert Anwesenheit im Café.",
     "worksFromHome": "Funktioniert von zu Hause.",
     "progressCta": "Fortschritt +1",
-    "completedCta": "Abgeschlossen",
     "updating": "Aktualisiere…",
     "loadError": "Challenges konnten nicht geladen werden",
     "weekly": "Wöchentliche Challenge — Fortschritt setzt sich jede ISO-Woche (UTC) zurück.",
@@ -815,11 +741,8 @@
   },
   "leaderboard": {
     "title": "Rangliste",
-    "heroTitle": "Ranglisten",
-    "refreshA11y": "Rangliste aktualisieren",
     "subtitle": "XP am aktuellen Ort (pro Venue).",
     "subtitleVenue": "XP am gerade erkannten Venue.",
-    "subtitleVenueNamed": "Venue-XP bei {{venue}}.",
     "subtitleGlobal": "Gesamt-XP über alle Partner-Venues summiert.",
     "subtitleCountry": "Gesamt-XP in Venues mit Land {{country}}.",
     "subtitleCountryGeneric": "Gesamt-XP nach Land (Land des erkannten Venues).",
@@ -836,7 +759,6 @@
     "loadError": "Rangliste konnte nicht geladen werden.",
     "xp": "XP",
     "you": "Du",
-    "yourRank": "Du bist #{{rank}} · {{xp}} XP",
     "emptyBoard": "Noch keine XP. Spielen zum Sammeln!",
     "report": "Melden"
   },
@@ -882,8 +804,7 @@
     "loadError": "Meldungen konnten nicht geladen werden.",
     "refresh": "Aktualisieren",
     "filedAt": "Eingereicht {{when}}",
-    "reasonLabel": "Deine Meldung",
-    "refreshA11y": "Meldungen aktualisieren"
+    "reasonLabel": "Deine Meldung"
   },
   "friends": {
     "title": "Freunde",
@@ -896,8 +817,6 @@
     "noOutgoing": "Niemand wartet auf deine Anfrage.",
     "pendingTheirAccept": "(wartet auf Annahme)",
     "inviteShare": "Freundes-Einladung teilen",
-    "myFriendQr": "Mein Freundes-QR",
-    "scanFriendQr": "Freundes-QR scannen",
     "addByUsername": "Per Benutzername hinzufügen",
     "addByUsernameHint": "Groß/Klein egal. Die Person sieht eine Anfrage.",
     "usernamePlaceholder": "Benutzername",
@@ -937,8 +856,7 @@
     "statusRedeemed": "Eingelöst",
     "statusOther": "{{status}}",
     "pullToRefresh": "Zum Aktualisieren ziehen",
-    "redeemAtVenue": "Im Café einlösen",
-    "refreshA11y": "Perk-Codes aktualisieren"
+    "redeemAtVenue": "Im Café einlösen"
   },
   "perk": {
     "title": "Vorteil einlösen",
@@ -967,12 +885,7 @@
   },
   "peopleHere": {
     "title": "Wer ist hier",
-    "heroTitle": "An diesem Ort",
-    "refreshA11y": "Liste aktualisieren",
     "subtitle": "Kürzlich am Ort (Datenschutz beachtet).",
-    "subtitleNamed": "Kürzlich bei {{venue}} — mit Datenschutzeinstellungen.",
-    "count": "{{n}} sichtbar",
-    "you": "du",
     "empty": "Niemand sichtbar — Einstellungen prüfen.",
     "friend": "Freund",
     "stranger": "Hier",

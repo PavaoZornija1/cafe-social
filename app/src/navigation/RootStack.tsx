@@ -10,11 +10,10 @@ import VenueHubScreen from '../screens/VenueHubScreen';
 import DailyWordScreen from '../screens/DailyWordScreen';
 import ChallengesScreen from '../screens/ChallengesScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import FriendsScreen from '../screens/FriendsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import MemberCardScreen from '../screens/MemberCardScreen';
-import FriendCardScreen from '../screens/FriendCardScreen';
-import ScanFriendQrScreen from '../screens/ScanFriendQrScreen';
 import QrScanScreen from '../screens/QrScanScreen';
 import WordLobbyScreen from '../screens/WordLobbyScreen';
 import WordVenueQueueScreen from '../screens/WordVenueQueueScreen';
@@ -39,6 +38,7 @@ import StaffVenuesScreen from '../screens/StaffVenuesScreen';
 import StaffRedemptionsScreen from '../screens/StaffRedemptionsScreen';
 import StaffQrScanScreen from '../screens/StaffQrScanScreen';
 import SubmitReceiptScreen from '../screens/SubmitReceiptScreen';
+import PartnerVenuesMapScreen from '../screens/PartnerVenuesMapScreen';
 import DiscoverHubScreen from '../screens/DiscoverHubScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -69,11 +69,10 @@ export default function RootStack() {
             <Stack.Screen name="BrawlerArena" component={BrawlerArenaScreen} />
             <Stack.Screen name="Challenges" component={ChallengesScreen} />
             <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
+            <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="Friends" component={FriendsScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
             <Stack.Screen name="MemberCard" component={MemberCardScreen} />
-            <Stack.Screen name="FriendCard" component={FriendCardScreen} />
-            <Stack.Screen name="ScanFriendQr" component={ScanFriendQrScreen} />
             <Stack.Screen name="Parties" component={PartiesScreen} />
             <Stack.Screen name="PartyDetail" component={PartyDetailScreen} />
             <Stack.Screen name="RedeemInvite" component={RedeemInviteScreen} />
