@@ -7,7 +7,7 @@ import { VenueService } from './venue.service';
 import { VenueFunnelService } from './venue-funnel.service';
 import { VenueModerationService } from './venue-moderation.service';
 
-const DEFAULT_DAILY_GAMES = 5;
+const DEFAULT_DAILY_GAMES = 50;
 const SOLO_REUSE_MS = 20 * 60 * 1000;
 
 const TX_SERIALIZABLE = { isolationLevel: Prisma.TransactionIsolationLevel.Serializable };

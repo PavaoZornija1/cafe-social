@@ -173,7 +173,7 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
       trialStartedAt: new Date('2026-05-01T00:00:00.000Z'),
       trialEndsAt: daysFromNow(30),
       platformBillingStatus: 'TRIAL',
-      guestPlayDailyGamesLimit: 8,
+      guestPlayDailyGamesLimit: 50,
     },
     create: {
       id: SEED_ORG_ID,
@@ -184,7 +184,7 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
       trialEndsAt: daysFromNow(30),
       platformBillingStatus: 'TRIAL',
       selfServeCreatedByPlayerId: owner,
-      guestPlayDailyGamesLimit: 8,
+      guestPlayDailyGamesLimit: 50,
     },
   });
 
@@ -196,6 +196,7 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
         analyticsTimeZone: 'Europe/Sarajevo',
         orderNudgeTitle: 'Still here?',
         orderNudgeBody: 'Treat yourself to something from the menu.',
+        guestPlayDailyGamesLimit: 50,
       },
     });
   }
