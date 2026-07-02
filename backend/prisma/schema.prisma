@@ -1653,7 +1653,7 @@ enum BrawlerMatchQueueStatus {
   CANCELLED
 }
 
-/// Venue-only brawler matchmaking: same venue + casual/ranked bucket pairs into a 1v1 room (auto-started).
+/// Global brawler matchmaking: casual/ranked bucket pairs any two waiting players (cross-venue).
 model BrawlerMatchQueueEntry {
   id               String                 @id @default(uuid())
   /// Null when an active subscriber queues from outside any venue (cross-venue matchmaking pool).

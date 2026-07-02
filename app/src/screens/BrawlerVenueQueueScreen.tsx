@@ -53,10 +53,7 @@ export default function BrawlerVenueQueueScreen({ navigation, route }: Props) {
   const pollOnce = useCallback(async () => {
     const token = await getTokenRef.current();
     if (!token) return;
-    const path = venueId
-      ? `/brawler/queue/me?${new URLSearchParams({ venueId }).toString()}`
-      : '/brawler/queue/me';
-    const s = await apiGet<QueuePoll>(path, token);
+    const s = await apiGet<QueuePoll>('/brawler/queue/me', token);
     setPoll(s);
     if (s.status === 'matched' && s.sessionId && !navigatedRef.current) {
       navigatedRef.current = true;
@@ -129,7 +126,7 @@ export default function BrawlerVenueQueueScreen({ navigation, route }: Props) {
       try {
         const token = await getTokenRef.current();
         if (token) {
-          await apiPost('/brawler/queue/leave', venueId ? { venueId } : {}, token);
+          await apiPost('/brawler/queue/leave', {}, token);
         }
       } catch {
         /* */

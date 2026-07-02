@@ -204,31 +204,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
     }
   };
 
-  const onQueueAtVenue = () => {
-    if (!venueId || !selectedHeroId) return;
-    if (!isArenaSpriteHero(selectedHeroId)) {
-      Alert.alert(t('brawlerLobby.heroGateTitle'), t('brawlerLobby.heroGateBody'));
-      return;
-    }
-    const heroStats: BrawlerArenaHeroStats | undefined = selectedHero
-      ? {
-          baseHp: selectedHero.baseHp,
-          moveSpeed: selectedHero.moveSpeed,
-          dashCooldownMs: selectedHero.dashCooldownMs,
-          attackDamage: selectedHero.attackDamage,
-          attackKnockback: selectedHero.attackKnockback,
-        }
-      : undefined;
-    navigation.navigate('BrawlerVenueQueue', {
-      venueId,
-      brawlerHeroId: selectedHeroId,
-      heroName: selectedHero?.name,
-      ranked: queueRanked ? true : undefined,
-      heroStats,
-    });
-  };
-
-  const onQueueAnywhere = () => {
+  const onFindMatch = () => {
     if (!selectedHeroId) return;
     if (!isArenaSpriteHero(selectedHeroId)) {
       Alert.alert(t('brawlerLobby.heroGateTitle'), t('brawlerLobby.heroGateBody'));
@@ -244,6 +220,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
         }
       : undefined;
     navigation.navigate('BrawlerVenueQueue', {
+      ...(venueId ? { venueId } : {}),
       brawlerHeroId: selectedHeroId,
       heroName: selectedHero?.name,
       ranked: queueRanked ? true : undefined,
@@ -410,35 +387,18 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
               </Pressable>
             </View>
             <Text style={styles.rankHint}>{t('brawlerLobby.queueRankedHint')}</Text>
-            {venueId ? (
-              <Pressable
-                onPress={onQueueAtVenue}
-                disabled={!selectedHeroId || creating || loadingHeroes}
-                style={({ pressed }) => [
-                  styles.queueCta,
-                  pressed && styles.pressed,
-                  (!selectedHeroId || creating || loadingHeroes) && styles.ctaDisabled,
-                ]}
-              >
-                <Text style={styles.queueCtaText}>{t('brawlerLobby.queueAtVenue')}</Text>
-              </Pressable>
-            ) : null}
-            {subscriptionActive ? (
-              <>
-                <Pressable
-                  onPress={onQueueAnywhere}
-                  disabled={!selectedHeroId || creating || loadingHeroes}
-                  style={({ pressed }) => [
-                    styles.queueCta,
-                    pressed && styles.pressed,
-                    (!selectedHeroId || creating || loadingHeroes) && styles.ctaDisabled,
-                  ]}
-                >
-                  <Text style={styles.queueCtaText}>{t('brawlerLobby.queueAnywhere')}</Text>
-                </Pressable>
-                <Text style={styles.rankHint}>{t('brawlerLobby.queueAnywhereHint')}</Text>
-              </>
-            ) : null}
+            <Text style={styles.rankHint}>{t('brawlerLobby.queueGlobalHint')}</Text>
+            <Pressable
+              onPress={onFindMatch}
+              disabled={!selectedHeroId || creating || loadingHeroes}
+              style={({ pressed }) => [
+                styles.queueCta,
+                pressed && styles.pressed,
+                (!selectedHeroId || creating || loadingHeroes) && styles.ctaDisabled,
+              ]}
+            >
+              <Text style={styles.queueCtaText}>{t('brawlerLobby.findMatch')}</Text>
+            </Pressable>
           </View>
         ) : (
           <Text style={styles.venueHint}>{t('brawlerLobby.venueRequiredQueue')}</Text>

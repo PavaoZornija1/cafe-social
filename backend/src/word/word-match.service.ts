@@ -1253,13 +1253,10 @@ export class WordMatchService {
     return this.getVenueQueueStatusForPlayer(player.id, venueId?.trim() || null);
   }
 
-  private async getVenueQueueStatusForPlayer(playerId: string, venueId: string | null) {
+  private async getVenueQueueStatusForPlayer(playerId: string, _venueId: string | null) {
     const row = await this.prisma.wordMatchQueueEntry.findFirst({
       where: {
         playerId,
-        // When the caller didn't pass a venue, return whichever current row the player has
-        // (subscribers queueing from anywhere have a single in-flight WAITING row).
-        ...(venueId ? { venueId } : {}),
         status: { in: [WordMatchQueueStatus.WAITING, WordMatchQueueStatus.MATCHED] },
       },
       orderBy: { createdAt: 'desc' },

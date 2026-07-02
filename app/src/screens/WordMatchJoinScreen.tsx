@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import WordGameHeader from '../components/word/WordGameHeader';
 import LinearGradientFill from '../components/ui/LinearGradientFill';
 import { apiPost } from '../lib/api';
+import { triggerFeedback } from '../lib/feedback';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
 import type { RootStackParamList } from '../navigation/type';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -64,6 +65,7 @@ export default function WordMatchJoinScreen({ navigation, route }: Props) {
         },
         token,
       );
+      triggerFeedback('lobbyJoined');
       navigation.replace('WordMatchWait', {
         venueId,
         challengeId,

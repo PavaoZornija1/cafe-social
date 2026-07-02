@@ -534,11 +534,10 @@ export class BrawlerService {
     return this.getVenueBrawlerQueueStatusForPlayer(player.id, venueId?.trim() || null);
   }
 
-  private async getVenueBrawlerQueueStatusForPlayer(playerId: string, venueId: string | null) {
+  private async getVenueBrawlerQueueStatusForPlayer(playerId: string, _venueId: string | null) {
     const row = await this.prisma.brawlerMatchQueueEntry.findFirst({
       where: {
         playerId,
-        ...(venueId ? { venueId } : {}),
         status: { in: [BrawlerMatchQueueStatus.WAITING, BrawlerMatchQueueStatus.MATCHED] },
       },
       orderBy: { createdAt: 'desc' },

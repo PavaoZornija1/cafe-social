@@ -16,6 +16,7 @@ export type FeedbackSoundId =
   | 'lobbyLeft'
   | 'brawlerHit'
   | 'brawlerKo'
+  | 'brawlerPowerup'
   | 'perkRedeemed'
   | 'checkIn';
 
@@ -35,6 +36,7 @@ export const FEEDBACK_SOUND_SOURCES: Record<FeedbackSoundId, AVPlaybackSource> =
   lobbyLeft: require('../../../assets/sounds/lobby_left.wav'),
   brawlerHit: require('../../../assets/sounds/brawler_hit.wav'),
   brawlerKo: require('../../../assets/sounds/brawler_ko.wav'),
+  brawlerPowerup: require('../../../assets/sounds/brawler_powerup.wav'),
   perkRedeemed: require('../../../assets/sounds/perk_redeemed.wav'),
   checkIn: require('../../../assets/sounds/check_in.wav'),
 };

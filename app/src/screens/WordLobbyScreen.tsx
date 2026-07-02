@@ -137,23 +137,10 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
     });
   };
 
-  const onQueueAtVenue = () => {
-    if (!venueId) return;
+  const onFindMatch = () => {
     if (playKind !== 'coop' && playKind !== 'versus') return;
     navigation.navigate('WordVenueQueue', {
-      venueId,
-      challengeId,
-      mode: playKind,
-      difficulty,
-      wordCount,
-      wordCategory: wordCategory ?? undefined,
-      ranked: playKind === 'versus' && versusRanked ? true : undefined,
-    });
-  };
-
-  const onQueueAnywhere = () => {
-    if (playKind !== 'coop' && playKind !== 'versus') return;
-    navigation.navigate('WordVenueQueue', {
+      ...(venueId ? { venueId } : {}),
       challengeId,
       mode: playKind,
       difficulty,
@@ -278,26 +265,16 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
           <Ionicons name="arrow-forward" size={18} color={colors.textInverse} />
         </Pressable>
 
-        {venueId && (playKind === 'coop' || playKind === 'versus') ? (
-          <Pressable
-            onPress={onQueueAtVenue}
-            style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
-          >
-            <Ionicons name="location-outline" size={18} color={colors.primary} />
-            <Text style={styles.secondaryBtnText}>{t('wordLobby.queueAtVenue')}</Text>
-          </Pressable>
-        ) : null}
-
-        {subscriptionActive && (playKind === 'coop' || playKind === 'versus') ? (
+        {(venueId || subscriptionActive) && (playKind === 'coop' || playKind === 'versus') ? (
           <>
             <Pressable
-              onPress={onQueueAnywhere}
+              onPress={onFindMatch}
               style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
             >
               <Ionicons name="globe-outline" size={18} color={colors.primary} />
-              <Text style={styles.secondaryBtnText}>{t('wordLobby.queueAnywhere')}</Text>
+              <Text style={styles.secondaryBtnText}>{t('wordLobby.findMatch')}</Text>
             </Pressable>
-            <Text style={styles.queueHint}>{t('wordLobby.queueAnywhereHint')}</Text>
+            <Text style={styles.queueHint}>{t('wordLobby.queueGlobalHint')}</Text>
           </>
         ) : null}
 

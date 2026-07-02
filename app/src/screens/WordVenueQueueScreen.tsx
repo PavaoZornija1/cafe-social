@@ -58,10 +58,7 @@ export default function WordVenueQueueScreen({ navigation, route }: Props) {
   const pollOnce = useCallback(async () => {
     const token = await getTokenRef.current();
     if (!token) return;
-    const path = venueId
-      ? `/words/matches/queue/me?${new URLSearchParams({ venueId }).toString()}`
-      : '/words/matches/queue/me';
-    const s = await apiGet<QueuePoll>(path, token);
+    const s = await apiGet<QueuePoll>('/words/matches/queue/me', token);
     setPoll(s);
     if (s.status === 'matched' && s.sessionId && !navigatedRef.current) {
       navigatedRef.current = true;
@@ -143,7 +140,7 @@ export default function WordVenueQueueScreen({ navigation, route }: Props) {
       try {
         const token = await getTokenRef.current();
         if (token) {
-          await apiPost('/words/matches/queue/leave', venueId ? { venueId } : {}, token);
+          await apiPost('/words/matches/queue/leave', {}, token);
         }
       } catch {
         /* */

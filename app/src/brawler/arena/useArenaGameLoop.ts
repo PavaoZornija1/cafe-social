@@ -520,6 +520,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
                 endsAtMs: nowMs + 2200,
               };
             }
+            triggerFeedback('brawlerPowerup');
             bump();
 
             void (async () => {
@@ -1078,24 +1079,32 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
 
       if (holdingDown && onGround.current) {
         const feetBottom = playerY.current + bodyH;
+        let dropPi = -1;
+        let dropSurfaceY = Infinity;
         for (let pi = 0; pi < plats.length - 1; pi++) {
           const p = plats[pi]!;
           if (!overlapX(feetX, FEET_W, p)) continue;
-          if (Math.abs(feetBottom - p.y - p.feetEmbedPx) < 12) {
-            dropThroughPlatformIndexRef.current = pi;
-            onGround.current = false;
-            vy.current = Math.max(vy.current, DROP_THROUGH_INITIAL_VY);
-            playerY.current += 3;
-            break;
+          if (Math.abs(feetBottom - p.y - p.feetEmbedPx) < 12 && p.y < dropSurfaceY) {
+            dropSurfaceY = p.y;
+            dropPi = pi;
           }
         }
+        if (dropPi >= 0) {
+          dropThroughPlatformIndexRef.current = dropPi;
+          onGround.current = false;
+          vy.current = Math.max(vy.current, DROP_THROUGH_INITIAL_VY);
+          playerY.current += 3;
+        }
       }
+
+      const dropThroughPassY = (p: PlatformWorld) =>
+        p.y + p.h + DROP_THROUGH_CLEARANCE_PX;
 
       const shouldSkipPlatformLanding = (pi: number, feetBottom: number) => {
         const dropIdx = dropThroughPlatformIndexRef.current;
         if (dropIdx < 0 || pi !== dropIdx || pi >= plats.length - 1) return false;
         const dropped = plats[dropIdx]!;
-        return feetBottom <= dropped.y + DROP_THROUGH_CLEARANCE_PX;
+        return feetBottom < dropThroughPassY(dropped);
       };
 
       if (jumpQueued.current && onGround.current) {
@@ -1204,7 +1213,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
       const dropIdx = dropThroughPlatformIndexRef.current;
       if (dropIdx >= 0 && dropIdx < plats.length - 1) {
         const dropped = plats[dropIdx]!;
-        if (playerY.current + bodyH > dropped.y + DROP_THROUGH_CLEARANCE_PX) {
+        if (playerY.current + bodyH >= dropThroughPassY(dropped)) {
           dropThroughPlatformIndexRef.current = -1;
         }
       }

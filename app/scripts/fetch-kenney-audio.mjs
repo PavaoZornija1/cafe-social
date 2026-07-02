@@ -33,6 +33,7 @@ const REMOTE_SFX = [
   ['Interface Sounds/back_003.ogg', 'lobby_left.ogg'],
   ['Impact Sounds/impactPunch_medium_002.ogg', 'brawler_hit.ogg'],
   ['Impact Sounds/impactPunch_heavy_003.ogg', 'brawler_ko.ogg'],
+  ['Digital Audio/powerUp1.ogg', 'brawler_powerup.ogg'],
   ['Interface Sounds/glass_004.ogg', 'perk_redeemed.ogg'],
   ['RPG Audio/handleCoins.ogg', 'check_in.ogg'],
 ];
@@ -121,7 +122,7 @@ fs.writeFileSync(
 
 Audio by [Kenney](https://www.kenney.nl) — [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
 
-Packs used: Interface Sounds, Impact Sounds, RPG Audio, Voiceover Pack, Music Loops.
+Packs used: Interface Sounds, Impact Sounds, RPG Audio, Voiceover Pack, Music Loops, Digital Audio.
 
 Fetched via \`node scripts/fetch-kenney-audio.mjs\`.
 `,

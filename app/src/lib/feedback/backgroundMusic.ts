@@ -12,6 +12,10 @@ const TRACK_VOLUME: Record<BackgroundMusicTrack, number> = {
   game: 0.34,
 };
 
+const CROSSFADE_MS = 650;
+const FADE_OUT_MS = 400;
+const FADE_STEPS = 10;
+
 const GAME_ROUTES = new Set([
   'WordGame',
   'BrawlerArena',
@@ -32,6 +36,62 @@ let activeTrack: BackgroundMusicTrack | null = null;
 let desiredTrack: BackgroundMusicTrack | null = null;
 let appStateSub: { remove: () => void } | null = null;
 let appState: AppStateStatus = AppState.currentState;
+let fadeGeneration = 0;
+let duckGeneration = 0;
+let duckTimer: ReturnType<typeof setTimeout> | null = null;
+let crossfadeInFlight: Promise<void> | null = null;
+
+function targetVolume(track: BackgroundMusicTrack): number {
+  return TRACK_VOLUME[track];
+}
+
+function clearDuckTimer(): void {
+  if (duckTimer) {
+    clearTimeout(duckTimer);
+    duckTimer = null;
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function setMusicVolume(sound: Audio.Sound, volume: number): Promise<void> {
+  try {
+    const status = await sound.getStatusAsync();
+    if (status.isLoaded) {
+      await sound.setVolumeAsync(Math.max(0, Math.min(1, volume)));
+    }
+  } catch {
+    /* */
+  }
+}
+
+async function fadeSoundVolume(
+  sound: Audio.Sound,
+  from: number,
+  to: number,
+  ms: number,
+  generation: number,
+): Promise<void> {
+  const steps = Math.max(4, FADE_STEPS);
+  const stepMs = ms / steps;
+  for (let i = 1; i <= steps; i++) {
+    if (generation !== fadeGeneration) return;
+    const t = i / steps;
+    await setMusicVolume(sound, from + (to - from) * t);
+    await sleep(stepMs);
+  }
+}
+
+async function stopAndUnload(sound: Audio.Sound): Promise<void> {
+  try {
+    await sound.stopAsync();
+    await sound.unloadAsync();
+  } catch {
+    /* */
+  }
+}
 
 export function trackForRoute(routeName: string | undefined): BackgroundMusicTrack | null {
   if (!routeName || SILENT_ROUTES.has(routeName)) return null;
@@ -39,30 +99,87 @@ export function trackForRoute(routeName: string | undefined): BackgroundMusicTra
   return 'home';
 }
 
-async function unloadMusic(): Promise<void> {
+async function unloadMusicImmediate(): Promise<void> {
+  fadeGeneration += 1;
+  clearDuckTimer();
   if (!musicSound) return;
   const s = musicSound;
   musicSound = null;
   activeTrack = null;
-  try {
-    await s.stopAsync();
-    await s.unloadAsync();
-  } catch {
-    /* */
+  await stopAndUnload(s);
+}
+
+async function fadeOutAndUnload(): Promise<void> {
+  if (!musicSound || !activeTrack) {
+    await unloadMusicImmediate();
+    return;
+  }
+  const gen = ++fadeGeneration;
+  const s = musicSound;
+  const track = activeTrack;
+  const from = targetVolume(track);
+  musicSound = null;
+  activeTrack = null;
+  clearDuckTimer();
+  await fadeSoundVolume(s, from, 0, FADE_OUT_MS, gen);
+  if (gen === fadeGeneration) {
+    await stopAndUnload(s);
   }
 }
 
-async function loadTrack(track: BackgroundMusicTrack): Promise<Audio.Sound> {
-  if (musicSound && activeTrack === track) return musicSound;
-  await unloadMusic();
+async function loadTrackSound(track: BackgroundMusicTrack): Promise<Audio.Sound> {
   const { sound } = await Audio.Sound.createAsync(getMusicTrackSources()[track], {
     isLooping: true,
     shouldPlay: false,
-    volume: TRACK_VOLUME[track],
+    volume: 0,
   });
-  musicSound = sound;
-  activeTrack = track;
   return sound;
+}
+
+async function crossfadeToTrack(track: BackgroundMusicTrack): Promise<void> {
+  if (musicSound && activeTrack === track) {
+    const status = await musicSound.getStatusAsync();
+    if (status.isLoaded && !status.isPlaying) {
+      await musicSound.playAsync();
+    }
+    const vol = targetVolume(track);
+    await setMusicVolume(musicSound, vol);
+    return;
+  }
+
+  const gen = ++fadeGeneration;
+  clearDuckTimer();
+  const outgoing = musicSound;
+  const outgoingTrack = activeTrack;
+  const incoming = await loadTrackSound(track);
+  musicSound = incoming;
+  activeTrack = track;
+
+  await incoming.playAsync();
+
+  if (!outgoing || !outgoingTrack) {
+    await fadeSoundVolume(incoming, 0, targetVolume(track), CROSSFADE_MS, gen);
+    return;
+  }
+
+  const outFrom = targetVolume(outgoingTrack);
+  const inTo = targetVolume(track);
+  const steps = Math.max(4, FADE_STEPS);
+  const stepMs = CROSSFADE_MS / steps;
+  for (let i = 1; i <= steps; i++) {
+    if (gen !== fadeGeneration) {
+      await stopAndUnload(incoming);
+      return;
+    }
+    const t = i / steps;
+    await setMusicVolume(outgoing, outFrom * (1 - t));
+    await setMusicVolume(incoming, inTo * t);
+    await sleep(stepMs);
+  }
+
+  if (gen === fadeGeneration) {
+    await stopAndUnload(outgoing);
+  }
 }
 
 function ensureAppStateListener(): void {
@@ -72,7 +189,7 @@ function ensureAppStateListener(): void {
     if (next === 'active') {
       void syncBackgroundMusic(desiredTrack);
     } else {
-      void unloadMusic();
+      void fadeOutAndUnload();
     }
   });
 }
@@ -83,25 +200,51 @@ export async function syncBackgroundMusic(track: BackgroundMusicTrack | null): P
 
   if (Platform.OS === 'web') return;
   if (!getFeedbackPrefs().backgroundMusicEnabled || track === null || appState !== 'active') {
-    await unloadMusic();
+    crossfadeInFlight = fadeOutAndUnload();
+    await crossfadeInFlight;
+    crossfadeInFlight = null;
     return;
   }
 
   try {
     await ensureAudioSession();
-    const sound = await loadTrack(track);
-    const status = await sound.getStatusAsync();
-    if (status.isLoaded && !status.isPlaying) {
-      await sound.playAsync();
-    }
+    crossfadeInFlight = crossfadeToTrack(track);
+    await crossfadeInFlight;
   } catch {
     /* */
+  } finally {
+    crossfadeInFlight = null;
   }
+}
+
+/** Briefly lower BGM so prominent SFX read clearly; restores smoothly. */
+export function duckBackgroundMusic(duckFactor = 0.52, holdMs = 950): void {
+  if (Platform.OS === 'web' || !musicSound || !activeTrack) return;
+  const track = activeTrack;
+  const base = targetVolume(track);
+  const ducked = base * duckFactor;
+  const gen = ++duckGeneration;
+  clearDuckTimer();
+
+  void setMusicVolume(musicSound, ducked);
+  duckTimer = setTimeout(() => {
+    if (gen !== duckGeneration || musicSound == null || activeTrack !== track) return;
+    void (async () => {
+      const steps = 5;
+      const stepMs = 85;
+      for (let i = 1; i <= steps; i++) {
+        if (gen !== duckGeneration || musicSound == null || activeTrack !== track) return;
+        const t = i / steps;
+        await setMusicVolume(musicSound, ducked + (base - ducked) * t);
+        await sleep(stepMs);
+      }
+    })();
+  }, holdMs);
 }
 
 export async function stopBackgroundMusic(): Promise<void> {
   desiredTrack = null;
-  await unloadMusic();
+  await fadeOutAndUnload();
 }
 
 export function syncBackgroundMusicForRoute(routeName: string | undefined): void {

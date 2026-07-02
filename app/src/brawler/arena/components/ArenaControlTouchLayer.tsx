@@ -232,7 +232,7 @@ export function ArenaControlTouchLayer({
           stickRef={joyRef}
           size={JOYSTICK_SIZE}
           enabled
-          horizontalOnly
+          horizontalOnly={false}
           displayKnob={joyKnob}
         />
       </View>

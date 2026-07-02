@@ -1,9 +1,14 @@
-import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { AccessibilityInfo, Platform } from 'react-native';
 
+import { duckBackgroundMusic } from './backgroundMusic';
 import { ensureAudioSession } from './audioSession';
-import { FEEDBACK_SOUND_SOURCES, type FeedbackSoundId } from './feedbackSounds';
+import type { FeedbackSoundId } from './feedbackSounds';
+import {
+  playFeedbackSoundId,
+  preloadFeedbackVoices,
+  unloadFeedbackVoices,
+} from './feedbackPlayback';
 import { getFeedbackPrefs, loadFeedbackPrefs } from './feedbackPrefs';
 
 export type FeedbackEvent =
@@ -22,6 +27,7 @@ export type FeedbackEvent =
   | 'lobbyLeft'
   | 'brawlerHit'
   | 'brawlerKo'
+  | 'brawlerPowerup'
   | 'perkRedeemed'
   | 'checkIn';
 
@@ -43,6 +49,7 @@ const EVENT_SOUND: Record<FeedbackEvent, FeedbackSoundId> = {
   lobbyLeft: 'lobbyLeft',
   brawlerHit: 'brawlerHit',
   brawlerKo: 'brawlerKo',
+  brawlerPowerup: 'brawlerPowerup',
   perkRedeemed: 'perkRedeemed',
   checkIn: 'checkIn',
 };
@@ -63,17 +70,48 @@ const EVENT_HAPTIC: Record<FeedbackEvent, HapticKind> = {
   lobbyLeft: 'light',
   brawlerHit: 'light',
   brawlerKo: 'medium',
+  brawlerPowerup: 'success',
   perkRedeemed: 'success',
   checkIn: 'success',
 };
 
+/** Min ms between the same event firing haptics (avoids brawler hit buzz). */
+const EVENT_HAPTIC_COOLDOWN_MS: Partial<Record<FeedbackEvent, number>> = {
+  brawlerHit: 90,
+  brawlerKo: 180,
+  brawlerPowerup: 250,
+  correct: 120,
+  wrong: 120,
+  timerUrgent: 5000,
+};
+
+const HAPTIC_KIND_COOLDOWN_MS: Record<HapticKind, number> = {
+  light: 65,
+  medium: 95,
+  success: 130,
+  error: 130,
+  warning: 110,
+};
+
+/** Duck BGM under these so voice / sting SFX sit on top without fighting the loop. */
+const BGM_DUCK_EVENTS = new Set<FeedbackEvent>([
+  'matchWin',
+  'matchLoss',
+  'lobbyFound',
+  'lobbyStart',
+  'dailySolved',
+  'dailyFailed',
+  'perkRedeemed',
+  'checkIn',
+  'brawlerKo',
+  'brawlerPowerup',
+]);
+
 let reduceMotionEnabled = false;
 let reduceMotionSub: { remove: () => void } | null = null;
-const loadedSounds = new Map<FeedbackSoundId, Audio.Sound>();
 let initDone = false;
-
-/** SFX sit on top of BGM — keep them slightly softer than full scale. */
-const SFX_VOLUME = 0.88;
+const lastEventHapticAt = new Map<FeedbackEvent, number>();
+const lastHapticKindAt = new Map<HapticKind, number>();
 
 async function refreshReduceMotion(): Promise<void> {
   if (Platform.OS === 'web') {
@@ -103,66 +141,26 @@ export async function initGameFeedback(): Promise<void> {
 export async function preloadFeedbackSounds(): Promise<void> {
   if (Platform.OS === 'web') return;
   await ensureAudioSession();
-  const ids = Object.keys(FEEDBACK_SOUND_SOURCES) as FeedbackSoundId[];
-  await Promise.all(
-    ids.map(async (id) => {
-      if (loadedSounds.has(id)) return;
-      try {
-        const { sound } = await Audio.Sound.createAsync(FEEDBACK_SOUND_SOURCES[id], {
-          shouldPlay: false,
-          volume: SFX_VOLUME,
-        });
-        loadedSounds.set(id, sound);
-      } catch {
-        /* skip missing asset */
-      }
-    }),
-  );
+  await preloadFeedbackVoices();
 }
 
 export async function unloadFeedbackSounds(): Promise<void> {
-  const sounds = [...loadedSounds.values()];
-  loadedSounds.clear();
-  await Promise.all(
-    sounds.map(async (sound) => {
-      try {
-        await sound.unloadAsync();
-      } catch {
-        /* */
-      }
-    }),
-  );
+  await unloadFeedbackVoices();
 }
 
-async function playSoundId(id: FeedbackSoundId): Promise<void> {
-  if (Platform.OS === 'web') return;
-  if (!getFeedbackPrefs().soundEffectsEnabled) return;
-  await ensureAudioSession();
-  let sound = loadedSounds.get(id);
-  if (!sound) {
-    try {
-      const created = await Audio.Sound.createAsync(FEEDBACK_SOUND_SOURCES[id], {
-        shouldPlay: true,
-        volume: SFX_VOLUME,
-      });
-      sound = created.sound;
-      loadedSounds.set(id, sound);
-      created.sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          void sound?.setPositionAsync(0);
-        }
-      });
-      return;
-    } catch {
-      return;
-    }
+function shouldRunHaptic(event: FeedbackEvent, kind: HapticKind): boolean {
+  const now = Date.now();
+  const eventCooldown = EVENT_HAPTIC_COOLDOWN_MS[event];
+  if (eventCooldown != null) {
+    const lastEvent = lastEventHapticAt.get(event) ?? 0;
+    if (now - lastEvent < eventCooldown) return false;
   }
-  try {
-    await sound.setPositionAsync(0);
-    await sound.playAsync();
-  } catch {
-    /* */
-  }
+  const kindCooldown = HAPTIC_KIND_COOLDOWN_MS[kind];
+  const lastKind = lastHapticKindAt.get(kind) ?? 0;
+  if (now - lastKind < kindCooldown) return false;
+  lastEventHapticAt.set(event, now);
+  lastHapticKindAt.set(kind, now);
+  return true;
 }
 
 async function runHaptic(kind: HapticKind): Promise<void> {
@@ -196,9 +194,21 @@ async function runHaptic(kind: HapticKind): Promise<void> {
   }
 }
 
+async function playEventSound(event: FeedbackEvent): Promise<void> {
+  if (Platform.OS === 'web') return;
+  if (!getFeedbackPrefs().soundEffectsEnabled) return;
+  await ensureAudioSession();
+  await playFeedbackSoundId(EVENT_SOUND[event]);
+}
+
 export function triggerFeedback(event: FeedbackEvent): void {
-  void playSoundId(EVENT_SOUND[event]);
-  void runHaptic(EVENT_HAPTIC[event]);
+  void playEventSound(event);
+  if (BGM_DUCK_EVENTS.has(event) && getFeedbackPrefs().backgroundMusicEnabled) {
+    duckBackgroundMusic();
+  }
+  const kind = EVENT_HAPTIC[event];
+  if (!shouldRunHaptic(event, kind)) return;
+  void runHaptic(kind);
 }
 
 /** Settings preview — respects current toggles. */
