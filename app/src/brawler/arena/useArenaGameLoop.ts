@@ -992,7 +992,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
             hitEnemy.hp = Math.max(0, hitEnemy.hp - dmg);
             hitEnemy.iFramesLeft = ENEMY_IFRAMES_S;
             hitEnemy.flashLeft = 0.12;
-            hitEnemy.knockVx = dir * 520;
+            hitEnemy.knockVx = dir * heroCombat.attackKnockbackEnemySpeed;
 
             dmgFloatsRef.current.push({
               id: dmgFloatIdRef.current++,
@@ -1042,7 +1042,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
               hitAny.flashLeft = 0.12;
               triggerFeedback('brawlerHit');
               const dir = facing.current === 'right' ? 1 : -1;
-              hitAny.knockVx = dir * 420;
+              hitAny.knockVx = dir * heroCombat.attackKnockbackDummySpeed;
               bump(); // force re-render to show HP drop
             }
           }
