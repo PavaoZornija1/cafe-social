@@ -296,14 +296,14 @@ export default function PartyDetailScreen({ navigation, route }: Props) {
             <Pressable
               style={styles.secondaryBtn}
               disabled={busy}
-              onPress={() => navigation.navigate('WordLobby', {})}
+              onPress={() => navigation.navigate('WordLobby', { partyId })}
             >
               <Text style={styles.secondaryBtnText}>{t('parties.playWord')}</Text>
             </Pressable>
             <Pressable
               style={styles.secondaryBtn}
               disabled={busy}
-              onPress={() => navigation.navigate('BrawlerLobby', {})}
+              onPress={() => navigation.navigate('BrawlerLobby', { partyId })}
             >
               <Text style={styles.secondaryBtnText}>{t('parties.playBrawler')}</Text>
             </Pressable>

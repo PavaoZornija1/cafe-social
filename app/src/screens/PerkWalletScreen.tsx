@@ -28,7 +28,7 @@ import { radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PerkWallet'>;
 
-type ClaimStatus = 'REDEEMABLE' | 'EXPIRED' | 'VOIDED' | 'REDEEMED';
+type ClaimStatus = 'REDEEMABLE' | 'EXPIRED' | 'VOIDED' | 'REDEEMED' | 'LOCKED';
 
 function statusLabelKey(status: string): string {
   switch (status) {
@@ -40,6 +40,8 @@ function statusLabelKey(status: string): string {
       return 'perkWallet.statusVoided';
     case 'REDEEMED':
       return 'perkWallet.statusRedeemed';
+    case 'LOCKED':
+      return 'perkWallet.statusLocked';
     default:
       return 'perkWallet.statusOther';
   }
@@ -103,12 +105,14 @@ const RewardClaimCard = React.memo(function RewardClaimCard({
         return { pill: styles.statusVoided, text: styles.statusVoidedText };
       case 'REDEEMED':
         return { pill: styles.statusDone, text: styles.statusDoneText };
+      case 'LOCKED':
+        return { pill: styles.statusLocked, text: styles.statusLockedText };
       default:
         return { pill: styles.statusMuted, text: styles.statusMutedText };
     }
   }, [r.status, styles]);
 
-  const dimmed = r.status !== 'REDEEMABLE';
+  const dimmed = r.status !== 'REDEEMABLE' && r.status !== 'LOCKED';
 
   return (
     <View style={[styles.card, dimmed && styles.cardDimmed]}>
@@ -125,6 +129,10 @@ const RewardClaimCard = React.memo(function RewardClaimCard({
       <Text style={styles.expiryLine}>
         {t('perk.rewardExpires')} {formatExpiry(r.expiresAt)}
       </Text>
+
+      {r.status === 'LOCKED' ? (
+        <Text style={styles.lockedHint}>{t('perkWallet.lockedHint')}</Text>
+      ) : null}
 
       {showQr && r.status === 'REDEEMABLE' ? (
         <View style={styles.qrWrap}>
@@ -233,7 +241,7 @@ export default function PerkWalletScreen({ navigation }: Props) {
     const r: GlobalRewardClaim[] = [];
     const h: GlobalRewardClaim[] = [];
     for (const it of items) {
-      if (it.status === 'REDEEMABLE') r.push(it);
+      if (it.status === 'REDEEMABLE' || it.status === 'LOCKED') r.push(it);
       else h.push(it);
     }
     return { redeemable: r, history: h };
@@ -486,6 +494,15 @@ function createStyles(colors: AppColors) {
     statusReadyText: { color: colors.success },
     statusDone: { backgroundColor: colors.primaryMuted },
     statusDoneText: { color: colors.primary },
+    statusLocked: { backgroundColor: colors.warningBg },
+    statusLockedText: { color: colors.warning },
+    lockedHint: {
+      color: colors.warning,
+      fontSize: 13,
+      lineHeight: 18,
+      marginTop: spacing.sm,
+      fontWeight: '600',
+    },
     statusMuted: { backgroundColor: colors.bgElevated },
     statusMutedText: { color: colors.textMuted },
     statusVoided: { backgroundColor: colors.errorMuted },

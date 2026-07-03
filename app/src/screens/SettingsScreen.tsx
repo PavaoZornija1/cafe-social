@@ -21,7 +21,7 @@ import {
 import Purchases, { PURCHASES_ERROR_CODE, type PurchasesError } from 'react-native-purchases';
 import { useTranslation } from 'react-i18next';
 import SettingsNavRow from '../components/settings/SettingsNavRow';
-import WordGameHeader from '../components/word/WordGameHeader';
+import ScreenHeader from '../components/ScreenHeader';
 import type { RootStackParamList } from '../navigation/type';
 import { LANGUAGE_OPTIONS, type AppLanguage, setAppLanguage } from '../i18n';
 import { apiGet, apiPatch } from '../lib/api';
@@ -356,7 +356,7 @@ export default function SettingsScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <WordGameHeader
+      <ScreenHeader
         colors={colors}
         title={t('settings.title')}
         onBack={() => navigation.goBack()}

@@ -2,8 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { AppColors } from '../../theme/colors';
-import { radii, spacing } from '../../theme/tokens';
+import type { AppColors } from '../theme/colors';
+import { radii, spacing } from '../theme/tokens';
 
 type Props = {
   colors: AppColors;
@@ -12,7 +12,7 @@ type Props = {
   backLabel: string;
 };
 
-export default function WordGameHeader({ colors, title, onBack, backLabel }: Props) {
+export default function ScreenHeader({ colors, title, onBack, backLabel }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (

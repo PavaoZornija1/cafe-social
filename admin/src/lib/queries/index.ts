@@ -709,11 +709,20 @@ export type OwnerVenueAnalytics = {
   period: { startDay: string; endDay: string; presetDays?: number };
   redemptions: {
     total: number;
+    issued: number;
+    fulfilled: number;
     voided: number;
     byDay: { day: string; count: number }[];
     byHourUtc: { hour: number; count: number }[];
     byHourVenue: { hour: number; count: number }[] | null;
-    perPerk: { perkId: string; code: string; title: string; count: number }[];
+    perPerk: {
+      perkId: string;
+      code: string;
+      title: string;
+      count: number;
+      issuedCount: number;
+      fulfilledCount: number;
+    }[];
   };
   visits: {
     uniquePlayers: number;
@@ -1462,11 +1471,20 @@ export type OwnerOrganizationAnalytics = {
   period: { startDay: string; endDay: string; presetDays?: number };
   redemptions: {
     total: number;
+    issued: number;
+    fulfilled: number;
     voided: number;
     byDay: { day: string; count: number }[];
     byHourUtc: { hour: number; count: number }[];
     byHourVenue: { hour: number; count: number }[] | null;
-    perPerk: { perkId: string; code: string; title: string; count: number }[];
+    perPerk: {
+      perkId: string;
+      code: string;
+      title: string;
+      count: number;
+      issuedCount: number;
+      fulfilledCount: number;
+    }[];
   };
   visits: {
     uniquePlayers: number;

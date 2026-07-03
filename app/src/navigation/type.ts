@@ -22,7 +22,7 @@ export type RootStackParamList = {
     DiscoverHub: undefined;
     DailyWord: undefined;
     ChooseGame: { venueId?: string; challengeId?: string } | undefined;
-    BrawlerLobby: { venueId?: string } | undefined;
+    BrawlerLobby: { venueId?: string; partyId?: string } | undefined;
     /**
      * Cross-venue brawler matchmaking queue.
      * `venueId` is required for venue-presence players; subscribers may queue from anywhere
@@ -72,7 +72,7 @@ export type RootStackParamList = {
     BanAppeal: { venueId: string; venueName?: string; focusAppealId?: string };
     MyVenueReports: undefined;
     QrScan: { venueId?: string };
-    WordLobby: { venueId?: string; challengeId?: string };
+    WordLobby: { venueId?: string; challengeId?: string; partyId?: string };
     /**
      * Cross-venue matchmaking queue (auto-pairs into a new word room).
      * `venueId` is required for venue-presence players; subscribers may queue from anywhere
@@ -81,6 +81,7 @@ export type RootStackParamList = {
     WordVenueQueue: {
       venueId?: string;
       challengeId?: string;
+      partyId?: string;
       mode: 'coop' | 'versus';
       difficulty: 'easy' | 'normal' | 'hard';
       wordCount: number;
@@ -91,6 +92,7 @@ export type RootStackParamList = {
     WordMatchWait: {
       venueId?: string;
       challengeId?: string;
+      partyId?: string;
       mode: 'coop' | 'versus';
       difficulty: 'easy' | 'normal' | 'hard';
       create?: boolean;

@@ -14,7 +14,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import LinearGradientFill from '../components/ui/LinearGradientFill';
-import WordGameHeader from '../components/word/WordGameHeader';
+import ScreenHeader from '../components/ScreenHeader';
 import { apiGet, apiPost } from '../lib/api';
 import { triggerFeedback } from '../lib/feedback';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
@@ -147,7 +147,7 @@ export default function BrawlerVenueQueueScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <WordGameHeader
+      <ScreenHeader
         colors={colors}
         title={t('brawlerMatch.queueTitle')}
         onBack={onLeave}

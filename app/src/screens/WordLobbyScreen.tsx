@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-import WordGameHeader from '../components/word/WordGameHeader';
+import ScreenHeader from '../components/ScreenHeader';
 import LobbySection from '../components/word/lobby/LobbySection';
 import { LobbyChipPicker, LobbyModePicker, LobbySegmentedControl } from '../components/word/lobby/LobbyPickers';
 import WordLobbyHero from '../components/word/lobby/WordLobbyHero';
@@ -38,7 +38,7 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { t, i18n } = useTranslation();
-  const { venueId, challengeId } = route.params ?? {};
+  const { venueId, challengeId, partyId } = route.params ?? {};
   const [difficulty, setDifficulty] = useState<Difficulty>('easy');
   const [playKind, setPlayKind] = useState<PlayKind>('solo');
   const [versusRanked, setVersusRanked] = useState(false);
@@ -128,6 +128,7 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
     navigation.navigate('WordMatchWait', {
       venueId,
       challengeId,
+      partyId,
       mode: playKind,
       difficulty,
       create: true,
@@ -142,6 +143,7 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
     navigation.navigate('WordVenueQueue', {
       ...(venueId ? { venueId } : {}),
       challengeId,
+      partyId,
       mode: playKind,
       difficulty,
       wordCount,
@@ -154,7 +156,7 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <WordGameHeader
+      <ScreenHeader
         colors={colors}
         title={t('wordLobby.title')}
         onBack={() => navigation.goBack()}

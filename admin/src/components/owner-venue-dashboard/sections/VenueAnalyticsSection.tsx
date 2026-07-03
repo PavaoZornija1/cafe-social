@@ -129,8 +129,12 @@ export function VenueAnalyticsSection() {
           </span>
         ),
       }),
-      perkCol.accessor("count", {
-        header: t("admin.partnerVenueDetail.analytics.count"),
+      perkCol.accessor("issuedCount", {
+        header: t("admin.partnerVenueDetail.analytics.issuedCount"),
+        cell: (c) => <span>{c.getValue()}</span>,
+      }),
+      perkCol.accessor("fulfilledCount", {
+        header: t("admin.partnerVenueDetail.analytics.fulfilledCount"),
         cell: (c) => <span>{c.getValue()}</span>,
       }),
     ],
@@ -390,11 +394,19 @@ export function VenueAnalyticsSection() {
                         <p className="text-sm text-slate-600">
                           {t("admin.partnerVenueDetail.analytics.activeRedemptions")}
                         </p>
-                        <p className="text-2xl font-semibold mt-1">{analytics.redemptions.total}</p>
+                        <p className="text-2xl font-semibold mt-1">{analytics.redemptions.issued}</p>
                         <p className="text-xs text-slate-500 mt-1">
                           {t("admin.partnerVenueDetail.analytics.voided", {
                             count: analytics.redemptions.voided,
                           })}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-sm text-slate-600">
+                          {t("admin.partnerVenueDetail.analytics.fulfilledRedemptions")}
+                        </p>
+                        <p className="text-2xl font-semibold mt-1">
+                          {analytics.redemptions.fulfilled}
                         </p>
                       </div>
                       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">

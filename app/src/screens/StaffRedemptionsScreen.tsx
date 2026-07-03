@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Modal,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -20,9 +21,13 @@ import type { RootStackParamList } from '../navigation/type';
 import {
   addUtcDaysYmd,
   acknowledgeStaffRedemption,
+  fetchOwnerVenues,
   fetchStaffModerationSummary,
   fetchStaffRedemptions,
+  lockStaffRedemption,
+  unlockStaffRedemption,
   utcTodayYmd,
+  type OwnerVenueRow,
   type StaffModerationSummary,
   type StaffRedemptionRow,
   type StaffRedemptionsResponse,
@@ -49,6 +54,14 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [modSummary, setModSummary] = useState<StaffModerationSummary | null>(null);
   const [ackingId, setAckingId] = useState<string | null>(null);
+  const [venueRole, setVenueRole] = useState<OwnerVenueRow['role'] | null>(null);
+  const [lockTargetId, setLockTargetId] = useState<string | null>(null);
+  const [lockReason, setLockReason] = useState('');
+  const [lockBusy, setLockBusy] = useState(false);
+  const [unlockingId, setUnlockingId] = useState<string | null>(null);
+
+  const isManagerPlus =
+    venueRole === 'MANAGER' || venueRole === 'OWNER';
 
   const payloadRef = useRef(payload);
   payloadRef.current = payload;
@@ -72,12 +85,16 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
       try {
         const token = await getTokenRef.current();
         if (!token) throw new Error(t('staff.signInFirst'));
-        const [data, summary] = await Promise.all([
+        const [data, summary, ownerVenues] = await Promise.all([
           fetchStaffRedemptions(token, venueId, dateYmd),
           fetchStaffModerationSummary(token, venueId).catch(() => null),
+          fetchOwnerVenues(token).catch(() => ({ venues: [] as OwnerVenueRow[] })),
         ]);
         setPayload(data);
         setModSummary(summary);
+        const role =
+          ownerVenues.venues.find((v) => v.venue.id === venueId)?.role ?? null;
+        setVenueRole(role);
       } catch (e) {
         if (!hasData) {
           setPayload(null);
@@ -148,6 +165,46 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
       }
     },
     [ackingId, load, t, venueId],
+  );
+
+  const submitLock = useCallback(async () => {
+    if (!lockTargetId || lockBusy) return;
+    const reason = lockReason.trim();
+    if (reason.length < 3) {
+      Alert.alert(t('common.error'), t('staff.lockReasonRequired'));
+      return;
+    }
+    setLockBusy(true);
+    try {
+      const token = await getTokenRef.current();
+      if (!token) throw new Error(t('staff.signInFirst'));
+      await lockStaffRedemption(token, venueId, lockTargetId, reason);
+      setLockTargetId(null);
+      setLockReason('');
+      await load('refresh');
+    } catch (e) {
+      Alert.alert(t('common.error'), (e as Error).message ?? t('staff.loadFailed'));
+    } finally {
+      setLockBusy(false);
+    }
+  }, [lockBusy, lockReason, lockTargetId, load, t, venueId]);
+
+  const handleUnlock = useCallback(
+    async (redemptionId: string) => {
+      if (unlockingId) return;
+      setUnlockingId(redemptionId);
+      try {
+        const token = await getTokenRef.current();
+        if (!token) throw new Error(t('staff.signInFirst'));
+        await unlockStaffRedemption(token, venueId, redemptionId);
+        await load('refresh');
+      } catch (e) {
+        Alert.alert(t('common.error'), (e as Error).message ?? t('staff.loadFailed'));
+      } finally {
+        setUnlockingId(null);
+      }
+    },
+    [load, t, unlockingId, venueId],
   );
 
   const title = venueName ?? payload?.venueName ?? venueId;
@@ -300,7 +357,10 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
         renderItem={({ item }) => {
           const isHit = highlight && item.staffVerificationCode === highlight;
           const voided = !!item.voidedAt;
+          const isLocked = item.status === 'LOCKED';
           const canAck = item.status === 'REDEEMABLE' && !voided;
+          const canLock = isManagerPlus && canAck;
+          const canUnlock = isManagerPlus && isLocked && !voided;
           const acking = ackingId === item.redemptionId;
           return (
             <View
@@ -308,6 +368,7 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
                 styles.rowCard,
                 isHit && styles.rowCardHighlight,
                 voided && styles.rowCardVoided,
+                isLocked && styles.rowCardLocked,
               ]}
             >
               <Text style={styles.code}>{item.staffVerificationCode}</Text>
@@ -317,27 +378,105 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
                 {item.perkCode} · {new Date(item.issuedAt).toISOString()} · {item.status}
                 {voided ? ' · VOID' : ''}
               </Text>
-              {canAck ? (
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.ackBtn,
-                    pressed && styles.pressed,
-                    acking && styles.ackBtnDisabled,
-                  ]}
-                  disabled={acking}
-                  onPress={() => void handleAcknowledge(item.redemptionId)}
-                >
-                  {acking ? (
-                    <ActivityIndicator color={colors.textInverse} size="small" />
-                  ) : (
-                    <Text style={styles.ackBtnText}>{t('staff.acknowledge')}</Text>
-                  )}
-                </Pressable>
+              {item.voidReason && isLocked ? (
+                <Text style={styles.lockReason}>{item.voidReason}</Text>
               ) : null}
+              <View style={styles.rowActions}>
+                {canAck ? (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.ackBtn,
+                      pressed && styles.pressed,
+                      acking && styles.ackBtnDisabled,
+                    ]}
+                    disabled={acking}
+                    onPress={() => void handleAcknowledge(item.redemptionId)}
+                  >
+                    {acking ? (
+                      <ActivityIndicator color={colors.textInverse} size="small" />
+                    ) : (
+                      <Text style={styles.ackBtnText}>{t('staff.acknowledge')}</Text>
+                    )}
+                  </Pressable>
+                ) : null}
+                {canLock ? (
+                  <Pressable
+                    style={({ pressed }) => [styles.lockBtn, pressed && styles.pressed]}
+                    onPress={() => {
+                      setLockTargetId(item.redemptionId);
+                      setLockReason('');
+                    }}
+                  >
+                    <Text style={styles.lockBtnText}>{t('staff.lockReward')}</Text>
+                  </Pressable>
+                ) : null}
+                {canUnlock ? (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.unlockBtn,
+                      pressed && styles.pressed,
+                      unlockingId === item.redemptionId && styles.ackBtnDisabled,
+                    ]}
+                    disabled={unlockingId === item.redemptionId}
+                    onPress={() => void handleUnlock(item.redemptionId)}
+                  >
+                    {unlockingId === item.redemptionId ? (
+                      <ActivityIndicator color={colors.primary} size="small" />
+                    ) : (
+                      <Text style={styles.unlockBtnText}>{t('staff.unlockReward')}</Text>
+                    )}
+                  </Pressable>
+                ) : null}
+              </View>
             </View>
           );
         }}
       />
+
+      <Modal
+        visible={lockTargetId != null}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setLockTargetId(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t('staff.lockRewardTitle')}</Text>
+            <Text style={styles.modalHint}>{t('staff.lockRewardHint')}</Text>
+            <TextInput
+              value={lockReason}
+              onChangeText={setLockReason}
+              placeholder={t('staff.lockReasonPlaceholder')}
+              placeholderTextColor={colors.textMuted}
+              style={styles.lockInput}
+              multiline
+            />
+            <View style={styles.modalActions}>
+              <Pressable
+                style={({ pressed }) => [styles.modalCancel, pressed && styles.pressed]}
+                onPress={() => setLockTargetId(null)}
+              >
+                <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.modalConfirm,
+                  pressed && styles.pressed,
+                  lockBusy && styles.ackBtnDisabled,
+                ]}
+                disabled={lockBusy}
+                onPress={() => void submitLock()}
+              >
+                {lockBusy ? (
+                  <ActivityIndicator color={colors.textInverse} size="small" />
+                ) : (
+                  <Text style={styles.modalConfirmText}>{t('staff.lockReward')}</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -559,6 +698,83 @@ function createStyles(colors: AppColors) {
       marginTop: spacing.sm,
       lineHeight: 15,
     },
+    rowCardLocked: {
+      borderColor: colors.warning,
+      backgroundColor: colors.warningBg,
+    },
+    lockReason: {
+      color: colors.warning,
+      fontSize: 12,
+      marginTop: spacing.xs,
+      lineHeight: 16,
+    },
+    rowActions: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginTop: spacing.md,
+    },
+    lockBtn: {
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: radii.pill,
+      backgroundColor: colors.warningBg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.warningBorder,
+    },
+    lockBtnText: { color: colors.warning, fontWeight: '800', fontSize: 12 },
+    unlockBtn: {
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: radii.pill,
+      backgroundColor: colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.primary,
+    },
+    unlockBtnText: { color: colors.primary, fontWeight: '800', fontSize: 12 },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'center',
+      padding: spacing.xl,
+    },
+    modalCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radii.lg,
+      padding: spacing.xl,
+      gap: spacing.sm,
+    },
+    modalTitle: { color: colors.text, fontSize: 18, fontWeight: '900' },
+    modalHint: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
+    lockInput: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      padding: spacing.md,
+      color: colors.text,
+      minHeight: 80,
+      textAlignVertical: 'top',
+    },
+    modalActions: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    modalCancel: {
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.lg,
+    },
+    modalCancelText: { color: colors.textSecondary, fontWeight: '800' },
+    modalConfirm: {
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      borderRadius: radii.pill,
+      backgroundColor: colors.warning,
+      minWidth: 100,
+      alignItems: 'center',
+    },
+    modalConfirmText: { color: colors.textInverse, fontWeight: '800' },
     pressed: { opacity: 0.88 },
   });
 }

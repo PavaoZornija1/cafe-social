@@ -224,6 +224,8 @@ export class OwnerAnalyticsService {
       feedEvents,
       voidedCountRow,
       perkGroups,
+      fulfilledCountRow,
+      fulfilledPerkGroups,
     ] = await Promise.all([
       this.prisma.venuePerkRedemption.findMany({
         where: {
@@ -268,6 +270,22 @@ export class OwnerAnalyticsService {
         },
         _count: { id: true },
       }),
+      this.prisma.venuePerkRedemption.count({
+        where: {
+          venueId,
+          redeemedAt: { gte: start, lte: end },
+          voidedAt: null,
+        },
+      }),
+      this.prisma.venuePerkRedemption.groupBy({
+        by: ['perkId'],
+        where: {
+          venueId,
+          redeemedAt: { gte: start, lte: end },
+          voidedAt: null,
+        },
+        _count: { id: true },
+      }),
     ]);
 
     const activeRedemptions = redemptionsAll.filter((r) => !r.voidedAt);
@@ -304,26 +322,44 @@ export class OwnerAnalyticsService {
       }
     }
 
-    const perkMeta = await this.prisma.venuePerk.findMany({
-      where: { id: { in: perkGroups.map((g) => g.perkId) } },
-      select: { id: true, title: true, code: true },
-    });
-    const perkMap = new Map(perkMeta.map((p) => [p.id, p]));
-    const perPerk = perkGroups
-      .map((g) => {
-        const p = perkMap.get(g.perkId);
-        return {
-          perkId: g.perkId,
-          code: p?.code ?? '—',
-          title: p?.title ?? '—',
-          count: g._count.id,
-        };
-      })
-      .sort((a, b) => b.count - a.count);
-
     const funnelJourney = await this.funnelMetrics([venueId], start, end);
     const visitLoyalty = loyaltyMetricsSingleVenue(visitRows);
     const attribution = await this.attributionMetrics([venueId], start, end);
+
+    const perkMeta = await this.prisma.venuePerk.findMany({
+      where: {
+        id: {
+          in: [
+            ...new Set([
+              ...perkGroups.map((g) => g.perkId),
+              ...fulfilledPerkGroups.map((g) => g.perkId),
+            ]),
+          ],
+        },
+      },
+      select: { id: true, title: true, code: true },
+    });
+    const perkMap = new Map(perkMeta.map((p) => [p.id, p]));
+    const issuedByPerk = new Map(perkGroups.map((g) => [g.perkId, g._count.id]));
+    const fulfilledByPerk = new Map(
+      fulfilledPerkGroups.map((g) => [g.perkId, g._count.id]),
+    );
+    const allPerkIds = new Set([...issuedByPerk.keys(), ...fulfilledByPerk.keys()]);
+    const perPerk = [...allPerkIds]
+      .map((perkId) => {
+        const p = perkMap.get(perkId);
+        const issuedCount = issuedByPerk.get(perkId) ?? 0;
+        const fulfilledCount = fulfilledByPerk.get(perkId) ?? 0;
+        return {
+          perkId,
+          code: p?.code ?? '—',
+          title: p?.title ?? '—',
+          count: issuedCount,
+          issuedCount,
+          fulfilledCount,
+        };
+      })
+      .sort((a, b) => b.issuedCount - a.issuedCount);
 
     return {
       venueId,
@@ -335,6 +371,8 @@ export class OwnerAnalyticsService {
       },
       redemptions: {
         total: activeRedemptions.length,
+        issued: activeRedemptions.length,
+        fulfilled: fulfilledCountRow,
         voided: voidedCountRow,
         byDay: timelineDays.map((day) => ({
           day,
@@ -396,11 +434,20 @@ export class OwnerAnalyticsService {
         },
         redemptions: {
           total: 0,
+          issued: 0,
+          fulfilled: 0,
           voided: 0,
           byDay: [] as { day: string; count: number }[],
           byHourUtc: Array.from({ length: 24 }, (_, hour) => ({ hour, count: 0 })),
           byHourVenue: null as { hour: number; count: number }[] | null,
-          perPerk: [] as { perkId: string; code: string; title: string; count: number }[],
+          perPerk: [] as {
+            perkId: string;
+            code: string;
+            title: string;
+            count: number;
+            issuedCount: number;
+            fulfilledCount: number;
+          }[],
         },
         visits: {
           uniquePlayers: 0,
@@ -443,6 +490,8 @@ export class OwnerAnalyticsService {
       feedEvents,
       voidedCountRow,
       perkGroups,
+      fulfilledCountRow,
+      fulfilledPerkGroups,
     ] = await Promise.all([
       this.prisma.venuePerkRedemption.findMany({
         where: {
@@ -487,6 +536,22 @@ export class OwnerAnalyticsService {
         },
         _count: { id: true },
       }),
+      this.prisma.venuePerkRedemption.count({
+        where: {
+          venueId: { in: venueIds },
+          redeemedAt: { gte: start, lte: end },
+          voidedAt: null,
+        },
+      }),
+      this.prisma.venuePerkRedemption.groupBy({
+        by: ['perkId'],
+        where: {
+          venueId: { in: venueIds },
+          redeemedAt: { gte: start, lte: end },
+          voidedAt: null,
+        },
+        _count: { id: true },
+      }),
     ]);
 
     const activeRedemptions = redemptionsAll.filter((r) => !r.voidedAt);
@@ -523,26 +588,44 @@ export class OwnerAnalyticsService {
       }
     }
 
-    const perkMeta = await this.prisma.venuePerk.findMany({
-      where: { id: { in: perkGroups.map((g) => g.perkId) } },
-      select: { id: true, title: true, code: true },
-    });
-    const perkMap = new Map(perkMeta.map((p) => [p.id, p]));
-    const perPerk = perkGroups
-      .map((g) => {
-        const p = perkMap.get(g.perkId);
-        return {
-          perkId: g.perkId,
-          code: p?.code ?? '—',
-          title: p?.title ?? '—',
-          count: g._count.id,
-        };
-      })
-      .sort((a, b) => b.count - a.count);
-
     const funnelJourney = await this.funnelMetrics(venueIds, start, end);
     const visitLoyalty = loyaltyMetricsOrg(visitRows);
     const attribution = await this.attributionMetrics(venueIds, start, end);
+
+    const perkMeta = await this.prisma.venuePerk.findMany({
+      where: {
+        id: {
+          in: [
+            ...new Set([
+              ...perkGroups.map((g) => g.perkId),
+              ...fulfilledPerkGroups.map((g) => g.perkId),
+            ]),
+          ],
+        },
+      },
+      select: { id: true, title: true, code: true },
+    });
+    const perkMap = new Map(perkMeta.map((p) => [p.id, p]));
+    const issuedByPerk = new Map(perkGroups.map((g) => [g.perkId, g._count.id]));
+    const fulfilledByPerk = new Map(
+      fulfilledPerkGroups.map((g) => [g.perkId, g._count.id]),
+    );
+    const allPerkIds = new Set([...issuedByPerk.keys(), ...fulfilledByPerk.keys()]);
+    const perPerk = [...allPerkIds]
+      .map((perkId) => {
+        const p = perkMap.get(perkId);
+        const issuedCount = issuedByPerk.get(perkId) ?? 0;
+        const fulfilledCount = fulfilledByPerk.get(perkId) ?? 0;
+        return {
+          perkId,
+          code: p?.code ?? '—',
+          title: p?.title ?? '—',
+          count: issuedCount,
+          issuedCount,
+          fulfilledCount,
+        };
+      })
+      .sort((a, b) => b.issuedCount - a.issuedCount);
 
     return {
       organizationId,
@@ -556,6 +639,8 @@ export class OwnerAnalyticsService {
       },
       redemptions: {
         total: activeRedemptions.length,
+        issued: activeRedemptions.length,
+        fulfilled: fulfilledCountRow,
         voided: voidedCountRow,
         byDay: timelineDays.map((day) => ({
           day,

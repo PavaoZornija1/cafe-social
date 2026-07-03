@@ -234,8 +234,24 @@ export class WordMatchService {
     throw new BadRequestException('could not allocate invite code');
   }
 
+  private async assertPartyMemberIfNeeded(
+    partyId: string | null | undefined,
+    playerId: string,
+  ): Promise<void> {
+    const id = partyId?.trim();
+    if (!id) return;
+    const member = await this.prisma.partyMember.findUnique({
+      where: { partyId_playerId: { partyId: id, playerId } },
+    });
+    if (!member) {
+      throw new ForbiddenException('Not a party member');
+    }
+  }
+
   async create(email: string, dto: CreateWordMatchDto) {
     const player = await this.players.findOrCreateByEmail(email);
+    const partyId = dto.partyId?.trim() || null;
+    await this.assertPartyMemberIfNeeded(partyId, player.id);
     const vId = dto.venueId?.trim();
     if (vId) {
       await this.assertAtVenueIfNeeded(vId, dto.latitude, dto.longitude);
@@ -274,6 +290,7 @@ export class WordMatchService {
         status: GameSessionStatus.PENDING,
         inviteCode,
         venueId: vId || null,
+        partyId,
         config: config as unknown as Prisma.InputJsonValue,
         wordSession: {
           create: {
@@ -1184,6 +1201,8 @@ export class WordMatchService {
 
   async enqueueVenueWordMatch(email: string, dto: EnqueueWordMatchQueueDto) {
     const player = await this.players.findOrCreateByEmail(email);
+    const partyId = dto.partyId?.trim() || null;
+    await this.assertPartyMemberIfNeeded(partyId, player.id);
     const rawVenueId = dto.venueId?.trim() || null;
 
     let vId: string | null = null;
@@ -1218,6 +1237,7 @@ export class WordMatchService {
       data: {
         venueId: vId,
         playerId: player.id,
+        partyId,
         mode: modeEnum,
         difficulty: dto.difficulty,
         wordCount: dto.wordCount,
@@ -1292,6 +1312,7 @@ export class WordMatchService {
         language: row.language,
         category: row.category,
         ranked: row.ranked,
+        partyId: row.partyId,
         status: WordMatchQueueStatus.WAITING,
         createdAt: { lt: row.createdAt },
       },
@@ -1306,7 +1327,7 @@ export class WordMatchService {
       const row = await tx.wordMatchQueueEntry.findUnique({
         where: { id: queueEntryId },
       });
-      if (!row || row.status !== WordMatchQueueStatus.WAITING || row.ranked) {
+      if (!row || row.status !== WordMatchQueueStatus.WAITING || row.ranked || row.partyId) {
         return;
       }
 
@@ -1621,6 +1642,21 @@ export class WordMatchService {
     await this.prisma.$transaction(async (tx) => {
       // Cross-venue pairing: bucket is rules-based only. Each player is gated to their own
       // venue separately via `playerVenueIds` stamped onto the session config below.
+      const anchor = await tx.wordMatchQueueEntry.findFirst({
+        where: {
+          mode,
+          difficulty,
+          wordCount,
+          language,
+          category: category === null ? null : category,
+          ranked,
+          status: WordMatchQueueStatus.WAITING,
+        },
+        orderBy: { createdAt: 'asc' },
+        select: { partyId: true },
+      });
+      if (!anchor) return;
+
       const pair = await tx.wordMatchQueueEntry.findMany({
         where: {
           mode,
@@ -1629,6 +1665,7 @@ export class WordMatchService {
           language,
           category: category === null ? null : category,
           ranked,
+          partyId: anchor.partyId,
           status: WordMatchQueueStatus.WAITING,
         },
         orderBy: { createdAt: 'asc' },
@@ -1676,6 +1713,7 @@ export class WordMatchService {
           // Host's venue (or null when host is a subscriber queueing from outside any venue).
           // Per-player gating uses each participant's own venue from `playerVenueIds`.
           venueId: a.venueId ?? null,
+          partyId: a.partyId ?? null,
           config: config as unknown as Prisma.InputJsonValue,
           wordSession: {
             create: {

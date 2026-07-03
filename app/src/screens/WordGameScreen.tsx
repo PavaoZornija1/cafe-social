@@ -23,7 +23,7 @@ import { useVenueActivePlayBudgetSync } from '../lib/useVenueActivePlayBudgetSyn
 import { triggerFeedback } from '../lib/feedback';
 import { emitPlatformQuestProgressChanged } from '../lib/platformQuestEvents';
 import WordGameClueCard from '../components/word/WordGameClueCard';
-import WordGameHeader from '../components/word/WordGameHeader';
+import ScreenHeader from '../components/ScreenHeader';
 import WordGameHud from '../components/word/WordGameHud';
 import WordGameResultPanel from '../components/word/WordGameResultPanel';
 import WordGameVersusBoard from '../components/word/WordGameVersusBoard';
@@ -878,7 +878,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <WordGameHeader
+        <ScreenHeader
           colors={colors}
           title={t('wordGame.title')}
           onBack={leaveGame}
@@ -895,7 +895,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
   if (error) {
     return (
       <SafeAreaView style={styles.safe}>
-        <WordGameHeader
+        <ScreenHeader
           colors={colors}
           title={t('wordGame.title')}
           onBack={leaveGame}
@@ -954,7 +954,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
     };
     return (
       <SafeAreaView style={styles.safe}>
-        <WordGameHeader
+        <ScreenHeader
           colors={colors}
           title={t('wordGame.matchOver')}
           onBack={leaveGame}
@@ -980,7 +980,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <WordGameHeader
+      <ScreenHeader
         colors={colors}
         title={t('wordGame.title')}
         onBack={leaveGame}

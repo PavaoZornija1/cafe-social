@@ -46,6 +46,7 @@ import { CreateOwnerCampaignDto } from './dto/create-owner-campaign.dto';
 import { CreateOwnerCampaignBindingDto } from './dto/create-owner-campaign-binding.dto';
 import { ReviewReceiptDto } from './dto/review-receipt.dto';
 import { VoidRedemptionDto } from './dto/void-redemption.dto';
+import { LockRedemptionDto } from './dto/lock-redemption.dto';
 import { ScanRedemptionDto } from './dto/scan-redemption.dto';
 import { PartnerOnboardingDto } from './dto/partner-onboarding.dto';
 import { PartnerOrgAccessService } from './partner-org-access.service';
@@ -926,6 +927,36 @@ export class OwnerController {
       staffPlayerId: staffId,
       reason: body.reason,
     });
+    return { ok: true };
+  }
+
+  @Post('venues/:venueId/redemptions/:redemptionId/lock')
+  @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard)
+  @MinVenueRole(VenueStaffRole.MANAGER)
+  async lockRedemption(
+    @CurrentUser() user: unknown,
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+    @Param('redemptionId', new ParseUUIDPipe()) redemptionId: string,
+    @Body() body: LockRedemptionDto,
+  ) {
+    const staffId = await this.staffPlayerId(user);
+    await this.redemptionActions.lockRedemption({
+      venueId,
+      redemptionId,
+      staffPlayerId: staffId,
+      reason: body.reason,
+    });
+    return { ok: true };
+  }
+
+  @Post('venues/:venueId/redemptions/:redemptionId/unlock')
+  @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard)
+  @MinVenueRole(VenueStaffRole.MANAGER)
+  async unlockRedemption(
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+    @Param('redemptionId', new ParseUUIDPipe()) redemptionId: string,
+  ) {
+    await this.redemptionActions.unlockRedemption({ venueId, redemptionId });
     return { ok: true };
   }
 

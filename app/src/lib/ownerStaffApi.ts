@@ -70,6 +70,27 @@ export function acknowledgeStaffRedemption(
   );
 }
 
+export function lockStaffRedemption(
+  token: string,
+  venueId: string,
+  redemptionId: string,
+  reason: string,
+) {
+  return apiPost<{ ok: true }>(
+    `/owner/venues/${encodeURIComponent(venueId)}/redemptions/${encodeURIComponent(redemptionId)}/lock`,
+    { reason },
+    token,
+  );
+}
+
+export function unlockStaffRedemption(token: string, venueId: string, redemptionId: string) {
+  return apiPost<{ ok: true }>(
+    `/owner/venues/${encodeURIComponent(venueId)}/redemptions/${encodeURIComponent(redemptionId)}/unlock`,
+    {},
+    token,
+  );
+}
+
 export type MemberScanResult = {
   playerId: string;
   username: string;

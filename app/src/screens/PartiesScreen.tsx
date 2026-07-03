@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-import WordGameHeader from '../components/word/WordGameHeader';
+import ScreenHeader from '../components/ScreenHeader';
 import LinearGradientFill from '../components/ui/LinearGradientFill';
 import { apiGet, apiPost } from '../lib/api';
 import { triggerFeedback } from '../lib/feedback';
@@ -127,7 +127,7 @@ export default function PartiesScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <WordGameHeader
+      <ScreenHeader
         colors={colors}
         title={t('parties.title')}
         onBack={() => navigation.goBack()}

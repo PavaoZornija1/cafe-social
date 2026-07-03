@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-import WordGameHeader from '../components/word/WordGameHeader';
+import ScreenHeader from '../components/ScreenHeader';
 import LinearGradientFill from '../components/ui/LinearGradientFill';
 import { apiPost } from '../lib/api';
 import { triggerFeedback } from '../lib/feedback';
@@ -86,7 +86,7 @@ export default function WordMatchJoinScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <WordGameHeader
+      <ScreenHeader
         colors={colors}
         title={t('wordMatch.joinTitle')}
         onBack={() => navigation.goBack()}

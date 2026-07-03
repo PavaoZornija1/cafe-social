@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-import WordGameHeader from '../components/word/WordGameHeader';
+import ScreenHeader from '../components/ScreenHeader';
 import LinearGradientFill from '../components/ui/LinearGradientFill';
 import { apiGet, apiPost } from '../lib/api';
 import { triggerFeedback } from '../lib/feedback';
@@ -39,6 +39,7 @@ export default function WordVenueQueueScreen({ navigation, route }: Props) {
   const {
     venueId,
     challengeId,
+    partyId,
     mode,
     difficulty,
     wordCount,
@@ -93,6 +94,7 @@ export default function WordVenueQueueScreen({ navigation, route }: Props) {
           wordCount,
           difficulty,
           mode,
+          ...(partyId ? { partyId } : {}),
           ...(wordCategory ? { category: wordCategory } : {}),
           ...(mode === 'versus' && ranked ? { ranked: true } : {}),
         };
@@ -125,7 +127,7 @@ export default function WordVenueQueueScreen({ navigation, route }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [isLoaded, venueId, wordCount, difficulty, mode, wordCategory, ranked, t, i18n.language, pollOnce]);
+  }, [isLoaded, venueId, wordCount, difficulty, mode, wordCategory, ranked, partyId, t, i18n.language, pollOnce]);
 
   useEffect(() => {
     if (enrolling || error || !isLoaded) return;
@@ -163,7 +165,7 @@ export default function WordVenueQueueScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <WordGameHeader
+      <ScreenHeader
         colors={colors}
         title={t('wordMatch.queueTitle')}
         onBack={onLeave}

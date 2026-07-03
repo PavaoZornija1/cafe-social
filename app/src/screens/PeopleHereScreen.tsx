@@ -5,7 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
+  Modal,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -16,7 +18,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import type { RootStackParamList } from '../navigation/type';
-import { apiGet } from '../lib/api';
+import { apiGet, apiPost } from '../lib/api';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
@@ -29,6 +31,12 @@ type Person = {
   username: string;
   relationship: 'friend' | 'stranger';
   profileLevel: 'stub' | 'public';
+};
+
+type PartyListItem = {
+  id: string;
+  name: string | null;
+  members: { playerId: string }[];
 };
 
 export default function PeopleHereScreen({ navigation, route }: Props) {
@@ -46,6 +54,12 @@ export default function PeopleHereScreen({ navigation, route }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [people, setPeople] = useState<Person[]>([]);
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
+  const [pendingFriendIds, setPendingFriendIds] = useState<Set<string>>(new Set());
+  const [partyInviteTarget, setPartyInviteTarget] = useState<Person | null>(null);
+  const [parties, setParties] = useState<PartyListItem[]>([]);
+  const [partiesLoading, setPartiesLoading] = useState(false);
+  const [partyInviteBusy, setPartyInviteBusy] = useState<string | null>(null);
+  const [friendBusyId, setFriendBusyId] = useState<string | null>(null);
 
   const peopleRef = useRef(people);
   peopleRef.current = people;
@@ -105,6 +119,74 @@ export default function PeopleHereScreen({ navigation, route }: Props) {
   const handleRefresh = useCallback(() => {
     void load(peopleRef.current.length > 0 ? 'refresh' : 'initial');
   }, [load]);
+
+  const sendFriendRequest = useCallback(
+    async (person: Person) => {
+      if (friendBusyId) return;
+      setFriendBusyId(person.id);
+      try {
+        const token = await getTokenRef.current();
+        if (!token) throw new Error(t('staff.signInFirst'));
+        const res = await apiPost<{ created: boolean }>(
+          '/social/friends/request-by-username',
+          { username: person.username },
+          token,
+        );
+        setPendingFriendIds((prev) => new Set(prev).add(person.id));
+        Alert.alert(
+          '',
+          res.created ? t('peopleHere.requestSent') : t('peopleHere.requestAlreadyPending'),
+        );
+      } catch (e) {
+        Alert.alert(t('common.error'), (e as Error).message ?? t('friends.requestFailed'));
+      } finally {
+        setFriendBusyId(null);
+      }
+    },
+    [friendBusyId, t],
+  );
+
+  const openPartyInvite = useCallback(
+    async (person: Person) => {
+      setPartyInviteTarget(person);
+      setPartiesLoading(true);
+      try {
+        const token = await getTokenRef.current();
+        if (!token) throw new Error(t('staff.signInFirst'));
+        const list = await apiGet<PartyListItem[]>('/parties/mine', token);
+        setParties(Array.isArray(list) ? list : []);
+      } catch (e) {
+        setPartyInviteTarget(null);
+        Alert.alert(t('common.error'), (e as Error).message ?? t('peopleHere.partiesLoadFailed'));
+      } finally {
+        setPartiesLoading(false);
+      }
+    },
+    [t],
+  );
+
+  const inviteToParty = useCallback(
+    async (partyId: string, friendPlayerId: string) => {
+      if (partyInviteBusy) return;
+      setPartyInviteBusy(partyId);
+      try {
+        const token = await getTokenRef.current();
+        if (!token) throw new Error(t('staff.signInFirst'));
+        await apiPost(
+          `/parties/${encodeURIComponent(partyId)}/invite-friend`,
+          { friendPlayerId },
+          token,
+        );
+        Alert.alert('', t('peopleHere.partyInviteSent'));
+        setPartyInviteTarget(null);
+      } catch (e) {
+        Alert.alert(t('common.error'), (e as Error).message ?? t('peopleHere.partyInviteFailed'));
+      } finally {
+        setPartyInviteBusy(null);
+      }
+    },
+    [partyInviteBusy, t],
+  );
 
   const heroSubtitle = venueName
     ? t('peopleHere.subtitleNamed', { venue: venueName })
@@ -185,6 +267,7 @@ export default function PeopleHereScreen({ navigation, route }: Props) {
         renderItem={({ item }) => {
           const isSelf = myPlayerId != null && item.id === myPlayerId;
           const isFriend = item.relationship === 'friend';
+          const friendPending = pendingFriendIds.has(item.id);
           return (
             <View style={[styles.row, isSelf && styles.rowMe]}>
               <View style={[styles.avatar, isFriend ? styles.avatarFriend : styles.avatarStranger]}>
@@ -206,26 +289,116 @@ export default function PeopleHereScreen({ navigation, route }: Props) {
                 </View>
               </View>
               {!isSelf ? (
-                <Pressable
-                  style={({ pressed }) => [styles.reportBtn, pressed && styles.pressed]}
-                  onPress={() =>
-                    navigation.navigate('ReportPlayer', {
-                      venueId,
-                      venueName,
-                      reportedPlayerId: item.id,
-                      reportedUsername: item.username,
-                    })
-                  }
-                  accessibilityRole="button"
-                  accessibilityLabel={t('peopleHere.report')}
-                >
-                  <Text style={styles.reportBtnText}>{t('peopleHere.report')}</Text>
-                </Pressable>
+                <View style={styles.actions}>
+                  {isFriend ? (
+                    <Pressable
+                      style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
+                      onPress={() => void openPartyInvite(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('peopleHere.inviteParty')}
+                    >
+                      <Ionicons name="people-outline" size={14} color={colors.primary} />
+                      <Text style={styles.actionBtnText}>{t('peopleHere.inviteParty')}</Text>
+                    </Pressable>
+                  ) : (
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.actionBtn,
+                        pressed && styles.pressed,
+                        (friendPending || friendBusyId === item.id) && styles.actionBtnDisabled,
+                      ]}
+                      disabled={friendPending || friendBusyId === item.id}
+                      onPress={() => void sendFriendRequest(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('peopleHere.addFriend')}
+                    >
+                      {friendBusyId === item.id ? (
+                        <ActivityIndicator color={colors.primary} size="small" />
+                      ) : (
+                        <>
+                          <Ionicons name="person-add-outline" size={14} color={colors.primary} />
+                          <Text style={styles.actionBtnText}>
+                            {friendPending ? t('peopleHere.requestPending') : t('peopleHere.addFriend')}
+                          </Text>
+                        </>
+                      )}
+                    </Pressable>
+                  )}
+                  <Pressable
+                    style={({ pressed }) => [styles.reportBtn, pressed && styles.pressed]}
+                    onPress={() =>
+                      navigation.navigate('ReportPlayer', {
+                        venueId,
+                        venueName,
+                        reportedPlayerId: item.id,
+                        reportedUsername: item.username,
+                      })
+                    }
+                    accessibilityRole="button"
+                    accessibilityLabel={t('peopleHere.report')}
+                  >
+                    <Text style={styles.reportBtnText}>{t('peopleHere.report')}</Text>
+                  </Pressable>
+                </View>
               ) : null}
             </View>
           );
         }}
       />
+
+      <Modal
+        visible={partyInviteTarget != null}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setPartyInviteTarget(null)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setPartyInviteTarget(null)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>
+              {t('peopleHere.pickParty', { username: partyInviteTarget?.username ?? '' })}
+            </Text>
+            {partiesLoading ? (
+              <ActivityIndicator color={colors.primary} style={styles.modalSpinner} />
+            ) : parties.length === 0 ? (
+              <Text style={styles.modalEmpty}>{t('peopleHere.noParties')}</Text>
+            ) : (
+              parties.map((party) => {
+                const alreadyMember = party.members.some(
+                  (m) => m.playerId === partyInviteTarget?.id,
+                );
+                const label = party.name?.trim() || t('peopleHere.unnamedParty');
+                return (
+                  <Pressable
+                    key={party.id}
+                    style={({ pressed }) => [
+                      styles.partyRow,
+                      pressed && styles.pressed,
+                      alreadyMember && styles.partyRowDisabled,
+                    ]}
+                    disabled={alreadyMember || partyInviteBusy === party.id}
+                    onPress={() =>
+                      void inviteToParty(party.id, partyInviteTarget!.id)
+                    }
+                  >
+                    <Text style={styles.partyRowTitle}>{label}</Text>
+                    <Text style={styles.partyRowMeta}>
+                      {alreadyMember
+                        ? t('peopleHere.alreadyInParty')
+                        : t('peopleHere.partyMemberCount', { n: party.members.length })}
+                    </Text>
+                  </Pressable>
+                );
+              })
+            )}
+            <Pressable
+              style={({ pressed }) => [styles.modalClose, pressed && styles.pressed]}
+              onPress={() => setPartyInviteTarget(null)}
+            >
+              <Text style={styles.modalCloseText}>{t('common.cancel')}</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -354,14 +527,71 @@ function createStyles(colors: AppColors) {
     tagText: { fontSize: 11, fontWeight: '800' },
     tagTextFriend: { color: colors.primaryDark },
     tagTextStranger: { color: colors.textMuted },
+    actions: { alignItems: 'flex-end', gap: spacing.xs, flexShrink: 0 },
+    actionBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radii.md,
+      backgroundColor: colors.primaryMuted,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.primary,
+    },
+    actionBtnDisabled: { opacity: 0.6 },
+    actionBtnText: { color: colors.primaryDark, fontSize: 11, fontWeight: '800' },
     reportBtn: {
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.sm,
       borderRadius: radii.md,
       backgroundColor: colors.warningBg,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.warningBorder,
     },
     reportBtnText: { color: colors.warning, fontSize: 11, fontWeight: '800' },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'flex-end',
+    },
+    modalCard: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: radii.xl,
+      borderTopRightRadius: radii.xl,
+      padding: spacing.xl,
+      gap: spacing.sm,
+      maxHeight: '70%',
+    },
+    modalTitle: {
+      color: colors.text,
+      fontSize: 18,
+      fontWeight: '900',
+      marginBottom: spacing.sm,
+    },
+    modalSpinner: { marginVertical: spacing.lg },
+    modalEmpty: {
+      color: colors.textMuted,
+      fontSize: 14,
+      fontWeight: '600',
+      paddingVertical: spacing.lg,
+      textAlign: 'center',
+    },
+    partyRow: {
+      padding: spacing.md,
+      borderRadius: radii.md,
+      backgroundColor: colors.bgElevated,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    partyRowDisabled: { opacity: 0.5 },
+    partyRowTitle: { color: colors.text, fontWeight: '800', fontSize: 15 },
+    partyRowMeta: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+    modalClose: {
+      marginTop: spacing.md,
+      padding: spacing.md,
+      alignItems: 'center',
+    },
+    modalCloseText: { color: colors.textSecondary, fontWeight: '800' },
   });
 }

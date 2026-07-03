@@ -15,7 +15,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 
-import WordGameHeader from '../components/word/WordGameHeader';
+import ScreenHeader from '../components/ScreenHeader';
 import LinearGradientFill from '../components/ui/LinearGradientFill';
 import { fetchOwnerVenues, type OwnerVenueRow } from '../lib/ownerStaffApi';
 import type { RootStackParamList } from '../navigation/type';
@@ -123,7 +123,7 @@ export default function StaffVenuesScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <WordGameHeader
+      <ScreenHeader
         colors={colors}
         title={t('staff.venuesTitle')}
         onBack={() => navigation.goBack()}

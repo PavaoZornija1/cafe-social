@@ -19,6 +19,11 @@ export class CreateWordMatchDto {
   @IsUUID()
   venueId?: string;
 
+  /** When set, caller must be a member; session is linked to the party. */
+  @IsOptional()
+  @IsUUID()
+  partyId?: string;
+
   @IsOptional()
   @IsNumber()
   latitude?: number;

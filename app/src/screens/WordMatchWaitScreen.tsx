@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-import WordGameHeader from '../components/word/WordGameHeader';
+import ScreenHeader from '../components/ScreenHeader';
 import LinearGradientFill from '../components/ui/LinearGradientFill';
 import { apiGet, apiPost } from '../lib/api';
 import { triggerFeedback } from '../lib/feedback';
@@ -58,6 +58,7 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
   const {
     venueId,
     challengeId,
+    partyId,
     mode,
     difficulty,
     create = false,
@@ -134,6 +135,7 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
         };
         if (wordCategory) body.category = wordCategory;
         if (mode === 'versus' && rankedParam) body.ranked = true;
+        if (partyId) body.partyId = partyId;
         const res = await apiPost<{
           sessionId: string;
           inviteCode: string | null;
@@ -164,6 +166,7 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
     wordCount,
     wordCategory,
     rankedParam,
+    partyId,
   ]);
 
   const fetchMatchState = useCallback(async () => {
@@ -307,7 +310,7 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <WordGameHeader
+        <ScreenHeader
           colors={colors}
           title={t('wordMatch.waitTitle')}
           onBack={leaveWait}
@@ -324,7 +327,7 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
   if (error && !sessionId) {
     return (
       <SafeAreaView style={styles.safe}>
-        <WordGameHeader
+        <ScreenHeader
           colors={colors}
           title={t('wordMatch.waitTitle')}
           onBack={leaveWait}
@@ -355,7 +358,7 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <WordGameHeader
+      <ScreenHeader
         colors={colors}
         title={t('wordMatch.waitTitle')}
         onBack={leaveWait}
