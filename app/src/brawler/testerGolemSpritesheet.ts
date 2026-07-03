@@ -24,43 +24,43 @@ export const TESTER_GOLEM_HERO_SPRITE_CONFIG: HeroSpriteConfig = {
   hitFineOffsetSheetPx: { right: 0, left: 0 },
   strips: {
     idleRight: {
-      source: require('../../assets/brawlerHeroes/golem/idle_right.png'),
+      source: require('../../assets/brawlerHeroes/golem/idle_right.webp'),
       frameCount: 4,
     },
     idleLeft: {
-      source: require('../../assets/brawlerHeroes/golem/idle_left.png'),
+      source: require('../../assets/brawlerHeroes/golem/idle_left.webp'),
       frameCount: 4,
     },
     walkRight: {
-      source: require('../../assets/brawlerHeroes/golem/walk_right.png'),
+      source: require('../../assets/brawlerHeroes/golem/walk_right.webp'),
       frameCount: 8,
     },
     walkLeft: {
-      source: require('../../assets/brawlerHeroes/golem/walk_left.png'),
+      source: require('../../assets/brawlerHeroes/golem/walk_left.webp'),
       frameCount: 8,
     },
     attackRight: {
-      source: require('../../assets/brawlerHeroes/golem/attack_right.png'),
+      source: require('../../assets/brawlerHeroes/golem/attack_right.webp'),
       frameCount: 12,
     },
     attackLeft: {
-      source: require('../../assets/brawlerHeroes/golem/attack_left.png'),
+      source: require('../../assets/brawlerHeroes/golem/attack_left.webp'),
       frameCount: 12,
     },
     jumpRight: {
-      source: require('../../assets/brawlerHeroes/golem/jump_right.png'),
+      source: require('../../assets/brawlerHeroes/golem/jump_right.webp'),
       frameCount: 5,
     },
     jumpLeft: {
-      source: require('../../assets/brawlerHeroes/golem/jump_left.png'),
+      source: require('../../assets/brawlerHeroes/golem/jump_left.webp'),
       frameCount: 5,
     },
     dashRight: {
-      source: require('../../assets/brawlerHeroes/golem/dash_right.png'),
+      source: require('../../assets/brawlerHeroes/golem/dash_right.webp'),
       frameCount: 4,
     },
     dashLeft: {
-      source: require('../../assets/brawlerHeroes/golem/dash_left.png'),
+      source: require('../../assets/brawlerHeroes/golem/dash_left.webp'),
       frameCount: 4,
     },
   },

@@ -1,7 +1,7 @@
 import type { BrawlerArenaHeroStats } from '../../navigation/type';
 
 /** Mossy tile — one stretched strip per platform hitbox. */
-export const ARENA_MAP_BG = require('../../../assets/Mossy - FloatingPlatforms.png');
+export const ARENA_MAP_BG = require('../../../assets/Mossy - FloatingPlatforms.webp');
 /** Distant sky behind platforms and hero. */
 export const ARENA_SKY_LOTTIE = require('../../../assets/lottie/Underwater Ocean Fish and Turtle.json');
 

@@ -24,43 +24,43 @@ export const SCIENTIST_HERO_SPRITE_CONFIG: HeroSpriteConfig = {
   hitFineOffsetSheetPx: { right: 0, left: 0 },
   strips: {
     idleRight: {
-      source: require('../../assets/brawlerHeroes/scientist/idle_right.png'),
+      source: require('../../assets/brawlerHeroes/scientist/idle_right.webp'),
       frameCount: 5,
     },
     idleLeft: {
-      source: require('../../assets/brawlerHeroes/scientist/idle_left.png'),
+      source: require('../../assets/brawlerHeroes/scientist/idle_left.webp'),
       frameCount: 5,
     },
     walkRight: {
-      source: require('../../assets/brawlerHeroes/scientist/walk_right.png'),
+      source: require('../../assets/brawlerHeroes/scientist/walk_right.webp'),
       frameCount: 9,
     },
     walkLeft: {
-      source: require('../../assets/brawlerHeroes/scientist/walk_left.png'),
+      source: require('../../assets/brawlerHeroes/scientist/walk_left.webp'),
       frameCount: 9,
     },
     attackRight: {
-      source: require('../../assets/brawlerHeroes/scientist/attack_right.png'),
+      source: require('../../assets/brawlerHeroes/scientist/attack_right.webp'),
       frameCount: 13,
     },
     attackLeft: {
-      source: require('../../assets/brawlerHeroes/scientist/attack_left.png'),
+      source: require('../../assets/brawlerHeroes/scientist/attack_left.webp'),
       frameCount: 13,
     },
     jumpRight: {
-      source: require('../../assets/brawlerHeroes/scientist/jump_right.png'),
+      source: require('../../assets/brawlerHeroes/scientist/jump_right.webp'),
       frameCount: 7,
     },
     jumpLeft: {
-      source: require('../../assets/brawlerHeroes/scientist/jump_left.png'),
+      source: require('../../assets/brawlerHeroes/scientist/jump_left.webp'),
       frameCount: 7,
     },
     dashRight: {
-      source: require('../../assets/brawlerHeroes/scientist/dash_right.png'),
+      source: require('../../assets/brawlerHeroes/scientist/dash_right.webp'),
       frameCount: 5,
     },
     dashLeft: {
-      source: require('../../assets/brawlerHeroes/scientist/dash_left.png'),
+      source: require('../../assets/brawlerHeroes/scientist/dash_left.webp'),
       frameCount: 5,
     },
   },

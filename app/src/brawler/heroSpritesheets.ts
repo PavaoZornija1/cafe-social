@@ -11,9 +11,9 @@ const ARENA_HERO_SPRITES: Record<string, HeroSpriteConfig> = {
 };
 
 const HERO_LOBBY_AVATARS: Record<string, ImageSourcePropType> = {
-  [MAGE_HERO_SPRITE_CONFIG.heroId]: require('../../assets/brawlerHeroes/mage/avatar.png'),
-  [SCIENTIST_HERO_SPRITE_CONFIG.heroId]: require('../../assets/brawlerHeroes/scientist/avatar.png'),
-  [TESTER_GOLEM_HERO_SPRITE_CONFIG.heroId]: require('../../assets/brawlerHeroes/golem/avatar.png'),
+  [MAGE_HERO_SPRITE_CONFIG.heroId]: require('../../assets/brawlerHeroes/mage/avatar.webp'),
+  [SCIENTIST_HERO_SPRITE_CONFIG.heroId]: require('../../assets/brawlerHeroes/scientist/avatar.webp'),
+  [TESTER_GOLEM_HERO_SPRITE_CONFIG.heroId]: require('../../assets/brawlerHeroes/golem/avatar.webp'),
 };
 
 export const ARENA_SPRITE_HERO_IDS = Object.keys(

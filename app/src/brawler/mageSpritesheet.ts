@@ -24,43 +24,43 @@ export const MAGE_HERO_SPRITE_CONFIG: HeroSpriteConfig = {
   hitFineOffsetSheetPx: { right: 0, left: 0 },
   strips: {
     idleRight: {
-      source: require('../../assets/brawlerHeroes/mage/idle_right.png'),
+      source: require('../../assets/brawlerHeroes/mage/idle_right.webp'),
       frameCount: 4,
     },
     idleLeft: {
-      source: require('../../assets/brawlerHeroes/mage/idle_left.png'),
+      source: require('../../assets/brawlerHeroes/mage/idle_left.webp'),
       frameCount: 4,
     },
     walkRight: {
-      source: require('../../assets/brawlerHeroes/mage/walk_right.png'),
+      source: require('../../assets/brawlerHeroes/mage/walk_right.webp'),
       frameCount: 9,
     },
     walkLeft: {
-      source: require('../../assets/brawlerHeroes/mage/walk_left.png'),
+      source: require('../../assets/brawlerHeroes/mage/walk_left.webp'),
       frameCount: 9,
     },
     attackRight: {
-      source: require('../../assets/brawlerHeroes/mage/attack_right.png'),
+      source: require('../../assets/brawlerHeroes/mage/attack_right.webp'),
       frameCount: 12,
     },
     attackLeft: {
-      source: require('../../assets/brawlerHeroes/mage/attack_left.png'),
+      source: require('../../assets/brawlerHeroes/mage/attack_left.webp'),
       frameCount: 12,
     },
     jumpRight: {
-      source: require('../../assets/brawlerHeroes/mage/jump_right.png'),
+      source: require('../../assets/brawlerHeroes/mage/jump_right.webp'),
       frameCount: 5,
     },
     jumpLeft: {
-      source: require('../../assets/brawlerHeroes/mage/jump_left.png'),
+      source: require('../../assets/brawlerHeroes/mage/jump_left.webp'),
       frameCount: 5,
     },
     dashRight: {
-      source: require('../../assets/brawlerHeroes/mage/dash_right.png'),
+      source: require('../../assets/brawlerHeroes/mage/dash_right.webp'),
       frameCount: 5,
     },
     dashLeft: {
-      source: require('../../assets/brawlerHeroes/mage/dash_left.png'),
+      source: require('../../assets/brawlerHeroes/mage/dash_left.webp'),
       frameCount: 5,
     },
   },
