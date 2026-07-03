@@ -136,6 +136,10 @@ function buildService(opts: {
   const events = {
     emit: jest.fn(),
   };
+  const challenges = {
+    recordBrawlerMatchFinished: jest.fn().mockResolvedValue(undefined),
+  };
+  const pushNotifications = { sendToPlayers: jest.fn() };
 
   const svc = new BrawlerService(
     prisma as never,
@@ -149,6 +153,8 @@ function buildService(opts: {
     brawlerArena as never,
     subscriptions as never,
     events as never,
+    challenges as never,
+    pushNotifications as never,
   );
   return {
     svc,

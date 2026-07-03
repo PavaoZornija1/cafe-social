@@ -419,10 +419,14 @@
     "emptyDay": "No redemption records for this day.",
     "statusActive": "Active",
     "statusVoided": "Voided",
+    "statusLocked": "Locked",
+    "statusRedeemed": "Redeemed",
+    "statusExpired": "Expired",
     "columns": {
       "code": "Code",
       "redeemed": "Redeemed",
       "perk": "Perk",
+      "player": "Guest",
       "status": "Status"
     }
   },

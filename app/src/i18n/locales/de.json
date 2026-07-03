@@ -19,7 +19,8 @@
     "timeRemaining": "~{{minutes}} Min. Spielzeit heute (UTC) an diesem Ort übrig",
     "compactRemaining": "~{{minutes}} Min. Café-Spielzeit heute übrig",
     "outsideGeofence": "Betritt die Geofence des Lokals, um deine Spielzeit zu nutzen.",
-    "extend": "Verlängern"
+    "extend": "Verlängern",
+    "gamesRemaining": "{{n}} Spiele übrig"
   },
   "social": {
     "or": "oder",
@@ -236,7 +237,10 @@
     "brawlerDescription": "Kurze Arena-Kämpfe mit Helden und Power-ups.",
     "brawlerCta": "Lobby öffnen",
     "brawlerCtaGlobal": "Lobby öffnen (global — Abonnenten)",
-    "brawlerNeedVenue": "Brawler braucht Check-in (Arena ist ortsgebunden)."
+    "brawlerNeedVenue": "Brawler braucht Check-in (Arena ist ortsgebunden).",
+    "heroTitle": "Wähle ein Spiel",
+    "heroVenue": "Du bist bei {{venue}} — Venue-Spiele nutzen dieses Café.",
+    "heroGlobal": "Abonnent — spiele von überall."
   },
   "brawlerLobby": {
     "title": "Brawler-Lobby",
@@ -372,7 +376,18 @@
     "scanSuccessBody": "QR verifiziert und Belohnung als eingelöst markiert.",
     "refreshA11y": "Einlösungen aktualisieren",
     "prevDayA11y": "Vorheriger Tag",
-    "nextDayA11y": "Nächster Tag"
+    "nextDayA11y": "Nächster Tag",
+    "memberScanSuccessTitle": "Mitglied erkannt",
+    "memberScanSuccessBody": "{{username}} ist bei uns.",
+    "lockReward": "Sperren",
+    "unlockReward": "Entsperren",
+    "voidReward": "Stornieren",
+    "voidRewardTitle": "Belohnung stornieren?",
+    "voidRewardHint": "Der Gast sieht die Belohnung als ungültig. Nur bei Missbrauch oder Fehlern nutzen.",
+    "lockRewardTitle": "Belohnung sperren?",
+    "lockRewardHint": "Der Code ist bis zur Freigabe verborgen.",
+    "lockReasonPlaceholder": "Grund (optional)",
+    "lockReasonRequired": "Gib einen Sperrgrund ein."
   },
   "home": {
     "appTitle": "Cafe Social",
@@ -534,7 +549,9 @@
     "redeemPerkTitle": "Vorteilscode einlösen",
     "redeemPerkHint": "Staff-Code eingeben, während du in einem Partner-Café bist.",
     "progressTitle": "Dein Level",
-    "crossVenueStats": "Über alle Orte"
+    "crossVenueStats": "Über alle Orte",
+    "subscribersTitle": "Partner für Abonnenten",
+    "subscribersEmpty": "Noch keine Abonnenten-Partner in deiner Nähe."
   },
   "inbox": {
     "title": "Einladungen & Anfragen",
@@ -581,7 +598,9 @@
     "myRewardsHereTitle": "Deine Belohnungen hier",
     "myRewardsHereEmpty": "Noch keine einlösbaren Perk-Belohnungen — schau bei den Challenges.",
     "myRewardsSeeCrossVenue": "Alle Belohnungen (alle Orte)",
-    "refreshA11y": "Lokal aktualisieren"
+    "refreshA11y": "Lokal aktualisieren",
+    "perkWalletCta": "Codes",
+    "submitReceiptCta": "Beleg zur Prüfung einreichen"
   },
   "partnerMap": {
     "title": "Partner-Cafés",
@@ -629,7 +648,8 @@
     "failed": "Upload fehlgeschlagen.",
     "needLocationAtVenue": "Standort aktivieren und im Lokal sein, um den Beleg zu senden.",
     "sentTitle": "Gesendet",
-    "sentBody": "Das Personal prüft deine Einsendung."
+    "sentBody": "Das Personal prüft deine Einsendung.",
+    "linkedRewardHint": "Diese Belohnung wird bis zur Prüfung gesperrt."
   },
   "dailyWord": {
     "title": "Tageswort",
@@ -669,7 +689,20 @@
     "progress": "Fortschritt: {{current}}/{{target}}",
     "requiresAtCafe": "Erfordert Anwesenheit im Café.",
     "worksFromHome": "Funktioniert von zu Hause.",
-    "progressCta": "Fortschritt +1",
+    "autoProgressWordMatch": "Fortschritt automatisch nach einer abgeschlossenen Wortspiel-Session.",
+    "autoProgressBrawler": "Fortschritt automatisch nach einem abgeschlossenen Brawler-Match.",
+    "autoProgressDailyWord": "Fortschritt automatisch beim Lösen des täglichen Venue-Worts.",
+    "autoProgressPresence": "Fortschritt automatisch beim Check-in im Lokal.",
+    "autoProgressManual": "Tippe, um Fortschritt manuell zu erfassen.",
+    "playWordGames": "Wortspiele spielen",
+    "playBrawler": "Brawler spielen",
+    "playDailyWord": "Tägliches Wort lösen",
+    "checkIn": "Im Café einchecken",
+    "manualProgressCta": "Fortschritt erfassen",
+    "upcoming": "Startet bald",
+    "startsSoon": "Öffnet {{when}}",
+    "soon": "bald",
+    "requiresWin": "Nur Siege zählen für diese Challenge.",
     "completedCta": "Abgeschlossen",
     "updating": "Aktualisiere…",
     "loadError": "Challenges konnten nicht geladen werden",
@@ -855,7 +888,12 @@
     "redeemedAt": "Eingelöst {{when}}",
     "openFriends": "Freunde",
     "shareFriendLink": "Freundes-Link teilen",
-    "openRewardsHub": "Meine Belohnungen (QR)"
+    "openRewardsHub": "Meine Belohnungen (QR)",
+    "openQuestHub": "Belohnungs-Hub",
+    "openPerkWallet": "Meine Perk-Codes",
+    "openMemberCard": "Mitgliedskarte",
+    "statsTitle": "Deine Stats",
+    "seeAllPerks": "Alle Belohnungen"
   },
   "leaderboard": {
     "title": "Rangliste",
@@ -922,7 +960,17 @@
     "transferPick": "Neue Leitung wählen",
     "transferTitle": "Leitung übertragen",
     "transferConfirm": "{{name}} als Leiter/in setzen? Du verlierst Leiterrechte.",
-    "transferDone": "Leitung übertragen."
+    "transferDone": "Leitung übertragen.",
+    "playTogether": "Gemeinsam spielen",
+    "playTogetherHint": "Lobby öffnen — im Chat abstimmen, dann Warteschlange oder Raum.",
+    "playAtVenue": "Erkannt bei {{venue}} — Venue-Spiele nutzen dieses Café.",
+    "playGlobalSubscriber": "Abonnent — du kannst von überall spielen.",
+    "playNeedVenue": "In einem Partner-Café für Venue-Spiele oder mit Abo von überall.",
+    "detailJustCreatedTitle": "Party erstellt",
+    "detailJustCreatedHint": "Teile einen Einladungslink, dann wählt ihr unten ein Spiel.",
+    "waitingForFriends": "Du bist allein — lade Freunde ein.",
+    "playWord": "Word-Match-Lobby",
+    "playBrawler": "Brawler-Lobby"
   },
   "myReports": {
     "title": "Deine Lokal-Meldungen",
@@ -972,7 +1020,8 @@
     "unblock": "Entblocken",
     "blockTitle": "Diese Person blockieren?",
     "blockConfirm": "{{username}} kann dir keine Freundschaftsanfragen senden und erscheint nicht in Freundes-Funktionen. Ausstehende Anfragen werden entfernt.",
-    "blockFailed": "Blockliste konnte nicht aktualisiert werden."
+    "blockFailed": "Blockliste konnte nicht aktualisiert werden.",
+    "subtitle": "Verbinde dich mit Leuten, mit denen du in Partner-Cafés spielst."
   },
   "rewardsHub": {
     "title": "Belohnungen",
@@ -1009,7 +1058,13 @@
     "staffVerificationCode": "Code für Personal",
     "myRewards": "Meine einlösbaren Belohnungen",
     "rewardStatus": "Status",
-    "rewardExpires": "Läuft ab"
+    "rewardExpires": "Läuft ab",
+    "needLocationPrecise": "Wir brauchen GPS, um die Venue-Zone zu bestätigen. Versuche es draußen oder am Fenster.",
+    "wrongVenue": "Du bist an einem anderen Ort als dieses Café. Geh zum richtigen Ort oder öffne Einlösen von Home.",
+    "availableAtVenue": "Angebote in diesem Café",
+    "qrUnlockHint": "Check-in (QR oder Einladung) kann vor dem Einlösen nötig sein.",
+    "redeemedByYou": "Du hast dieses Angebot bereits eingelöst.",
+    "fullyRedeemedLabel": "Eingelöst"
   },
   "redeem": {
     "title": "Einladung einlösen",
@@ -1081,7 +1136,20 @@
     "signInRequired": "Zum Einspruch bitte anmelden.",
     "successTitle": "Einspruch gesendet",
     "successBody": "Bei Rückfragen nutzen Manager deine E-Mail. Pro Lokal nur ein offener Einspruch.",
-    "failed": "Einspruch konnte nicht gesendet werden."
+    "failed": "Einspruch konnte nicht gesendet werden.",
+    "outcomeTitleLifted": "Sperre aufgehoben",
+    "outcomeTitleUpheld": "Sperre bleibt",
+    "outcomeTitleDismissed": "Einspruch abgewiesen",
+    "outcomeTitleOther": "Entscheidung",
+    "outcomeBodyLifted": "Das Personal hat deine Sperre aufgehoben. Du kannst wieder teilnehmen.",
+    "outcomeBodyUpheld": "Das Personal hat die Sperre bestätigt.",
+    "outcomeBodyDismissed": "Dein Einspruch wurde ohne Änderung geschlossen.",
+    "outcomeBodyOther": "Das Personal hat deinen Einspruch bearbeitet.",
+    "staffMessageLabel": "Nachricht vom Personal",
+    "resolvedAt": "Bearbeitet {{when}}",
+    "refresh": "Aktualisieren",
+    "pendingTitle": "Einspruch läuft",
+    "pendingBody": "Das Personal prüft deinen Einspruch. Wir benachrichtigen dich."
   },
   "questHub": {
     "title": "Belohnungs-Hub",
@@ -1120,7 +1188,12 @@
     "statusVoided": "Storniert",
     "statusRedeemed": "Eingelöst",
     "statusOther": "{{status}}",
-    "redeemAtVenue": "Im Café einlösen"
+    "redeemAtVenue": "Im Café einlösen",
+    "statusLocked": "In Prüfung",
+    "lockedHint": "Diese Belohnung ist gesperrt, bis das Personal einen Beleg oder ein Problem prüft.",
+    "refreshA11y": "Perk-Codes aktualisieren",
+    "submitReceiptToUnlock": "Beleg einreichen",
+    "codeHidden": "Ausgeblendet"
   },
   "categories": {
     "DRINK_FOOD": "Getränk & Essen",
@@ -1128,5 +1201,11 @@
     "MUSIC_CULTURE": "Musik & Kultur",
     "PEOPLE_ROLES": "Menschen & Rollen",
     "MOMENTS_ACTIONS": "Momente & Aktionen"
+  },
+  "brawlerArena": {
+    "leaveTitle": "Arena verlassen?",
+    "leaveBody": "Dein aktuelles Match endet, wenn du jetzt gehst.",
+    "leave": "Verlassen",
+    "cancel": "Abbrechen"
   }
 }

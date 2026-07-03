@@ -159,6 +159,13 @@ export function VenueReceiptsSection() {
                             status: receiptDetailQ.data.status,
                           })}
                         </p>
+                        {receiptDetailQ.data.linkedRedemptionId ? (
+                          <p className="text-sm text-amber-800 font-medium">
+                            {t("admin.partnerVenueDetail.receipts.linkedRedemption", {
+                              id: receiptDetailQ.data.linkedRedemptionId,
+                            })}
+                          </p>
+                        ) : null}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={receiptDetailQ.data.imageData}

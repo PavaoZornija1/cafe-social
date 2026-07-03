@@ -6,6 +6,7 @@ import {
   NotFoundException,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -25,6 +26,18 @@ class AdminCreatePerkDto {
   subtitle?: string;
   body?: string;
   requiresQrUnlock?: boolean;
+  autoRedeem?: boolean;
+  activeFrom?: string | null;
+  activeTo?: string | null;
+  maxRedemptions?: number | null;
+}
+
+class AdminPatchPerkDto {
+  title?: string;
+  subtitle?: string | null;
+  body?: string | null;
+  requiresQrUnlock?: boolean;
+  autoRedeem?: boolean;
   activeFrom?: string | null;
   activeTo?: string | null;
   maxRedemptions?: number | null;
@@ -68,9 +81,42 @@ export class AdminPerkController {
         subtitle: dto.subtitle?.trim() || null,
         body: dto.body?.trim() || null,
         requiresQrUnlock: dto.requiresQrUnlock ?? false,
+        autoRedeem: dto.autoRedeem ?? false,
         activeFrom: dto.activeFrom ? new Date(dto.activeFrom) : null,
         activeTo: dto.activeTo ? new Date(dto.activeTo) : null,
         maxRedemptions: dto.maxRedemptions ?? null,
+      },
+    });
+  }
+
+  @Patch('perks/:id')
+  async patch(
+    @Req() req: ReqWithScope,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: AdminPatchPerkDto,
+  ) {
+    const scope = getAdminCmsScope(req);
+    const perk = await this.prisma.venuePerk.findUnique({
+      where: { id },
+      select: { venueId: true },
+    });
+    if (!perk) throw new NotFoundException('Perk not found');
+    this.cmsAccess.assertVenueInScope(scope, perk.venueId);
+    return this.prisma.venuePerk.update({
+      where: { id },
+      data: {
+        ...(dto.title !== undefined && { title: dto.title.trim() }),
+        ...(dto.subtitle !== undefined && { subtitle: dto.subtitle?.trim() || null }),
+        ...(dto.body !== undefined && { body: dto.body?.trim() || null }),
+        ...(dto.requiresQrUnlock !== undefined && { requiresQrUnlock: dto.requiresQrUnlock }),
+        ...(dto.autoRedeem !== undefined && { autoRedeem: dto.autoRedeem }),
+        ...(dto.activeFrom !== undefined && {
+          activeFrom: dto.activeFrom ? new Date(dto.activeFrom) : null,
+        }),
+        ...(dto.activeTo !== undefined && {
+          activeTo: dto.activeTo ? new Date(dto.activeTo) : null,
+        }),
+        ...(dto.maxRedemptions !== undefined && { maxRedemptions: dto.maxRedemptions }),
       },
     });
   }

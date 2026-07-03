@@ -15,6 +15,7 @@ import { TableRowCards } from "@/components/TableRowCards";
 import {
   useCreatePerkMutation,
   useDeletePerkMutation,
+  usePatchPerkMutation,
   useVenuePerksQuery,
 } from "@/lib/queries";
 
@@ -23,6 +24,7 @@ type Perk = {
   code: string;
   title: string;
   redemptionCount: number;
+  autoRedeem: boolean;
 };
 
 const colHelper = createColumnHelper<Perk>();
@@ -50,16 +52,18 @@ export function VenuePerksSection({
   const { t } = useTranslation();
   const perksQ = useVenuePerksQuery(venueId, getToken, enabled && Boolean(venueId));
   const createMut = useCreatePerkMutation(venueId, getToken);
+  const patchMut = usePatchPerkMutation(venueId, getToken);
   const deleteMut = useDeletePerkMutation(venueId, getToken);
   const [deleteTarget, setDeleteTarget] = useState<Perk | null>(null);
 
   const form = useForm({
-    defaultValues: { code: "", title: "", requiresQr: false },
+    defaultValues: { code: "", title: "", requiresQr: false, autoRedeem: false },
     onSubmit: async ({ value }) => {
       await createMut.mutateAsync({
         code: value.code,
         title: value.title,
         requiresQrUnlock: value.requiresQr,
+        autoRedeem: value.autoRedeem,
       });
       form.reset();
     },
@@ -83,6 +87,26 @@ export function VenuePerksSection({
         ),
       }),
       colHelper.display({
+        id: "flags",
+        header: "",
+        cell: ({ row }) => (
+          <label className="flex items-center gap-2 text-xs text-slate-600">
+            <input
+              type="checkbox"
+              checked={row.original.autoRedeem}
+              disabled={patchMut.isPending}
+              onChange={(e) =>
+                void patchMut.mutateAsync({
+                  id: row.original.id,
+                  body: { autoRedeem: e.target.checked },
+                })
+              }
+            />
+            {t("admin.venueCms.perks.autoRedeemShort")}
+          </label>
+        ),
+      }),
+      colHelper.display({
         id: "del",
         header: "",
         cell: ({ row }) => (
@@ -97,7 +121,7 @@ export function VenuePerksSection({
         ),
       }),
     ],
-    [deleteMut.isPending, t],
+    [deleteMut.isPending, patchMut.isPending, t],
   );
 
   const table = useReactTable({
@@ -218,6 +242,19 @@ export function VenuePerksSection({
                   onChange={(e) => f.handleChange(e.target.checked)}
                 />
                 {t("admin.venueCms.perks.requiresQr")}
+              </label>
+            )}
+          </form.Field>
+          <form.Field name="autoRedeem">
+            {(f) => (
+              <label className="inline-flex cursor-pointer items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-slate-300 text-brand focus:ring-brand/30"
+                  checked={f.state.value}
+                  onChange={(e) => f.handleChange(e.target.checked)}
+                />
+                {t("admin.venueCms.perks.autoRedeem")}
               </label>
             )}
           </form.Field>

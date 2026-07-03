@@ -1,6 +1,27 @@
 import { Injectable } from '@nestjs/common';
-import type { ChallengeProgress } from '@prisma/client';
+import type {
+  ChallengeAutoProgressSource,
+  ChallengeProgress,
+  ChallengeScheduleType,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+
+export type ChallengeTargetRow = {
+  id: string;
+  venueId: string;
+  targetCount: number;
+  rewardVenueSpecific: boolean;
+  locationRequired: boolean;
+  resetsWeekly: boolean;
+  scheduleType: ChallengeScheduleType;
+  activeFrom: Date | null;
+  activeTo: Date | null;
+  dailyStartMinutes: number | null;
+  dailyEndMinutes: number | null;
+  rewardPerkId: string | null;
+  autoProgressSource: ChallengeAutoProgressSource;
+  requiresWin: boolean;
+};
 
 @Injectable()
 export class ChallengeRepository {
@@ -14,6 +35,39 @@ export class ChallengeRepository {
         rewardPerk: { select: { id: true, title: true } },
       },
     });
+  }
+
+  createChallenge(data: {
+    venueId: string;
+    title: string;
+    description?: string | null;
+    autoProgressSource: ChallengeAutoProgressSource;
+    rewardVenueSpecific: boolean;
+    locationRequired: boolean;
+    targetCount: number;
+    resetsWeekly: boolean;
+    scheduleType: ChallengeScheduleType;
+    activeFrom?: Date | null;
+    activeTo?: Date | null;
+    dailyStartMinutes?: number | null;
+    dailyEndMinutes?: number | null;
+    requiresWin: boolean;
+    rewardPerkId?: string | null;
+  }) {
+    return this.prisma.challenge.create({ data });
+  }
+
+  deleteChallenge(id: string) {
+    return this.prisma.challenge.delete({ where: { id } });
+  }
+
+  getVenueTimeZone(venueId: string): Promise<string | null> {
+    return this.prisma.venue
+      .findUnique({
+        where: { id: venueId },
+        select: { analyticsTimeZone: true },
+      })
+      .then((v) => v?.analyticsTimeZone?.trim() || null);
   }
 
   findProgresses(
@@ -30,17 +84,7 @@ export class ChallengeRepository {
     });
   }
 
-  getChallengeTarget(challengeId: string): Promise<{
-    id: string;
-    venueId: string;
-    targetCount: number;
-    rewardVenueSpecific: boolean;
-    locationRequired: boolean;
-    resetsWeekly: boolean;
-    activeFrom: Date | null;
-    activeTo: Date | null;
-    rewardPerkId: string | null;
-  } | null> {
+  getChallengeTarget(challengeId: string): Promise<ChallengeTargetRow | null> {
     return this.prisma.challenge.findUnique({
       where: { id: challengeId },
       select: {
@@ -50,9 +94,14 @@ export class ChallengeRepository {
         rewardVenueSpecific: true,
         locationRequired: true,
         resetsWeekly: true,
+        scheduleType: true,
         activeFrom: true,
         activeTo: true,
+        dailyStartMinutes: true,
+        dailyEndMinutes: true,
         rewardPerkId: true,
+        autoProgressSource: true,
+        requiresWin: true,
       },
     });
   }
@@ -79,7 +128,6 @@ export class ChallengeRepository {
     challengeId: string;
     newCount: number;
     completedAt: Date | null;
-    /** When omitted, `periodKey` is not changed on update (non-weekly challenges). */
     periodKey?: string | null;
   }): Promise<ChallengeProgress> {
     const { playerId, challengeId, newCount, completedAt, periodKey } = params;
@@ -102,5 +150,15 @@ export class ChallengeRepository {
       },
     });
   }
-}
 
+  markRewardClaimed(playerId: string, challengeId: string, claimedAt: Date): Promise<void> {
+    return this.prisma.challengeProgress
+      .update({
+        where: {
+          playerId_challengeId: { playerId, challengeId },
+        },
+        data: { rewardClaimedAt: claimedAt },
+      })
+      .then(() => undefined);
+  }
+}

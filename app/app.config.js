@@ -96,6 +96,9 @@ export default {
     ],
     extra: {
       eas: easProjectId ? { projectId: easProjectId } : {},
+      receiptSubmissionsEnabled:
+        process.env.EXPO_PUBLIC_RECEIPT_SUBMISSIONS_ENABLED === 'true' ||
+        process.env.EXPO_PUBLIC_RECEIPT_SUBMISSIONS_ENABLED === '1',
     },
     runtimeVersion: {
       policy: 'appVersion',

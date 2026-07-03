@@ -29,7 +29,13 @@ export class RevenueCatWebhookController {
   ): Promise<{ ok: true }> {
     const body = req.body as RcWebhookBody;
     const expected = this.config.get<string>('REVENUECAT_WEBHOOK_AUTHORIZATION')?.trim();
-    if (expected) {
+    if (!expected) {
+      if (process.env.NODE_ENV === 'production') {
+        this.log.error('REVENUECAT_WEBHOOK_AUTHORIZATION is not configured');
+        throw new UnauthorizedException();
+      }
+      this.log.warn('RevenueCat webhook: authorization not configured (dev only)');
+    } else {
       const received = authorization?.trim() ?? '';
       if (received !== expected) {
         this.log.warn('RevenueCat webhook rejected: authorization mismatch');

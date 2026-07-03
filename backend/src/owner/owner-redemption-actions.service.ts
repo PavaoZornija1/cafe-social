@@ -106,7 +106,8 @@ export class OwnerRedemptionActionsService {
   async lockRedemption(params: {
     venueId: string;
     redemptionId: string;
-    staffPlayerId: string;
+    /** Omitted for player-initiated receipt locks (guest submitting proof). */
+    staffPlayerId?: string;
     reason: string;
   }) {
     const reason = params.reason?.trim();
@@ -126,7 +127,9 @@ export class OwnerRedemptionActionsService {
       data: {
         status: 'LOCKED',
         voidReason: reason.slice(0, 500),
-        voidedByPlayerId: params.staffPlayerId,
+        ...(params.staffPlayerId
+          ? { voidedByPlayerId: params.staffPlayerId }
+          : { voidedByPlayerId: null }),
       },
     });
   }

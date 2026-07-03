@@ -52,9 +52,10 @@
     "step2BeforeDeepLink": "scan or open",
     "step2AfterDeepLink": "on a phone with the app installed.",
     "step3Title": "Sample perks & challenges",
-    "step3BeforeCms": "Publish one simple perk staff can honour and one weekly challenge under",
-    "step3CmsLink": "Locations & content",
-    "step3AfterCms": "for this location.",
+    "step3BeforeLinks": "Publish one simple perk staff can honour and one challenge under",
+    "step3PerksLink": "Perks",
+    "step3ChallengesLink": "Challenges",
+    "step3AfterLinks": " in this venue dashboard (link a perk as the challenge reward; optional auto-redeem skips staff scan).",
     "step4Title": "Poster copy",
     "step4Body": "use the partner brief wording for table tents; point guests to the app + your venue context.",
     "step5Title": "Staff shift",
@@ -228,7 +229,9 @@
     "receiptAlt": "Receipt",
     "approve": "Approve",
     "reject": "Reject",
-    "playerStatus": "{{email}} — {{status}}"
+    "playerStatus": "{{email}} — {{status}}",
+    "linkedRedemption": "Linked reward claim: {{id}}",
+    "linkedRedemption": "Verknüpfte Belohnung: {{id}}"
   },
   "redemptions": {
     "title": "Perk redemptions",
@@ -255,6 +258,8 @@
     "moderation": "Moderation",
     "team": "Team",
     "campaigns": "Campaigns",
+    "challenges": "Challenges",
+    "perks": "Perks",
     "receipts": "Receipts",
     "redemptions": "Redemptions"
   }

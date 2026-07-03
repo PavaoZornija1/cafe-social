@@ -648,7 +648,8 @@
     "failed": "Could not upload receipt.",
     "needLocationAtVenue": "Enable location and stand inside this venue to submit a receipt.",
     "sentTitle": "Sent",
-    "sentBody": "Venue staff will review your submission."
+    "sentBody": "Venue staff will review your submission.",
+    "linkedRewardHint": "This reward will be locked until staff review your receipt."
   },
   "dailyWord": {
     "title": "Daily word",
@@ -688,7 +689,20 @@
     "progress": "Progress: {{current}}/{{target}}",
     "requiresAtCafe": "Requires being at the café.",
     "worksFromHome": "Works from home.",
-    "progressCta": "Progress +1",
+    "autoProgressWordMatch": "Progresses automatically when you finish a word game session.",
+    "autoProgressBrawler": "Progresses automatically when you finish a brawler match.",
+    "autoProgressDailyWord": "Progresses automatically when you solve the venue daily word.",
+    "autoProgressPresence": "Progresses automatically when you check in at the venue.",
+    "autoProgressManual": "Tap to record progress manually.",
+    "playWordGames": "Play word games",
+    "playBrawler": "Play brawler",
+    "playDailyWord": "Solve daily word",
+    "checkIn": "Check in at café",
+    "manualProgressCta": "Record progress",
+    "upcoming": "Starts soon",
+    "startsSoon": "Opens {{when}}",
+    "soon": "soon",
+    "requiresWin": "Only wins count toward this challenge.",
     "completedCta": "Completed",
     "updating": "Updating…",
     "loadError": "Failed to load challenges",
@@ -1065,7 +1079,9 @@
     "statusOther": "{{status}}",
     "lockedHint": "This reward is locked while staff review a receipt or issue. Show your code once it is unlocked.",
     "redeemAtVenue": "Redeem at café",
-    "refreshA11y": "Refresh perk codes"
+    "refreshA11y": "Refresh perk codes",
+    "submitReceiptToUnlock": "Submit receipt",
+    "codeHidden": "Hidden"
   },
   "perk": {
     "title": "Redeem perk",
@@ -1183,5 +1199,11 @@
     "MUSIC_CULTURE": "Music & culture",
     "PEOPLE_ROLES": "People & roles",
     "MOMENTS_ACTIONS": "Moments & actions"
+  },
+  "brawlerArena": {
+    "leaveTitle": "Leave arena?",
+    "leaveBody": "Your current match will end if you leave now.",
+    "leave": "Leave",
+    "cancel": "Cancel"
   }
 }

@@ -42,6 +42,7 @@ import { OwnerCampaignService } from './owner-campaign.service';
 import { OwnerRedemptionActionsService } from './owner-redemption-actions.service';
 import { PlayerService } from '../player/player.service';
 import { VenueReceiptService } from '../receipt/venue-receipt.service';
+import { ReceiptSubmissionsEnabledGuard } from '../receipt/receipt-submissions-enabled.guard';
 import { CreateOwnerCampaignDto } from './dto/create-owner-campaign.dto';
 import { CreateOwnerCampaignBindingDto } from './dto/create-owner-campaign-binding.dto';
 import { ReviewReceiptDto } from './dto/review-receipt.dto';
@@ -1033,14 +1034,14 @@ export class OwnerController {
   }
 
   @Get('venues/:venueId/receipts')
-  @UseGuards(VenueStaffGuard)
+  @UseGuards(VenueStaffGuard, ReceiptSubmissionsEnabledGuard)
   @MinVenueRole(VenueStaffRole.MANAGER)
   listReceipts(@Param('venueId', new ParseUUIDPipe()) venueId: string) {
     return this.receipts.listSummaryForVenue(venueId);
   }
 
   @Get('venues/:venueId/receipts/:submissionId')
-  @UseGuards(VenueStaffGuard)
+  @UseGuards(VenueStaffGuard, ReceiptSubmissionsEnabledGuard)
   @MinVenueRole(VenueStaffRole.MANAGER)
   receiptDetail(
     @Param('venueId', new ParseUUIDPipe()) venueId: string,
@@ -1050,7 +1051,7 @@ export class OwnerController {
   }
 
   @Post('venues/:venueId/receipts/:submissionId/review')
-  @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard)
+  @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard, ReceiptSubmissionsEnabledGuard)
   @MinVenueRole(VenueStaffRole.MANAGER)
   async reviewReceipt(
     @CurrentUser() user: unknown,

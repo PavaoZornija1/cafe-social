@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiPost } from '../lib/api';
 import { triggerFeedback } from '../lib/feedback';
+import { isReceiptSubmissionsEnabled } from '../lib/receiptSubmissionsFeature';
 import {
   fetchMyVenueRewards,
   fetchVenuePerkTeasers,
@@ -448,9 +449,24 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
                   <View style={styles.codeBox}>
                     <Text style={styles.codeLabel}>{t('perk.staffVerificationCode')}</Text>
                     <Text style={styles.codeValue}>
-                      {r.status === 'LOCKED' ? '—' : r.staffVerificationCode}
+                      {r.status === 'LOCKED' ? t('perkWallet.codeHidden') : r.staffVerificationCode}
                     </Text>
                   </View>
+                  {r.status === 'REDEEMABLE' && isReceiptSubmissionsEnabled() ? (
+                    <Pressable
+                      style={({ pressed }) => [styles.submitReceiptBtn, pressed && styles.pressed]}
+                      onPress={() =>
+                        navigation.navigate('SubmitReceipt', {
+                          venueId,
+                          redemptionId: r.redemptionId,
+                        })
+                      }
+                    >
+                      <Text style={styles.submitReceiptBtnText}>
+                        {t('perkWallet.submitReceiptToUnlock')}
+                      </Text>
+                    </Pressable>
+                  ) : null}
                 </View>
               );
             })}
@@ -609,6 +625,20 @@ function createStyles(colors: AppColors) {
       fontWeight: '900',
       color: colors.primary,
       letterSpacing: 2,
+    },
+    submitReceiptBtn: {
+      marginTop: spacing.sm,
+      backgroundColor: colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      borderRadius: radii.md,
+      paddingVertical: spacing.md,
+      alignItems: 'center',
+    },
+    submitReceiptBtnText: {
+      color: colors.primary,
+      fontWeight: '800',
+      fontSize: 14,
     },
     resultTitle: { color: colors.text, fontSize: 17, fontWeight: '900' },
     resultSub: { color: colors.honeyDark, fontSize: 14, fontWeight: '700' },

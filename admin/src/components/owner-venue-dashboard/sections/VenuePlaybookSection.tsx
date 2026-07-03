@@ -29,11 +29,21 @@ export function VenuePlaybookSection() {
                   </li>
                   <li>
                     <strong>{t("admin.partnerVenueDetail.playbook.step3Title")}</strong> —{" "}
-                    {t("admin.partnerVenueDetail.playbook.step3BeforeCms")}{" "}
-                    <Link href={`/venues/${venueId}`} className="text-brand font-medium hover:underline">
-                      {t("admin.partnerVenueDetail.playbook.step3CmsLink")}
-                    </Link>{" "}
-                    {t("admin.partnerVenueDetail.playbook.step3AfterCms")}
+                    {t("admin.partnerVenueDetail.playbook.step3BeforeLinks")}{" "}
+                    <Link
+                      href={`/owner/venues/${venueId}/perks`}
+                      className="text-brand font-medium hover:underline"
+                    >
+                      {t("admin.partnerVenueDetail.playbook.step3PerksLink")}
+                    </Link>
+                    {" · "}
+                    <Link
+                      href={`/owner/venues/${venueId}/challenges`}
+                      className="text-brand font-medium hover:underline"
+                    >
+                      {t("admin.partnerVenueDetail.playbook.step3ChallengesLink")}
+                    </Link>
+                    {t("admin.partnerVenueDetail.playbook.step3AfterLinks")}
                   </li>
                   <li>
                     <strong>{t("admin.partnerVenueDetail.playbook.step4Title")}</strong> —{" "}

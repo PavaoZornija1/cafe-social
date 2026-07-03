@@ -13,6 +13,7 @@ import { OwnerController } from './owner.controller';
 import { PartnerOrgAccessService } from './partner-org-access.service';
 import { PartnerOnboardingService } from './partner-onboarding.service';
 import { OwnerOrganizationVenueService } from './owner-organization-venue.service';
+import { ReceiptSubmissionsEnabledGuard } from '../receipt/receipt-submissions-enabled.guard';
 import { PartnerVenueWriteGuard } from './partner-venue-write.guard';
 import { PartnerOpsListener } from './partner-ops.listener';
 import { PartnerOnboardingThrottlerFilter } from './partner-onboarding-throttle.filter';
@@ -43,6 +44,7 @@ import { NotificationModule } from '../notification/notification.module';
     PartnerVenueWriteGuard,
     PartnerOpsListener,
     PartnerOnboardingThrottlerFilter,
+    ReceiptSubmissionsEnabledGuard,
   ],
   exports: [PartnerOrgAccessService],
 })

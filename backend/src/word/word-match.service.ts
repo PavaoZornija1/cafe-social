@@ -12,6 +12,7 @@ import {
   GameType,
   WordMatchQueueMode,
   WordMatchQueueStatus,
+  ChallengeAutoProgressSource,
   type Prisma,
   type PrismaClient,
   type WordCategory,
@@ -813,8 +814,11 @@ export class WordMatchService {
     if (result.correct) {
       this.pushSessionRefresh(sessionId, { reason: 'coop_guess' });
     }
-    if (result.done && result.correct && result.perfectCoop) {
-      void this.gameXp.tryAwardSessionWinXp(sessionId);
+    if (result.done) {
+      if (result.perfectCoop) {
+        void this.gameXp.tryAwardSessionWinXp(sessionId);
+      }
+      this.recordVenueChallengesForSession(sessionId);
     }
     return result;
   }
@@ -1773,10 +1777,14 @@ export class WordMatchService {
         if (!p.playerId || p.isBot) continue;
         const venueId = playerVenueIds[p.playerId] ?? session.venueId;
         if (!venueId) continue;
+        const countsAsWin = p.result === GameParticipantResult.WIN;
         await this.challenges.bumpActiveChallengesForPlayerAtVenue({
           playerId: p.playerId,
           venueId,
           trustVenuePresence: true,
+          activityAtVenue: true,
+          countsAsWin,
+          source: ChallengeAutoProgressSource.WORD_MATCH,
         });
       }
     })();

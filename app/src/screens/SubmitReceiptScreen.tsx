@@ -2,7 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,6 +17,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiPost } from '../lib/api';
+import { isReceiptSubmissionsEnabled } from '../lib/receiptSubmissionsFeature';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
@@ -27,11 +28,22 @@ export default function SubmitReceiptScreen({ navigation, route }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
+  const receiptsEnabled = isReceiptSubmissionsEnabled();
   const { venueId, redemptionId: routeRedemptionId } = route.params;
   const { getToken, isLoaded } = useAuth();
   const [note, setNote] = useState('');
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!receiptsEnabled) {
+      navigation.goBack();
+    }
+  }, [navigation, receiptsEnabled]);
+
+  if (!receiptsEnabled) {
+    return null;
+  }
 
   const pickImage = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -98,7 +110,11 @@ export default function SubmitReceiptScreen({ navigation, route }: Props) {
         </Pressable>
         <Text style={styles.title}>{t('receiptSubmit.title')}</Text>
       </View>
-      <Text style={styles.hint}>{t('receiptSubmit.hint')}</Text>
+      <Text style={styles.hint}>
+        {routeRedemptionId
+          ? t('receiptSubmit.linkedRewardHint')
+          : t('receiptSubmit.hint')}
+      </Text>
 
       <Pressable style={styles.pickBtn} onPress={() => void pickImage()} disabled={busy}>
         <Text style={styles.pickBtnText}>{t('receiptSubmit.pickPhoto')}</Text>
@@ -132,52 +148,67 @@ export default function SubmitReceiptScreen({ navigation, route }: Props) {
   );
 }
 
-
 function createStyles(colors: AppColors) {
-    return StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 24, paddingTop: 16 },
-  backBtn: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, backgroundColor: colors.surface },
-  backText: { color: colors.textSecondary, fontWeight: '600' },
-  title: { color: colors.text, fontSize: 20, fontWeight: '800', flex: 1 },
-  hint: { color: colors.textMuted, fontSize: 13, marginHorizontal: 24, marginTop: 12, lineHeight: 18 },
-  pickBtn: {
-    marginHorizontal: 24,
-    marginTop: 16,
-    backgroundColor: '#1f2937',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  pickBtnText: { color: colors.honey, fontWeight: '800' },
-  preview: {
-    marginHorizontal: 24,
-    marginTop: 16,
-    height: 220,
-    borderRadius: 12,
-    backgroundColor: '#111',
-  },
-  input: {
-    marginHorizontal: 24,
-    marginTop: 16,
-    minHeight: 72,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: 12,
-    color: colors.text,
-  },
-  submitBtn: {
-    marginHorizontal: 24,
-    marginTop: 20,
-    backgroundColor: '#6d28d9',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  submitDisabled: { opacity: 0.7 },
-  submitText: { color: colors.textInverse, fontWeight: '800' },
-
-    });
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.bg },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 24,
+      paddingTop: 16,
+    },
+    backBtn: {
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+      borderRadius: 10,
+      backgroundColor: colors.surface,
+    },
+    backText: { color: colors.textSecondary, fontWeight: '600' },
+    title: { color: colors.text, fontSize: 20, fontWeight: '800', flex: 1 },
+    hint: {
+      color: colors.textMuted,
+      fontSize: 13,
+      marginHorizontal: 24,
+      marginTop: 12,
+      lineHeight: 18,
+    },
+    pickBtn: {
+      marginHorizontal: 24,
+      marginTop: 16,
+      backgroundColor: '#1f2937',
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: 'center',
+    },
+    pickBtnText: { color: colors.honey, fontWeight: '800' },
+    preview: {
+      marginHorizontal: 24,
+      marginTop: 16,
+      height: 220,
+      borderRadius: 12,
+      backgroundColor: '#111',
+    },
+    input: {
+      marginHorizontal: 24,
+      marginTop: 16,
+      minHeight: 72,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      padding: 12,
+      color: colors.text,
+    },
+    submitBtn: {
+      marginHorizontal: 24,
+      marginTop: 20,
+      backgroundColor: '#6d28d9',
+      paddingVertical: 16,
+      borderRadius: 12,
+      alignItems: 'center',
+    },
+    submitDisabled: { opacity: 0.7 },
+    submitText: { color: colors.textInverse, fontWeight: '800' },
+  });
 }

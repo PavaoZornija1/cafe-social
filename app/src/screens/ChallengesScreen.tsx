@@ -26,6 +26,10 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Challenges'>;
 
 type Venue = { id: string; name: string; isPremium: boolean };
 
+type AutoProgressSource = 'WORD_MATCH' | 'BRAWLER' | 'DAILY_WORD' | 'PRESENCE' | 'MANUAL';
+
+type WindowStatus = 'active' | 'upcoming' | 'ended' | 'inactive';
+
 type VenueChallenge = {
   id: string;
   title: string;
@@ -38,7 +42,42 @@ type VenueChallenge = {
   resetsWeekly?: boolean;
   rewardPerkId: string | null;
   rewardTitle: string | null;
+  autoProgressSource?: AutoProgressSource;
+  requiresWin?: boolean;
+  windowStatus?: WindowStatus;
+  nextOpensAt?: string | null;
+  scheduleLabel?: string | null;
 };
+
+function autoProgressHintKey(source: AutoProgressSource): string {
+  switch (source) {
+    case 'WORD_MATCH':
+      return 'challenges.autoProgressWordMatch';
+    case 'BRAWLER':
+      return 'challenges.autoProgressBrawler';
+    case 'DAILY_WORD':
+      return 'challenges.autoProgressDailyWord';
+    case 'PRESENCE':
+      return 'challenges.autoProgressPresence';
+    case 'MANUAL':
+      return 'challenges.autoProgressManual';
+  }
+}
+
+function playCtaKey(source: AutoProgressSource): string | null {
+  switch (source) {
+    case 'WORD_MATCH':
+      return 'challenges.playWordGames';
+    case 'BRAWLER':
+      return 'challenges.playBrawler';
+    case 'DAILY_WORD':
+      return 'challenges.playDailyWord';
+    case 'PRESENCE':
+      return 'challenges.checkIn';
+    case 'MANUAL':
+      return null;
+  }
+}
 
 export default function ChallengesScreen({ navigation, route }: Props) {
   const { colors } = useAppTheme();
@@ -145,39 +184,56 @@ export default function ChallengesScreen({ navigation, route }: Props) {
     void fetchChallenges(challengesRef.current.length > 0 ? 'refresh' : 'initial');
   }, [fetchChallenges]);
 
-  const increment = async (challengeId: string) => {
-    if (!venue) return;
-    if (!isLoaded) return;
+  const openPlayForChallenge = useCallback(
+    (source: AutoProgressSource) => {
+      const venueId = venue?.id;
+      switch (source) {
+        case 'WORD_MATCH':
+          navigation.navigate('WordLobby', { venueId });
+          break;
+        case 'BRAWLER':
+          navigation.navigate('BrawlerLobby', { venueId });
+          break;
+        case 'DAILY_WORD':
+          navigation.navigate('DailyWord');
+          break;
+        case 'PRESENCE':
+          if (venueId) navigation.navigate('QrScan', { venueId });
+          break;
+        case 'MANUAL':
+          break;
+      }
+    },
+    [navigation, venue?.id],
+  );
 
-    setProgressingId(challengeId);
-    setError(null);
-    try {
-      const token = await getTokenRef.current();
-      if (!token) throw new Error('Not authenticated');
-
-      const ch = challenges.find((x) => x.id === challengeId);
-      const needHigh = Boolean(ch?.locationRequired || ch?.rewardVenueSpecific);
-      const { coords } = await fetchDetectedVenue({
-        locationAccuracy: needHigh ? 'high' : 'balanced',
-      });
-
-      await apiPost<void>(
-        `/venue-context/${encodeURIComponent(venue.id)}/challenges/${encodeURIComponent(challengeId)}/progress`,
-        { increment: 1, latitude: coords?.lat, longitude: coords?.lng },
-        token,
-      );
-
-      const list = await apiGet<VenueChallenge[]>(
-        `/venue-context/${encodeURIComponent(venue.id)}/challenges`,
-        token,
-      );
-      setChallenges(Array.isArray(list) ? list : []);
-    } catch (e) {
-      setError((e as Error).message || tRef.current('challenges.loadError'));
-    } finally {
-      setProgressingId(null);
-    }
-  };
+  const incrementManual = useCallback(
+    async (challengeId: string) => {
+      if (!venue || !isLoaded) return;
+      setProgressingId(challengeId);
+      setError(null);
+      try {
+        const token = await getTokenRef.current();
+        if (!token) throw new Error('Not authenticated');
+        const ch = challengesRef.current.find((x) => x.id === challengeId);
+        const needHigh = Boolean(ch?.locationRequired || ch?.rewardVenueSpecific);
+        const { coords } = await fetchDetectedVenue({
+          locationAccuracy: needHigh ? 'high' : 'balanced',
+        });
+        await apiPost<void>(
+          `/venue-context/${encodeURIComponent(venue.id)}/challenges/${encodeURIComponent(challengeId)}/progress`,
+          { increment: 1, latitude: coords?.lat, longitude: coords?.lng },
+          token,
+        );
+        await fetchChallengesRef.current('refresh');
+      } catch (e) {
+        setError((e as Error).message || tRef.current('challenges.loadError'));
+      } finally {
+        setProgressingId(null);
+      }
+    },
+    [venue, isLoaded],
+  );
 
   const heroSubtitle = venue
     ? t('challenges.subtitleVenue', { venue: venue.name })
@@ -251,9 +307,20 @@ export default function ChallengesScreen({ navigation, route }: Props) {
                 ? Math.min(1, Math.max(0, c.progressCount / c.targetCount))
                 : 0;
             const atVenue = c.locationRequired || c.rewardVenueSpecific;
+            const progressSource: AutoProgressSource = c.autoProgressSource ?? 'WORD_MATCH';
+            const playLabel = playCtaKey(progressSource);
+            const isUpcoming = c.windowStatus === 'upcoming';
+            const isActive = !c.windowStatus || c.windowStatus === 'active';
 
             return (
-              <View key={c.id} style={[styles.card, c.isCompleted && styles.cardDone]}>
+              <View
+                key={c.id}
+                style={[
+                  styles.card,
+                  c.isCompleted && styles.cardDone,
+                  isUpcoming && styles.cardUpcoming,
+                ]}
+              >
                 <View style={styles.cardHeader}>
                   <View style={[styles.cardIcon, c.isCompleted && styles.cardIconDone]}>
                     <Ionicons
@@ -276,7 +343,11 @@ export default function ChallengesScreen({ navigation, route }: Props) {
                           c.isCompleted ? styles.badgeTextDone : styles.badgeTextActive,
                         ]}
                       >
-                        {c.isCompleted ? t('challenges.done') : t('challenges.inProgress')}
+                        {c.isCompleted
+                          ? t('challenges.done')
+                          : isUpcoming
+                            ? t('challenges.upcoming')
+                            : t('challenges.inProgress')}
                       </Text>
                     </View>
                   </View>
@@ -316,6 +387,33 @@ export default function ChallengesScreen({ navigation, route }: Props) {
                   </Text>
                 </View>
 
+                {c.scheduleLabel ? (
+                  <View style={styles.metaRow}>
+                    <Ionicons name="time-outline" size={14} color={colors.honey} />
+                    <Text style={styles.cardWeekly}>{c.scheduleLabel}</Text>
+                  </View>
+                ) : null}
+
+                {isUpcoming ? (
+                  <View style={styles.metaRow}>
+                    <Ionicons name="hourglass-outline" size={14} color={colors.honeyDark} />
+                    <Text style={styles.cardHintVenue}>
+                      {t('challenges.startsSoon', {
+                        when: c.nextOpensAt
+                          ? new Date(c.nextOpensAt).toLocaleString()
+                          : t('challenges.soon'),
+                      })}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {c.requiresWin ? (
+                  <View style={styles.metaRow}>
+                    <Ionicons name="trophy-outline" size={14} color={colors.xp} />
+                    <Text style={styles.cardHint}>{t('challenges.requiresWin')}</Text>
+                  </View>
+                ) : null}
+
                 {c.resetsWeekly ? (
                   <View style={styles.metaRow}>
                     <Ionicons name="calendar-outline" size={14} color={colors.honey} />
@@ -332,24 +430,45 @@ export default function ChallengesScreen({ navigation, route }: Props) {
                   </View>
                 ) : null}
 
-                <Pressable
-                  disabled={Boolean(progressingId) || c.isCompleted}
-                  onPress={() => void increment(c.id)}
-                  style={({ pressed }) => [
-                    styles.actionBtn,
-                    c.isCompleted && styles.actionBtnDone,
-                    pressed && styles.pressed,
-                    (Boolean(progressingId) || c.isCompleted) && styles.actionBtnDisabled,
-                  ]}
-                >
-                  <Text style={[styles.actionText, c.isCompleted && styles.actionTextDone]}>
-                    {progressingId === c.id
-                      ? t('challenges.updating')
-                      : c.isCompleted
-                        ? t('challenges.completedCta')
-                        : t('challenges.progressCta')}
-                  </Text>
-                </Pressable>
+                {!c.isCompleted && isActive ? (
+                  <View style={styles.metaRow}>
+                    <Ionicons name="sync-outline" size={14} color={colors.primary} />
+                    <Text style={styles.autoProgressHint}>
+                      {t(autoProgressHintKey(progressSource))}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {progressSource === 'MANUAL' && !c.isCompleted && isActive ? (
+                  <Pressable
+                    disabled={Boolean(progressingId)}
+                    onPress={() => void incrementManual(c.id)}
+                    style={({ pressed }) => [
+                      styles.actionBtn,
+                      pressed && styles.pressed,
+                      Boolean(progressingId) && styles.actionBtnDisabled,
+                    ]}
+                  >
+                    <Text style={styles.actionText}>
+                      {progressingId === c.id
+                        ? t('challenges.updating')
+                        : t('challenges.manualProgressCta')}
+                    </Text>
+                  </Pressable>
+                ) : playLabel && !c.isCompleted && isActive ? (
+                  <Pressable
+                    onPress={() => openPlayForChallenge(progressSource)}
+                    style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
+                  >
+                    <Text style={styles.actionText}>{t(playLabel)}</Text>
+                  </Pressable>
+                ) : c.isCompleted ? (
+                  <View style={[styles.actionBtn, styles.actionBtnDone, styles.actionBtnDisabled]}>
+                    <Text style={[styles.actionText, styles.actionTextDone]}>
+                      {t('challenges.completedCta')}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             );
           })
@@ -463,6 +582,10 @@ function createStyles(colors: AppColors) {
       borderColor: colors.success,
       backgroundColor: colors.successMuted,
     },
+    cardUpcoming: {
+      borderColor: colors.honey,
+      opacity: 0.92,
+    },
     cardHeader: {
       flexDirection: 'row',
       alignItems: 'flex-start',
@@ -533,6 +656,13 @@ function createStyles(colors: AppColors) {
       fontSize: 13,
       fontWeight: '700',
       lineHeight: 18,
+    },
+    autoProgressHint: {
+      flex: 1,
+      color: colors.textSecondary,
+      fontSize: 12,
+      fontWeight: '600',
+      lineHeight: 17,
     },
     actionBtn: {
       marginTop: spacing.sm,

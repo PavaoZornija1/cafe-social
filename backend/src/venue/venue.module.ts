@@ -10,6 +10,7 @@ import { PlayerVenueCheckInRepository } from './player-venue-check-in.repository
 import { SubscriptionRepository } from './subscription.repository';
 import { PlayerModule } from '../player/player.module';
 import { AuthModule } from '../auth/auth.module';
+import { PlatformSuperAdminGuard } from '../auth/platform-super-admin.guard';
 import { VenueOfferService } from './venue-offer.service';
 import { VenueOfferController } from './venue-offer.controller';
 import { VenueOrderNudgeCopyService } from './venue-order-nudge-copy.service';
@@ -22,6 +23,7 @@ import { VenueModerationService } from './venue-moderation.service';
 import { VenuePlayerReportController } from './venue-player-report.controller';
 import { PushModule } from '../push/push.module';
 import { NotificationModule } from '../notification/notification.module';
+import { ChallengeModule } from '../challenge/challenge.module';
 
 @Module({
   imports: [
@@ -30,6 +32,7 @@ import { NotificationModule } from '../notification/notification.module';
     AuthModule,
     PushModule,
     NotificationModule,
+    forwardRef(() => ChallengeModule),
   ],
   controllers: [
     VenueController,
@@ -47,6 +50,7 @@ import { NotificationModule } from '../notification/notification.module';
     VenueModerationService,
     VenuePlayLimitService,
     VenuePlayBudgetService,
+    PlatformSuperAdminGuard,
     VenueRepository,
     VenueAccessService,
     PlayerVenueRepository,

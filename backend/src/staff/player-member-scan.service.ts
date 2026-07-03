@@ -8,6 +8,7 @@ import { VenueModerationService } from '../venue/venue-moderation.service';
 import { PlayerVenueCheckInRepository } from '../venue/player-venue-check-in.repository';
 import { PlayerVenueRepository } from '../venue/player-venue.repository';
 import { ChallengeService } from '../challenge/challenge.service';
+import { ChallengeAutoProgressSource } from '@prisma/client';
 
 @Injectable()
 export class PlayerMemberScanService {
@@ -97,6 +98,9 @@ export class PlayerMemberScanService {
       playerId: player.id,
       venueId: params.venueId,
       trustVenuePresence: true,
+      activityAtVenue: true,
+      countsAsWin: true,
+      source: ChallengeAutoProgressSource.PRESENCE,
     });
 
     return {

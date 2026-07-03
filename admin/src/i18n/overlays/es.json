@@ -400,10 +400,14 @@
     "emptyDay": "No hay canjes para este día.",
     "statusActive": "Activo",
     "statusVoided": "Anulado",
+    "statusLocked": "Bloqueado",
+    "statusRedeemed": "Canjeado",
+    "statusExpired": "Caducado",
     "columns": {
       "code": "Código",
       "redeemed": "Canjeado",
       "perk": "Beneficio",
+      "player": "Cliente",
       "status": "Estado"
     }
   },

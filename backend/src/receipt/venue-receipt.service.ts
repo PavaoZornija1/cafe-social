@@ -94,7 +94,6 @@ export class VenueReceiptService {
       await this.redemptionActions.lockRedemption({
         venueId: params.venueId,
         redemptionId: linkedRedemptionId,
-        staffPlayerId: params.playerId,
         reason: 'Receipt submitted for staff review',
       });
     }

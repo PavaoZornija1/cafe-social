@@ -15,6 +15,8 @@ import { VenueService } from './venue.service';
 import { VenueFunnelService } from './venue-funnel.service';
 import { VenueModerationService } from './venue-moderation.service';
 import { PlayerVenueCheckInRepository } from './player-venue-check-in.repository';
+import { ChallengeService } from '../challenge/challenge.service';
+import { ChallengeAutoProgressSource } from '@prisma/client';
 
 export type VenueAccessResult = {
   venueId: string;
@@ -51,6 +53,7 @@ export class VenueAccessService {
     private readonly funnel: VenueFunnelService,
     private readonly moderation: VenueModerationService,
     private readonly explicitCheckIns: PlayerVenueCheckInRepository,
+    private readonly challenges: ChallengeService,
   ) {}
 
   /**
@@ -122,6 +125,16 @@ export class VenueAccessService {
       }
       await this.venues.assertCoordinatesAllowedForGuestVenue(venueId, lat, lng);
       await this.explicitCheckIns.upsertCheckIn(player.id, venueId);
+      void this.challenges.bumpActiveChallengesForPlayerAtVenue({
+        playerId: player.id,
+        venueId,
+        trustVenuePresence: false,
+        activityAtVenue: true,
+        countsAsWin: true,
+        latitude: lat,
+        longitude: lng,
+        source: ChallengeAutoProgressSource.PRESENCE,
+      });
     }
 
     const existing = await this.playerVenues.findByPlayerAndVenue(player.id, venueId);

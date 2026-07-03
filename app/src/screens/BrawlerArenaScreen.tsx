@@ -1018,18 +1018,18 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       return;
     }
     Alert.alert(
-      'Leave arena?',
-      'Your current match will end if you leave now.',
+      t('brawlerArena.leaveTitle'),
+      t('brawlerArena.leaveBody'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('brawlerArena.cancel'), style: 'cancel' },
         {
-          text: 'Leave',
+          text: t('brawlerArena.leave'),
           style: 'destructive',
           onPress: () => navigation.goBack(),
         },
       ],
     );
-  }, [abandonVenueTwoHumanAndLeave, gameOverOpen, handleLeaveToLobbyAfterDeath, heroDeadOpen, navigation]);
+  }, [abandonVenueTwoHumanAndLeave, gameOverOpen, handleLeaveToLobbyAfterDeath, heroDeadOpen, navigation, t]);
 
   const dummies = dummiesRef.current;
   const debugHitW = ATTACK_HIT_W;

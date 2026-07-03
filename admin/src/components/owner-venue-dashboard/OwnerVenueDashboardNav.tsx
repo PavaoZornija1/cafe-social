@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { isReceiptSubmissionsEnabled } from "@/lib/receiptSubmissionsFeature";
 import type { VenueDashboardSectionKey } from "./types";
 import { venueDashboardSectionPath } from "./utils";
 import { useOwnerVenueDashboard } from "./OwnerVenueDashboardContext";
@@ -21,6 +22,8 @@ const NAV_ITEMS: NavItem[] = [
   { key: "moderation", labelKey: "admin.partnerVenueDetail.sectionNav.moderation", analyticsOnly: true },
   { key: "team", labelKey: "admin.partnerVenueDetail.sectionNav.team", ownerOnly: true },
   { key: "campaigns", labelKey: "admin.partnerVenueDetail.sectionNav.campaigns", analyticsOnly: true },
+  { key: "challenges", labelKey: "admin.partnerVenueDetail.sectionNav.challenges", analyticsOnly: true },
+  { key: "perks", labelKey: "admin.partnerVenueDetail.sectionNav.perks", analyticsOnly: true },
   { key: "receipts", labelKey: "admin.partnerVenueDetail.sectionNav.receipts", analyticsOnly: true },
   { key: "redemptions", labelKey: "admin.partnerVenueDetail.sectionNav.redemptions" },
 ];
@@ -32,7 +35,9 @@ export function OwnerVenueDashboardNav() {
 
   const items = useMemo(() => {
     if (!metaRow) return [];
+    const receiptsEnabled = isReceiptSubmissionsEnabled();
     return NAV_ITEMS.filter((item) => {
+      if (item.key === "receipts" && !receiptsEnabled) return false;
       if (item.ownerOnly && !isOwner) return false;
       if (item.analyticsOnly && !canAnalytics) return false;
       return true;

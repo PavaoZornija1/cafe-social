@@ -52,9 +52,10 @@
     "step2BeforeDeepLink": "escanea o abre",
     "step2AfterDeepLink": "en un teléfono con la app instalada.",
     "step3Title": "Ventajas y retos de ejemplo",
-    "step3BeforeCms": "Publica un perk sencillo y un reto semanal en",
-    "step3CmsLink": "Locales y contenido",
-    "step3AfterCms": "para este local.",
+    "step3BeforeLinks": "Publica un perk sencillo y un reto en",
+    "step3PerksLink": "Ventajas",
+    "step3ChallengesLink": "Retos",
+    "step3AfterLinks": " en este panel del local (vincula un perk como recompensa del reto; el canje automático opcional omite el escaneo del personal).",
     "step4Title": "Texto para cartelería",
     "step4Body": "usa el texto del brief para los displays de mesa; dirige a los invitados a la app + contexto de tu local.",
     "step5Title": "Turno de personal",
@@ -71,6 +72,9 @@
     "utcRange": "Rango UTC {{start}} → {{end}}",
     "venueTz": " · Zona horaria del local: {{tz}}",
     "activeRedemptions": "Canjes activos",
+    "fulfilledRedemptions": "Canjeado en el local",
+    "issuedCount": "Emitidos",
+    "fulfilledCount": "Canjeados",
     "voided": "Anulados: {{count}}",
     "uniqueVisitors": "Visitantes únicos",
     "repeatVisitors": "Visitantes recurrentes",
@@ -225,7 +229,8 @@
     "receiptAlt": "Recibo",
     "approve": "Aprobar",
     "reject": "Rechazar",
-    "playerStatus": "{{email}} — {{status}}"
+    "playerStatus": "{{email}} — {{status}}",
+    "linkedRedemption": "Recompensa vinculada: {{id}}"
   },
   "redemptions": {
     "title": "Canjes de beneficios",
@@ -239,6 +244,10 @@
     "actions": "Acciones",
     "acknowledge": "Confirmar",
     "void": "Anular",
+    "lock": "Bloquear",
+    "unlock": "Desbloquear",
+    "lockReasonPlaceholder": "Motivo de bloqueo (gerentes)",
+    "enterLockReasonError": "Introduce un motivo de bloqueo (gerente/propietario).",
     "noRedemptionsForDay": "No hay canjes para este día.",
     "enterVoidReasonError": "Introduce un motivo de anulación (gerente/propietario)."
   },
@@ -248,6 +257,8 @@
     "moderation": "Moderación",
     "team": "Equipo",
     "campaigns": "Campañas",
+    "challenges": "Retos",
+    "perks": "Ventajas",
     "receipts": "Recibos",
     "redemptions": "Canjes"
   }

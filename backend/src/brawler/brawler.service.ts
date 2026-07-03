@@ -8,6 +8,8 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   BrawlerMatchQueueStatus,
+  ChallengeAutoProgressSource,
+  GameParticipantResult,
   GameSessionStatus,
   GameType,
   type GameEventType,
@@ -878,10 +880,14 @@ export class BrawlerService {
         if (!p.playerId || p.isBot) continue;
         const venueId = playerVenueIds[p.playerId] ?? session.venueId;
         if (!venueId) continue;
+        const countsAsWin = p.result === GameParticipantResult.WIN;
         await this.challenges.bumpActiveChallengesForPlayerAtVenue({
           playerId: p.playerId,
           venueId,
           trustVenuePresence: true,
+          activityAtVenue: true,
+          countsAsWin,
+          source: ChallengeAutoProgressSource.BRAWLER,
         });
       }
     })();

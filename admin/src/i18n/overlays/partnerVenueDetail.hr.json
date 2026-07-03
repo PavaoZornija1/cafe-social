@@ -52,9 +52,10 @@
     "step2BeforeDeepLink": "skenirajte ili otvorite",
     "step2AfterDeepLink": "na telefonu s instaliranom aplikacijom.",
     "step3Title": "Primjerni perkovi i izazovi",
-    "step3BeforeCms": "Objavite jedan jednostavan perk i jedan tjedni izazov pod",
-    "step3CmsLink": "Lokacije i sadržaj",
-    "step3AfterCms": "za ovu lokaciju.",
+    "step3BeforeLinks": "Objavite jedan jednostavan perk i jedan izazov pod",
+    "step3PerksLink": "Pogodnosti",
+    "step3ChallengesLink": "Izazovi",
+    "step3AfterLinks": " u ovoj nadzornoj ploči lokacije (povežite perk kao nagradu izazova; opcijski automatski otkup bez skeniranja osoblja).",
     "step4Title": "Tekst za plakate",
     "step4Body": "koristite formulacije iz partnerskog briefa za stolne kartice; usmjerite goste na aplikaciju + kontekst vaše lokacije.",
     "step5Title": "Smjena osoblja",
@@ -71,6 +72,9 @@
     "utcRange": "UTC raspon {{start}} → {{end}}",
     "venueTz": " · Vremenska zona lokacije: {{tz}}",
     "activeRedemptions": "Aktivni otkupi",
+    "fulfilledRedemptions": "Iskorišteno u kafiću",
+    "issuedCount": "Izdano",
+    "fulfilledCount": "Iskorišteno",
     "voided": "Poništeno: {{count}}",
     "uniqueVisitors": "Jedinstveni posjetitelji",
     "repeatVisitors": "Povratni posjetitelji",
@@ -225,7 +229,8 @@
     "receiptAlt": "Račun",
     "approve": "Odobri",
     "reject": "Odbij",
-    "playerStatus": "{{email}} — {{status}}"
+    "playerStatus": "{{email}} — {{status}}",
+    "linkedRedemption": "Povezana nagrada: {{id}}"
   },
   "redemptions": {
     "title": "Otkupi perkova",
@@ -239,6 +244,10 @@
     "actions": "Akcije",
     "acknowledge": "Potvrdi",
     "void": "Poništi",
+    "lock": "Zaključaj",
+    "unlock": "Otključaj",
+    "lockReasonPlaceholder": "Razlog zaključavanja (manageri)",
+    "enterLockReasonError": "Unesi razlog zaključavanja (manager/vlasnik).",
     "noRedemptionsForDay": "Nema otkupa za ovaj dan.",
     "enterVoidReasonError": "Unesite razlog poništenja (menadžer/vlasnik)."
   },
@@ -248,6 +257,8 @@
     "moderation": "Moderacija",
     "team": "Tim",
     "campaigns": "Kampanje",
+    "challenges": "Izazovi",
+    "perks": "Pogodnosti",
     "receipts": "Računi",
     "redemptions": "Otkupi"
   }

@@ -123,13 +123,16 @@ export class PlayerRewardGrantService {
         });
 
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        const autoRedeem = refreshed.autoRedeem;
         const redemption = await tx.venuePerkRedemption.create({
           data: {
             perkId: perk.id,
             playerId,
             venueId,
-            status: 'REDEEMABLE',
+            status: autoRedeem ? 'REDEEMED' : 'REDEEMABLE',
             expiresAt,
+            issuedAt: now,
+            redeemedAt: autoRedeem ? now : null,
             playerRewardGrantId: grant.id,
           },
         });
@@ -242,13 +245,16 @@ export class PlayerRewardGrantService {
         });
 
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        const autoRedeem = refreshed.autoRedeem;
         const redemption = await tx.venuePerkRedemption.create({
           data: {
             perkId: perk.id,
             playerId,
             venueId,
-            status: 'REDEEMABLE',
+            status: autoRedeem ? 'REDEEMED' : 'REDEEMABLE',
             expiresAt,
+            issuedAt: now,
+            redeemedAt: autoRedeem ? now : null,
             playerRewardGrantId: grant.id,
           },
         });

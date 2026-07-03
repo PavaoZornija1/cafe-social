@@ -16,6 +16,7 @@ import { useStaffRedemptionsQuery } from "@/lib/queries";
 type Row = {
   redemptionId: string;
   staffVerificationCode: string;
+  playerUsername: string;
   issuedAt: string;
   redeemedAt: string | null;
   expiresAt: string;
@@ -36,6 +37,40 @@ function todayUtcYmd(): string {
   return `${y}-${m}-${d}`;
 }
 
+function statusPresentation(
+  row: Row,
+  t: (key: string) => string,
+): { label: string; className: string } {
+  if (row.voidedAt) {
+    return {
+      label: t("admin.staffRedemptions.statusVoided"),
+      className: "text-red-600",
+    };
+  }
+  switch (row.status) {
+    case "LOCKED":
+      return {
+        label: t("admin.staffRedemptions.statusLocked"),
+        className: "text-amber-700",
+      };
+    case "REDEEMED":
+      return {
+        label: t("admin.staffRedemptions.statusRedeemed"),
+        className: "text-slate-600",
+      };
+    case "EXPIRED":
+      return {
+        label: t("admin.staffRedemptions.statusExpired"),
+        className: "text-slate-500",
+      };
+    default:
+      return {
+        label: t("admin.staffRedemptions.statusActive"),
+        className: "text-emerald-700",
+      };
+  }
+}
+
 export default function StaffRedemptionsPage() {
   const { t } = useTranslation();
   const { venueId } = useParams<{ venueId: string }>();
@@ -54,6 +89,10 @@ export default function StaffRedemptionsPage() {
           <span className="font-mono text-amber-900 text-lg font-bold">{c.getValue()}</span>
         ),
       }),
+      colHelper.accessor("playerUsername", {
+        header: t("admin.staffRedemptions.columns.player"),
+        cell: (c) => <span className="text-slate-700 text-sm font-medium">{c.getValue()}</span>,
+      }),
       colHelper.accessor("issuedAt", {
         header: t("admin.staffRedemptions.columns.redeemed"),
         cell: (c) => <span className="text-slate-600 text-xs">{c.getValue()}</span>,
@@ -70,14 +109,10 @@ export default function StaffRedemptionsPage() {
       colHelper.display({
         id: "void",
         header: t("admin.staffRedemptions.columns.status"),
-        cell: ({ row }) =>
-          row.original.voidedAt ? (
-            <span className="text-red-600 text-xs">
-              {t("admin.staffRedemptions.statusVoided")} {row.original.voidedAt}
-            </span>
-          ) : (
-            <span className="text-emerald-700 text-xs">{t("admin.staffRedemptions.statusActive")}</span>
-          ),
+        cell: ({ row }) => {
+          const { label, className } = statusPresentation(row.original, t);
+          return <span className={`text-xs font-semibold ${className}`}>{label}</span>;
+        },
       }),
     ],
     [t],
@@ -122,79 +157,62 @@ export default function StaffRedemptionsPage() {
       </div>
 
       {q.isError && q.error instanceof Error ? (
-        <p className="text-red-600 text-sm mb-3">{q.error.message}</p>
+        <p className="text-red-700 text-sm mb-4">{q.error.message}</p>
       ) : null}
 
-      {q.data ? (
-        <div>
-          <h2 className="font-semibold text-slate-800 text-lg">{q.data.venueName}</h2>
-          <p className="text-xs text-slate-500 mb-4">
-            {q.data.date} UTC · {t("admin.staffRedemptions.newestFirst")}
-          </p>
-          {rows.length === 0 ? (
-            <p className="text-slate-500 text-sm">{t("admin.staffRedemptions.emptyDay")}</p>
-          ) : (
-            <>
-              <ul className="md:hidden space-y-3">
-                {rows.map((row) => (
-                  <li
-                    key={row.redemptionId}
-                    className={`rounded-xl border border-slate-200 bg-white p-4 shadow-sm ${row.voidedAt ? "opacity-60" : ""}`}
-                  >
-                    <p className="font-mono text-3xl font-bold tracking-wide text-amber-900">
-                      {row.staffVerificationCode}
-                    </p>
-                    <p className="mt-2 text-sm font-medium text-slate-900">
-                      {row.perkCode} — {row.perkTitle}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">{row.issuedAt}</p>
-                    {row.voidedAt ? (
-                      <p className="mt-2 text-xs font-medium text-red-600">
-                        {t("admin.staffRedemptions.statusVoided")}
-                      </p>
-                    ) : (
-                      <p className="mt-2 text-xs font-medium text-emerald-700">
-                        {t("admin.staffRedemptions.statusActive")}
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              <div className="hidden md:block rounded-xl border border-slate-200 bg-white overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    {table.getHeaderGroups().map((hg) => (
-                      <tr key={hg.id} className="border-b border-slate-200 bg-slate-50">
-                        {hg.headers.map((h) => (
-                          <th
-                            key={h.id}
-                            className="text-left px-3 py-2 text-xs uppercase text-slate-500"
-                          >
-                            {flexRender(h.column.columnDef.header, h.getContext())}
-                          </th>
-                        ))}
-                      </tr>
-                    ))}
-                  </thead>
-                  <tbody>
-                    {table.getRowModel().rows.map((row) => (
-                      <tr key={row.id} className="border-b border-slate-100">
-                        {row.getVisibleCells().map((cell) => (
-                          <td key={cell.id} className="px-3 py-2">
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
+      {q.isLoading ? (
+        <p className="text-slate-500 text-sm">{t("common.loading")}</p>
+      ) : rows.length === 0 ? (
+        <p className="text-slate-500 text-sm">{t("admin.staffRedemptions.emptyDay")}</p>
+      ) : (
+        <div className="border border-slate-200 rounded-xl bg-white overflow-hidden shadow-sm">
+          <p className="text-xs text-slate-500 px-4 pt-3">{t("admin.staffRedemptions.newestFirst")}</p>
+          <div className="md:hidden divide-y divide-slate-100">
+            {rows.map((row) => {
+              const { label, className } = statusPresentation(row, t);
+              return (
+                <div key={row.redemptionId} className="p-4 space-y-2">
+                  <div className="font-mono text-amber-900 text-lg font-bold">
+                    {row.staffVerificationCode}
+                  </div>
+                  <div className="text-sm text-slate-700">{row.playerUsername}</div>
+                  <div className="text-xs text-slate-500">{row.issuedAt}</div>
+                  <div className="text-sm">
+                    {row.perkCode} — {row.perkTitle}
+                  </div>
+                  <span className={`text-xs font-semibold ${className}`}>{label}</span>
+                </div>
+              );
+            })}
+          </div>
+          <table className="hidden md:table w-full text-sm">
+            <thead>
+              {table.getHeaderGroups().map((hg) => (
+                <tr key={hg.id} className="border-b border-slate-200 bg-slate-50">
+                  {hg.headers.map((h) => (
+                    <th key={h.id} className="text-left p-3 font-semibold text-slate-700">
+                      {h.isPlaceholder
+                        ? null
+                        : flexRender(h.column.columnDef.header, h.getContext())}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody>
+              {table.getRowModel().rows.map((row) => (
+                <tr key={row.id} className="border-b border-slate-100 last:border-0">
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id} className="p-3 align-top">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      ) : q.isPending ? (
-        <p className="text-slate-600">{t("common.loading")}</p>
-      ) : null}
+      )}
     </div>
   );
 }

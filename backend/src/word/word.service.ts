@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { WordCategory } from '@prisma/client';
+import { ChallengeAutoProgressSource, type WordCategory } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlayerService } from '../player/player.service';
 import { SubscriptionRepository } from '../venue/subscription.repository';
@@ -254,6 +254,9 @@ export class WordService {
             playerId: player.id,
             venueId: row.venueId,
             trustVenuePresence: true,
+            activityAtVenue: true,
+            countsAsWin: true,
+            source: ChallengeAutoProgressSource.WORD_MATCH,
           })
           .catch(() => undefined);
       }

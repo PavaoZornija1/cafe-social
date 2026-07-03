@@ -22,6 +22,7 @@ import {
   type GlobalRewardClaim,
   type GlobalRewardClaimsPayload,
 } from '../lib/venuePerksApi';
+import { isReceiptSubmissionsEnabled } from '../lib/receiptSubmissionsFeature';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
@@ -91,6 +92,7 @@ const RewardClaimCard = React.memo(function RewardClaimCard({
   showQr,
 }: RewardClaimCardProps) {
   const { t } = useTranslation();
+  const receiptsEnabled = isReceiptSubmissionsEnabled();
   const labelKey = statusLabelKey(r.status);
   const statusText =
     labelKey === 'perkWallet.statusOther' ? t(labelKey, { status: r.status }) : t(labelKey);
@@ -147,19 +149,35 @@ const RewardClaimCard = React.memo(function RewardClaimCard({
       <View style={styles.codeBox}>
         <Text style={styles.codeLabel}>{t('perk.staffVerificationCode')}</Text>
         <Text style={styles.codeValue}>
-          {r.status === 'LOCKED' ? '—' : r.staffVerificationCode}
+          {r.status === 'LOCKED' ? t('perkWallet.codeHidden') : r.staffVerificationCode}
         </Text>
       </View>
 
       <View style={styles.cardActions}>
         {r.status === 'REDEEMABLE' ? (
-          <Pressable
-            style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
-            onPress={() => navigation.navigate('RedeemPerk', { venueId: r.venueId })}
-          >
-            <Ionicons name="gift-outline" size={16} color={colors.textInverse} />
-            <Text style={styles.primaryBtnText}>{t('perkWallet.redeemAtVenue')}</Text>
-          </Pressable>
+          <>
+            <Pressable
+              style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
+              onPress={() => navigation.navigate('RedeemPerk', { venueId: r.venueId })}
+            >
+              <Ionicons name="gift-outline" size={16} color={colors.textInverse} />
+              <Text style={styles.primaryBtnText}>{t('perkWallet.redeemAtVenue')}</Text>
+            </Pressable>
+            {receiptsEnabled ? (
+            <Pressable
+              style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
+              onPress={() =>
+                navigation.navigate('SubmitReceipt', {
+                  venueId: r.venueId,
+                  redemptionId: r.redemptionId,
+                })
+              }
+            >
+              <Ionicons name="receipt-outline" size={16} color={colors.primary} />
+              <Text style={styles.secondaryBtnText}>{t('perkWallet.submitReceiptToUnlock')}</Text>
+            </Pressable>
+            ) : null}
+          </>
         ) : null}
         <Pressable
           style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}

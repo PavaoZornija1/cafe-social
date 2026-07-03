@@ -1,3 +1,8 @@
+jest.mock('../venue/venue.service', () => ({ VenueService: class VenueService {} }));
+jest.mock('../challenge/challenge.service', () => ({
+  ChallengeService: class ChallengeService {},
+}));
+
 import { NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { buildMemberCardQrPayload } from '../lib/member-card-qr';

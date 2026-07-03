@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PlatformSuperAdminGuard } from '../auth/platform-super-admin.guard';
 import { VenueService } from './venue.service';
 import { CreateVenueDto } from './dto/create-venue.dto';
 import { UpdateVenueDto } from './dto/update-venue.dto';
@@ -19,11 +20,13 @@ import { UpdateVenueDto } from './dto/update-venue.dto';
 export class VenueController {
   constructor(private readonly venueService: VenueService) {}
 
+  @UseGuards(JwtAuthGuard, PlatformSuperAdminGuard)
   @Post()
   create(@Body() dto: CreateVenueDto) {
     return this.venueService.create(dto);
   }
 
+  @UseGuards(JwtAuthGuard, PlatformSuperAdminGuard)
   @Get()
   findAll() {
     return this.venueService.findAll();
@@ -130,16 +133,19 @@ export class VenueController {
     return this.venueService.getPublicCard(id);
   }
 
+  @UseGuards(JwtAuthGuard, PlatformSuperAdminGuard)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.venueService.findOne(id);
   }
 
+  @UseGuards(JwtAuthGuard, PlatformSuperAdminGuard)
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateVenueDto) {
     return this.venueService.update(id, dto);
   }
 
+  @UseGuards(JwtAuthGuard, PlatformSuperAdminGuard)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.venueService.remove(id);

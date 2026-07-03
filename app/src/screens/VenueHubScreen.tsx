@@ -28,6 +28,7 @@ import {
     type VenuePerkPublicTeaser,
     type VenueRedeemableReward,
 } from '../lib/venuePerksApi';
+import { isReceiptSubmissionsEnabled } from '../lib/receiptSubmissionsFeature';
 import { isLikelyNetworkFailure } from '../lib/isNetworkError';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
@@ -157,6 +158,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
     const getTokenRef = useRef(getToken);
     getTokenRef.current = getToken;
     const title = venueName ?? venueId;
+    const receiptsEnabled = isReceiptSubmissionsEnabled();
 
     const [loadError, setLoadError] = useState<string | null>(null);
     const [publicCard, setPublicCard] = useState<VenuePublicCard | null>(null);
@@ -763,10 +765,19 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                                                         styles.redeemMiniBtn,
                                                         pressed && styles.ctaPressed,
                                                     ]}
-                                                    onPress={() => navigation.navigate('PerkWallet')}
+                                                    onPress={() =>
+                                                        receiptsEnabled && r.status === 'REDEEMABLE'
+                                                          ? navigation.navigate('SubmitReceipt', {
+                                                                venueId,
+                                                                redemptionId: r.redemptionId,
+                                                            })
+                                                          : navigation.navigate('PerkWallet')
+                                                    }
                                                 >
                                                     <Text style={styles.redeemMiniBtnText}>
-                                                        {t('venueHub.perkWalletCta')}
+                                                        {receiptsEnabled && r.status === 'REDEEMABLE'
+                                                          ? t('perkWallet.submitReceiptToUnlock')
+                                                          : t('venueHub.perkWalletCta')}
                                                     </Text>
                                                 </Pressable>
                                             </View>
@@ -779,6 +790,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                                             {t('venueHub.myRewardsSeeCrossVenue')}
                                         </Text>
                                     </Pressable>
+                                    {receiptsEnabled ? (
                                     <Pressable
                                         style={({ pressed }) => [styles.link, styles.linkSpaced, pressed && styles.ctaPressed]}
                                         onPress={() => navigation.navigate('SubmitReceipt', { venueId })}
@@ -787,6 +799,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                                             {t('venueHub.submitReceiptCta')}
                                         </Text>
                                     </Pressable>
+                                    ) : null}
                                 </>
                             )}
                         </View>

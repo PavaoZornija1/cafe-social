@@ -19,7 +19,8 @@
     "timeRemaining": "~{{minutes}} min igre danas (UTC) u ovom lokalu",
     "compactRemaining": "~{{minutes}} min igranja u kafiću danas",
     "outsideGeofence": "Uđi u geofence partner lokala da koristiš svoje vrijeme igranja.",
-    "extend": "Produži"
+    "extend": "Produži",
+    "gamesRemaining": "{{n}} igara preostalo"
   },
   "social": {
     "or": "ili",
@@ -236,7 +237,10 @@
     "brawlerDescription": "Kratke arene s herojima i pojačanjima.",
     "brawlerCta": "Otvori lobby",
     "brawlerCtaGlobal": "Otvori lobby (globalno — pretplatnici)",
-    "brawlerNeedVenue": "Brawler treba prijavu na lokalu."
+    "brawlerNeedVenue": "Brawler treba prijavu na lokalu.",
+    "heroTitle": "Odaberi igru",
+    "heroVenue": "Na lokaciji {{venue}} — igre u kafiću koriste ovaj lokal.",
+    "heroGlobal": "Pretplatnik — igraj s bilo kojeg mjesta."
   },
   "brawlerLobby": {
     "title": "Brawler lobby",
@@ -372,7 +376,18 @@
     "scanSuccessBody": "QR potvrđen i nagrada označena kao iskorištena.",
     "refreshA11y": "Osvježi iskorištenja",
     "prevDayA11y": "Prethodni dan",
-    "nextDayA11y": "Sljedeći dan"
+    "nextDayA11y": "Sljedeći dan",
+    "memberScanSuccessTitle": "Član prepoznat",
+    "memberScanSuccessBody": "{{username}} je ovdje.",
+    "lockReward": "Zaključaj",
+    "unlockReward": "Otključaj",
+    "voidReward": "Poništi",
+    "voidRewardTitle": "Poništiti nagradu?",
+    "voidRewardHint": "Gost će vidjeti nagradu kao nevažeću. Koristi samo za zloupotrebu ili greške.",
+    "lockRewardTitle": "Zaključati nagradu?",
+    "lockRewardHint": "Kod je skriven dok se ne otključa.",
+    "lockReasonPlaceholder": "Razlog (opcionalno)",
+    "lockReasonRequired": "Unesi razlog zaključavanja."
   },
   "home": {
     "appTitle": "Cafe Social",
@@ -534,7 +549,9 @@
     "redeemPerkTitle": "Iskoristi kod pogodnosti",
     "redeemPerkHint": "Unesi staff kod dok si u partnerskom kafiću.",
     "progressTitle": "Tvoja razina",
-    "crossVenueStats": "Na svim lokalima"
+    "crossVenueStats": "Na svim lokalima",
+    "subscribersTitle": "Partneri za pretplatnike",
+    "subscribersEmpty": "Još nema partnerskih lokala za pretplatnike u blizini."
   },
   "inbox": {
     "title": "Pozivnice i zahtjevi",
@@ -581,7 +598,9 @@
     "myRewardsHereTitle": "Tvoje nagrade ovdje",
     "myRewardsHereEmpty": "Još nema iskoristivih perk nagrada — pogledaj izazove.",
     "myRewardsSeeCrossVenue": "Sve nagrade (svi lokali)",
-    "refreshA11y": "Osvježi lokal"
+    "refreshA11y": "Osvježi lokal",
+    "perkWalletCta": "Kodovi",
+    "submitReceiptCta": "Pošalji račun na pregled"
   },
   "partnerMap": {
     "title": "Partnerski lokali",
@@ -629,7 +648,8 @@
     "failed": "Prijenos nije uspio.",
     "needLocationAtVenue": "Uključi lokaciju i budi unutar ovog lokala za slanje računa.",
     "sentTitle": "Poslano",
-    "sentBody": "Osoblje će pregledati."
+    "sentBody": "Osoblje će pregledati.",
+    "linkedRewardHint": "Ova nagrada bit će zaključana do pregleda."
   },
   "dailyWord": {
     "title": "Dnevna riječ",
@@ -669,7 +689,20 @@
     "progress": "Napredak: {{current}}/{{target}}",
     "requiresAtCafe": "Potrebna fizička prisutnost u kafiću.",
     "worksFromHome": "Radi od kuće.",
-    "progressCta": "Napredak +1",
+    "autoProgressWordMatch": "Napredak se automatski ažurira kad završiš sesiju igre riječima.",
+    "autoProgressBrawler": "Napredak se automatski ažurira kad završiš brawler meč.",
+    "autoProgressDailyWord": "Napredak se automatski ažurira kad riješiš dnevnu riječ lokala.",
+    "autoProgressPresence": "Napredak se automatski ažurira kad se prijaviš u lokal.",
+    "autoProgressManual": "Dodirni za ručno bilježenje napretka.",
+    "playWordGames": "Igraj igre riječima",
+    "playBrawler": "Igraj brawler",
+    "playDailyWord": "Riješi dnevnu riječ",
+    "checkIn": "Prijavi se u lokal",
+    "manualProgressCta": "Zabilježi napredak",
+    "upcoming": "Uskoro",
+    "startsSoon": "Otvara se {{when}}",
+    "soon": "uskoro",
+    "requiresWin": "Samo pobjede računaju za ovaj izazov.",
     "completedCta": "Dovršeno",
     "updating": "Ažuriranje…",
     "loadError": "Izazovi se nisu mogli učitati",
@@ -855,7 +888,12 @@
     "redeemedAt": "Otkupljeno {{when}}",
     "openFriends": "Prijatelji",
     "shareFriendLink": "Podijeli pozivnicu",
-    "openRewardsHub": "Moje nagrade (QR)"
+    "openRewardsHub": "Moje nagrade (QR)",
+    "openQuestHub": "Centar nagrada",
+    "openPerkWallet": "Moji perk kodovi",
+    "openMemberCard": "Članska kartica",
+    "statsTitle": "Tvoja statistika",
+    "seeAllPerks": "Sve nagrade"
   },
   "leaderboard": {
     "title": "Ljestvica",
@@ -922,7 +960,17 @@
     "transferPick": "Novi vođa",
     "transferTitle": "Predaja vodstva",
     "transferConfirm": "{{name}} postaje vođa? Izgubit ćeš ovlasti vođe.",
-    "transferDone": "Vođa promijenjen."
+    "transferDone": "Vođa promijenjen.",
+    "playTogether": "Igrajte zajedno",
+    "playTogetherHint": "Otvori predsoblje — dogovorite se u chatu, zatim red ili sobu.",
+    "playAtVenue": "Prepoznato u {{venue}} — igre u kafiću koriste ovaj lokal.",
+    "playGlobalSubscriber": "Pretplatnik — možeš igrati s bilo kojeg mjesta.",
+    "playNeedVenue": "U partnerskom kafiću za igre ili s pretplatom s bilo kojeg mjesta.",
+    "detailJustCreatedTitle": "Grupa je kreirana",
+    "detailJustCreatedHint": "Podijeli pozivnicu, zatim odaberite igru ispod.",
+    "waitingForFriends": "Samo si ovdje — pozovi prijatelje.",
+    "playWord": "Word match predsoblje",
+    "playBrawler": "Brawler predsoblje"
   },
   "myReports": {
     "title": "Tvoje prijave lokalu",
@@ -972,7 +1020,8 @@
     "unblock": "Odblokiraj",
     "blockTitle": "Blokirati ovog igrača?",
     "blockConfirm": "{{username}} neće moći slati zahtjeve niti se pojavljivati u prijateljskim funkcijama. Uklanjamo i sve čekajuće zahtjeve.",
-    "blockFailed": "Lista blokiranih se nije ažurirala."
+    "blockFailed": "Lista blokiranih se nije ažurirala.",
+    "subtitle": "Poveži se s ljudima s kojima igraš u partnerskim kafićima."
   },
   "rewardsHub": {
     "title": "Nagrade",
@@ -1009,7 +1058,13 @@
     "staffVerificationCode": "Kôd za osoblje",
     "myRewards": "Moje iskoristive nagrade",
     "rewardStatus": "Status",
-    "rewardExpires": "Istječe"
+    "rewardExpires": "Istječe",
+    "needLocationPrecise": "Trebamo GPS da potvrdimo zonu kafića. Pokušaj vani ili kod prozora.",
+    "wrongVenue": "Na drugoj lokaciji nego ovaj kafić. Idi na pravi lokal ili otvori Iskoristi s početne.",
+    "availableAtVenue": "Ponude u ovom kafiću",
+    "qrUnlockHint": "Prijava (QR ili pozivnica) može biti potrebna prije iskorištavanja.",
+    "redeemedByYou": "Već si iskoristio/la ovu ponudu.",
+    "fullyRedeemedLabel": "Iskorišteno"
   },
   "redeem": {
     "title": "Iskoristi pozivnicu",
@@ -1081,7 +1136,20 @@
     "signInRequired": "Prijavi se za žalbu.",
     "successTitle": "Žalba poslana",
     "successBody": "Ako slijedi kontakt, koristit će email računa. Jedna otvorena žalba po mjestu.",
-    "failed": "Žalba nije poslana."
+    "failed": "Žalba nije poslana.",
+    "outcomeTitleLifted": "Zabrana ukinuta",
+    "outcomeTitleUpheld": "Zabrana ostaje",
+    "outcomeTitleDismissed": "Žalba odbijena",
+    "outcomeTitleOther": "Odluka",
+    "outcomeBodyLifted": "Osoblje je ukinulo zabranu. Možeš se ponovno pridružiti.",
+    "outcomeBodyUpheld": "Osoblje je potvrdilo zabranu.",
+    "outcomeBodyDismissed": "Tvoja žalba je zatvorena bez promjene.",
+    "outcomeBodyOther": "Osoblje je obradilo tvoju žalbu.",
+    "staffMessageLabel": "Poruka osoblja",
+    "resolvedAt": "Riješeno {{when}}",
+    "refresh": "Osvježi",
+    "pendingTitle": "Žalba u tijeku",
+    "pendingBody": "Osoblje pregledava žalbu. Obavijestit ćemo te."
   },
   "questHub": {
     "title": "Centar nagrada",
@@ -1120,7 +1188,12 @@
     "statusVoided": "Poništeno",
     "statusRedeemed": "Iskorišteno",
     "statusOther": "{{status}}",
-    "redeemAtVenue": "Iskoristi u kafiću"
+    "redeemAtVenue": "Iskoristi u kafiću",
+    "statusLocked": "Na pregledu",
+    "lockedHint": "Nagrada je zaključana dok osoblje pregleda račun ili problem.",
+    "refreshA11y": "Osvježi perk kodove",
+    "submitReceiptToUnlock": "Pošalji račun",
+    "codeHidden": "Skriveno"
   },
   "categories": {
     "DRINK_FOOD": "Piće i hrana",
@@ -1128,5 +1201,11 @@
     "MUSIC_CULTURE": "Glazba i kultura",
     "PEOPLE_ROLES": "Ljudi i uloge",
     "MOMENTS_ACTIONS": "Trenuci i radnje"
+  },
+  "brawlerArena": {
+    "leaveTitle": "Napustiti arenu?",
+    "leaveBody": "Trenutna utakmica završava ako sada odeš.",
+    "leave": "Napusti",
+    "cancel": "Odustani"
   }
 }

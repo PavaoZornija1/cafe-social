@@ -416,6 +416,7 @@ model VenueReceiptSubmission {
   reviewedByPlayerId String?
   /// When set, submitting locks this perk claim pending staff review.
   linkedRedemptionId String?
+  linkedRedemption   VenuePerkRedemption? @relation("ReceiptLinkedRedemption", fields: [linkedRedemptionId], references: [id], onDelete: SetNull)
 
   venue    Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
   player   Player @relation("ReceiptSubmitter", fields: [playerId], references: [id], onDelete: Cascade)
@@ -841,6 +842,8 @@ model VenuePerk {
   activeTo   DateTime?
   maxRedemptions Int?
   redemptionCount Int @default(0)
+  /// When true, perk is marked redeemed immediately on grant (no staff scan required).
+  autoRedeem Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -907,6 +910,7 @@ model VenuePerkRedemption {
   @@index([voidedAt])
 
   expiryReminderLogs PerkExpiryReminderLog[]
+  linkedReceiptSubmissions VenueReceiptSubmission[] @relation("ReceiptLinkedRedemption")
 }
 
 /// Orchestrated reward issuance; optional 1:1 `VenuePerkRedemption` for staff QR fulfillment.
@@ -1309,12 +1313,31 @@ model VenueFeedEvent {
   @@index([venueId, createdAt])
 }
 
+/// How a challenge's availability window is evaluated.
+enum ChallengeScheduleType {
+  ALWAYS
+  FIXED_RANGE
+  DAILY_RECURRING
+}
+
+/// Server-side activity that increments challenge progress (see `Challenge.autoProgressSource`).
+enum ChallengeAutoProgressSource {
+  WORD_MATCH
+  BRAWLER
+  DAILY_WORD
+  PRESENCE
+  MANUAL
+}
+
 /// A single venue-scoped challenge that can be progressed by a player.
 model Challenge {
   id                  String  @id @default(uuid())
   venueId             String
   title               String
   description         String?
+
+  /// Which verified activity auto-increments progress. MANUAL = client/admin POST only.
+  autoProgressSource  ChallengeAutoProgressSource @default(WORD_MATCH)
 
   /// If true, rewards/claims require venue membership (QR-unlock) in addition to location rules.
   rewardVenueSpecific Boolean @default(true)
@@ -1328,9 +1351,19 @@ model Challenge {
   /// When true, progress and completion reset each ISO calendar week (UTC).
   resetsWeekly Boolean @default(false)
 
-  /// Optional “happy hour” style window (UTC); null = always available.
+  /// How the challenge schedule is evaluated (see `ChallengeScheduleType`).
+  scheduleType ChallengeScheduleType @default(ALWAYS)
+
+  /// For `FIXED_RANGE`: absolute UTC bounds. Null = open-ended on that side.
   activeFrom DateTime?
   activeTo   DateTime?
+
+  /// For `DAILY_RECURRING`: minutes from local midnight in venue `analyticsTimeZone` (0–1439).
+  dailyStartMinutes Int?
+  dailyEndMinutes   Int?
+
+  /// When true, auto-progress only counts winning sessions (versus / brawler).
+  requiresWin Boolean @default(false)
 
   rewardPerkId String?
   rewardPerk   VenuePerk? @relation("ChallengeRewardPerk", fields: [rewardPerkId], references: [id], onDelete: SetNull)

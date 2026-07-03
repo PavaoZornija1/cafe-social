@@ -123,6 +123,9 @@ function buildService(opts: {
     removeSnapshot: opts.removeSnapshot ?? jest.fn().mockResolvedValue(undefined),
     readSnapshot: opts.readSnapshot ?? jest.fn().mockResolvedValue(null),
   };
+  const challenges = {
+    recordWordMatchFinished: jest.fn().mockResolvedValue(undefined),
+  };
 
   const svc = new WordMatchService(
     prisma as never,
@@ -137,6 +140,7 @@ function buildService(opts: {
     venuePlayBudget as never,
     gameXp as never,
     liveRedis as never,
+    challenges as never,
   );
   return {
     svc,

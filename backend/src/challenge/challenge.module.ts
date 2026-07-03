@@ -15,7 +15,7 @@ import { RewardModule } from '../reward/reward.module';
     PlayerModule,
     AuthModule,
     StatsModule,
-    VenueModule,
+    forwardRef(() => VenueModule),
     forwardRef(() => RewardModule),
   ],
   controllers: [ChallengeController],

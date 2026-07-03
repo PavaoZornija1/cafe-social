@@ -400,10 +400,14 @@
     "emptyDay": "Nema otkupa za ovaj dan.",
     "statusActive": "Aktivno",
     "statusVoided": "Poništeno",
+    "statusLocked": "Zaključano",
+    "statusRedeemed": "Iskorišteno",
+    "statusExpired": "Isteklo",
     "columns": {
       "code": "Kod",
       "redeemed": "Otkup",
       "perk": "Pogodnost",
+      "player": "Gost",
       "status": "Status"
     }
   },

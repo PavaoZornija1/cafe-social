@@ -52,9 +52,10 @@
     "step2BeforeDeepLink": "auf einem Smartphone mit installierter App scannen oder öffnen",
     "step2AfterDeepLink": ".",
     "step3Title": "Beispiel-Perks & Challenges",
-    "step3BeforeCms": "Veröffentlichen Sie einen einfachen Perk und eine wöchentliche Challenge unter",
-    "step3CmsLink": "Standorte & Inhalte",
-    "step3AfterCms": "für diesen Standort.",
+    "step3BeforeLinks": "Veröffentlichen Sie einen einfachen Perk und eine Challenge unter",
+    "step3PerksLink": "Perks",
+    "step3ChallengesLink": "Challenges",
+    "step3AfterLinks": " in diesem Venue-Dashboard (Perk als Challenge-Belohnung verknüpfen; optionale Auto-Einlösung ohne Personal-Scan).",
     "step4Title": "Poster-Text",
     "step4Body": "Formulierungen aus dem Partnerbriefing für Tischaufsteller nutzen; Gäste auf die App + Ihren Standortkontext hinweisen.",
     "step5Title": "Schichtverantwortung",
@@ -71,6 +72,9 @@
     "utcRange": "UTC-Bereich {{start}} → {{end}}",
     "venueTz": " · Standort-Zeitzone: {{tz}}",
     "activeRedemptions": "Aktive Einlösungen",
+    "fulfilledRedemptions": "Im Café eingelöst",
+    "issuedCount": "Ausgestellt",
+    "fulfilledCount": "Eingelöst",
     "voided": "Storniert: {{count}}",
     "uniqueVisitors": "Eindeutige Besucher",
     "repeatVisitors": "Wiederkehrende Besucher",
@@ -225,7 +229,8 @@
     "receiptAlt": "Beleg",
     "approve": "Genehmigen",
     "reject": "Ablehnen",
-    "playerStatus": "{{email}} — {{status}}"
+    "playerStatus": "{{email}} — {{status}}",
+    "linkedRedemption": "Verknüpfte Belohnung: {{id}}"
   },
   "redemptions": {
     "title": "Perk-Einlösungen",
@@ -239,6 +244,10 @@
     "actions": "Aktionen",
     "acknowledge": "Bestätigen",
     "void": "Stornieren",
+    "lock": "Sperren",
+    "unlock": "Entsperren",
+    "lockReasonPlaceholder": "Sperrgrund (Manager)",
+    "enterLockReasonError": "Sperrgrund eingeben (Manager/Inhaber).",
     "noRedemptionsForDay": "Keine Einlösungen für diesen Tag.",
     "enterVoidReasonError": "Bitte einen Stornogrund eingeben (Manager/Inhaber)."
   },
@@ -248,6 +257,8 @@
     "moderation": "Moderation",
     "team": "Team",
     "campaigns": "Kampagnen",
+    "challenges": "Challenges",
+    "perks": "Perks",
     "receipts": "Belege",
     "redemptions": "Einlösungen"
   }

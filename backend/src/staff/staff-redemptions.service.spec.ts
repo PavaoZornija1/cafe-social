@@ -15,6 +15,7 @@ function mockRedemptionRow(overrides: Record<string, unknown> = {}) {
     voidedAt: null,
     voidReason: null,
     perk: { code: 'COFFEE', title: 'Free coffee' },
+    player: { username: 'guest1' },
     ...overrides,
   };
 }

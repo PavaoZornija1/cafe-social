@@ -470,34 +470,9 @@ export default function WordGameScreen({ navigation, route }: Props) {
     };
   }, [matchSessionId, isLoaded, matchMode, coopIdx, myVersusScore, t]);
 
-  const finishSession = useCallback(
-    async (opts: { claimChallenge: boolean }) => {
-      if (!opts.claimChallenge || !challengeId || !venueId) {
-        navigation.replace('MainTabs');
-        return;
-      }
-
-      try {
-        const token = await getTokenRef.current();
-        if (!token) throw new Error('Not authenticated');
-        const { coords } = await fetchDetectedVenue({ locationAccuracy: 'high' });
-        await apiPost<void>(
-          `/venue-context/${encodeURIComponent(venueId)}/challenges/${encodeURIComponent(challengeId)}/progress`,
-          {
-            increment: 1,
-            latitude: coords?.lat,
-            longitude: coords?.lng,
-          },
-          token,
-        );
-      } catch {
-        /* ignore */
-      } finally {
-        navigation.replace('MainTabs');
-      }
-    },
-    [navigation, challengeId, venueId],
-  );
+  const finishSession = useCallback(() => {
+    navigation.replace('MainTabs');
+  }, [navigation]);
 
   const handleTimeUp = useCallback(async () => {
     if (submittingRef.current) return;
@@ -618,7 +593,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
         if (res.finished) {
           emitPlatformQuestProgressChanged();
           triggerFeedback('matchWin');
-          await finishSession({ claimChallenge: false });
+          await finishSession();
         }
         return;
       }
@@ -847,7 +822,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
       if (res.finished) {
         emitPlatformQuestProgressChanged();
         triggerFeedback('matchWin');
-        await finishSession({ claimChallenge: true });
+        await finishSession();
         return;
       }
     } finally {
@@ -968,11 +943,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
           showRematch={Boolean(matchSessionId)}
           rematchBusy={rematchBusy}
           onRematch={onRematch}
-          onDone={() =>
-            void finishSession({
-              claimChallenge: !!challengeId && won,
-            })
-          }
+          onDone={() => finishSession()}
         />
       </SafeAreaView>
     );

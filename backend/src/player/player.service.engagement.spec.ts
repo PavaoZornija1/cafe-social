@@ -19,10 +19,15 @@ describe('PlayerService.getMeEngagement', () => {
         groupBy: jest.fn(),
       },
     };
+    const platformRewards = {
+      onPlayerCreated: jest.fn(),
+      onVenueVisit: jest.fn(),
+    };
     const service = new PlayerService(
       players as never,
       venueStats as never,
       prisma as never,
+      platformRewards as never,
     );
     return { service, prisma };
   }

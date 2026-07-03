@@ -19,7 +19,8 @@
     "timeRemaining": "~{{minutes}} min de tiempo de juego hoy (UTC) en este local",
     "compactRemaining": "~{{minutes}} min de juego en el café hoy",
     "outsideGeofence": "Entra en la geovalla del local para usar tu tiempo de juego.",
-    "extend": "Ampliar"
+    "extend": "Ampliar",
+    "gamesRemaining": "{{n}} partidas restantes"
   },
   "social": {
     "or": "o",
@@ -236,7 +237,10 @@
     "brawlerDescription": "Batallas cortas con héroes y potenciadores.",
     "brawlerCta": "Abrir lobby",
     "brawlerCtaGlobal": "Abrir lobby (global — suscriptores)",
-    "brawlerNeedVenue": "Brawler requiere check-in en un local."
+    "brawlerNeedVenue": "Brawler requiere check-in en un local.",
+    "heroTitle": "Elige un juego",
+    "heroVenue": "Estás en {{venue}} — los juegos del local usan este café.",
+    "heroGlobal": "Suscriptor — juega desde cualquier lugar."
   },
   "brawlerLobby": {
     "title": "Lobby Brawler",
@@ -372,7 +376,18 @@
     "scanSuccessBody": "QR verificado y recompensa marcada como canjeada.",
     "refreshA11y": "Actualizar canjes",
     "prevDayA11y": "Día anterior",
-    "nextDayA11y": "Día siguiente"
+    "nextDayA11y": "Día siguiente",
+    "memberScanSuccessTitle": "Miembro reconocido",
+    "memberScanSuccessBody": "{{username}} está aquí.",
+    "lockReward": "Bloquear",
+    "unlockReward": "Desbloquear",
+    "voidReward": "Anular",
+    "voidRewardTitle": "¿Anular recompensa?",
+    "voidRewardHint": "El cliente verá la recompensa como inválida. Úsalo solo por abuso o errores.",
+    "lockRewardTitle": "¿Bloquear recompensa?",
+    "lockRewardHint": "El código queda oculto hasta desbloquear.",
+    "lockReasonPlaceholder": "Motivo (opcional)",
+    "lockReasonRequired": "Introduce un motivo de bloqueo."
   },
   "home": {
     "appTitle": "Cafe Social",
@@ -534,7 +549,9 @@
     "redeemPerkTitle": "Canjear código de beneficio",
     "redeemPerkHint": "Introduce un código del staff mientras estás en un café partner.",
     "progressTitle": "Tu nivel",
-    "crossVenueStats": "En todos los locales"
+    "crossVenueStats": "En todos los locales",
+    "subscribersTitle": "Socios para suscriptores",
+    "subscribersEmpty": "Aún no hay socios para suscriptores cerca."
   },
   "inbox": {
     "title": "Invitaciones y solicitudes",
@@ -581,7 +598,9 @@
     "myRewardsHereTitle": "Tus recompensas aquí",
     "myRewardsHereEmpty": "Aún no hay perks canjeables — mira los retos.",
     "myRewardsSeeCrossVenue": "Todas las recompensas (todos los locales)",
-    "refreshA11y": "Actualizar local"
+    "refreshA11y": "Actualizar local",
+    "perkWalletCta": "Códigos",
+    "submitReceiptCta": "Enviar recibo para revisión"
   },
   "partnerMap": {
     "title": "Locales asociados",
@@ -629,7 +648,8 @@
     "failed": "No se pudo subir.",
     "needLocationAtVenue": "Activa la ubicación y entra en este local para enviar el ticket.",
     "sentTitle": "Enviado",
-    "sentBody": "El personal revisará el envío."
+    "sentBody": "El personal revisará el envío.",
+    "linkedRewardHint": "Esta recompensa quedará bloqueada hasta la revisión."
   },
   "dailyWord": {
     "title": "Palabra del día",
@@ -669,7 +689,20 @@
     "progress": "Progreso: {{current}}/{{target}}",
     "requiresAtCafe": "Requiere estar en el café.",
     "worksFromHome": "Funciona desde casa.",
-    "progressCta": "Progreso +1",
+    "autoProgressWordMatch": "El progreso se actualiza automáticamente al terminar una sesión de palabras.",
+    "autoProgressBrawler": "El progreso se actualiza automáticamente al terminar un partido de brawler.",
+    "autoProgressDailyWord": "El progreso se actualiza automáticamente al resolver la palabra diaria del local.",
+    "autoProgressPresence": "El progreso se actualiza automáticamente al hacer check-in en el local.",
+    "autoProgressManual": "Toca para registrar el progreso manualmente.",
+    "playWordGames": "Jugar palabras",
+    "playBrawler": "Jugar brawler",
+    "playDailyWord": "Resolver palabra diaria",
+    "checkIn": "Check-in en el local",
+    "manualProgressCta": "Registrar progreso",
+    "upcoming": "Próximamente",
+    "startsSoon": "Abre {{when}}",
+    "soon": "pronto",
+    "requiresWin": "Solo las victorias cuentan para este reto.",
     "completedCta": "Completado",
     "updating": "Actualizando…",
     "loadError": "No se pudieron cargar los retos",
@@ -855,7 +888,12 @@
     "redeemedAt": "Canjeado {{when}}",
     "openFriends": "Amigos",
     "shareFriendLink": "Enlace de amistad",
-    "openRewardsHub": "Mis recompensas (QR)"
+    "openRewardsHub": "Mis recompensas (QR)",
+    "openQuestHub": "Centro de recompensas",
+    "openPerkWallet": "Mis códigos de perks",
+    "openMemberCard": "Tarjeta de miembro",
+    "statsTitle": "Tus estadísticas",
+    "seeAllPerks": "Todas las recompensas"
   },
   "leaderboard": {
     "title": "Clasificación",
@@ -922,7 +960,17 @@
     "transferPick": "Elegir líder",
     "transferTitle": "Transferir liderazgo",
     "transferConfirm": "¿{{name}} será líder? Perderás el liderazgo.",
-    "transferDone": "Liderazgo transferido."
+    "transferDone": "Liderazgo transferido.",
+    "playTogether": "Jugar juntos",
+    "playTogetherHint": "Abre el lobby — coordinad en el chat y luego cola o sala.",
+    "playAtVenue": "Detectado en {{venue}} — los juegos del local usan este café.",
+    "playGlobalSubscriber": "Suscriptor — puedes jugar desde cualquier lugar.",
+    "playNeedVenue": "En un café socio para juegos locales o con suscripción desde cualquier lugar.",
+    "detailJustCreatedTitle": "Grupo creado",
+    "detailJustCreatedHint": "Comparte el enlace de invitación y luego elige un juego abajo.",
+    "waitingForFriends": "Estás solo — invita a amigos.",
+    "playWord": "Lobby de word match",
+    "playBrawler": "Lobby de brawler"
   },
   "myReports": {
     "title": "Tus reportes del local",
@@ -972,7 +1020,8 @@
     "unblock": "Desbloquear",
     "blockTitle": "¿Bloquear a este jugador?",
     "blockConfirm": "{{username}} no podrá enviarte solicitudes ni aparecer en funciones de amigos. Se quita cualquier solicitud pendiente.",
-    "blockFailed": "No se pudo actualizar la lista de bloqueados."
+    "blockFailed": "No se pudo actualizar la lista de bloqueados.",
+    "subtitle": "Conecta con personas con las que juegas en cafés socios."
   },
   "rewardsHub": {
     "title": "Centro de recompensas",
@@ -1009,7 +1058,13 @@
     "staffVerificationCode": "Código para el personal",
     "myRewards": "Mis recompensas canjeables",
     "rewardStatus": "Estado",
-    "rewardExpires": "Expira"
+    "rewardExpires": "Expira",
+    "needLocationPrecise": "Necesitamos GPS para confirmar la zona del local. Prueba fuera o junto a una ventana.",
+    "wrongVenue": "Estás en un sitio distinto a este café. Ve al local correcto o abre Canjear desde Inicio.",
+    "availableAtVenue": "Ofertas en este café",
+    "qrUnlockHint": "El check-in (QR o invitación) puede ser necesario antes de canjear.",
+    "redeemedByYou": "Ya canjeaste esta oferta.",
+    "fullyRedeemedLabel": "Canjeado"
   },
   "redeem": {
     "title": "Canjear invitación",
@@ -1081,7 +1136,20 @@
     "signInRequired": "Inicia sesión para apelar.",
     "successTitle": "Apelación enviada",
     "successBody": "Si hay seguimiento, usarán tu correo de la cuenta. Una apelación abierta por local.",
-    "failed": "No se pudo enviar la apelación."
+    "failed": "No se pudo enviar la apelación.",
+    "outcomeTitleLifted": "Prohibición levantada",
+    "outcomeTitleUpheld": "Prohibición mantenida",
+    "outcomeTitleDismissed": "Apelación rechazada",
+    "outcomeTitleOther": "Decisión",
+    "outcomeBodyLifted": "El personal levantó tu prohibición. Puedes volver a participar.",
+    "outcomeBodyUpheld": "El personal confirmó la prohibición.",
+    "outcomeBodyDismissed": "Tu apelación se cerró sin cambios.",
+    "outcomeBodyOther": "El personal revisó tu apelación.",
+    "staffMessageLabel": "Mensaje del personal",
+    "resolvedAt": "Resuelto {{when}}",
+    "refresh": "Actualizar",
+    "pendingTitle": "Apelación en curso",
+    "pendingBody": "El personal revisa tu apelación. Te avisaremos."
   },
   "questHub": {
     "title": "Centro de recompensas",
@@ -1120,7 +1188,12 @@
     "statusVoided": "Anulado",
     "statusRedeemed": "Canjeado",
     "statusOther": "{{status}}",
-    "redeemAtVenue": "Canjear en el café"
+    "redeemAtVenue": "Canjear en el café",
+    "statusLocked": "En revisión",
+    "lockedHint": "Esta recompensa está bloqueada mientras el personal revisa un recibo o incidencia.",
+    "refreshA11y": "Actualizar códigos de perks",
+    "submitReceiptToUnlock": "Enviar recibo",
+    "codeHidden": "Oculto"
   },
   "categories": {
     "DRINK_FOOD": "Bebida y comida",
@@ -1128,5 +1201,11 @@
     "MUSIC_CULTURE": "Música y cultura",
     "PEOPLE_ROLES": "Personas y roles",
     "MOMENTS_ACTIONS": "Momentos y acciones"
+  },
+  "brawlerArena": {
+    "leaveTitle": "¿Salir de la arena?",
+    "leaveBody": "Tu partida actual terminará si sales ahora.",
+    "leave": "Salir",
+    "cancel": "Cancelar"
   }
 }

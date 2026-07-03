@@ -590,16 +590,77 @@ export function useVenueChallengesQuery(
   return useQuery({
     queryKey: queryKeys.admin.challenges(venueId ?? ""),
     queryFn: () =>
-      portalFetch<
-        {
-          id: string;
-          title: string;
-          activeFrom: string | null;
-          activeTo: string | null;
-          rewardPerkId: string | null;
-        }[]
-      >(getToken, `/admin/venues/${venueId}/challenges`, { method: "GET" }),
+      portalFetch<AdminChallengeRow[]>(getToken, `/admin/venues/${venueId}/challenges`, {
+        method: "GET",
+      }),
     enabled: Boolean(enabled && venueId),
+  });
+}
+
+export type AdminChallengeRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  autoProgressSource: string;
+  rewardVenueSpecific: boolean;
+  locationRequired: boolean;
+  targetCount: number;
+  resetsWeekly: boolean;
+  scheduleType: string;
+  activeFrom: string | null;
+  activeTo: string | null;
+  dailyStartMinutes: number | null;
+  dailyEndMinutes: number | null;
+  requiresWin: boolean;
+  rewardPerkId: string | null;
+  rewardPerk?: { id: string; title: string; code: string } | null;
+};
+
+export type AdminChallengeBody = {
+  title?: string;
+  description?: string | null;
+  autoProgressSource?: string;
+  rewardVenueSpecific?: boolean;
+  locationRequired?: boolean;
+  targetCount?: number;
+  resetsWeekly?: boolean;
+  scheduleType?: string;
+  activeFrom?: string | null;
+  activeTo?: string | null;
+  dailyStartMinutes?: number | null;
+  dailyEndMinutes?: number | null;
+  requiresWin?: boolean;
+  rewardPerkId?: string | null;
+};
+
+export function useCreateChallengeMutation(
+  venueId: string | undefined,
+  getToken: () => Promise<string | null>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: AdminChallengeBody & { title: string }) =>
+      portalFetch(getToken, `/admin/venues/${venueId}/challenges`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      if (venueId) void qc.invalidateQueries({ queryKey: queryKeys.admin.challenges(venueId) });
+    },
+  });
+}
+
+export function useDeleteChallengeMutation(
+  getToken: () => Promise<string | null>,
+  venueId?: string,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      portalFetch(getToken, `/admin/challenges/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      if (venueId) void qc.invalidateQueries({ queryKey: queryKeys.admin.challenges(venueId) });
+    },
   });
 }
 
@@ -806,6 +867,7 @@ export type OwnerReceiptSummary = {
   staffNote: string | null;
   abuseFlag: boolean;
   retentionUntil: string | null;
+  linkedRedemptionId?: string | null;
   createdAt: string;
   player: { email: string; username: string };
 };
@@ -1691,9 +1753,37 @@ export function useCreatePerkMutation(
 ) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { code: string; title: string; requiresQrUnlock: boolean }) =>
+    mutationFn: (body: {
+      code: string;
+      title: string;
+      requiresQrUnlock: boolean;
+      autoRedeem?: boolean;
+    }) =>
       portalFetch(getToken, `/admin/venues/${venueId}/perks`, {
         method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      if (venueId) void qc.invalidateQueries({ queryKey: queryKeys.admin.perks(venueId) });
+    },
+  });
+}
+
+export function usePatchPerkMutation(
+  venueId: string | undefined,
+  getToken: () => Promise<string | null>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string;
+      body: { autoRedeem?: boolean; requiresQrUnlock?: boolean; title?: string };
+    }) =>
+      portalFetch(getToken, `/admin/perks/${id}`, {
+        method: "PATCH",
         body: JSON.stringify(body),
       }),
     onSuccess: () => {
@@ -1719,23 +1809,7 @@ export function useDeletePerkMutation(
 export function usePatchChallengeMutation(getToken: () => Promise<string | null>, venueId?: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      id,
-      body,
-    }: {
-      id: string;
-      body: {
-        activeFrom?: string | null;
-        activeTo?: string | null;
-        rewardPerkId?: string | null;
-        title?: string;
-        description?: string | null;
-        rewardVenueSpecific?: boolean;
-        locationRequired?: boolean;
-        targetCount?: number;
-        resetsWeekly?: boolean;
-      };
-    }) =>
+    mutationFn: ({ id, body }: { id: string; body: AdminChallengeBody }) =>
       portalFetch(getToken, `/admin/challenges/${id}`, {
         method: "PATCH",
         body: JSON.stringify(body),

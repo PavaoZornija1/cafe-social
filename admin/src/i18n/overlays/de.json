@@ -400,10 +400,14 @@
     "emptyDay": "Keine Einlösungen für diesen Tag.",
     "statusActive": "Aktiv",
     "statusVoided": "Storniert",
+    "statusLocked": "Gesperrt",
+    "statusRedeemed": "Eingelöst",
+    "statusExpired": "Abgelaufen",
     "columns": {
       "code": "Code",
       "redeemed": "Eingelöst",
       "perk": "Vorteil",
+      "player": "Gast",
       "status": "Status"
     }
   },

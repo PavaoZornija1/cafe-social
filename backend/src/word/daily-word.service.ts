@@ -5,6 +5,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ChallengeAutoProgressSource } from '@prisma/client';
 import { PlayerService } from '../player/player.service';
 import { SubscriptionRepository } from '../venue/subscription.repository';
 import { WordRepository } from './word.repository';
@@ -304,6 +305,9 @@ export class DailyWordService {
           playerId: player.id,
           venueId: dto.venueId,
           trustVenuePresence: true,
+          activityAtVenue: true,
+          countsAsWin: true,
+          source: ChallengeAutoProgressSource.DAILY_WORD,
         });
       }
 

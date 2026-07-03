@@ -12,10 +12,11 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { normalizeUserEmail } from '../auth/user-email.util';
 import { PlayerService } from '../player/player.service';
+import { ReceiptSubmissionsEnabledGuard } from './receipt-submissions-enabled.guard';
 import { VenueReceiptService } from './venue-receipt.service';
 
 @Controller('venue-context')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ReceiptSubmissionsEnabledGuard)
 export class VenueReceiptController {
   constructor(
     private readonly receipts: VenueReceiptService,
