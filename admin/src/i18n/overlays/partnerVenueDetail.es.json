@@ -25,6 +25,8 @@
     "OWNER": "Propietario"
   },
   "header": {
+    "trialActiveBanner": "Prueba activa hasta {{date}}. Los invitados pueden jugar y canjear por completo. Suscríbete antes de que termine para que el local siga en la app.",
+    "trialExpiredBanner": "Prueba terminada — local bloqueado para invitados (no en el mapa, sin juegos/ofertas/check-in). Suscríbete para desbloquear.",
     "allVenues": "← Todos los locales",
     "fallbackVenueTitle": "Local",
     "staffLeadBeforeLink": "Vista de personal — verifica canjes y confirmaciones. Abre",
@@ -259,6 +261,7 @@
     "campaigns": "Campañas",
     "challenges": "Retos",
     "perks": "Ventajas",
+    "offers": "Ofertas",
     "receipts": "Recibos",
     "redemptions": "Canjes"
   }

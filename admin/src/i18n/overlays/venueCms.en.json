@@ -70,7 +70,7 @@
   },
   "offers": {
     "title": "Offers & promos",
-    "lead": "Guest-facing offers on the home card (separate from perk codes). Only ACTIVE rows inside their date window appear in the app. Mark one as Featured for the spotlight slot; guests can redeem when you set per-player or global caps.",
+    "lead": "Guest-facing promos (separate from perk wallet codes). AUTO = passive benefit (e.g. 2× XP while playing). MEMBER_CARD = guest claims, then staff honours via member card. Only ACTIVE rows in their date window appear.",
     "badgeNone": "No offers",
     "badgeCount_one": "{{count}} offer",
     "badgeCount_other": "{{count}} offers",
@@ -97,7 +97,11 @@
     "deleteBody": "Remove {{title}}? {{cannotUndo}}",
     "featuredPrefix": "Featured · ",
     "redemptionsSuffix": " redemptions",
-    "colOffer": "Offer"
+    "colOffer": "Offer",
+    "fulfillment": "Fulfillment",
+    "fulfillmentAuto": "AUTO — applies while live (no staff)",
+    "fulfillmentMemberCard": "MEMBER_CARD — claim + staff via member card",
+    "autoXpMultiplier": "XP multiplier (e.g. 2)"
   },
   "challenges": {
     "embeddedTitle": "Challenges",

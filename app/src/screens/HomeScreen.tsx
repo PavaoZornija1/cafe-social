@@ -1,7 +1,7 @@
 import { useAuth, useUser } from '@clerk/expo';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import HomeDashboardHeader from '../components/home/HomeDashboardHeader';
@@ -10,9 +10,10 @@ import HomeHeroCard from '../components/home/HomeHeroCard';
 import HomeRewardsSection from '../components/home/HomeRewardsSection';
 import HomeVenueDailyWordChip from '../components/home/HomeVenueDailyWordChip';
 import HomeVenueStrip from '../components/home/HomeVenueStrip';
-import type { FriendAtVenueRow } from '../components/home/types';
+import type { FriendAtVenueRow, HomePublicOffer } from '../components/home/types';
 import { apiGet, apiPost } from '../lib/api';
 import { needsExplicitCheckInBanner } from '../lib/explicitCheckIn';
+import { isVenuePartnerLocked, venueLockMessageKey } from '../lib/venueLock';
 import { emitPlatformQuestProgressChanged } from '../lib/platformQuestEvents';
 import { setBackgroundApiToken } from '../lib/backgroundApiToken';
 import { isLikelyNetworkFailure } from '../lib/isNetworkError';
@@ -32,6 +33,7 @@ type VenueAccess = {
     venueId: string;
     isPremium: boolean;
     locked?: boolean;
+    lockReason?: string | null;
     visitedBefore: boolean;
     subscriptionActive: boolean;
     canEnterVenueContext: boolean;
@@ -55,16 +57,10 @@ type VenueChallenge = {
     rewardTitle: string | null;
 };
 
-type VenuePublicOffer = {
-    id: string;
-    title: string;
-    body: string | null;
-    imageUrl: string | null;
-    ctaUrl: string | null;
-    isFeatured: boolean;
-    validFrom: string | null;
-    validTo: string | null;
-    globallyExhausted: boolean;
+type VenuePublicOffer = HomePublicOffer & {
+    ctaUrl?: string | null;
+    validFrom?: string | null;
+    validTo?: string | null;
 };
 
 type VenuePublicCard = {
@@ -119,10 +115,24 @@ export default function HomeScreen({ navigation }: Props) {
     const [detectCoords, setDetectCoords] = useState<Coordinates | null>(null);
     const [venueDailyWord, setVenueDailyWord] = useState<VenueDailyWordState | null>(null);
     const [friendsAtVenue, setFriendsAtVenue] = useState<FriendAtVenueRow[]>([]);
+    const [venueOffers, setVenueOffers] = useState<VenuePublicOffer[]>([]);
+    const [claimingOfferId, setClaimingOfferId] = useState<string | null>(null);
 
-    const canPlayVenueContext = Boolean(detectedVenue && access?.canEnterVenueContext);
+    const venueLocked = isVenuePartnerLocked(access) || Boolean(detectedVenue?.locked);
+    const venueLockKey = venueLockMessageKey(
+      access?.locked ? access : detectedVenue?.locked ? { locked: true } : null,
+    );
+    const canPlayVenueContext = Boolean(
+      detectedVenue && access?.canEnterVenueContext && !venueLocked,
+    );
     const canPlayGlobal = Boolean(meSummary?.subscriptionActive);
     const gamesPlayable = canPlayVenueContext || canPlayGlobal;
+    const playDisabledReason =
+      venueLocked && !canPlayGlobal && venueLockKey
+        ? t(venueLockKey)
+        : !gamesPlayable
+          ? t('home.playLockedHint')
+          : null;
 
     const loadMeSummary = useCallback(async () => {
         if (!isLoaded) return;
@@ -199,11 +209,36 @@ export default function HomeScreen({ navigation }: Props) {
         };
     }, [isLoaded, t]);
 
+    const loadVenueOffers = useCallback(async () => {
+        if (!detectedVenue || !isLoaded) {
+            setVenueOffers([]);
+            return;
+        }
+        try {
+            const token = await getTokenRef.current();
+            if (token) {
+                const payload = await apiGet<{ offers: VenuePublicOffer[] }>(
+                    `/venue-context/${encodeURIComponent(detectedVenue.id)}/offers`,
+                    token,
+                );
+                setVenueOffers(Array.isArray(payload.offers) ? payload.offers : []);
+                return;
+            }
+            const card = await apiGet<VenuePublicCard>(
+                `/venues/${encodeURIComponent(detectedVenue.id)}/public-card`,
+            );
+            setVenueOffers(Array.isArray(card.offers) ? card.offers : []);
+        } catch {
+            setVenueOffers([]);
+        }
+    }, [detectedVenue, isLoaded]);
+
     useEffect(() => {
         let cancelled = false;
         async function run() {
             if (!detectedVenue) {
                 setPublicCard(null);
+                setVenueOffers([]);
                 return;
             }
             try {
@@ -219,12 +254,13 @@ export default function HomeScreen({ navigation }: Props) {
             } catch {
                 if (!cancelled) setPublicCard(null);
             }
+            if (!cancelled) await loadVenueOffers();
         }
         void run();
         return () => {
             cancelled = true;
         };
-    }, [detectedVenue?.id]);
+    }, [detectedVenue?.id, loadVenueOffers]);
 
     useEffect(() => {
         let cancelled = false;
@@ -387,8 +423,61 @@ export default function HomeScreen({ navigation }: Props) {
     }, [detectedVenue, navigation]);
 
     const rewardOffers = useMemo(
-        () => (publicCard?.offers ?? []).filter((o) => !o.globallyExhausted).slice(0, 8),
-        [publicCard?.offers],
+        () => venueOffers.filter((o) => !o.globallyExhausted || o.fulfillment === 'AUTO').slice(0, 8),
+        [venueOffers],
+    );
+
+    const handleOfferPress = useCallback(
+        async (offer: HomePublicOffer) => {
+            if (!detectedVenue) return;
+
+            if (offer.fulfillment === 'AUTO') {
+                Alert.alert(
+                    offer.title,
+                    offer.body?.trim() ||
+                        t('home.dashboard.offerAutoActive'),
+                );
+                return;
+            }
+
+            if (offer.claimStatus === 'FULFILLED' || offer.globallyExhausted) {
+                return;
+            }
+
+            if (offer.claimStatus === 'PENDING') {
+                navigation.navigate('MemberCard');
+                return;
+            }
+
+            setClaimingOfferId(offer.id);
+            try {
+                const token = await getTokenRef.current();
+                if (!token) throw new Error(t('home.loadVenueError'));
+                const { coords } = await fetchDetectedVenue({ locationAccuracy: 'high' });
+                await apiPost(
+                    `/venue-context/${encodeURIComponent(detectedVenue.id)}/offers/${encodeURIComponent(offer.id)}/redeem`,
+                    { latitude: coords?.lat, longitude: coords?.lng },
+                    token,
+                );
+                await loadVenueOffers();
+                Alert.alert(
+                    t('home.dashboard.offerClaimedTitle'),
+                    t('home.dashboard.offerClaimedBody'),
+                    [
+                        {
+                            text: t('home.dashboard.offerShowMemberCard'),
+                            onPress: () => navigation.navigate('MemberCard'),
+                        },
+                        { text: t('common.ok') },
+                    ],
+                );
+            } catch (e) {
+                Alert.alert(t('home.loadVenueError'), (e as Error).message);
+            } finally {
+                setClaimingOfferId(null);
+            }
+        },
+        [detectedVenue, loadVenueOffers, navigation, t],
     );
 
     return (
@@ -451,12 +540,29 @@ export default function HomeScreen({ navigation }: Props) {
                     </Pressable>
                 ) : null}
 
+                {venueLocked && venueLockKey ? (
+                    <View style={styles.lockBanner} accessibilityRole="text">
+                        <Text style={styles.lockBannerText}>{t(venueLockKey)}</Text>
+                    </View>
+                ) : null}
+
                 <HomeHeroCard
                     colors={colors}
                     displayName={displayName}
                     streak={streak}
                     friendsHere={friendsAtVenue}
                     disabled={loadingVenue || !gamesPlayable}
+                    disabledReason={playDisabledReason}
+                    activeXpMultiplier={
+                      canPlayVenueContext
+                        ? Math.max(
+                            1,
+                            ...rewardOffers
+                              .filter((o) => o.fulfillment === 'AUTO' && (o.autoXpMultiplier ?? 0) > 1)
+                              .map((o) => o.autoXpMultiplier ?? 1),
+                          )
+                        : 1
+                    }
                     onPlay={handlePlay}
                 />
 
@@ -464,6 +570,7 @@ export default function HomeScreen({ navigation }: Props) {
                     colors={colors}
                     lifetimeXp={meSummary?.xp ?? null}
                     offers={rewardOffers}
+                    claimingOfferId={claimingOfferId}
                     onSeeAll={() => {
                         if (detectedVenue) {
                             openVenueHub();
@@ -471,7 +578,7 @@ export default function HomeScreen({ navigation }: Props) {
                             navigation.navigate('RewardsHub');
                         }
                     }}
-                    onOfferPress={() => openVenueHub()}
+                    onOfferPress={(offer) => void handleOfferPress(offer)}
                     onBrowseVenues={() => navigation.navigate('VenuesTab')}
                 />
             </ScrollView>
@@ -496,6 +603,20 @@ function createStyles(colors: AppColors) {
             borderRadius: 12,
             paddingVertical: spacing.md,
             paddingHorizontal: spacing.lg,
+        },
+        lockBanner: {
+            backgroundColor: colors.errorMuted,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: colors.error,
+            borderRadius: 12,
+            paddingVertical: spacing.md,
+            paddingHorizontal: spacing.lg,
+        },
+        lockBannerText: {
+            color: colors.error,
+            fontSize: 14,
+            fontWeight: '700',
+            lineHeight: 20,
         },
         banBannerText: {
             color: colors.warning,

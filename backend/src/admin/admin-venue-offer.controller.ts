@@ -13,7 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { VenueOfferStatus } from '@prisma/client';
+import { VenueOfferFulfillment, VenueOfferStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { Request } from 'express';
@@ -30,6 +30,8 @@ class AdminCreateVenueOfferDto {
   ctaUrl?: string | null;
   status?: VenueOfferStatus;
   isFeatured?: boolean;
+  fulfillment?: VenueOfferFulfillment;
+  autoXpMultiplier?: number | null;
   validFrom?: string | null;
   validTo?: string | null;
   maxRedemptions?: number | null;
@@ -43,6 +45,8 @@ class AdminPatchVenueOfferDto {
   ctaUrl?: string | null;
   status?: VenueOfferStatus;
   isFeatured?: boolean;
+  fulfillment?: VenueOfferFulfillment;
+  autoXpMultiplier?: number | null;
   validFrom?: string | null;
   validTo?: string | null;
   maxRedemptions?: number | null;
@@ -83,6 +87,14 @@ export class AdminVenueOfferController {
 
     const status = dto.status ?? VenueOfferStatus.DRAFT;
     const isFeatured = dto.isFeatured ?? false;
+    const fulfillment = dto.fulfillment ?? VenueOfferFulfillment.MEMBER_CARD;
+    const autoXpMultiplier =
+      fulfillment === VenueOfferFulfillment.AUTO &&
+      dto.autoXpMultiplier != null &&
+      Number.isFinite(dto.autoXpMultiplier) &&
+      dto.autoXpMultiplier > 1
+        ? dto.autoXpMultiplier
+        : null;
 
     return this.prisma.$transaction(async (tx) => {
       if (isFeatured) {
@@ -100,6 +112,8 @@ export class AdminVenueOfferController {
           ctaUrl: dto.ctaUrl?.trim() || null,
           status,
           isFeatured,
+          fulfillment,
+          autoXpMultiplier,
           validFrom: dto.validFrom ? new Date(dto.validFrom) : null,
           validTo: dto.validTo ? new Date(dto.validTo) : null,
           maxRedemptions: dto.maxRedemptions ?? null,
@@ -144,6 +158,21 @@ export class AdminVenueOfferController {
       if (dto.ctaUrl !== undefined) data.ctaUrl = dto.ctaUrl?.trim() || null;
       if (dto.status !== undefined) data.status = dto.status;
       if (dto.isFeatured !== undefined) data.isFeatured = dto.isFeatured;
+      if (dto.fulfillment !== undefined) data.fulfillment = dto.fulfillment;
+      if (dto.autoXpMultiplier !== undefined || dto.fulfillment !== undefined) {
+        const fulfillment = (dto.fulfillment ?? existing.fulfillment) as VenueOfferFulfillment;
+        const mult =
+          dto.autoXpMultiplier !== undefined
+            ? dto.autoXpMultiplier
+            : existing.autoXpMultiplier;
+        data.autoXpMultiplier =
+          fulfillment === VenueOfferFulfillment.AUTO &&
+          mult != null &&
+          Number.isFinite(mult) &&
+          mult > 1
+            ? mult
+            : null;
+      }
       if (dto.validFrom !== undefined)
         data.validFrom = dto.validFrom ? new Date(dto.validFrom) : null;
       if (dto.validTo !== undefined)

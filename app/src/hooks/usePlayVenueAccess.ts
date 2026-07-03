@@ -9,6 +9,8 @@ import { buildVenueAccessQuery, fetchDetectedVenue } from '../lib/venueDetectCli
 type VenueAccess = ExplicitCheckInAccess & {
   venueId: string;
   canEnterVenueContext: boolean;
+  locked?: boolean;
+  lockReason?: string | null;
 };
 
 type Result = {

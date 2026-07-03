@@ -21,6 +21,7 @@ import type { RootStackParamList } from '../navigation/type';
 import { apiGet } from '../lib/api';
 import { venueInitial } from '../lib/geo';
 import { needsExplicitCheckInBanner } from '../lib/explicitCheckIn';
+import { isVenuePartnerLocked, venueLockMessageKey } from '../lib/venueLock';
 import { openOrderingOrMenu } from '../lib/openOrderingLinks';
 import {
     fetchMyVenueRewards,
@@ -38,6 +39,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'VenueHub'>;
 
 type VenueAccess = {
     canEnterVenueContext: boolean;
+    locked?: boolean;
+    lockReason?: string | null;
     bannedFromVenue?: boolean;
     requiresExplicitCheckIn?: boolean;
     hasExplicitCheckIn?: boolean;
@@ -54,6 +57,10 @@ type VenuePublicOffer = {
     title: string;
     body: string | null;
     ctaUrl: string | null;
+    isFeatured?: boolean;
+    fulfillment?: 'AUTO' | 'MEMBER_CARD';
+    autoXpMultiplier?: number | null;
+    claimStatus?: 'NONE' | 'PENDING' | 'FULFILLED' | null;
     globallyExhausted: boolean;
 };
 
@@ -178,6 +185,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
     const [peopleHereCount, setPeopleHereCount] = useState(0);
     const [myVenueRewards, setMyVenueRewards] = useState<VenueRedeemableReward[]>([]);
     const [leaderboardPreview, setLeaderboardPreview] = useState<LeaderboardPreviewRow[]>([]);
+    const [hubOffers, setHubOffers] = useState<VenuePublicOffer[]>([]);
 
     const displayName = publicCard?.name ?? title;
     const venueLogoInitial = venueInitial(displayName);
@@ -231,7 +239,8 @@ export default function VenueHubScreen({ navigation, route }: Props) {
             );
             setAccess(a);
 
-            const [fv, fat, eng, perks, chList, peopleList, rewardsList, boardList] = await Promise.all([
+            const [fv, fat, eng, perks, chList, peopleList, rewardsList, boardList, offersPayload] =
+                await Promise.all([
                 apiGet<FriendsVisitSummary>(
                     `/social/venues/${encodeURIComponent(venueId)}/friends-visit-summary`,
                     token,
@@ -255,6 +264,10 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                     `/venues/${encodeURIComponent(venueId)}/leaderboard/xp`,
                     token,
                 ).catch(() => []),
+                apiGet<{ offers: VenuePublicOffer[] }>(
+                    `/venue-context/${encodeURIComponent(venueId)}/offers`,
+                    token,
+                ).catch(() => ({ offers: [] })),
             ]);
             setFriendsVisit(fv);
             setFriendsAtVenue(Array.isArray(fat.friends) ? fat.friends : []);
@@ -264,6 +277,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
             setPeopleHereCount(Array.isArray(peopleList) ? peopleList.length : 0);
             setMyVenueRewards(Array.isArray(rewardsList) ? rewardsList : []);
             setLeaderboardPreview(Array.isArray(boardList) ? boardList.slice(0, 3) : []);
+            setHubOffers(Array.isArray(offersPayload.offers) ? offersPayload.offers : []);
             hasSocialDataRef.current = true;
 
             if (a.canEnterVenueContext) {
@@ -335,6 +349,8 @@ export default function VenueHubScreen({ navigation, route }: Props) {
     };
 
     const showCheckInBanner = needsExplicitCheckInBanner(access);
+    const venueLocked = isVenuePartnerLocked(access);
+    const venueLockKey = venueLockMessageKey(access);
     const openQrCheckIn = () => navigation.navigate('QrScan', { venueId });
 
     return (
@@ -414,7 +430,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                                 </View>
                             </View>
                             <View style={styles.quickActions}>
-                                {isSignedIn ? (
+                                {isSignedIn && !venueLocked ? (
                                     <Pressable
                                         style={({ pressed }) => [styles.quickChip, pressed && styles.ctaPressed]}
                                         onPress={() => navigation.navigate('ChooseGame', { venueId })}
@@ -462,56 +478,55 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                     <ExplicitCheckInBanner colors={colors} onScan={openQrCheckIn} />
                 ) : null}
 
+                {venueLocked && venueLockKey ? (
+                    <View style={styles.lockBanner}>
+                        <Ionicons name="lock-closed" size={18} color={colors.error} />
+                        <Text style={styles.lockBannerText}>{t(venueLockKey)}</Text>
+                    </View>
+                ) : null}
+
                 {publicCard ? (
                     <View style={styles.card}>
                         <Text style={styles.cardTitle}>{t('home.partnerOffers', { name: publicCard.name })}</Text>
-                        {publicCard.featuredOffer?.title ? (
-                            <View style={styles.featuredBox}>
-                                <Text style={styles.featuredLabel}>{t('home.featuredOffer')}</Text>
-                                <Text style={styles.featuredTitle}>{publicCard.featuredOffer.title}</Text>
-                                {publicCard.featuredOffer.body ? (
-                                    <Text style={styles.featuredBody}>{publicCard.featuredOffer.body}</Text>
-                                ) : null}
-                                {(() => {
-                                    const hero = (publicCard.offers ?? []).find(
-                                        (o) => o.id === publicCard.featuredOffer?.id,
-                                    );
-                                    const url = hero?.ctaUrl?.trim();
-                                    if (!url || hero?.globallyExhausted) return null;
-                                    return (
+                        {(hubOffers.length > 0 ? hubOffers : publicCard.offers ?? []).map((o) => {
+                            const isAuto = o.fulfillment === 'AUTO';
+                            const statusLabel = isAuto
+                                ? o.autoXpMultiplier && o.autoXpMultiplier > 1
+                                    ? t('home.dashboard.offerAutoXp', { mult: o.autoXpMultiplier })
+                                    : t('home.dashboard.offerAutoActive')
+                                : o.claimStatus === 'FULFILLED'
+                                  ? t('home.dashboard.offerFulfilled')
+                                  : o.claimStatus === 'PENDING'
+                                    ? t('home.dashboard.offerShowMemberCard')
+                                    : o.globallyExhausted
+                                      ? t('home.dashboard.offerExhausted')
+                                      : t('home.dashboard.offerClaimCta');
+                            return (
+                                <View key={o.id} style={styles.offerRow}>
+                                    <Text style={styles.offerTitle}>{o.title}</Text>
+                                    {o.body ? <Text style={styles.offerBody}>{o.body}</Text> : null}
+                                    <Text style={styles.linkText}>
+                                        {isAuto
+                                            ? t('home.dashboard.offerKindAuto')
+                                            : t('home.dashboard.offerKindMemberCard')}
+                                        {' · '}
+                                        {statusLabel}
+                                    </Text>
+                                    {!isAuto && o.claimStatus === 'PENDING' ? (
                                         <Pressable
-                                            style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
-                                            onPress={() => void Linking.openURL(url)}
+                                            onPress={() => navigation.navigate('MemberCard')}
+                                            style={({ pressed }) => [styles.link, pressed && styles.ctaPressed]}
                                         >
-                                            <Text style={styles.ctaText}>{t('home.offerCta')}</Text>
+                                            <Text style={styles.linkText}>
+                                                {t('home.dashboard.offerShowMemberCard')}
+                                            </Text>
                                         </Pressable>
-                                    );
-                                })()}
-                            </View>
-                        ) : null}
-                        {(publicCard.offers ?? []).filter(
-                            (o) => o.id !== publicCard.featuredOffer?.id && o.title?.trim(),
-                        ).length ? (
-                            <View style={styles.moreOffers}>
-                                {(publicCard.offers ?? [])
-                                    .filter((o) => o.id !== publicCard.featuredOffer?.id && o.title?.trim())
-                                    .map((o) => (
-                                        <View key={o.id} style={styles.offerRow}>
-                                            <Text style={styles.offerTitle}>{o.title}</Text>
-                                            {o.body ? <Text style={styles.offerBody}>{o.body}</Text> : null}
-                                            {o.globallyExhausted ? (
-                                                <Text style={styles.exhausted}>{t('home.offerExhausted')}</Text>
-                                            ) : o.ctaUrl?.trim() ? (
-                                                <Pressable
-                                                    onPress={() => void Linking.openURL(o.ctaUrl!.trim())}
-                                                    style={({ pressed }) => [styles.link, pressed && styles.ctaPressed]}
-                                                >
-                                                    <Text style={styles.linkText}>{t('home.offerCta')}</Text>
-                                                </Pressable>
-                                            ) : null}
-                                        </View>
-                                    ))}
-                            </View>
+                                    ) : null}
+                                </View>
+                            );
+                        })}
+                        {(hubOffers.length === 0 && (publicCard.offers ?? []).length === 0) ? (
+                            <Text style={styles.muted}>{t('home.dashboard.noOffersYet')}</Text>
                         ) : null}
                         <View style={styles.partnerLinks}>
                             {publicCard.orderingUrl?.trim() ? (
@@ -645,17 +660,23 @@ export default function VenueHubScreen({ navigation, route }: Props) {
 
                         <View style={styles.card}>
                             <Text style={styles.cardTitle}>{t('venueHub.playGamesTitle')}</Text>
-                            <Text style={styles.muted}>{t('venueHub.playGamesHint')}</Text>
-                            <Pressable
-                                style={({ pressed }) => [
-                                    styles.pillBtn,
-                                    styles.pillBtnSpaced,
-                                    pressed && styles.ctaPressed,
-                                ]}
-                                onPress={() => navigation.navigate('ChooseGame', { venueId })}
-                            >
-                                <Text style={styles.pillBtnText}>{t('venueHub.playGamesCta')}</Text>
-                            </Pressable>
+                            <Text style={styles.muted}>
+                                {venueLocked && venueLockKey
+                                    ? t(venueLockKey)
+                                    : t('venueHub.playGamesHint')}
+                            </Text>
+                            {!venueLocked ? (
+                                <Pressable
+                                    style={({ pressed }) => [
+                                        styles.pillBtn,
+                                        styles.pillBtnSpaced,
+                                        pressed && styles.ctaPressed,
+                                    ]}
+                                    onPress={() => navigation.navigate('ChooseGame', { venueId })}
+                                >
+                                    <Text style={styles.pillBtnText}>{t('venueHub.playGamesCta')}</Text>
+                                </Pressable>
+                            ) : null}
                         </View>
 
                         <View style={styles.card}>
@@ -688,7 +709,9 @@ export default function VenueHubScreen({ navigation, route }: Props) {
 
                         <View style={styles.card}>
                             <Text style={styles.cardTitle}>{t('venueHub.challengesAtVenueTitle')}</Text>
-                            {refreshingSocial && hubChallenges.length === 0 ? (
+                            {venueLocked && venueLockKey ? (
+                                <Text style={styles.muted}>{t(venueLockKey)}</Text>
+                            ) : refreshingSocial && hubChallenges.length === 0 ? (
                                 <ActivityIndicator color={colors.honey} style={{ marginTop: 8 }} />
                             ) : hubChallenges.length === 0 ? (
                                 <Text style={styles.muted}>{t('venueHub.challengesEmptyShort')}</Text>
@@ -1182,6 +1205,24 @@ function createStyles(colors: AppColors) {
         overflow: 'hidden',
     },
     muted: { color: colors.textMuted, fontSize: 12, marginTop: 4, lineHeight: 17 },
+    lockBanner: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: spacing.sm,
+        marginBottom: spacing.md,
+        padding: spacing.md,
+        borderRadius: radii.lg,
+        backgroundColor: colors.errorMuted,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: colors.error,
+    },
+    lockBannerText: {
+        flex: 1,
+        color: colors.error,
+        fontSize: 14,
+        fontWeight: '700',
+        lineHeight: 20,
+    },
     mutedSmall: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
     feedRow: {
         paddingVertical: spacing.sm,

@@ -9,6 +9,7 @@ import { PlayerVenueCheckInRepository } from '../venue/player-venue-check-in.rep
 import { PlayerVenueRepository } from '../venue/player-venue.repository';
 import { ChallengeService } from '../challenge/challenge.service';
 import { ChallengeAutoProgressSource } from '@prisma/client';
+import { VenueOfferService } from '../venue/venue-offer.service';
 
 @Injectable()
 export class PlayerMemberScanService {
@@ -20,10 +21,12 @@ export class PlayerMemberScanService {
     private readonly funnel: VenueFunnelService,
     private readonly discovery: DiscoveryService,
     private readonly challenges: ChallengeService,
+    private readonly offers: VenueOfferService,
   ) {}
 
   /**
-   * Staff scans a guest's personal member QR at a venue — records today's visit and check-in.
+   * Staff scans a guest's personal member QR at a venue — records today's visit and check-in,
+   * and returns pending MEMBER_CARD offers for staff to honour.
    */
   async scanMemberCardAtVenue(params: {
     venueId: string;
@@ -32,6 +35,13 @@ export class PlayerMemberScanService {
     playerId: string;
     username: string;
     visitDayKey: string;
+    pendingOffers: {
+      redemptionId: string;
+      offerId: string;
+      title: string;
+      body: string | null;
+      claimedAt: string;
+    }[];
   }> {
     const memberToken = parseMemberTokenFromQr(params.qrPayload);
     if (!memberToken) {
@@ -102,11 +112,41 @@ export class PlayerMemberScanService {
       countsAsWin: true,
       source: ChallengeAutoProgressSource.PRESENCE,
     });
+    // Staff member-card stamp also progresses MANUAL challenges (no guest tap).
+    void this.challenges.bumpActiveChallengesForPlayerAtVenue({
+      playerId: player.id,
+      venueId: params.venueId,
+      trustVenuePresence: true,
+      activityAtVenue: true,
+      countsAsWin: true,
+      source: ChallengeAutoProgressSource.MANUAL,
+    });
+
+    const pendingOffers = await this.offers.listPendingMemberCardOffersForPlayer(
+      params.venueId,
+      player.id,
+    );
 
     return {
       playerId: player.id,
       username: player.username,
       visitDayKey: dayKey,
+      pendingOffers,
     };
+  }
+
+  async fulfillMemberCardOffer(params: {
+    venueId: string;
+    redemptionId: string;
+    staffPlayerId: string;
+  }) {
+    const venue = await this.prisma.venue.findUnique({
+      where: { id: params.venueId },
+      select: { id: true, locked: true },
+    });
+    if (!venue || venue.locked) {
+      throw new NotFoundException('Venue not found');
+    }
+    return this.offers.fulfillMemberCardOffer(params);
   }
 }

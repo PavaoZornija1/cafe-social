@@ -411,6 +411,19 @@ export function VenueAnalyticsSection() {
                       </div>
                       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <p className="text-sm text-slate-600">
+                          {t("admin.partnerVenueDetail.analytics.offerClaimsPending")}
+                        </p>
+                        <p className="text-2xl font-semibold mt-1">
+                          {analytics.offerClaims?.pending ?? 0}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {t("admin.partnerVenueDetail.analytics.offerClaimsFulfilled", {
+                            count: analytics.offerClaims?.fulfilled ?? 0,
+                          })}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-sm text-slate-600">
                           {t("admin.partnerVenueDetail.analytics.uniqueVisitors")}
                         </p>
                         <p className="text-2xl font-semibold mt-1">

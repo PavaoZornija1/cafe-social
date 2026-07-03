@@ -321,15 +321,7 @@ export class GameXpAwardService {
 
     const atVenue = Boolean(row.venueId && !row.globalPlay);
     const delta = atVenue ? XP_WORD_SOLO_VENUE : XP_WORD_SOLO_GLOBAL;
-    if (atVenue && row.venueId) {
-      await this.venueStats.addVenueXp(row.playerId, row.venueId, delta);
-    } else {
-      await this.prisma.player.update({
-        where: { id: row.playerId },
-        data: { bonusXp: { increment: delta } },
-      });
-    }
-    await this.tierRewards.syncTierRewards(row.playerId);
+    await this.addXp(row.playerId, atVenue ? row.venueId : null, delta);
   }
 
   /** Daily word first correct solve for that day/scope. */
@@ -353,14 +345,6 @@ export class GameXpAwardService {
 
     const atVenue = Boolean(params.venueId);
     const delta = atVenue ? XP_VENUE_WIN : XP_GLOBAL_WIN;
-    if (atVenue && params.venueId) {
-      await this.venueStats.addVenueXp(params.playerId, params.venueId, delta);
-    } else {
-      await this.prisma.player.update({
-        where: { id: params.playerId },
-        data: { bonusXp: { increment: delta } },
-      });
-    }
-    await this.tierRewards.syncTierRewards(params.playerId);
+    await this.addXp(params.playerId, atVenue ? params.venueId : null, delta);
   }
 }

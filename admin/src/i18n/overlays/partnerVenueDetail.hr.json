@@ -25,6 +25,8 @@
     "OWNER": "Vlasnik"
   },
   "header": {
+    "trialActiveBanner": "Probni period aktivan do {{date}}. Gosti mogu potpuno igrati i otkupljivati. Pretplatite se prije isteka da lokal ostane u aplikaciji.",
+    "trialExpiredBanner": "Probni period istekao — lokal je zaključan za goste (nema na karti, nema igara/ponuda/check-ina). Pretplatite se za otključavanje.",
     "allVenues": "← Sve lokacije",
     "fallbackVenueTitle": "Lokacija",
     "staffLeadBeforeLink": "Prikaz za osoblje — provjerite otkupe i potvrde. Otvorite",
@@ -259,6 +261,7 @@
     "campaigns": "Kampanje",
     "challenges": "Izazovi",
     "perks": "Pogodnosti",
+    "offers": "Ponude",
     "receipts": "Računi",
     "redemptions": "Otkupi"
   }

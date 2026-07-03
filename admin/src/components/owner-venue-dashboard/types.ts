@@ -40,6 +40,7 @@ export type VenueDashboardSectionKey =
   | "campaigns"
   | "challenges"
   | "perks"
+  | "offers"
   | "receipts"
   | "redemptions";
 
@@ -51,6 +52,7 @@ export const VENUE_DASHBOARD_SECTIONS: VenueDashboardSectionKey[] = [
   "campaigns",
   "challenges",
   "perks",
+  "offers",
   "receipts",
   "redemptions",
 ];

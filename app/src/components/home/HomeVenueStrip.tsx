@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { AppColors } from '../../theme/colors';
 import { radii, spacing } from '../../theme/tokens';
+import { isVenuePartnerLocked, venueLockMessageKey } from '../../lib/venueLock';
 import type { HomeVenue, HomeVenueAccess } from './types';
 
 type Props = {
@@ -45,8 +46,15 @@ export default function HomeVenueStrip({
   const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
+  const venueLocked = isVenuePartnerLocked(access) || Boolean(venue?.locked);
+  const lockShortKey = venueLockMessageKey(
+    access?.locked ? access : venue?.locked ? { locked: true } : null,
+  );
   const checkedIn = Boolean(
-    venue && access?.canEnterVenueContext && access.isPhysicallyAtVenue !== false,
+    venue &&
+      !venueLocked &&
+      access?.canEnterVenueContext &&
+      access.isPhysicallyAtVenue !== false,
   );
 
   const openMenu = () => {
@@ -108,21 +116,29 @@ export default function HomeVenueStrip({
           <Text style={styles.title} numberOfLines={1}>
             {venue.name}
           </Text>
-          {access?.canEnterVenueContext && !needsCheckIn ? (
+          {venueLocked ? (
+            <Ionicons name="lock-closed" size={16} color={colors.error} />
+          ) : access?.canEnterVenueContext && !needsCheckIn ? (
             <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
           ) : null}
         </View>
         <Text
-          style={[styles.meta, checkedIn && !needsCheckIn && styles.metaHighlight]}
+          style={[
+            styles.meta,
+            checkedIn && !needsCheckIn && styles.metaHighlight,
+            venueLocked && styles.metaLocked,
+          ]}
           numberOfLines={2}
         >
-          {needsCheckIn
-            ? t('home.explicitCheckInChallengeLine')
-            : checkedIn
-              ? t('home.dashboard.checkedInXp')
-              : access?.canEnterVenueContext
-                ? t('home.dashboard.venueUnlocked')
-                : t('home.dashboard.tapToUnlock')}
+          {venueLocked && lockShortKey
+            ? t(lockShortKey)
+            : needsCheckIn
+              ? t('home.explicitCheckInChallengeLine')
+              : checkedIn
+                ? t('home.dashboard.checkedInXp')
+                : access?.canEnterVenueContext
+                  ? t('home.dashboard.venueUnlocked')
+                  : t('home.dashboard.tapToUnlock')}
         </Text>
       </View>
       {needsCheckIn && onCheckIn ? (
@@ -215,6 +231,10 @@ function createStyles(colors: AppColors) {
     },
     metaHighlight: {
       color: colors.primary,
+      fontWeight: '700',
+    },
+    metaLocked: {
+      color: colors.error,
       fontWeight: '700',
     },
     metaAction: {

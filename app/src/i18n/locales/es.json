@@ -240,7 +240,8 @@
     "brawlerNeedVenue": "Brawler requiere check-in en un local.",
     "heroTitle": "Elige un juego",
     "heroVenue": "Estás en {{venue}} — los juegos del local usan este café.",
-    "heroGlobal": "Suscriptor — juega desde cualquier lugar."
+    "heroGlobal": "Suscriptor — juega desde cualquier lugar.",
+    "heroLocked": "Los juegos en este café están bloqueados. Elige otro local socio o juega en global con suscripción."
   },
   "brawlerLobby": {
     "title": "Lobby Brawler",
@@ -405,8 +406,8 @@
     "noVenueYet": "No hay local socio detectado. Fidelización, amigos e invitaciones siguen. Los juegos van en el café — o desde casa con suscripción.",
     "lockedHintStandard": "Los juegos del local necesitan ubicación para confirmar que estás ahí. El resto de la app sigue abierto.",
     "lockedHintPremium": "Los juegos del local necesitan ubicación aquí, o suscripción para jugar en global.",
-    "venueTemporarilyUnavailable": "Este local no tiene los juegos de Cafe Social activos ahora. Las ofertas y el resto de la app siguen disponibles.",
     "venueTemporarilyUnavailableShort": "Los juegos no están disponibles en este local por ahora.",
+    "venueTrialEndedShort": "Local bloqueado — terminó la prueba del socio.",
     "bannedFromVenue": "Este local ha restringido tu cuenta para juegos y canjes aquí. Contacta al personal si crees que es un error.",
     "banAppealCta": "Enviar apelación",
     "challengeTitle": "Tu reto",
@@ -515,6 +516,7 @@
       "gameOn": "A jugar.",
       "gameOnNamed": "A jugar, {{name}}.",
       "tapToPlayXp": "Toca para jugar · +60 XP",
+      "playLocked": "Bloqueado",
       "pickGame": "Elige un juego",
       "heroA11y": "Elige un juego y empieza a jugar",
       "rewardsTitle": "Recompensas",
@@ -684,6 +686,7 @@
     "subtitleEmpty": "Haz check-in en un café partner para ver retos.",
     "loading": "Cargando…",
     "empty": "Aún no hay retos.",
+    "venueLocked": "Los retos están bloqueados en este local.",
     "done": "Hecho",
     "inProgress": "En curso",
     "progress": "Progreso: {{current}}/{{target}}",

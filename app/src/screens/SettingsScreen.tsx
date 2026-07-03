@@ -795,6 +795,12 @@ export default function SettingsScreen({ navigation }: Props) {
         <View style={styles.card}>
           <Text style={styles.cardTextMuted}>{t('settings.version', { version: appVersion })}</Text>
           <Text style={[styles.cardText, styles.aboutTagline]}>Cafe Social — venue-locked games.</Text>
+          <Text style={[styles.cardTextMuted, styles.aboutTagline]}>{t('settings.glossaryTitle')}</Text>
+          <Text style={styles.cardTextMuted}>{t('settings.glossaryChallenges')}</Text>
+          <Text style={styles.cardTextMuted}>{t('settings.glossaryPerks')}</Text>
+          <Text style={styles.cardTextMuted}>{t('settings.glossaryOffers')}</Text>
+          <Text style={styles.cardTextMuted}>{t('settings.glossaryPlatform')}</Text>
+          <Text style={[styles.cardTextMuted, styles.aboutTagline]}>{t('settings.glossaryStaff')}</Text>
         </View>
 
         <Pressable

@@ -29,7 +29,7 @@ export class GeofenceService {
       select: { id: true, locked: true },
     });
     if (!venue) throw new NotFoundException('Venue not found');
-    if (venue.locked) throw new BadRequestException('Venue is not available');
+    if (venue.locked) throw new NotFoundException('Venue not found');
 
     const dedupe = params.clientDedupeKey?.trim() || null;
     if (dedupe) {

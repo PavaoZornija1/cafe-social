@@ -16,8 +16,16 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 
 import type { RootStackParamList } from '../navigation/type';
-import { apiGet, apiPost } from '../lib/api';
-import { fetchDetectedVenue } from '../lib/venueDetectClient';
+import { apiGet } from '../lib/api';
+import {
+  buildVenueAccessQuery,
+  fetchDetectedVenue,
+} from '../lib/venueDetectClient';
+import {
+  isVenuePartnerLocked,
+  venueLockMessageKey,
+  type VenueLockFields,
+} from '../lib/venueLock';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
@@ -42,6 +50,9 @@ type VenueChallenge = {
   resetsWeekly?: boolean;
   rewardPerkId: string | null;
   rewardTitle: string | null;
+  rewardRedemptionId?: string | null;
+  rewardRedemptionStatus?: string | null;
+  rewardStaffCode?: string | null;
   autoProgressSource?: AutoProgressSource;
   requiresWin?: boolean;
   windowStatus?: WindowStatus;
@@ -60,7 +71,7 @@ function autoProgressHintKey(source: AutoProgressSource): string {
     case 'PRESENCE':
       return 'challenges.autoProgressPresence';
     case 'MANUAL':
-      return 'challenges.autoProgressManual';
+      return 'challenges.autoProgressManualStaff';
   }
 }
 
@@ -75,7 +86,7 @@ function playCtaKey(source: AutoProgressSource): string | null {
     case 'PRESENCE':
       return 'challenges.checkIn';
     case 'MANUAL':
-      return null;
+      return 'challenges.showMemberCardCta';
   }
 }
 
@@ -96,7 +107,7 @@ export default function ChallengesScreen({ navigation, route }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [challenges, setChallenges] = useState<VenueChallenge[]>([]);
-  const [progressingId, setProgressingId] = useState<string | null>(null);
+  const [venueLock, setVenueLock] = useState<VenueLockFields | null>(null);
 
   const challengesRef = useRef(challenges);
   challengesRef.current = challenges;
@@ -142,11 +153,31 @@ export default function ChallengesScreen({ navigation, route }: Props) {
 
         if (!activeVenue) {
           setChallenges([]);
+          setVenueLock(null);
           return;
         }
 
         const token = await getTokenRef.current();
         if (!token) throw new Error('Not authenticated');
+
+        const { coords } = await fetchDetectedVenue().catch(() => ({
+          venue: null,
+          coords: null,
+        }));
+        const accessQs = buildVenueAccessQuery(coords);
+        const access = await apiGet<VenueLockFields & { venueId: string }>(
+          `/venue-context/${encodeURIComponent(activeVenue.id)}/access${accessQs}`,
+          token,
+        ).catch(() => null);
+        const lockFields = access
+          ? { locked: access.locked, lockReason: access.lockReason }
+          : null;
+        setVenueLock(lockFields);
+
+        if (isVenuePartnerLocked(lockFields)) {
+          setChallenges([]);
+          return;
+        }
 
         const list = await apiGet<VenueChallenge[]>(
           `/venue-context/${encodeURIComponent(activeVenue.id)}/challenges`,
@@ -156,6 +187,7 @@ export default function ChallengesScreen({ navigation, route }: Props) {
       } catch (e) {
         setError((e as Error).message || tRef.current('challenges.loadError'));
         if (!hasData) setChallenges([]);
+        setVenueLock(null);
       } finally {
         hasLoadedRef.current = true;
         setInitializing(false);
@@ -201,43 +233,20 @@ export default function ChallengesScreen({ navigation, route }: Props) {
           if (venueId) navigation.navigate('QrScan', { venueId });
           break;
         case 'MANUAL':
+          navigation.navigate('MemberCard');
           break;
       }
     },
     [navigation, venue?.id],
   );
 
-  const incrementManual = useCallback(
-    async (challengeId: string) => {
-      if (!venue || !isLoaded) return;
-      setProgressingId(challengeId);
-      setError(null);
-      try {
-        const token = await getTokenRef.current();
-        if (!token) throw new Error('Not authenticated');
-        const ch = challengesRef.current.find((x) => x.id === challengeId);
-        const needHigh = Boolean(ch?.locationRequired || ch?.rewardVenueSpecific);
-        const { coords } = await fetchDetectedVenue({
-          locationAccuracy: needHigh ? 'high' : 'balanced',
-        });
-        await apiPost<void>(
-          `/venue-context/${encodeURIComponent(venue.id)}/challenges/${encodeURIComponent(challengeId)}/progress`,
-          { increment: 1, latitude: coords?.lat, longitude: coords?.lng },
-          token,
-        );
-        await fetchChallengesRef.current('refresh');
-      } catch (e) {
-        setError((e as Error).message || tRef.current('challenges.loadError'));
-      } finally {
-        setProgressingId(null);
-      }
-    },
-    [venue, isLoaded],
-  );
-
-  const heroSubtitle = venue
-    ? t('challenges.subtitleVenue', { venue: venue.name })
-    : t('challenges.subtitleEmpty');
+  const venueLocked = isVenuePartnerLocked(venueLock);
+  const venueLockKey = venueLockMessageKey(venueLock);
+  const heroSubtitle = venueLocked && venueLockKey
+    ? t(venueLockKey)
+    : venue
+      ? t('challenges.subtitleVenue', { venue: venue.name })
+      : t('challenges.subtitleEmpty');
 
   const showInitialSpinner = initializing && challenges.length === 0 && !error;
 
@@ -294,6 +303,13 @@ export default function ChallengesScreen({ navigation, route }: Props) {
           <View style={styles.centerBlock}>
             <ActivityIndicator color={colors.primary} />
             <Text style={styles.mutedCenter}>{t('challenges.loading')}</Text>
+          </View>
+        ) : venueLocked ? (
+          <View style={styles.emptyCard}>
+            <Ionicons name="lock-closed" size={32} color={colors.error} />
+            <Text style={styles.emptyText}>
+              {venueLockKey ? t(venueLockKey) : t('challenges.venueLocked')}
+            </Text>
           </View>
         ) : challenges.length === 0 ? (
           <View style={styles.emptyCard}>
@@ -430,6 +446,29 @@ export default function ChallengesScreen({ navigation, route }: Props) {
                   </View>
                 ) : null}
 
+                {c.isCompleted &&
+                c.rewardRedemptionStatus === 'REDEEMABLE' &&
+                c.rewardStaffCode ? (
+                  <View style={styles.redeemBox}>
+                    <Text style={styles.redeemBoxTitle}>
+                      {t('challenges.redeemRewardTitle', {
+                        title: c.rewardTitle ?? t('challenges.rewardFallback'),
+                      })}
+                    </Text>
+                    <Text style={styles.redeemBoxHint}>
+                      {t('challenges.redeemRewardHint')}
+                    </Text>
+                    <Text style={styles.redeemCode}>{c.rewardStaffCode}</Text>
+                  </View>
+                ) : null}
+
+                {c.isCompleted && c.rewardRedemptionStatus === 'REDEEMED' ? (
+                  <View style={styles.metaRow}>
+                    <Ionicons name="checkmark-done" size={14} color={colors.success} />
+                    <Text style={styles.cardHint}>{t('challenges.rewardRedeemed')}</Text>
+                  </View>
+                ) : null}
+
                 {!c.isCompleted && isActive ? (
                   <View style={styles.metaRow}>
                     <Ionicons name="sync-outline" size={14} color={colors.primary} />
@@ -439,33 +478,27 @@ export default function ChallengesScreen({ navigation, route }: Props) {
                   </View>
                 ) : null}
 
-                {progressSource === 'MANUAL' && !c.isCompleted && isActive ? (
-                  <Pressable
-                    disabled={Boolean(progressingId)}
-                    onPress={() => void incrementManual(c.id)}
-                    style={({ pressed }) => [
-                      styles.actionBtn,
-                      pressed && styles.pressed,
-                      Boolean(progressingId) && styles.actionBtnDisabled,
-                    ]}
-                  >
-                    <Text style={styles.actionText}>
-                      {progressingId === c.id
-                        ? t('challenges.updating')
-                        : t('challenges.manualProgressCta')}
-                    </Text>
-                  </Pressable>
-                ) : playLabel && !c.isCompleted && isActive ? (
+                {playLabel && !c.isCompleted && isActive ? (
                   <Pressable
                     onPress={() => openPlayForChallenge(progressSource)}
                     style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
                   >
                     <Text style={styles.actionText}>{t(playLabel)}</Text>
                   </Pressable>
+                ) : c.isCompleted &&
+                  c.rewardRedemptionStatus === 'REDEEMABLE' ? (
+                  <Pressable
+                    onPress={() => navigation.navigate('PerkWallet')}
+                    style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
+                  >
+                    <Text style={styles.actionText}>{t('challenges.redeemInWalletCta')}</Text>
+                  </Pressable>
                 ) : c.isCompleted ? (
                   <View style={[styles.actionBtn, styles.actionBtnDone, styles.actionBtnDisabled]}>
                     <Text style={[styles.actionText, styles.actionTextDone]}>
-                      {t('challenges.completedCta')}
+                      {c.rewardRedemptionStatus === 'REDEEMED'
+                        ? t('challenges.rewardRedeemed')
+                        : t('challenges.completedCta')}
                     </Text>
                   </View>
                 ) : null}
@@ -663,6 +696,34 @@ function createStyles(colors: AppColors) {
       fontSize: 12,
       fontWeight: '600',
       lineHeight: 17,
+    },
+    redeemBox: {
+      marginTop: spacing.xs,
+      padding: spacing.md,
+      borderRadius: radii.lg,
+      backgroundColor: colors.primaryMuted,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.primary,
+      gap: spacing.xs,
+    },
+    redeemBoxTitle: {
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: '800',
+    },
+    redeemBoxHint: {
+      color: colors.textSecondary,
+      fontSize: 12,
+      fontWeight: '600',
+      lineHeight: 17,
+    },
+    redeemCode: {
+      marginTop: spacing.xs,
+      color: colors.primaryDark,
+      fontSize: 22,
+      fontWeight: '900',
+      letterSpacing: 2,
+      fontVariant: ['tabular-nums'],
     },
     actionBtn: {
       marginTop: spacing.sm,

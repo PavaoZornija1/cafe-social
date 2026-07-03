@@ -1,4 +1,4 @@
-import { VenueOfferStatus } from '@prisma/client';
+import { VenueOfferFulfillment, VenueOfferStatus } from '@prisma/client';
 import type { PrismaService } from '../prisma/prisma.service';
 
 export type PublicVenueOfferCard = {
@@ -8,9 +8,13 @@ export type PublicVenueOfferCard = {
   imageUrl: string | null;
   ctaUrl: string | null;
   isFeatured: boolean;
+  fulfillment: VenueOfferFulfillment;
+  autoXpMultiplier: number | null;
   validFrom: string | null;
   validTo: string | null;
   globallyExhausted: boolean;
+  /** MEMBER_CARD only: guest claim state at this venue. */
+  claimStatus: 'NONE' | 'PENDING' | 'FULFILLED' | null;
 };
 
 export function isOfferLiveForPublic(
@@ -18,8 +22,6 @@ export function isOfferLiveForPublic(
     status: VenueOfferStatus;
     validFrom: Date | null;
     validTo: Date | null;
-    maxRedemptions: number | null;
-    redemptionCount: number;
   },
   now: Date,
 ): boolean {
@@ -39,6 +41,7 @@ export function isGloballyExhausted(o: {
 export async function loadPublicVenueOffersForVenue(
   prisma: PrismaService,
   venueId: string,
+  playerId?: string | null,
 ): Promise<{
   offers: PublicVenueOfferCard[];
   featuredOffer: {
@@ -54,11 +57,31 @@ export async function loadPublicVenueOffersForVenue(
     orderBy: [{ isFeatured: 'desc' }, { createdAt: 'desc' }],
   });
 
+  const claimByOfferId = new Map<string, 'PENDING' | 'FULFILLED'>();
+  if (playerId) {
+    const claims = await prisma.venueOfferRedemption.findMany({
+      where: {
+        playerId,
+        offerId: { in: rows.map((r) => r.id) },
+      },
+      select: { offerId: true, status: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    for (const c of claims) {
+      if (claimByOfferId.has(c.offerId)) continue;
+      claimByOfferId.set(
+        c.offerId,
+        c.status === 'FULFILLED' ? 'FULFILLED' : 'PENDING',
+      );
+    }
+  }
+
   const offers: PublicVenueOfferCard[] = [];
 
   for (const o of rows) {
     if (!isOfferLiveForPublic(o, now)) continue;
     const globallyExhausted = isGloballyExhausted(o);
+    const claim = claimByOfferId.get(o.id) ?? null;
     offers.push({
       id: o.id,
       title: o.title,
@@ -66,9 +89,15 @@ export async function loadPublicVenueOffersForVenue(
       imageUrl: o.imageUrl,
       ctaUrl: o.ctaUrl,
       isFeatured: o.isFeatured,
+      fulfillment: o.fulfillment,
+      autoXpMultiplier: o.autoXpMultiplier,
       validFrom: o.validFrom?.toISOString() ?? null,
       validTo: o.validTo?.toISOString() ?? null,
       globallyExhausted,
+      claimStatus:
+        o.fulfillment === VenueOfferFulfillment.MEMBER_CARD
+          ? claim ?? 'NONE'
+          : null,
     });
   }
 
@@ -86,4 +115,33 @@ export async function loadPublicVenueOffersForVenue(
         }
       : null,
   };
+}
+
+/** Highest live AUTO XP multiplier at a venue (default 1). */
+export async function activeVenueXpMultiplier(
+  prisma: PrismaService,
+  venueId: string,
+  now = new Date(),
+): Promise<number> {
+  const rows = await prisma.venueOffer.findMany({
+    where: {
+      venueId,
+      fulfillment: VenueOfferFulfillment.AUTO,
+      status: VenueOfferStatus.ACTIVE,
+      autoXpMultiplier: { not: null, gt: 1 },
+    },
+    select: {
+      autoXpMultiplier: true,
+      validFrom: true,
+      validTo: true,
+      status: true,
+    },
+  });
+  let mult = 1;
+  for (const o of rows) {
+    if (!isOfferLiveForPublic(o, now)) continue;
+    const m = o.autoXpMultiplier;
+    if (typeof m === 'number' && Number.isFinite(m) && m > mult) mult = m;
+  }
+  return mult;
 }

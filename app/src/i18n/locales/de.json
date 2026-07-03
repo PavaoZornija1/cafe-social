@@ -240,7 +240,8 @@
     "brawlerNeedVenue": "Brawler braucht Check-in (Arena ist ortsgebunden).",
     "heroTitle": "Wähle ein Spiel",
     "heroVenue": "Du bist bei {{venue}} — Venue-Spiele nutzen dieses Café.",
-    "heroGlobal": "Abonnent — spiele von überall."
+    "heroGlobal": "Abonnent — spiele von überall.",
+    "heroLocked": "Spiele in diesem Café sind gesperrt. Anderes Partner-Café wählen oder global mit Abo spielen."
   },
   "brawlerLobby": {
     "title": "Brawler-Lobby",
@@ -405,8 +406,8 @@
     "noVenueYet": "Kein Partner-Lokal erkannt. Treue, Freunde und Einladungen gehen trotzdem. Spiele starten am Café — mit Abo oft auch von zu Hause.",
     "lockedHintStandard": "Lokal-Spiele brauchen deinen Standort vor Ort. Der Rest der App bleibt offen.",
     "lockedHintPremium": "Lokal-Spiele brauchen Standort hier oder ein Abo für globales Spielen.",
-    "venueTemporarilyUnavailable": "Dieses Café nutzt Cafe Social hier gerade nicht für Spiele. Angebote und der Rest der App sind weiter offen.",
     "venueTemporarilyUnavailableShort": "Spiele sind hier vorerst nicht verfügbar.",
+    "venueTrialEndedShort": "Venue gesperrt — Partner-Testphase beendet.",
     "bannedFromVenue": "Dieses Lokal hat dein Konto für Spiele und Einlösungen hier gesperrt. Sprich das Personal an, wenn das ein Fehler ist.",
     "banAppealCta": "Einspruch gegen die Sperre",
     "challengeTitle": "Deine Challenge",
@@ -515,6 +516,7 @@
       "gameOn": "Los geht's.",
       "gameOnNamed": "Los geht's, {{name}}.",
       "tapToPlayXp": "Tippen zum Spielen · +60 XP",
+      "playLocked": "Gesperrt",
       "pickGame": "Spiel wählen",
       "heroA11y": "Spiel wählen und starten",
       "rewardsTitle": "Belohnungen",
@@ -684,6 +686,7 @@
     "subtitleEmpty": "Check-in in einem Partner-Café, um Challenges zu sehen.",
     "loading": "Laden…",
     "empty": "Noch keine Challenges.",
+    "venueLocked": "Challenges sind an diesem Standort gesperrt.",
     "done": "Fertig",
     "inProgress": "Läuft",
     "progress": "Fortschritt: {{current}}/{{target}}",

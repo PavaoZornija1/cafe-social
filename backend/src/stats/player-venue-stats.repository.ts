@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { activeVenueXpMultiplier } from '../venue/venue-offer-public.util';
 
 @Injectable()
 export class PlayerVenueStatsRepository {
@@ -7,12 +8,15 @@ export class PlayerVenueStatsRepository {
 
   async addVenueXp(playerId: string, venueId: string, delta: number): Promise<void> {
     if (delta === 0) return;
+    const mult = await activeVenueXpMultiplier(this.prisma, venueId);
+    const awarded =
+      delta > 0 ? Math.max(1, Math.round(delta * mult)) : Math.round(delta * mult);
     await this.prisma.playerVenueStats.upsert({
       where: {
         playerId_venueId: { playerId, venueId },
       },
-      create: { playerId, venueId, venueXp: Math.max(0, delta) },
-      update: { venueXp: { increment: delta } },
+      create: { playerId, venueId, venueXp: Math.max(0, awarded) },
+      update: { venueXp: { increment: awarded } },
     });
   }
 

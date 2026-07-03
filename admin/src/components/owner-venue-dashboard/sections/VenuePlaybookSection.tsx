@@ -43,6 +43,13 @@ export function VenuePlaybookSection() {
                     >
                       {t("admin.partnerVenueDetail.playbook.step3ChallengesLink")}
                     </Link>
+                    {" · "}
+                    <Link
+                      href={`/owner/venues/${venueId}/offers`}
+                      className="text-brand font-medium hover:underline"
+                    >
+                      {t("admin.partnerVenueDetail.playbook.step3OffersLink")}
+                    </Link>
                     {t("admin.partnerVenueDetail.playbook.step3AfterLinks")}
                   </li>
                   <li>
@@ -54,6 +61,38 @@ export function VenuePlaybookSection() {
                     {t("admin.partnerVenueDetail.playbook.step5Body")}
                   </li>
                 </ol>
+
+                <div className="rounded-lg border border-emerald-200/80 bg-white/80 p-3 space-y-2">
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    {t("admin.partnerVenueDetail.playbook.glossaryTitle")}
+                  </h3>
+                  <ul className="list-disc list-inside text-xs text-slate-700 space-y-1">
+                    <li>{t("admin.partnerVenueDetail.playbook.glossaryChallenges")}</li>
+                    <li>{t("admin.partnerVenueDetail.playbook.glossaryPerks")}</li>
+                    <li>{t("admin.partnerVenueDetail.playbook.glossaryOffers")}</li>
+                    <li>{t("admin.partnerVenueDetail.playbook.glossaryPlatform")}</li>
+                  </ul>
+                </div>
+
+                <div className="rounded-lg border border-emerald-200/80 bg-white/80 p-3 space-y-2">
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    {t("admin.partnerVenueDetail.playbook.staffTitle")}
+                  </h3>
+                  <ul className="list-disc list-inside text-xs text-slate-700 space-y-1">
+                    <li>{t("admin.partnerVenueDetail.playbook.staffPerkCode")}</li>
+                    <li>{t("admin.partnerVenueDetail.playbook.staffMemberCard")}</li>
+                  </ul>
+                </div>
+
+                <div className="rounded-lg border border-amber-200/80 bg-amber-50/50 p-3 space-y-1">
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    {t("admin.partnerVenueDetail.playbook.trialTitle")}
+                  </h3>
+                  <p className="text-xs text-slate-700">
+                    {t("admin.partnerVenueDetail.playbook.trialBody")}
+                  </p>
+                </div>
+
                 <p className="text-xs text-slate-600">
                   {t("admin.partnerVenueDetail.playbook.orderNudgeHint")}
                 </p>

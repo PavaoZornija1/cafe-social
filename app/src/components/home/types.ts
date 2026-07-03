@@ -4,6 +4,7 @@ export type HomeVenueAccess = {
   venueId: string;
   isPremium: boolean;
   locked?: boolean;
+  lockReason?: string | null;
   visitedBefore: boolean;
   subscriptionActive: boolean;
   canEnterVenueContext: boolean;
@@ -19,6 +20,10 @@ export type HomePublicOffer = {
   body: string | null;
   imageUrl: string | null;
   isFeatured: boolean;
+  fulfillment?: 'AUTO' | 'MEMBER_CARD';
+  autoXpMultiplier?: number | null;
+  claimStatus?: 'NONE' | 'PENDING' | 'FULFILLED' | null;
+  globallyExhausted?: boolean;
 };
 
 export type HomePublicCard = {

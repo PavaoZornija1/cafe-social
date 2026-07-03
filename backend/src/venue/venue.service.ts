@@ -360,7 +360,7 @@ export class VenueService {
       throw new ForbiddenException('You must be at the venue');
     }
     if (inside.locked) {
-      throw new ForbiddenException('This venue is temporarily unavailable');
+      throw new NotFoundException('Venue not found');
     }
   }
 
@@ -588,20 +588,7 @@ export class VenueService {
       radiusMeters: normalizeProximityAlertRadiusMeters(v.proximityAlertRadiusMeters),
     };
     if (v.locked) {
-      return {
-        id: v.id,
-        name: v.name,
-        menuUrl: v.menuUrl,
-        orderingUrl: v.orderingUrl,
-        offers: [],
-        featuredOffer: null,
-        geofence: geofenceForClient,
-        requiresExplicitCheckIn: v.requiresExplicitCheckIn,
-        address: v.address,
-        city: v.city,
-        country: v.country,
-        region: v.region,
-      };
+      throw new NotFoundException('Venue not found');
     }
     const { offers, featuredOffer } = await loadPublicVenueOffersForVenue(this.prisma, id);
     return {
@@ -626,7 +613,10 @@ export class VenueService {
 
   /** Per-venue XP leaderboard (stored `PlayerVenueStats`). */
   async venueXpLeaderboard(venueId: string, limit = 50) {
-    await this.findOne(venueId);
+    const venue = await this.findOne(venueId);
+    if (venue.locked) {
+      throw new NotFoundException('Venue not found');
+    }
     return this.prisma.playerVenueStats.findMany({
       where: { venueId },
       orderBy: { venueXp: 'desc' },

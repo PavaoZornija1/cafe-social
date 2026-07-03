@@ -18,7 +18,11 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { parseMemberTokenFromQr } from '../lib/parseMemberCardQr';
-import { scanAndRedeemStaffReward, scanMemberCardAtVenue } from '../lib/ownerStaffApi';
+import {
+  fulfillMemberCardOffer,
+  scanAndRedeemStaffReward,
+  scanMemberCardAtVenue,
+} from '../lib/ownerStaffApi';
 import { parseStaffVerificationFromQr } from '../lib/staffQr';
 import type { RootStackParamList } from '../navigation/type';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -67,10 +71,52 @@ export default function StaffQrScanScreen({ navigation, route }: Props) {
           return;
         }
         const res = await scanMemberCardAtVenue(token, venueId, qrPayload);
+        const pending = res.pendingOffers ?? [];
+        if (pending.length === 0) {
+          Alert.alert(
+            t('staff.memberScanSuccessTitle'),
+            t('staff.memberScanSuccessBody', { name: res.username }),
+            [{ text: t('common.continue'), onPress: () => navigation.goBack() }],
+          );
+          return;
+        }
+
+        const first = pending[0]!;
+        const more =
+          pending.length > 1
+            ? `\n\n${t('staff.memberScanMoreOffers', { count: pending.length - 1 })}`
+            : '';
         Alert.alert(
           t('staff.memberScanSuccessTitle'),
-          t('staff.memberScanSuccessBody', { name: res.username }),
-          [{ text: t('common.continue'), onPress: () => navigation.goBack() }],
+          t('staff.memberScanPendingOfferBody', {
+            name: res.username,
+            offer: first.title,
+          }) + more,
+          [
+            {
+              text: t('staff.memberScanFulfillCta'),
+              onPress: () => {
+                void (async () => {
+                  try {
+                    const tok = await getTokenRef.current();
+                    if (!tok) return;
+                    for (const offer of pending) {
+                      await fulfillMemberCardOffer(tok, venueId, offer.redemptionId);
+                    }
+                    Alert.alert(
+                      t('staff.memberScanFulfilledTitle'),
+                      t('staff.memberScanFulfilledBody', { count: pending.length }),
+                      [{ text: t('common.continue'), onPress: () => navigation.goBack() }],
+                    );
+                  } catch (err) {
+                    setError((err as Error).message ?? t('staff.loadFailed'));
+                    setScanEnabled(true);
+                  }
+                })();
+              },
+            },
+            { text: t('common.cancel'), style: 'cancel', onPress: () => navigation.goBack() },
+          ],
         );
       } catch (e) {
         setError((e as Error).message ?? t('staff.loadFailed'));

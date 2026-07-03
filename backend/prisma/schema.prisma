@@ -263,6 +263,14 @@ enum VenueOfferStatus {
 }
 
 /// Partner-configurable offers (replaces legacy `featuredOffer*` columns on `Venue`).
+/// How a venue offer is fulfilled for guests.
+enum VenueOfferFulfillment {
+  /// Passive benefit (e.g. XP multiplier) — applies automatically while live; not staff-redeemed.
+  AUTO
+  /// Physical / staff-honoured deal — guest claims, staff fulfils via member-card scan.
+  MEMBER_CARD
+}
+
 model VenueOffer {
   id     String @id @default(uuid())
   venueId String
@@ -276,10 +284,14 @@ model VenueOffer {
   status     VenueOfferStatus @default(DRAFT)
   isFeatured Boolean          @default(false)
 
+  fulfillment VenueOfferFulfillment @default(MEMBER_CARD)
+  /// When `fulfillment = AUTO`, multiplies venue XP while the offer is live (e.g. 2 = 2× XP).
+  autoXpMultiplier Float?
+
   validFrom DateTime?
   validTo   DateTime?
 
-  /// Global cap; null = unlimited.
+  /// Global cap; null = unlimited. Applies to MEMBER_CARD claims.
   maxRedemptions Int?
   /// Per-player cap per offer; null = unlimited redemptions per guest.
   maxRedemptionsPerPlayer Int?
@@ -295,6 +307,7 @@ model VenueOffer {
   @@index([venueId, status])
 }
 
+/// Guest claim of a MEMBER_CARD offer; staff marks FULFILLED when honouring via member card.
 model VenueOfferRedemption {
   id       String     @id @default(uuid())
   offerId  String
@@ -302,10 +315,16 @@ model VenueOfferRedemption {
   playerId String
   player   Player     @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
+  /// PENDING = claimed, awaiting staff; FULFILLED = staff honoured at venue.
+  status                 String    @default("PENDING")
+  fulfilledAt            DateTime?
+  fulfilledByStaffPlayerId String?
+
   createdAt DateTime @default(now())
 
   @@index([offerId])
   @@index([playerId])
+  @@index([playerId, status])
 }
 
 enum VenueStaffInviteStatus {

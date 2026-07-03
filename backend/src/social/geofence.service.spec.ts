@@ -63,7 +63,7 @@ describe('GeofenceService', () => {
     prisma.venue.findUnique.mockResolvedValue({ ...baseVenue, locked: true });
     await expect(
       service.recordEvent({ playerId: 'p1', venueId: 'venue-1', kind: 'enter' }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('returns duplicate when client dedupe key already used', async () => {

@@ -104,16 +104,42 @@ export function voidStaffRedemption(
   );
 }
 
+export type MemberScanPendingOffer = {
+  redemptionId: string;
+  offerId: string;
+  title: string;
+  body: string | null;
+  claimedAt: string;
+};
+
 export type MemberScanResult = {
   playerId: string;
   username: string;
   visitDayKey: string;
+  pendingOffers: MemberScanPendingOffer[];
 };
 
 export function scanMemberCardAtVenue(token: string, venueId: string, qrPayload: string) {
   return apiPost<MemberScanResult>(
     `/owner/venues/${encodeURIComponent(venueId)}/member-scan`,
     { qrPayload },
+    token,
+  );
+}
+
+export function fulfillMemberCardOffer(
+  token: string,
+  venueId: string,
+  redemptionId: string,
+) {
+  return apiPost<{
+    redemptionId: string;
+    status: string;
+    title: string;
+    alreadyFulfilled: boolean;
+  }>(
+    `/owner/venues/${encodeURIComponent(venueId)}/member-scan/fulfill-offer`,
+    { redemptionId },
     token,
   );
 }

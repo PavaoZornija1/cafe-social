@@ -161,4 +161,27 @@ export class ChallengeRepository {
       })
       .then(() => undefined);
   }
+
+  /** Latest perk redemption issued for each challenge (sourceType CHALLENGE). */
+  findChallengePerkRedemptions(playerId: string, challengeIds: string[]) {
+    if (challengeIds.length === 0) return Promise.resolve([]);
+    return this.prisma.playerRewardGrant.findMany({
+      where: {
+        playerId,
+        sourceType: 'CHALLENGE',
+        sourceId: { in: challengeIds },
+      },
+      include: {
+        redemption: {
+          select: {
+            id: true,
+            status: true,
+            expiresAt: true,
+            redeemedAt: true,
+          },
+        },
+      },
+      orderBy: { issuedAt: 'desc' },
+    });
+  }
 }

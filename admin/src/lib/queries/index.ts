@@ -105,6 +105,8 @@ export type AdminVenueOfferRow = {
   ctaUrl: string | null;
   status: "DRAFT" | "ACTIVE" | "INACTIVE";
   isFeatured: boolean;
+  fulfillment: "AUTO" | "MEMBER_CARD";
+  autoXpMultiplier: number | null;
   validFrom: string | null;
   validTo: string | null;
   maxRedemptions: number | null;
@@ -112,6 +114,21 @@ export type AdminVenueOfferRow = {
   redemptionCount: number;
   createdAt: string;
   updatedAt: string;
+};
+
+export type AdminVenueOfferBody = {
+  title?: string;
+  body?: string | null;
+  imageUrl?: string | null;
+  ctaUrl?: string | null;
+  status?: AdminVenueOfferRow["status"];
+  isFeatured?: boolean;
+  fulfillment?: AdminVenueOfferRow["fulfillment"];
+  autoXpMultiplier?: number | null;
+  validFrom?: string | null;
+  validTo?: string | null;
+  maxRedemptions?: number | null;
+  maxRedemptionsPerPlayer?: number | null;
 };
 
 export type AdminOrganizationPickerResponse = {
@@ -784,6 +801,10 @@ export type OwnerVenueAnalytics = {
       issuedCount: number;
       fulfilledCount: number;
     }[];
+  };
+  offerClaims?: {
+    pending: number;
+    fulfilled: number;
   };
   visits: {
     uniquePlayers: number;

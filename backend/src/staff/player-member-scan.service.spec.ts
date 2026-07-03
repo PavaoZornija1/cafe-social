@@ -1,4 +1,7 @@
 jest.mock('../venue/venue.service', () => ({ VenueService: class VenueService {} }));
+jest.mock('../venue/venue-offer.service', () => ({
+  VenueOfferService: class VenueOfferService {},
+}));
 jest.mock('../challenge/challenge.service', () => ({
   ChallengeService: class ChallengeService {},
 }));
@@ -13,6 +16,7 @@ import { VenueModerationService } from '../venue/venue-moderation.service';
 import { PlayerVenueCheckInRepository } from '../venue/player-venue-check-in.repository';
 import { PlayerVenueRepository } from '../venue/player-venue.repository';
 import { ChallengeService } from '../challenge/challenge.service';
+import { VenueOfferService } from '../venue/venue-offer.service';
 import { PlayerMemberScanService } from './player-member-scan.service';
 
 const memberToken = 'abcdefghijklmnopqrstuv';
@@ -57,6 +61,13 @@ describe('PlayerMemberScanService', () => {
         {
           provide: ChallengeService,
           useValue: { bumpActiveChallengesForPlayerAtVenue: jest.fn() },
+        },
+        {
+          provide: VenueOfferService,
+          useValue: {
+            listPendingMemberCardOffersForPlayer: jest.fn().mockResolvedValue([]),
+            fulfillMemberCardOffer: jest.fn(),
+          },
         },
       ],
     }).compile();

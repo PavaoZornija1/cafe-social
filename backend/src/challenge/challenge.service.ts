@@ -1,7 +1,7 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import type { ChallengeAutoProgressSource, ChallengeProgress } from '@prisma/client';
@@ -14,6 +14,7 @@ import { VenueModerationService } from '../venue/venue-moderation.service';
 import { PlayerRewardGrantService } from '../reward/player-reward-grant.service';
 import { XpTierRewardService } from '../reward/xp-tier-reward.service';
 import { isoWeekKeyUTC } from '../lib/week-key';
+import { staffVerificationCodeFromRedemptionId } from '../lib/redemption-staff-code';
 import {
   formatDailyWindowLabel,
   getChallengeWindowStatus,
@@ -34,6 +35,10 @@ export type VenueChallengeDto = {
   resetsWeekly: boolean;
   rewardPerkId: string | null;
   rewardTitle: string | null;
+  /** Staff-redeemable perk claim from completing this challenge (if any). */
+  rewardRedemptionId: string | null;
+  rewardRedemptionStatus: string | null;
+  rewardStaffCode: string | null;
   autoProgressSource: ChallengeAutoProgressSource;
   requiresWin: boolean;
   scheduleType: string;
@@ -96,7 +101,9 @@ export class ChallengeService {
     const player = await this.players.findOrCreateByEmail(email);
 
     const venueRow = await this.venues.findOne(venueId);
-    if (venueRow.locked) return [];
+    if (venueRow.locked) {
+      throw new NotFoundException('Venue not found');
+    }
 
     const venueTimeZone = await this.challenges.getVenueTimeZone(venueId);
     const now = new Date();
@@ -116,6 +123,31 @@ export class ChallengeService {
     const progressByChallengeId = new Map<string, ChallengeProgress>();
     for (const p of progresses) progressByChallengeId.set(p.challengeId, p);
 
+    const grants = await this.challenges.findChallengePerkRedemptions(
+      player.id,
+      visible.map((c) => c.id),
+    );
+    const rewardByChallengeId = new Map<
+      string,
+      { redemptionId: string; status: string; expiresAt: Date }
+    >();
+    for (const g of grants) {
+      if (!g.sourceId || !g.redemption) continue;
+      if (rewardByChallengeId.has(g.sourceId)) continue;
+      let status = g.redemption.status;
+      if (
+        status === 'REDEEMABLE' &&
+        g.redemption.expiresAt.getTime() <= now.getTime()
+      ) {
+        status = 'EXPIRED';
+      }
+      rewardByChallengeId.set(g.sourceId, {
+        redemptionId: g.redemption.id,
+        status,
+        expiresAt: g.redemption.expiresAt,
+      });
+    }
+
     const weekKey = isoWeekKeyUTC();
 
     return visible.map((c) => {
@@ -131,6 +163,7 @@ export class ChallengeService {
 
       const schedule = this.scheduleForChallenge(c, venueTimeZone);
       const window = getChallengeWindowStatus(schedule, now);
+      const reward = rewardByChallengeId.get(c.id);
 
       return {
         id: c.id,
@@ -144,6 +177,11 @@ export class ChallengeService {
         resetsWeekly: c.resetsWeekly,
         rewardPerkId: c.rewardPerkId,
         rewardTitle: c.rewardPerk?.title ?? null,
+        rewardRedemptionId: reward?.redemptionId ?? null,
+        rewardRedemptionStatus: reward?.status ?? null,
+        rewardStaffCode: reward?.redemptionId
+          ? staffVerificationCodeFromRedemptionId(reward.redemptionId)
+          : null,
         autoProgressSource: c.autoProgressSource,
         requiresWin: c.requiresWin,
         scheduleType: c.scheduleType,
@@ -188,7 +226,7 @@ export class ChallengeService {
 
     const venueRow = await this.venues.findOne(venueId);
     if (venueRow.locked) {
-      throw new ForbiddenException('This venue is temporarily unavailable');
+      throw new NotFoundException('Venue not found');
     }
 
     const challenge = await this.challenges.getChallengeTarget(challengeId);

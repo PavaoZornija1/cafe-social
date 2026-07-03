@@ -4,6 +4,8 @@ export type ExplicitCheckInAccess = {
   hasExplicitCheckIn?: boolean;
   bannedFromVenue?: boolean;
   isPhysicallyAtVenue?: boolean;
+  locked?: boolean;
+  lockReason?: string | null;
 };
 
 /** Show QR check-in prompt when the venue requires it and the player has not checked in. */

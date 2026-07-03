@@ -16,6 +16,7 @@ import VenuePlayTimeBar from '../components/VenuePlayTimeBar';
 import type { AppNavigationProps } from '../navigation/screenProps';
 import { usePlayVenueAccess } from '../hooks/usePlayVenueAccess';
 import { needsExplicitCheckInBanner } from '../lib/explicitCheckIn';
+import { isVenuePartnerLocked, venueLockMessageKey } from '../lib/venueLock';
 import { apiGet } from '../lib/api';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { useIsTabRoot } from '../navigation/useIsTabRoot';
@@ -36,12 +37,16 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
   const hasVenueContext = Boolean(venueId);
   const { access, resolvedVenueId } = usePlayVenueAccess(venueId);
   const showCheckIn = needsExplicitCheckInBanner(access);
+  const venueLocked = isVenuePartnerLocked(access);
+  const venueLockKey = venueLockMessageKey(access);
+  const playBlocked = showCheckIn || venueLocked;
   const playVenueId = resolvedVenueId ?? venueId ?? null;
 
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
   const [subscriptionActive, setSubscriptionActive] = useState(false);
+  const [activeXpMultiplier, setActiveXpMultiplier] = useState(1);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -60,6 +65,35 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
       cancelled = true;
     };
   }, [isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded || !playVenueId || playBlocked) {
+      setActiveXpMultiplier(1);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = await getTokenRef.current();
+        if (!token) return;
+        const payload = await apiGet<{
+          offers: { fulfillment?: string; autoXpMultiplier?: number | null }[];
+        }>(`/venue-context/${encodeURIComponent(playVenueId)}/offers`, token);
+        const mult = Math.max(
+          1,
+          ...(payload.offers ?? [])
+            .filter((o) => o.fulfillment === 'AUTO' && (o.autoXpMultiplier ?? 0) > 1)
+            .map((o) => o.autoXpMultiplier ?? 1),
+        );
+        if (!cancelled) setActiveXpMultiplier(mult);
+      } catch {
+        if (!cancelled) setActiveXpMultiplier(1);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded, playVenueId, playBlocked]);
 
   const openQrCheckIn = () => {
     const id = resolvedVenueId ?? venueId;
@@ -98,14 +132,34 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
           </View>
         ) : null}
 
+        {venueLocked && venueLockKey ? (
+          <View style={styles.lockBanner}>
+            <Ionicons name="lock-closed" size={18} color={colors.error} />
+            <Text style={styles.lockBannerText}>{t(venueLockKey)}</Text>
+          </View>
+        ) : null}
+
+        {!playBlocked && activeXpMultiplier > 1 ? (
+          <View style={styles.xpBoostBanner}>
+            <Ionicons name="flash" size={18} color={colors.xp} />
+            <Text style={styles.xpBoostText}>
+              {t('chooseGame.xpBoostActive', { mult: activeXpMultiplier })}
+            </Text>
+          </View>
+        ) : null}
+
         <View style={styles.hero}>
           <Text style={styles.heroTitle}>{t('chooseGame.heroTitle')}</Text>
           <Text style={styles.heroSub}>
-            {hasVenueContext ? t('chooseGame.heroVenue') : t('chooseGame.heroGlobal')}
+            {venueLocked
+              ? t('chooseGame.heroLocked')
+              : hasVenueContext
+                ? t('chooseGame.heroVenue')
+                : t('chooseGame.heroGlobal')}
           </Text>
         </View>
 
-        {playVenueId && !showCheckIn ? (
+        {playVenueId && !playBlocked ? (
           <VenuePlayTimeBar
             venueId={playVenueId}
             getToken={() => getTokenRef.current()}
@@ -116,11 +170,11 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
 
         <Pressable
           onPress={() => navigation.navigate('WordLobby', { venueId, challengeId })}
-          disabled={showCheckIn}
+          disabled={playBlocked}
           style={({ pressed }) => [
             styles.card,
             styles.wordCard,
-            showCheckIn && styles.cardDisabled,
+            playBlocked && styles.cardDisabled,
             pressed && styles.pressed,
           ]}
         >
@@ -139,11 +193,11 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
 
         <Pressable
           onPress={() => navigation.navigate('BrawlerLobby', venueId ? { venueId } : {})}
-          disabled={(!hasVenueContext && !subscriptionActive) || showCheckIn}
+          disabled={(!hasVenueContext && !subscriptionActive) || playBlocked}
           style={({ pressed }) => [
             styles.card,
             styles.brawlerCard,
-            (!hasVenueContext && !subscriptionActive) || showCheckIn
+            (!hasVenueContext && !subscriptionActive) || playBlocked
               ? styles.cardDisabled
               : null,
             pressed && styles.pressed,
@@ -212,6 +266,42 @@ function createStyles(colors: AppColors) {
       marginBottom: spacing.lg,
     },
     checkInWrap: { marginBottom: spacing.md },
+    lockBanner: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+      padding: spacing.md,
+      borderRadius: radii.lg,
+      backgroundColor: colors.errorMuted,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.error,
+    },
+    lockBannerText: {
+      flex: 1,
+      color: colors.error,
+      fontSize: 14,
+      fontWeight: '700',
+      lineHeight: 20,
+    },
+    xpBoostBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+      padding: spacing.md,
+      borderRadius: radii.lg,
+      backgroundColor: colors.primaryMuted,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.xp,
+    },
+    xpBoostText: {
+      flex: 1,
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: '800',
+      lineHeight: 20,
+    },
     hero: {
       backgroundColor: colors.hero,
       borderRadius: radii.xl,

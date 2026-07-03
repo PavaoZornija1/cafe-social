@@ -23,7 +23,7 @@ npx expo run:ios --device
 ### Backend (`backend/`)
 
 - **Auth**: Protected routes validate **Clerk JWTs**. Users are resolved to a `Player` via email (or `sub@clerk.local` when email is absent).
-- **Venues**: CRUD + **geofence detection** — `GET /venue-context/detect` with optional `?lat=&lng=` picks a venue whose **GeoJSON polygon** contains the point (and closest pin tie-break). Without coordinates, falls back to a **default venue** (dev / simulator friendly).
+- **Venues**: CRUD + **geofence detection** — `GET /venue-context/detect` with optional `?lat=&lng=` picks an **unlocked** venue whose **GeoJSON polygon** contains the point (closest pin tie-break). Locked / trial-expired venues are omitted (no default-venue fallback).
 - **Access**: `GET /venue-context/:venueId/access` — premium vs QR unlock vs subscription rules for entering a venue’s **context**.
 - **QR / unlock**: `POST /venue-context/:venueId/register` — links `PlayerVenue` after “scan” (app currently uses manual venue id).
 - **Challenges**: List + auto-progress from games / daily word / check-in (`autoProgressSource`). Manual `POST …/progress` only for **`MANUAL`** challenges. Schedules: **`ALWAYS`**, **`FIXED_RANGE`** (`activeFrom`/`activeTo` UTC), or **`DAILY_RECURRING`** (local minutes in venue `analyticsTimeZone`). **`resetsWeekly`**, **`requiresWin`**, optional **`rewardPerkId`**. Admin CRUD: `POST/PATCH/DELETE /admin/…/challenges`.
@@ -35,7 +35,7 @@ npx expo run:ios --device
 - **Player settings**: `PATCH /players/me/settings` — `{ discoverable?, totalPrivacy?, partnerMarketingPush?, matchActivityPush? }` (JWT).
 - **Engagement / streaks**: `GET /players/me/engagement` — visit-day counts from **`PlayerVenueVisitDay`** (this UTC week, distinct venues last 30 days) and lightweight **badges** (e.g. 3+ visit days this week, 2+ venues in 30 days).
 - **Perk redemptions**: `GET /players/me/perk-redemptions` — history with perk title/code.
-- **Venue public card (no auth)**: `GET /venues/:id/public-card` — `menuUrl`, `orderingUrl`, **`offers`** (active window + status), and derived **`featuredOffer`** for the spotlight slot. Guests redeem via `POST /venue-context/:venueId/offers/:offerId/redeem` (JWT + lat/lng at venue).
+- **Venue public card (no auth)**: `GET /venues/:id/public-card` — `menuUrl`, `orderingUrl`, **`offers`** (active window + status), and derived **`featuredOffer`**. Locked venues return **404**. Authenticated offers: `GET /venue-context/:venueId/offers` (includes claim status). **AUTO** offers apply passive benefits (e.g. `autoXpMultiplier` on venue XP). **MEMBER_CARD** offers: guest claims via `POST …/offers/:offerId/redeem` (at venue) → staff honours via **member-card scan**.
 - **Perks (JWT)**: `POST /venue-context/:venueId/perks/redeem` `{ code, detectedVenueId? }` — presence + optional QR-unlock perks (admin-configured).
 - **Friends at venue (aggregate)**: `GET /social/venues/:venueId/friends-visit-summary` — count of accepted friends with any visit day at this venue in the last **30 UTC days** (no per-friend leakage).
 - **Admin API (Clerk JWT, super admin only)**: **`Authorization: Bearer`** with a **Clerk session token** — only if **`Player.platformRole === SUPER_ADMIN`** — `/api/admin/...` for venues, words, challenge schedules, **VenuePerk** CRUD (see `admin/` app). Grant super admin in the **database**: set **`Player.platformRole`** to **`SUPER_ADMIN`** for the right row (e.g. Prisma Studio or SQL after the user has signed in once so a `Player` exists). **`GET/POST /admin/venues/:venueId/staff`**, **`DELETE /admin/venues/:venueId/staff/:playerId`** assign **Clerk** identities with roles **`EMPLOYEE` | `MANAGER` | `OWNER`** (creates `Player` by email if needed). Last **OWNER** cannot be removed or demoted without adding another OWNER first.
@@ -77,21 +77,22 @@ npx expo run:ios --device
 - **Owner analytics v2**: **issued** vs **fulfilled** redemption counts (fulfilled = `redeemedAt` in period), per-perk split, hour-of-day, funnel, voided. **`GET .../analytics/export.csv`** — redemptions CSV (**MANAGER**+).
 - **Campaigns**: `VenueCampaign` + `VenueCampaignSend` log; **`GET/POST /owner/venues/:venueId/campaigns`**, **`POST .../campaigns/:id/send`** — targets players with a **visit day** at that venue in the last **segmentDays** (UTC day keys); **Expo push** via `partner_marketing` channel (**`partnerMarketingPush` and not `totalPrivacy`**). Re-send after **FAILED** clears prior send rows.
 
-### Partner portal: challenges, perks, and redemption
+### Partner portal: challenges, perks, offers, and redemption
 
-Owners and managers manage engagement from **Owner → Venues → [venue]** (tabs **Perks**, **Challenges**, **Redemptions**). Super admins can use the same editors under **Locations & content**.
+Owners and managers manage engagement from **Owner → Venues → [venue]** (tabs **Perks**, **Challenges**, **Offers**, **Redemptions**, playbook glossary). Super admins can use the same editors under **Locations & content**.
 
-1. **Set venue timezone** (`analyticsTimeZone`, e.g. `Europe/Sarajevo`) on the venue so **daily recurring** challenge windows use local café hours.
-2. **Create a perk** (Perks tab): code + title guests see in the wallet. Optional **auto-redeem** marks the claim fulfilled immediately (no staff scan). Otherwise staff honour it from **Redemptions** / `/staff/[venueId]`.
-3. **Create a challenge** (Challenges tab):
-   - **Auto-progress source**: `WORD_MATCH`, `BRAWLER`, `DAILY_WORD`, `PRESENCE` (check-in / member scan), or `MANUAL` (guest taps “Record progress” in the app).
-   - **Target count**, optional **requires at café**, **weekly reset**, **requires win**.
-   - **Schedule**: `ALWAYS`, `FIXED_RANGE` (one-off UTC `activeFrom`/`activeTo`), or `DAILY_RECURRING` (e.g. 14:00–15:00 local every day).
-   - **Reward perk**: link the perk from step 2; on completion the guest gets a wallet claim (and XP).
-4. **Happy-hour example**: “Play 5 word games between 2–3PM” → source `WORD_MATCH`, target `5`, schedule `DAILY_RECURRING`, start/end `14:00`/`15:00`, location required, reward perk linked.
-5. **Staff**: guests show the wallet QR/code; staff acknowledge under **Redemptions**. Receipt-gated lock/unlock stays behind `RECEIPT_SUBMISSIONS_ENABLED` (off by default).
+**Vocabulary:** **Challenges** = goals (may grant a perk). **Perks** = wallet rewards (staff code/QR). **Offers** = promos (`AUTO` e.g. 2× XP, or `MEMBER_CARD` claim + staff via member card). **Platform rewards** = Cafe Social quests/tiers (not venue-owned).
 
-Platform daily/weekly **quests** (Rewards hub in the app) are separate from venue challenges.
+**Staff:** perk code = wallet reward; member card = identity + pending offers + check-in + MANUAL challenge stamps.
+
+1. Set venue timezone (`analyticsTimeZone`) for daily recurring challenge windows.
+2. Create perks (optional auto-redeem), challenges (link reward perk), and offers (`AUTO` / `MEMBER_CARD`).
+3. Staff: perk codes on Redemptions; member-card scan for offers/check-in.
+4. **Trial:** active = full guest access; expired without subscription = venue locked (hidden from map/detect).
+
+**Receipts** are optional and **off by default** (`RECEIPT_SUBMISSIONS_ENABLED`). Enable only when ready.
+
+Platform daily/weekly **quests** (Rewards hub) are separate from venue challenges.
 
 ### Not done yet (good next steps)
 

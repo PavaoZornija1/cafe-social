@@ -36,16 +36,37 @@ export class PartnerOrgAccessService {
 
     const paying = isPayingPartnerOrg(org.platformBillingStatus);
     const trialEnd = org.trialEndsAt;
-    const trialExpired =
-      trialEnd !== null && trialEnd.getTime() <= Date.now() && !paying;
+    const now = Date.now();
+    const trialActive = trialEnd !== null && trialEnd.getTime() > now;
+    const trialExpired = trialEnd !== null && trialEnd.getTime() <= now && !paying;
+
+    // Active trial or paying: guest features (challenges, play, perks) must stay open.
+    // Clear auto trial locks if a prior expiry left venues locked (e.g. trial extended).
+    if (paying || trialActive) {
+      await this.prisma.venue.updateMany({
+        where: {
+          organizationId,
+          locked: true,
+          lockReason: PARTNER_TRIAL_LOCK_REASON,
+        },
+        data: {
+          locked: false,
+          lockReason: null,
+        },
+      });
+      return;
+    }
 
     if (!trialExpired) {
       return;
     }
 
-    const lockedVenueIds: string[] = [];
+    const newlyLockedVenueIds: string[] = [];
     for (const v of org.venues) {
       if (v.locked && v.lockReason && v.lockReason !== PARTNER_TRIAL_LOCK_REASON) {
+        continue;
+      }
+      if (v.locked && v.lockReason === PARTNER_TRIAL_LOCK_REASON) {
         continue;
       }
       await this.prisma.venue.update({
@@ -55,12 +76,12 @@ export class PartnerOrgAccessService {
           lockReason: PARTNER_TRIAL_LOCK_REASON,
         },
       });
-      lockedVenueIds.push(v.id);
+      newlyLockedVenueIds.push(v.id);
     }
-    if (lockedVenueIds.length > 0) {
+    if (newlyLockedVenueIds.length > 0) {
       this.events.emit(PARTNER_TRIAL_VENUES_LOCKED, {
         organizationId,
-        venueIds: lockedVenueIds,
+        venueIds: newlyLockedVenueIds,
       });
     }
   }

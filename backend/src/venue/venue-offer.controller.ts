@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   ParseUUIDPipe,
   Post,
@@ -27,6 +28,16 @@ export class VenueOfferController {
     return e;
   }
 
+  @Get(':venueId/offers')
+  async listForPlayer(
+    @CurrentUser() user: unknown,
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+  ) {
+    const player = await this.players.findOrCreateByEmail(this.email(user));
+    return this.offers.listForPlayer(venueId, player.id);
+  }
+
+  /** Claim a MEMBER_CARD offer (pending until staff honours via member card). */
   @Post(':venueId/offers/:offerId/redeem')
   async redeem(
     @CurrentUser() user: unknown,
@@ -35,7 +46,7 @@ export class VenueOfferController {
     @Body() body: { latitude?: number; longitude?: number },
   ) {
     const player = await this.players.findOrCreateByEmail(this.email(user));
-    return this.offers.redeem({
+    return this.offers.claimMemberCardOffer({
       playerId: player.id,
       venueId,
       offerId,

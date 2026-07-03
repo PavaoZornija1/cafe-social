@@ -24,6 +24,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: "campaigns", labelKey: "admin.partnerVenueDetail.sectionNav.campaigns", analyticsOnly: true },
   { key: "challenges", labelKey: "admin.partnerVenueDetail.sectionNav.challenges", analyticsOnly: true },
   { key: "perks", labelKey: "admin.partnerVenueDetail.sectionNav.perks", analyticsOnly: true },
+  { key: "offers", labelKey: "admin.partnerVenueDetail.sectionNav.offers", analyticsOnly: true },
   { key: "receipts", labelKey: "admin.partnerVenueDetail.sectionNav.receipts", analyticsOnly: true },
   { key: "redemptions", labelKey: "admin.partnerVenueDetail.sectionNav.redemptions" },
 ];

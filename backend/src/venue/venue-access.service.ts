@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -21,8 +20,10 @@ import { ChallengeAutoProgressSource } from '@prisma/client';
 export type VenueAccessResult = {
   venueId: string;
   isPremium: boolean;
-  /** Super admin: venue suspended — no play at geofence. */
+  /** Super admin or partner trial/billing: venue suspended — no play at geofence. */
   locked: boolean;
+  /** e.g. `AUTO_TRIAL_EXPIRED` when partner trial ended without payment. */
+  lockReason: string | null;
   /** Player has a prior link to this venue (e.g. saved via QR/onboarding); not required for play. */
   visitedBefore: boolean;
   subscriptionActive: boolean;
@@ -57,10 +58,9 @@ export class VenueAccessService {
   ) {}
 
   /**
-   * If latitude/longitude are provided, returns the venue geofence that contains the point
-   * (closest match if multiple), **including locked venues** so clients can show
-   * “temporarily unavailable” instead of hiding the pin. If outside all fences, or
-   * coordinates are missing, returns null.
+   * If latitude/longitude are provided, returns the unlocked venue geofence that contains
+   * the point (closest match if multiple). Locked / trial-expired venues are omitted —
+   * guests must not see or enter them.
    */
   async detectVenue(
     latitude?: number,
@@ -73,17 +73,14 @@ export class VenueAccessService {
       Number.isFinite(longitude);
 
     if (!hasCoords) return null;
-    const v = await this.venues.findVenueAtCoordinatesIncludingLocked(
-      latitude!,
-      longitude!,
-    );
-    if (!v) return null;
+    const v = await this.venues.findVenueAtCoordinates(latitude!, longitude!);
+    if (!v || v.locked) return null;
     this.funnel.safeLog({ venueId: v.id, kind: 'detect' });
     return {
       id: v.id,
       name: v.name,
       isPremium: v.isPremium,
-      locked: v.locked,
+      locked: false,
       city: v.city,
       country: v.country,
     };
@@ -103,10 +100,7 @@ export class VenueAccessService {
   ): Promise<void> {
     const player = await this.players.findOrCreateByEmail(email);
     const venue = await this.venues.findOne(venueId).catch(() => null);
-    if (!venue) throw new NotFoundException(`Venue ${venueId} not found`);
-    if (venue.locked) {
-      throw new ForbiddenException('This venue is temporarily unavailable');
-    }
+    if (!venue || venue.locked) throw new NotFoundException('Venue not found');
 
     await this.moderation.assertNotBanned(venueId, player.id);
 
@@ -155,6 +149,11 @@ export class VenueAccessService {
     if (!email) throw new UnauthorizedException('Missing user email');
 
     const venue = await this.venues.findOne(venueId);
+    // Locked venues are not guest-accessible (trial ended, billing, or admin suspend).
+    if (venue.locked) {
+      throw new NotFoundException('Venue not found');
+    }
+
     const player = await this.players.findOrCreateByEmail(email);
 
     const bannedFromVenue = await this.moderation.isBanned(venueId, player.id);
@@ -172,10 +171,7 @@ export class VenueAccessService {
       Number.isFinite(latitude) &&
       Number.isFinite(longitude)
     ) {
-      const at = await this.venues.findVenueAtCoordinatesIncludingLocked(
-        latitude,
-        longitude,
-      );
+      const at = await this.venues.findVenueAtCoordinates(latitude, longitude);
       isPhysicallyAtVenue = at?.id === venueId;
     }
 
@@ -185,29 +181,17 @@ export class VenueAccessService {
       : true;
 
     const canEnterVenueContext =
-      !venue.locked &&
-      !bannedFromVenue &&
-      isPhysicallyAtVenue &&
-      hasExplicitCheckIn;
+      !bannedFromVenue && isPhysicallyAtVenue && hasExplicitCheckIn;
 
     if (canEnterVenueContext) {
       this.funnel.safeLog({ venueId, playerId: player.id, kind: 'enter' });
     }
 
-    if (venue.locked && isPhysicallyAtVenue) {
-      this.log.log(
-        JSON.stringify({
-          metric: 'player_geofence_locked_venue',
-          venueId: venue.id,
-          at: new Date().toISOString(),
-        }),
-      );
-    }
-
     return {
       venueId: venue.id,
       isPremium: venue.isPremium,
-      locked: venue.locked,
+      locked: false,
+      lockReason: null,
       visitedBefore,
       subscriptionActive,
       canEnterVenueContext,

@@ -240,7 +240,8 @@
     "brawlerNeedVenue": "Brawler treba prijavu na lokalu.",
     "heroTitle": "Odaberi igru",
     "heroVenue": "Na lokaciji {{venue}} — igre u kafiću koriste ovaj lokal.",
-    "heroGlobal": "Pretplatnik — igraj s bilo kojeg mjesta."
+    "heroGlobal": "Pretplatnik — igraj s bilo kojeg mjesta.",
+    "heroLocked": "Igre u ovom kafiću su zaključane. Odaberi drugi partnerski lokal ili igraj globalno s pretplatom."
   },
   "brawlerLobby": {
     "title": "Brawler lobby",
@@ -405,8 +406,8 @@
     "noVenueYet": "Nema prepoznatog partnerskog lokala. Lojalnost, prijatelji i pozivnice i dalje rade. Igre na lokalu — ili od kuće s pretplatom.",
     "lockedHintStandard": "Igre na lokalu trebaju lokaciju da potvrdimo da si na mjestu. Ostatak appa ostaje dostupan.",
     "lockedHintPremium": "Igre na lokalu trebaju lokaciju ovdje, ili pretplatu za globalno igranje.",
-    "venueTemporarilyUnavailable": "Ovo mjesto trenutačno ne nudi Cafe Social igre. Ponude i ostatak aplikacije i dalje rade.",
     "venueTemporarilyUnavailableShort": "Igre ovdje trenutačno nisu dostupne.",
+    "venueTrialEndedShort": "Lokal zaključan — istekla partnerska proba.",
     "bannedFromVenue": "Ovo mjesto ograničilo je tvoj račun za igre i otkupe ovdje. Obrati se osoblju ako misliš da je greška.",
     "banAppealCta": "Podnesi žalbu na ograničenje",
     "challengeTitle": "Tvoj izazov",
@@ -515,6 +516,7 @@
       "gameOn": "Igra kreće.",
       "gameOnNamed": "Igra kreće, {{name}}.",
       "tapToPlayXp": "Dodirni za igru · +60 XP",
+      "playLocked": "Zaključano",
       "pickGame": "Odaberi igru",
       "heroA11y": "Odaberi igru i kreni igrati",
       "rewardsTitle": "Nagrade",
@@ -684,6 +686,7 @@
     "subtitleEmpty": "Prijavi se u partnerskom kafiću da vidiš izazove.",
     "loading": "Učitavanje…",
     "empty": "Još nema izazova.",
+    "venueLocked": "Izazovi su zaključani na ovom lokalu.",
     "done": "Gotovo",
     "inProgress": "U tijeku",
     "progress": "Napredak: {{current}}/{{target}}",

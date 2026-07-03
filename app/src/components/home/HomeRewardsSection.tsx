@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
@@ -18,6 +19,7 @@ type Props = {
   colors: AppColors;
   lifetimeXp: number | null;
   offers: HomePublicOffer[];
+  claimingOfferId?: string | null;
   onSeeAll: () => void;
   onOfferPress: (offer: HomePublicOffer) => void;
   onBrowseVenues?: () => void;
@@ -25,10 +27,26 @@ type Props = {
 
 const PLACEHOLDER_EMOJI = ['☕', '🥐', '🧁', '🍵'];
 
+function offerCtaLabel(
+  offer: HomePublicOffer,
+  t: (k: string, o?: Record<string, unknown>) => string,
+): string {
+  if (offer.fulfillment === 'AUTO') {
+    return offer.autoXpMultiplier && offer.autoXpMultiplier > 1
+      ? t('home.dashboard.offerAutoXp', { mult: offer.autoXpMultiplier })
+      : t('home.dashboard.offerAutoActive');
+  }
+  if (offer.claimStatus === 'FULFILLED') return t('home.dashboard.offerFulfilled');
+  if (offer.claimStatus === 'PENDING') return t('home.dashboard.offerShowMemberCard');
+  if (offer.globallyExhausted) return t('home.dashboard.offerExhausted');
+  return t('home.dashboard.offerClaimCta');
+}
+
 export default function HomeRewardsSection({
   colors,
   lifetimeXp,
   offers,
+  claimingOfferId,
   onSeeAll,
   onOfferPress,
   onBrowseVenues,
@@ -41,7 +59,7 @@ export default function HomeRewardsSection({
     <View style={styles.section}>
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          <Text style={styles.title}>{t('home.dashboard.rewardsTitle')}</Text>
+          <Text style={styles.title}>{t('home.dashboard.offersTitle')}</Text>
           <Text style={styles.xpLine}>{t('home.dashboard.rewardsXpLine', { xp })}</Text>
         </View>
         <Pressable
@@ -68,8 +86,8 @@ export default function HomeRewardsSection({
               <Text style={styles.previewEmoji}>🥐</Text>
             </View>
           </View>
-          <Text style={styles.emptyTitle}>{t('home.dashboard.noRewardsYet')}</Text>
-          <Text style={styles.emptyBody}>{t('home.dashboard.noRewardsHint')}</Text>
+          <Text style={styles.emptyTitle}>{t('home.dashboard.noOffersYet')}</Text>
+          <Text style={styles.emptyBody}>{t('home.dashboard.noOffersHint')}</Text>
           <Text style={styles.emptyCta}>{t('home.dashboard.browseVenuesCta')}</Text>
         </Pressable>
       ) : (
@@ -78,44 +96,81 @@ export default function HomeRewardsSection({
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {offers.map((offer, index) => (
-            <Pressable
-              key={offer.id}
-              onPress={() => onOfferPress(offer)}
-              style={({ pressed }) => [styles.rewardCard, pressed && styles.pressed]}
-              accessibilityRole="button"
-            >
-              <View style={styles.imageWrap}>
-                {offer.imageUrl ? (
-                  <Image source={{ uri: offer.imageUrl }} style={styles.rewardImage} />
-                ) : (
-                  <View style={styles.rewardEmojiWrap}>
-                    <Text style={styles.rewardEmoji}>
-                      {PLACEHOLDER_EMOJI[index % PLACEHOLDER_EMOJI.length]}
+          {offers.map((offer, index) => {
+            const isAuto = offer.fulfillment === 'AUTO';
+            const busy = claimingOfferId === offer.id;
+            const disabled =
+              busy ||
+              offer.globallyExhausted ||
+              offer.claimStatus === 'FULFILLED' ||
+              (isAuto && !offer.body);
+
+            return (
+              <Pressable
+                key={offer.id}
+                onPress={() => onOfferPress(offer)}
+                disabled={disabled && !isAuto}
+                style={({ pressed }) => [
+                  styles.rewardCard,
+                  pressed && !disabled && styles.pressed,
+                  (offer.claimStatus === 'FULFILLED' || offer.globallyExhausted) &&
+                    styles.rewardCardMuted,
+                ]}
+                accessibilityRole="button"
+              >
+                <View style={styles.imageWrap}>
+                  {offer.imageUrl ? (
+                    <Image source={{ uri: offer.imageUrl }} style={styles.rewardImage} />
+                  ) : (
+                    <View style={styles.rewardEmojiWrap}>
+                      <Text style={styles.rewardEmoji}>
+                        {PLACEHOLDER_EMOJI[index % PLACEHOLDER_EMOJI.length]}
+                      </Text>
+                    </View>
+                  )}
+                  {offer.isFeatured ? (
+                    <View style={styles.featuredBadge}>
+                      <Text style={styles.featuredText}>{t('home.dashboard.pickOfDay')}</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <Text style={styles.rewardTitle} numberOfLines={2}>
+                  {offer.title}
+                </Text>
+                <Text style={styles.rewardSubtitle} numberOfLines={2}>
+                  {offer.body?.trim() || t('home.dashboard.rewardAtPartner')}
+                </Text>
+                <View style={styles.cardFooter}>
+                  <View style={styles.availableRow}>
+                    <View
+                      style={[
+                        styles.availableDot,
+                        isAuto ? styles.dotAuto : styles.dotMember,
+                      ]}
+                    />
+                    <Text style={styles.availableText}>
+                      {isAuto
+                        ? t('home.dashboard.offerKindAuto')
+                        : t('home.dashboard.offerKindMemberCard')}
                     </Text>
                   </View>
-                )}
-                {offer.isFeatured ? (
-                  <View style={styles.featuredBadge}>
-                    <Text style={styles.featuredText}>{t('home.dashboard.pickOfDay')}</Text>
-                  </View>
-                ) : null}
-              </View>
-              <Text style={styles.rewardTitle} numberOfLines={2}>
-                {offer.title}
-              </Text>
-              <Text style={styles.rewardSubtitle} numberOfLines={2}>
-                {offer.body?.trim() || t('home.dashboard.rewardAtPartner')}
-              </Text>
-              <View style={styles.cardFooter}>
-                <View style={styles.availableRow}>
-                  <View style={styles.availableDot} />
-                  <Text style={styles.availableText}>{t('home.dashboard.availableNow')}</Text>
+                  {busy ? (
+                    <ActivityIndicator color={colors.primary} size="small" />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.redeemText,
+                        (offer.claimStatus === 'FULFILLED' || offer.globallyExhausted) &&
+                          styles.redeemTextMuted,
+                      ]}
+                    >
+                      {offerCtaLabel(offer, t)}
+                    </Text>
+                  )}
                 </View>
-                <Text style={styles.redeemText}>{t('home.dashboard.redeemCta')}</Text>
-              </View>
-            </Pressable>
-          ))}
+              </Pressable>
+            );
+          })}
         </ScrollView>
       )}
     </View>
@@ -173,6 +228,7 @@ function createStyles(colors: AppColors) {
       padding: spacing.md,
       gap: spacing.sm,
     },
+    rewardCardMuted: { opacity: 0.72 },
     imageWrap: {
       position: 'relative',
       borderRadius: radii.md,
@@ -232,8 +288,9 @@ function createStyles(colors: AppColors) {
       width: 7,
       height: 7,
       borderRadius: radii.pill,
-      backgroundColor: colors.success,
     },
+    dotAuto: { backgroundColor: colors.xp },
+    dotMember: { backgroundColor: colors.success },
     availableText: {
       color: colors.textSecondary,
       fontSize: 12,
@@ -244,6 +301,7 @@ function createStyles(colors: AppColors) {
       fontSize: 14,
       fontWeight: '800',
     },
+    redeemTextMuted: { color: colors.textMuted },
     emptyCard: {
       backgroundColor: colors.surface,
       borderRadius: radii.lg,

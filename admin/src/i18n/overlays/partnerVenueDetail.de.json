@@ -25,6 +25,8 @@
     "OWNER": "Inhaber"
   },
   "header": {
+    "trialActiveBanner": "Testphase aktiv bis {{date}}. Gäste können voll spielen und einlösen. Vor Ablauf abonnieren, damit das Lokal in der App bleibt.",
+    "trialExpiredBanner": "Testphase beendet — Lokal für Gäste gesperrt (nicht auf Karte, keine Spiele/Angebote/Check-in). Abonnieren zum Freischalten.",
     "allVenues": "← Alle Standorte",
     "fallbackVenueTitle": "Standort",
     "staffLeadBeforeLink": "Mitarbeiteransicht — Einlösungen und Bestätigungen prüfen. Öffnen Sie",
@@ -259,6 +261,7 @@
     "campaigns": "Kampagnen",
     "challenges": "Challenges",
     "perks": "Perks",
+    "offers": "Angebote",
     "receipts": "Belege",
     "redemptions": "Einlösungen"
   }

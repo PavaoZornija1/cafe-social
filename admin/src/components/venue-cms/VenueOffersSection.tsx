@@ -70,12 +70,15 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
       imageUrl: "",
       status: "ACTIVE" as AdminVenueOfferRow["status"],
       isFeatured: false,
+      fulfillment: "MEMBER_CARD" as AdminVenueOfferRow["fulfillment"],
+      autoXpMultiplier: "2",
       validFrom: "",
       validTo: "",
       maxRedemptions: "",
       maxRedemptionsPerPlayer: "1",
     },
     onSubmit: async ({ value }) => {
+      const fulfillment = value.fulfillment;
       await createMut.mutateAsync({
         title: value.title.trim(),
         body: value.body.trim() || null,
@@ -83,6 +86,9 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
         imageUrl: value.imageUrl.trim() || null,
         status: value.status,
         isFeatured: value.isFeatured,
+        fulfillment,
+        autoXpMultiplier:
+          fulfillment === "AUTO" ? numOrNull(value.autoXpMultiplier) : null,
         validFrom: value.validFrom.trim() || null,
         validTo: value.validTo.trim() || null,
         maxRedemptions: numOrNull(value.maxRedemptions),
@@ -100,6 +106,8 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
       imageUrl: "",
       status: "ACTIVE" as AdminVenueOfferRow["status"],
       isFeatured: false,
+      fulfillment: "MEMBER_CARD" as AdminVenueOfferRow["fulfillment"],
+      autoXpMultiplier: "",
       validFrom: "",
       validTo: "",
       maxRedemptions: "",
@@ -107,6 +115,7 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
     },
     onSubmit: async ({ value }) => {
       if (!editTarget) return;
+      const fulfillment = value.fulfillment;
       await patchMut.mutateAsync({
         offerId: editTarget.id,
         body: {
@@ -116,6 +125,9 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
           imageUrl: value.imageUrl.trim() || null,
           status: value.status,
           isFeatured: value.isFeatured,
+          fulfillment,
+          autoXpMultiplier:
+            fulfillment === "AUTO" ? numOrNull(value.autoXpMultiplier) : null,
           validFrom: value.validFrom.trim() || null,
           validTo: value.validTo.trim() || null,
           maxRedemptions: numOrNull(value.maxRedemptions),
@@ -135,6 +147,9 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
       imageUrl: row.imageUrl ?? "",
       status: row.status,
       isFeatured: row.isFeatured,
+      fulfillment: row.fulfillment ?? "MEMBER_CARD",
+      autoXpMultiplier:
+        row.autoXpMultiplier != null ? String(row.autoXpMultiplier) : "",
       validFrom: row.validFrom ?? "",
       validTo: row.validTo ?? "",
       maxRedemptions: row.maxRedemptions != null ? String(row.maxRedemptions) : "",
@@ -153,6 +168,11 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
             <div className="text-xs text-slate-500">
               {row.original.isFeatured ? t("admin.venueCms.offers.featuredPrefix") : ""}
               {row.original.status}
+              {" · "}
+              {row.original.fulfillment ?? "MEMBER_CARD"}
+              {row.original.fulfillment === "AUTO" && row.original.autoXpMultiplier
+                ? ` · ${row.original.autoXpMultiplier}× XP`
+                : ""}
               {" · "}
               {row.original.redemptionCount}
               {row.original.maxRedemptions != null
@@ -322,6 +342,51 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
                 </label>
               )}
             </createForm.Field>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
+              <createForm.Field name="fulfillment">
+                {(f) => (
+                  <label className={fieldCol}>
+                    <span className={fieldLbl}>{t("admin.venueCms.offers.fulfillment")}</span>
+                    <select
+                      className={fieldSelect}
+                      value={f.state.value}
+                      onChange={(e) =>
+                        f.handleChange(e.target.value as AdminVenueOfferRow["fulfillment"])
+                      }
+                    >
+                      <option value="MEMBER_CARD">
+                        {t("admin.venueCms.offers.fulfillmentMemberCard")}
+                      </option>
+                      <option value="AUTO">{t("admin.venueCms.offers.fulfillmentAuto")}</option>
+                    </select>
+                  </label>
+                )}
+              </createForm.Field>
+              <createForm.Subscribe selector={(s) => s.values.fulfillment}>
+                {(fulfillment) =>
+                  fulfillment === "AUTO" ? (
+                    <createForm.Field name="autoXpMultiplier">
+                      {(f) => (
+                        <label className={fieldCol}>
+                          <span className={fieldLbl}>
+                            {t("admin.venueCms.offers.autoXpMultiplier")}
+                          </span>
+                          <input
+                            className={fieldInp}
+                            inputMode="decimal"
+                            placeholder="2"
+                            value={f.state.value}
+                            onChange={(e) => f.handleChange(e.target.value)}
+                          />
+                        </label>
+                      )}
+                    </createForm.Field>
+                  ) : (
+                    <div />
+                  )
+                }
+              </createForm.Subscribe>
+            </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
               <createForm.Field name="ctaUrl">
                 {(f) => (
@@ -503,6 +568,51 @@ export function VenueOffersSection({ venueId, getToken, enabled }: Props) {
                   </label>
                 )}
               </editForm.Field>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
+                <editForm.Field name="fulfillment">
+                  {(f) => (
+                    <label className={fieldCol}>
+                      <span className={fieldLbl}>{t("admin.venueCms.offers.fulfillment")}</span>
+                      <select
+                        className={fieldSelect}
+                        value={f.state.value}
+                        onChange={(e) =>
+                          f.handleChange(e.target.value as AdminVenueOfferRow["fulfillment"])
+                        }
+                      >
+                        <option value="MEMBER_CARD">
+                          {t("admin.venueCms.offers.fulfillmentMemberCard")}
+                        </option>
+                        <option value="AUTO">{t("admin.venueCms.offers.fulfillmentAuto")}</option>
+                      </select>
+                    </label>
+                  )}
+                </editForm.Field>
+                <editForm.Subscribe selector={(s) => s.values.fulfillment}>
+                  {(fulfillment) =>
+                    fulfillment === "AUTO" ? (
+                      <editForm.Field name="autoXpMultiplier">
+                        {(f) => (
+                          <label className={fieldCol}>
+                            <span className={fieldLbl}>
+                              {t("admin.venueCms.offers.autoXpMultiplier")}
+                            </span>
+                            <input
+                              className={fieldInp}
+                              inputMode="decimal"
+                              placeholder="2"
+                              value={f.state.value}
+                              onChange={(e) => f.handleChange(e.target.value)}
+                            />
+                          </label>
+                        )}
+                      </editForm.Field>
+                    ) : (
+                      <div />
+                    )
+                  }
+                </editForm.Subscribe>
+              </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
                 <editForm.Field name="ctaUrl">
                   {(f) => (

@@ -226,6 +226,8 @@ export class OwnerAnalyticsService {
       perkGroups,
       fulfilledCountRow,
       fulfilledPerkGroups,
+      offerClaimsPending,
+      offerClaimsFulfilled,
     ] = await Promise.all([
       this.prisma.venuePerkRedemption.findMany({
         where: {
@@ -285,6 +287,20 @@ export class OwnerAnalyticsService {
           voidedAt: null,
         },
         _count: { id: true },
+      }),
+      this.prisma.venueOfferRedemption.count({
+        where: {
+          status: 'PENDING',
+          createdAt: { gte: start, lte: end },
+          offer: { venueId },
+        },
+      }),
+      this.prisma.venueOfferRedemption.count({
+        where: {
+          status: 'FULFILLED',
+          fulfilledAt: { gte: start, lte: end },
+          offer: { venueId },
+        },
       }),
     ]);
 
@@ -383,6 +399,10 @@ export class OwnerAnalyticsService {
           ? byHourVenue.map((count, hour) => ({ hour, count }))
           : null,
         perPerk,
+      },
+      offerClaims: {
+        pending: offerClaimsPending,
+        fulfilled: offerClaimsFulfilled,
       },
       visits: {
         uniquePlayers: uniqueVisitors.size,

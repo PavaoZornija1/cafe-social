@@ -125,6 +125,23 @@ export function OwnerVenueDashboardShell({ children }: { children: ReactNode }) 
           </div>
         )}
         {readOnlyNotice ? <PartnerReadOnlyBanner notice={readOnlyNotice} /> : null}
+        {orgBilling?.trialEndsAt &&
+        orgBilling.platformBillingStatus !== "ACTIVE" &&
+        orgBilling.platformBillingStatus !== "ACTIVE_CANCELING" ? (
+          <div
+            className={
+              new Date(orgBilling.trialEndsAt).getTime() <= Date.now()
+                ? "rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900"
+                : "rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+            }
+          >
+            {new Date(orgBilling.trialEndsAt).getTime() <= Date.now()
+              ? t("admin.partnerVenueDetail.header.trialExpiredBanner")
+              : t("admin.partnerVenueDetail.header.trialActiveBanner", {
+                  date: orgBilling.trialEndsAt.slice(0, 10),
+                })}
+          </div>
+        ) : null}
         {children}
       </main>
     </div>

@@ -15,6 +15,10 @@ type Props = {
   streak: number;
   friendsHere: FriendAtVenueRow[];
   disabled: boolean;
+  /** Shown under the play CTA when games are disabled (e.g. partner venue locked). */
+  disabledReason?: string | null;
+  /** Venue AUTO offer XP multiplier currently active (1 = none). */
+  activeXpMultiplier?: number;
   onPlay: () => void;
 };
 
@@ -38,6 +42,8 @@ export default function HomeHeroCard({
   streak,
   friendsHere,
   disabled,
+  disabledReason,
+  activeXpMultiplier = 1,
   onPlay,
 }: Props) {
   const { t } = useTranslation();
@@ -60,7 +66,9 @@ export default function HomeHeroCard({
         pressed && !disabled && styles.pressed,
       ]}
       accessibilityRole="button"
-      accessibilityLabel={t('home.dashboard.heroA11y')}
+      accessibilityLabel={
+        disabled && disabledReason ? disabledReason : t('home.dashboard.heroA11y')
+      }
       accessibilityState={{ disabled }}
     >
       <View style={styles.card}>
@@ -83,11 +91,19 @@ export default function HomeHeroCard({
           </View>
         </View>
 
-        <Text style={styles.tapToPlay}>{t('home.dashboard.tapToPlayXp')}</Text>
+        <Text style={styles.tapToPlay}>
+          {disabled && disabledReason
+            ? t('home.dashboard.playLocked')
+            : activeXpMultiplier > 1
+              ? t('home.dashboard.tapToPlayXpBoosted', { mult: activeXpMultiplier })
+              : t('home.dashboard.tapToPlayXp')}
+        </Text>
         <Text style={styles.headline}>
-          {firstName
-            ? t('home.dashboard.gameOnNamed', { name: firstName })
-            : t('home.dashboard.gameOn')}
+          {disabled && disabledReason
+            ? disabledReason
+            : firstName
+              ? t('home.dashboard.gameOnNamed', { name: firstName })
+              : t('home.dashboard.gameOn')}
         </Text>
 
         <View style={styles.friendsRow}>

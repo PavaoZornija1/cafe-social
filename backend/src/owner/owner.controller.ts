@@ -865,6 +865,29 @@ export class OwnerController {
     });
   }
 
+  /** Staff honours a guest MEMBER_CARD offer claim after scanning their member card. */
+  @Post('venues/:venueId/member-scan/fulfill-offer')
+  @UseGuards(VenueStaffGuard)
+  @MinVenueRole(VenueStaffRole.EMPLOYEE)
+  async fulfillMemberCardOffer(
+    @CurrentUser() user: unknown,
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+    @Body() body: { redemptionId?: string },
+  ) {
+    const email = normalizeUserEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    const staff = await this.players.findOrCreateByEmail(email.trim());
+    const redemptionId = body?.redemptionId?.trim();
+    if (!redemptionId) {
+      throw new BadRequestException('redemptionId is required');
+    }
+    return this.memberScan.fulfillMemberCardOffer({
+      venueId,
+      redemptionId,
+      staffPlayerId: staff.id,
+    });
+  }
+
   @Get('venues/:venueId/redemptions')
   @UseGuards(VenueStaffGuard)
   @MinVenueRole(VenueStaffRole.EMPLOYEE)

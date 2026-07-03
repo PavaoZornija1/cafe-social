@@ -57,15 +57,38 @@ describe('PartnerOrgAccessService', () => {
       expect(events.emit).not.toHaveBeenCalled();
     });
 
-    it('returns when trial not expired or org is paying', async () => {
+    it('clears trial auto-locks while trial is still active', async () => {
       const future = new Date(Date.now() + 86400_000);
       prisma.venueOrganization.findUnique.mockResolvedValue({
         id: 'org1',
         platformBillingStatus: 'NONE',
         trialEndsAt: future,
-        venues: [{ id: 'v1', locked: false, lockReason: null }],
+        venues: [{ id: 'v1', locked: true, lockReason: PARTNER_TRIAL_LOCK_REASON }],
       });
+      prisma.venue.updateMany.mockResolvedValue({ count: 1 });
       await service.syncVenueLocksForOrganization('org1');
+      expect(prisma.venue.updateMany).toHaveBeenCalledWith({
+        where: {
+          organizationId: 'org1',
+          locked: true,
+          lockReason: PARTNER_TRIAL_LOCK_REASON,
+        },
+        data: { locked: false, lockReason: null },
+      });
+      expect(prisma.venue.update).not.toHaveBeenCalled();
+      expect(events.emit).not.toHaveBeenCalled();
+    });
+
+    it('clears trial auto-locks when org is paying', async () => {
+      prisma.venueOrganization.findUnique.mockResolvedValue({
+        id: 'org1',
+        platformBillingStatus: 'ACTIVE',
+        trialEndsAt: new Date(Date.now() - 86400_000),
+        venues: [{ id: 'v1', locked: true, lockReason: PARTNER_TRIAL_LOCK_REASON }],
+      });
+      prisma.venue.updateMany.mockResolvedValue({ count: 1 });
+      await service.syncVenueLocksForOrganization('org1');
+      expect(prisma.venue.updateMany).toHaveBeenCalled();
       expect(prisma.venue.update).not.toHaveBeenCalled();
     });
 
