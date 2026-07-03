@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -16,7 +17,11 @@ import {
 import { apiGet, apiPost } from '../lib/api';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
-import { isArenaSpriteHero, isLobbySelectableHero } from '../brawler/heroSpritesheets';
+import {
+  getHeroLobbyAvatarSource,
+  isArenaSpriteHero,
+  isLobbySelectableHero,
+} from '../brawler/heroSpritesheets';
 import { BrawlerPowerupLegend } from '../brawler/components/BrawlerPowerupLegend';
 import type { BrawlerPowerupDef } from '../brawler/arena/types';
 import type { BrawlerArenaHeroStats, RootStackParamList } from '../navigation/type';
@@ -301,6 +306,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
           <View style={styles.heroList}>
             {heroes.map((hero) => {
               const selected = hero.id === selectedHeroId;
+              const avatarSource = getHeroLobbyAvatarSource(hero.id);
               return (
                 <Pressable
                   key={hero.id}
@@ -312,11 +318,19 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
                   ]}
                 >
                   <View style={[styles.heroCardIcon, selected && styles.heroCardIconSelected]}>
-                    <Ionicons
-                      name="person"
-                      size={20}
-                      color={selected ? colors.textInverse : colors.textSecondary}
-                    />
+                    {avatarSource ? (
+                      <Image
+                        source={avatarSource}
+                        style={styles.heroCardAvatar}
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <Ionicons
+                        name="person"
+                        size={20}
+                        color={selected ? colors.textInverse : colors.textSecondary}
+                      />
+                    )}
                   </View>
                   <View style={styles.heroCardBody}>
                     <Text style={styles.heroName}>{hero.name}</Text>
@@ -333,6 +347,21 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
 
         {selectedHero ? (
           <View style={styles.statsCard}>
+            {getHeroLobbyAvatarSource(selectedHero.id) ? (
+              <View style={styles.selectedHeroPreview}>
+                <Image
+                  source={getHeroLobbyAvatarSource(selectedHero.id)!}
+                  style={styles.selectedHeroAvatar}
+                  resizeMode="contain"
+                />
+                <View style={styles.selectedHeroPreviewText}>
+                  <Text style={styles.selectedHeroName}>{selectedHero.name}</Text>
+                  <Text style={styles.selectedHeroArchetype}>
+                    {selectedHero.archetype ?? 'All-Rounder'}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
             <Text style={styles.sectionLabel}>{t('brawlerLobby.selectedHeroStats')}</Text>
             <View style={styles.statsGrid}>
               <Text style={styles.statsText}>
@@ -628,15 +657,24 @@ function createStyles(colors: AppColors) {
       backgroundColor: colors.primaryMuted,
     },
     heroCardIcon: {
-      width: 40,
-      height: 40,
+      width: 48,
+      height: 48,
       borderRadius: radii.md,
       backgroundColor: colors.bgElevated,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
+      overflow: 'hidden',
     },
-    heroCardIconSelected: { backgroundColor: colors.xp },
+    heroCardIconSelected: {
+      backgroundColor: colors.surface,
+      borderWidth: 2,
+      borderColor: colors.xp,
+    },
+    heroCardAvatar: {
+      width: 44,
+      height: 44,
+    },
     heroCardBody: { flex: 1, minWidth: 0 },
     heroName: { color: colors.text, fontSize: 16, fontWeight: '800' },
     heroArchetype: { color: colors.textMuted, fontSize: 12, marginTop: 2, fontWeight: '600' },
@@ -650,6 +688,24 @@ function createStyles(colors: AppColors) {
       gap: spacing.sm,
     },
     sectionLabel: { color: colors.text, fontSize: 16, fontWeight: '900' },
+    selectedHeroPreview: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    selectedHeroAvatar: {
+      width: 72,
+      height: 72,
+    },
+    selectedHeroPreviewText: { flex: 1, minWidth: 0 },
+    selectedHeroName: { color: colors.text, fontSize: 18, fontWeight: '900' },
+    selectedHeroArchetype: {
+      color: colors.textMuted,
+      fontSize: 13,
+      marginTop: 2,
+      fontWeight: '700',
+    },
     statsGrid: { gap: spacing.xs },
     statsText: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
     rankCard: {

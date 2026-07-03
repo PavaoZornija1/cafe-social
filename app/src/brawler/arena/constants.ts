@@ -68,8 +68,8 @@ export const POWERUP_PICKUP_RADIUS_PX = 28;
 export const FALLBACK_ARENA_HERO_STATS: BrawlerArenaHeroStats = {
   baseHp: 100,
   moveSpeed: 1.0,
-  dashCooldownMs: 1000,
-  attackDamage: 25,
+  dashCooldownMs: 2200,
+  attackDamage: 14,
   attackKnockback: 1.0,
 };
 

@@ -542,7 +542,7 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
       id: anaParticipantId,
       sessionId: brawlerSessionId,
       playerId: ana,
-      brawlerHeroId: 'hero_blaze',
+      brawlerHeroId: 'hero_frost',
       displayNameSnapshot: 'ana_ba',
       placement: 1,
       score: 3,
@@ -636,14 +636,15 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
   });
 
   await prisma.playerDailyWord.upsert({
-    where: {
-      playerId_dayKey_scopeKey: {
-        playerId: maya,
-        dayKey,
-        scopeKey: avlija,
-      },
+    where: { id: 'dw000000-0000-4000-8000-000000000001' },
+    update: {
+      playerId: maya,
+      dayKey,
+      scopeKey: avlija,
+      attempts: 2,
+      solvedAt: new Date(),
+      winXpAwarded: true,
     },
-    update: { attempts: 2, solvedAt: new Date(), winXpAwarded: true },
     create: {
       id: 'dw000000-0000-4000-8000-000000000001',
       playerId: maya,

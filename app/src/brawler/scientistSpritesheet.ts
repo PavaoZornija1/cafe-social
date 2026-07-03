@@ -1,10 +1,13 @@
 import type { HeroSpriteConfig } from './heroSpriteTypes';
-import { GORGON_DISPLAY_SCALE } from './bruiserSpritesheet';
+import {
+  ARENA_BASE_BODY_DISPLAY_SCALE,
+  ARENA_FRAME_PX,
+} from './heroSpriteConstants';
 
-export const SCIENTIST_FRAME_PX = { w: 128, h: 128 } as const;
+export const SCIENTIST_FRAME_PX = ARENA_FRAME_PX;
 
-/** Scientist art fills less of the cell — scale up vs Gorgon on-screen height. */
-export const SCIENTIST_DISPLAY_SCALE = GORGON_DISPLAY_SCALE * 1.5;
+/** Scientist art fills less of the cell — scale up for on-screen height. */
+export const SCIENTIST_DISPLAY_SCALE = ARENA_BASE_BODY_DISPLAY_SCALE * 1.5;
 
 /** Echo — strip sprites in assets/brawlerHeroes/scientist/. */
 export const ECHO_ARENA_HERO_ID = 'hero_echo';
@@ -14,7 +17,7 @@ export const SCIENTIST_HERO_SPRITE_CONFIG: HeroSpriteConfig = {
   heroId: ECHO_ARENA_HERO_ID,
   framePx: SCIENTIST_FRAME_PX,
   displayScale: SCIENTIST_DISPLAY_SCALE,
-  bodyScale: GORGON_DISPLAY_SCALE,
+  bodyScale: ARENA_BASE_BODY_DISPLAY_SCALE,
   feetSheetPx: 116,
   attackHitFromTopPx: 30,
   hitAnchorOffsetX: 0,

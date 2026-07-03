@@ -6,6 +6,10 @@ import {
   FALLBACK_ARENA_HERO_STATS,
 } from './constants';
 
+/** Base melee knockback speeds at `attackKnockback === 1`. */
+const ATTACK_KNOCKBACK_ENEMY_BASE = 520;
+const ATTACK_KNOCKBACK_DUMMY_BASE = 420;
+
 export function arenaHeroCombat(stats: BrawlerArenaHeroStats | undefined) {
   const s: BrawlerArenaHeroStats = { ...FALLBACK_ARENA_HERO_STATS, ...stats };
   const dashCooldownS = Math.max(0.05, s.dashCooldownMs / 1000);
@@ -17,6 +21,9 @@ export function arenaHeroCombat(stats: BrawlerArenaHeroStats | undefined) {
     moveSpeedPx: BASE_MOVE_SPEED_PX * s.moveSpeed,
     dashCooldownS,
     attackDamage: s.attackDamage,
+    attackKnockback: s.attackKnockback,
+    attackKnockbackEnemySpeed: ATTACK_KNOCKBACK_ENEMY_BASE * s.attackKnockback,
+    attackKnockbackDummySpeed: ATTACK_KNOCKBACK_DUMMY_BASE * s.attackKnockback,
     dashDmg,
     dashKnockbackSpeed,
     dashShovePx,

@@ -1,10 +1,13 @@
 import type { HeroSpriteConfig } from './heroSpriteTypes';
-import { GORGON_DISPLAY_SCALE } from './bruiserSpritesheet';
+import {
+  ARENA_BASE_BODY_DISPLAY_SCALE,
+  ARENA_FRAME_PX,
+} from './heroSpriteConstants';
 
-export const TESTER_GOLEM_FRAME_PX = { w: 128, h: 128 } as const;
+export const TESTER_GOLEM_FRAME_PX = ARENA_FRAME_PX;
 
-/** Hand-drawn golem fills less of the cell — scale up vs Gorgon on-screen height. */
-export const TESTER_GOLEM_DISPLAY_SCALE = GORGON_DISPLAY_SCALE * 1.5;
+/** Hand-drawn golem fills less of the cell — scale up for on-screen height. */
+export const TESTER_GOLEM_DISPLAY_SCALE = ARENA_BASE_BODY_DISPLAY_SCALE * 1.5;
 
 export const TESTER_GOLEM_ARENA_HERO_ID = 'hero_tester_golem';
 
@@ -13,8 +16,8 @@ export const TESTER_GOLEM_HERO_SPRITE_CONFIG: HeroSpriteConfig = {
   heroId: TESTER_GOLEM_ARENA_HERO_ID,
   framePx: TESTER_GOLEM_FRAME_PX,
   displayScale: TESTER_GOLEM_DISPLAY_SCALE,
-  /** Physics body stays Gorgon-sized; sprite is drawn larger with feet alignment. */
-  bodyScale: GORGON_DISPLAY_SCALE,
+  /** Physics body uses base arena scale; sprite is drawn larger with feet alignment. */
+  bodyScale: ARENA_BASE_BODY_DISPLAY_SCALE,
   feetSheetPx: 116,
   attackHitFromTopPx: 40,
   hitAnchorOffsetX: 0,
