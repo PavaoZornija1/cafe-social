@@ -14,8 +14,8 @@ npx expo run:ios --device
 | Path | Description |
 |------|-------------|
 | `backend/` | NestJS API (`/api`), PostgreSQL via Prisma, Clerk JWT auth |
-| `app/` | Expo SDK 54 app (iOS/Android), Clerk, React Navigation — full venue gaming + social |
-| `app-loyalty/` | Same backend, **loyalty-only** Expo app (perks, offers, QR, receipts, map, staff tools — no games) |
+| `app/` | Expo SDK 54 app (iOS/Android), Clerk, React Navigation — venue gaming, social, loyalty, staff tools |
+| `app-loyalty/` | *(optional separate checkout)* loyalty-focused Expo variant — same backend APIs as `app/` |
 | `admin/` | **Next.js 15** partner portal (**Clerk** only): **super admins** (`Player.platformRole`) get full CMS (venues, words, challenges, perks); **OWNER / MANAGER / EMPLOYEE** get venue dashboards, campaigns, receipts, JWT **staff redemptions** (`/staff/[venueId]`) |
 
 ## What’s implemented
@@ -56,7 +56,7 @@ npx expo run:ios --device
 - **i18n**: **English, German, Spanish, Croatian** — language persists (AsyncStorage), overrides device locale when set in **Settings**.
 - **Home**: Venue detection, access, challenges, **PLAY** → word flow, **XP / tier**, nav to Challenges / Leaderboard / Profile / Settings; **partner card** (**featured offer**, **Order** / **Menu** links from `public-card`, friend visit aggregate, **badges** / visits-this-week from **engagement**); **quick links** (Parties, Who’s here, Redeem invite, **Daily word**, **Redeem perk**); **venue feed** (“At this venue”) when unlocked; **weekly** challenges labeled in copy; **presence** → `POST /social/me/presence` when detected venue changes. **Global venue presence heartbeat** (every ~5 min + on app foreground) while signed in keeps geofence presence updated on the server for **any** screen so **dwell‑based venue nudges** measure time **at the venue in general**, not time in a match. **Tap** on **`venue_order_nudge`** opens **ordering/menu** URL when present, then **Home**.
 - **Daily word** screen: **Global** vs **Venue** scope (venue requires detection), guesses via API, streak display; deck **language** follows app locale.
-- **Parties**: list/create, party detail (leader: **kick**, **transfer leadership**, share invite via **Share sheet**, mesh friend-requests, leave).
+- **Parties**: list/create, party detail (leader: **kick**, **transfer leadership**, share invite, mesh friend-requests, **play together** → word/brawler lobbies, leave).
 - **Redeem invite**: paste token or **`cafesocial://redeem?token=...`** (linking configured).
 - **Redeem perk**: venue staff codes via **`POST /venue-context/:venueId/perks/redeem`** (presence + optional QR-gated perks); response includes **staff verification code** for the staff portal list.
 - **Who’s here**: list for current venue (privacy rules).
@@ -64,12 +64,16 @@ npx expo run:ios --device
 - **Settings**: Language, **privacy toggles** (discoverable / total privacy), **push buckets** (**word match** vs **partner marketing**), **Legal & data** (summary + links to policy/terms when env URLs are set), about, **Sign out**.
 - **Word game**: Solo / **co-op** / **versus** (room code, host starts), difficulty, deck language follows app locale with **EN fallback**; challenge progress when rules allow. **Socket.IO** `/word-match` with **reconnecting** banner; **Expo push** + **tap notification** opens the word match (**wait** or **game**) when possible.
 - **QR unlock**: **`expo-camera`** QR scan (native) + manual venue UUID; supports raw UUID, `/venue/<uuid>`, query `venueId`, `cafesocial://…`, JSON `{ venueId }`.
-- **Challenges**: list + progress (+1) with refetch.
+- **Challenges**: list + progress — **server auto-increments** on venue games (word/brawler finish), **member card scan**, and **venue daily word** solve; manual +1 still available in UI.
 - **Profile**: server summary (includes `playerId`, XP, tier); **share friend invite** (same as Settings).
 - **Friends**: **add by username**, cancel **outgoing** requests, incoming + **Accept**, **share invite** from the screen.
-- **Staff mode** (Clerk users on **`VenueStaff`**): **Settings → Staff mode** — list assigned venues, **UTC-day** perk redemptions (`GET /owner/venues/.../redemptions`), **filter**, **QR scan** / manual code (8-char code or redemption UUID / JSON payload) to highlight the row.
+- **Staff mode** (Clerk users on **`VenueStaff`**): **Settings → Your venues** (hidden when not on staff) — UTC-day perk list with **guest name**, **Mark redeemed** per row, **QR scan** / manual code (member card or perk). **Member scan** records visits.
+- **Perk wallet** (`PerkWallet` screen): cross-venue claimed perks with staff QR/code. **Rewards hub** = platform quests (XP), separate from perks.
+- **Receipt upload**: **Venue hub → Submit receipt** (also `SubmitReceipt` screen).
+- **Play limits (guests)**: **active play time** budget + **daily game count** (default 50/UTC day); both surfaced in play UI. Subscribers bypass limits.
+- **Brawler**: arena 1v1 queue (global pool), practice, Socket.IO arena; **push** on match start (`brawler_match_start`).
 - **Receipt proof (JWT)**: `POST /venue-context/:venueId/receipts` `{ imageData (data URL base64), mimeType?, notePlayer?, detectedVenueId? }` — same presence rule as perks; **90-day** `retentionUntil` target. Owners: `GET /owner/venues/:venueId/receipts`, `GET .../receipts/:id` (includes image), `POST .../receipts/:id/review` `{ status: APPROVED|REJECTED, staffNote?, abuseFlag? }`.
-- **Redemption audit**: `POST /owner/venues/:venueId/redemptions/:redemptionId/acknowledge` (**EMPLOYEE**+), `POST .../void` (**MANAGER**+, `{ reason }`). Voided rows excluded from active analytics counts; CSV export includes void/ack columns.
+- **Redemption audit**: `POST /owner/venues/:venueId/redemptions/scan` `{ code }` (**EMPLOYEE**+, throttled — marks **REDEEMED** by 8-char staff code), `POST .../redemptions/:redemptionId/acknowledge` (**EMPLOYEE**+), `POST .../void` (**MANAGER**+, `{ reason }`). Staff list includes **guest username**. Voided rows excluded from active analytics counts; CSV export includes void/ack columns.
 - **Owner analytics v2** (same `GET /owner/venues/:venueId/analytics`): **per-perk** counts, **hour-of-day** (UTC + optional venue **IANA** timezone from `Venue.analyticsTimeZone`, set in Partner CMS), **funnel** (unique visitors vs redeemers), **voided** count. **`GET .../analytics/export.csv`** — redemptions CSV (**MANAGER**+).
 - **Campaigns**: `VenueCampaign` + `VenueCampaignSend` log; **`GET/POST /owner/venues/:venueId/campaigns`**, **`POST .../campaigns/:id/send`** — targets players with a **visit day** at that venue in the last **segmentDays** (UTC day keys); **Expo push** via `partner_marketing` channel (**`partnerMarketingPush` and not `totalPrivacy`**). Re-send after **FAILED** clears prior send rows.
 

@@ -235,6 +235,7 @@
     "brawlerTitle": "Brawler",
     "brawlerDescription": "Kratke arene s herojima i pojačanjima.",
     "brawlerCta": "Otvori lobby",
+    "brawlerCtaGlobal": "Otvori lobby (globalno — pretplatnici)",
     "brawlerNeedVenue": "Brawler treba prijavu na lokalu."
   },
   "brawlerLobby": {
@@ -367,7 +368,7 @@
     "modActiveBans": "{{n}} aktivnih zabrana",
     "modOpenAppeals": "{{n}} otvorenih žalbi",
     "modPartnerToolsHint": "Manageri rade u partnerskom portalu; ovo je samo za čitanje za osoblje na licu mjesta.",
-    "scanSuccessTitle": "Nagrada iskorištena",
+    "acknowledge": "Označi iskorišteno",
     "scanSuccessBody": "QR potvrđen i nagrada označena kao iskorištena.",
     "refreshA11y": "Osvježi iskorištenja",
     "prevDayA11y": "Prethodni dan",

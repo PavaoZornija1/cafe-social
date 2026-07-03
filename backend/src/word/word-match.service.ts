@@ -36,6 +36,7 @@ import { GameXpAwardService } from '../stats/game-xp-award.service';
 import { WordMatchLiveRedisService } from './word-match-live-redis.service';
 import type { WordMatchLiveSnapshotV1 } from './word-match-snapshot.util';
 import { resolveIfSnapshotRev } from '../game-runtime/snapshot-rev.util';
+import { ChallengeService } from '../challenge/challenge.service';
 
 export type WordMatchConfig = {
   wordGameMode: 'coop' | 'versus';
@@ -78,6 +79,7 @@ export class WordMatchService {
     private readonly venuePlayBudget: VenuePlayBudgetService,
     private readonly gameXp: GameXpAwardService,
     private readonly liveRedis: WordMatchLiveRedisService,
+    private readonly challenges: ChallengeService,
   ) {}
 
   private mapSnapshotToPublicState(snap: WordMatchLiveSnapshotV1, viewerPlayerId?: string) {
@@ -516,6 +518,10 @@ export class WordMatchService {
       difficulty: config.difficulty,
       ranked: Boolean(config.ranked),
       venueId: session.venueId,
+      playerVenueId:
+        viewerPlayerId && config.playerVenueIds?.[viewerPlayerId]
+          ? config.playerVenueIds[viewerPlayerId]
+          : session.venueId,
       deckLanguage: ws?.language ?? 'en',
       deckCategory: config.category ?? null,
       hostPlayerId: config.hostPlayerId,
@@ -988,6 +994,7 @@ export class WordMatchService {
     }
     if (result.finished) {
       void this.gameXp.tryAwardSessionWinXp(sessionId);
+      this.recordVenueChallengesForSession(sessionId);
     }
     return result;
   }
@@ -1597,6 +1604,7 @@ export class WordMatchService {
     }
     if (result.finished) {
       void this.gameXp.tryAwardSessionWinXp(sessionId);
+      this.recordVenueChallengesForSession(sessionId);
     }
     return result;
   }
@@ -1712,5 +1720,27 @@ export class WordMatchService {
     if (createdSessionId) {
       await this.activateWordMatchSession(createdSessionId);
     }
+  }
+
+  private recordVenueChallengesForSession(sessionId: string): void {
+    void (async () => {
+      const session = await this.prisma.gameSession.findUnique({
+        where: { id: sessionId },
+        include: { participants: true },
+      });
+      if (!session || session.status !== GameSessionStatus.FINISHED) return;
+      const config = session.config as unknown as WordMatchConfig;
+      const playerVenueIds = config.playerVenueIds ?? {};
+      for (const p of session.participants) {
+        if (!p.playerId || p.isBot) continue;
+        const venueId = playerVenueIds[p.playerId] ?? session.venueId;
+        if (!venueId) continue;
+        await this.challenges.bumpActiveChallengesForPlayerAtVenue({
+          playerId: p.playerId,
+          venueId,
+          trustVenuePresence: true,
+        });
+      }
+    })();
   }
 }

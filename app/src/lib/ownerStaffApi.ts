@@ -16,6 +16,7 @@ export type OwnerVenuesResponse = { venues: OwnerVenueRow[] };
 export type StaffRedemptionRow = {
   redemptionId: string;
   staffVerificationCode: string;
+  playerUsername: string;
   issuedAt: string;
   redeemedAt: string | null;
   expiresAt: string;
@@ -53,6 +54,18 @@ export function scanAndRedeemStaffReward(
   return apiPost<{ ok: true }>(
     `/owner/venues/${encodeURIComponent(venueId)}/redemptions/scan`,
     { code },
+    token,
+  );
+}
+
+export function acknowledgeStaffRedemption(
+  token: string,
+  venueId: string,
+  redemptionId: string,
+) {
+  return apiPost<{ ok: true }>(
+    `/owner/venues/${encodeURIComponent(venueId)}/redemptions/${encodeURIComponent(redemptionId)}/acknowledge`,
+    {},
     token,
   );
 }

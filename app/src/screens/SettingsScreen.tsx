@@ -39,6 +39,7 @@ import { navigationRef } from '../navigation/navigationRef';
 import { setBackgroundApiToken } from '../lib/backgroundApiToken';
 import { unregisterExpoPushTokenFromBackend } from '../lib/expoPush';
 import { createAndShareFriendInviteLink } from '../lib/friendInviteShare';
+import { fetchOwnerVenues } from '../lib/ownerStaffApi';
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../lib/legalUrls';
 import {
   getPreferredPackageOrder,
@@ -97,6 +98,7 @@ export default function SettingsScreen({ navigation }: Props) {
   const [soundEffectsEnabled, setSoundEffectsEnabled] = useState(true);
   const [hapticsEnabled, setHapticsEnabledState] = useState(true);
   const [backgroundMusicEnabled, setBackgroundMusicEnabled] = useState(true);
+  const [hasStaffVenues, setHasStaffVenues] = useState(false);
   const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '—';
   const rcNative = isRevenueCatNativeConfigured();
   const packageOrder = getPreferredPackageOrder();
@@ -192,7 +194,21 @@ export default function SettingsScreen({ navigation }: Props) {
         setHapticsEnabledState(prefs.hapticsEnabled);
         setBackgroundMusicEnabled(prefs.backgroundMusicEnabled);
       });
-    }, [loadPrivacy, refreshLocationPerms]),
+      void (async () => {
+        if (!isLoaded) return;
+        try {
+          const token = await getTokenRef.current();
+          if (!token) {
+            setHasStaffVenues(false);
+            return;
+          }
+          const data = await fetchOwnerVenues(token);
+          setHasStaffVenues(data.venues.length > 0);
+        } catch {
+          setHasStaffVenues(false);
+        }
+      })();
+    }, [isLoaded, loadPrivacy, refreshLocationPerms]),
   );
 
   const locationStatusKey = (() => {
@@ -740,15 +756,19 @@ export default function SettingsScreen({ navigation }: Props) {
           <Text style={styles.cardText}>{t('settings.accountHint')}</Text>
         </View>
 
-        <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.staffTitle')}</Text>
-        <Text style={styles.hint}>{t('settings.staffHint')}</Text>
-        <View style={styles.navList}>
-        <SettingsNavRow
-          colors={colors}
-          label={t('settings.staffOpen')}
-          onPress={() => navigation.navigate('StaffVenues')}
-        />
-        </View>
+        {hasStaffVenues ? (
+          <>
+            <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.staffTitle')}</Text>
+            <Text style={styles.hint}>{t('settings.staffHint')}</Text>
+            <View style={styles.navList}>
+              <SettingsNavRow
+                colors={colors}
+                label={t('settings.staffOpen')}
+                onPress={() => navigation.navigate('StaffVenues')}
+              />
+            </View>
+          </>
+        ) : null}
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.social')}</Text>
         <Text style={styles.hint}>{t('settings.friendInviteHint')}</Text>
@@ -756,7 +776,7 @@ export default function SettingsScreen({ navigation }: Props) {
         <SettingsNavRow
           colors={colors}
           label={t('settings.openFriends')}
-          onPress={() => navigation.navigate('Friends')}
+          onPress={() => navigation.navigate('MainTabs', { screen: 'FriendsTab' })}
         />
         <SettingsNavRow
           colors={colors}

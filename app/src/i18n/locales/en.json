@@ -18,6 +18,7 @@
   "venuePlayBar": {
     "timeRemaining": "~{{minutes}} min play time left today (UTC) at this venue",
     "compactRemaining": "~{{minutes}} min café play left today",
+    "gamesRemaining": "{{remaining}} of {{limit}} games left today (UTC)",
     "outsideGeofence": "Step inside the venue geofence to use your play time.",
     "extend": "Extend"
   },
@@ -238,6 +239,7 @@
     "brawlerTitle": "Brawler",
     "brawlerDescription": "Short arena battles with heroes and power-ups.",
     "brawlerCta": "Open lobby",
+    "brawlerCtaGlobal": "Open lobby (global — subscribers)",
     "brawlerNeedVenue": "Brawler needs a venue check-in (arena is tied to a location)."
   },
   "brawlerLobby": {
@@ -372,7 +374,7 @@
     "modActiveBans": "{{n}} active bans",
     "modOpenAppeals": "{{n}} open appeals",
     "modPartnerToolsHint": "Managers can take action in the partner portal; this is a read-only signal for on-site staff.",
-    "scanSuccessTitle": "Reward redeemed",
+    "acknowledge": "Mark redeemed",
     "scanSuccessBody": "QR verified and reward marked as redeemed.",
     "refreshA11y": "Refresh redemptions",
     "prevDayA11y": "Previous day",
@@ -569,6 +571,7 @@
     "leaderboardXp": "{{xp}} XP",
     "openLeaderboard": "Full leaderboard",
     "perkRedeemCta": "Redeem",
+    "perkWalletCta": "Wallet",
     "lockedAtVenueHint": "Turn on location or complete check-in to use venue games and some actions.",
     "sectionYourStats": "Your progress",
     "venuesExploredMonth": "{{n}} different venues visited in the last 30 days.",
@@ -584,7 +587,8 @@
     "challengesEmptyShort": "No active challenges for this venue right now.",
     "myRewardsHereTitle": "Your rewards here",
     "myRewardsHereEmpty": "No redeemable perk rewards at this venue yet — check challenges.",
-    "myRewardsSeeCrossVenue": "All rewards (every venue)",
+    "myRewardsSeeCrossVenue": "Perk wallet (all venues)",
+    "submitReceiptCta": "Submit receipt for review",
     "refreshA11y": "Refresh venue"
   },
   "partnerMap": {
@@ -913,6 +917,10 @@
     "youAreCreator": "You created this party",
     "youAreLeader": "You are the party leader",
     "members": "Members",
+    "playTogether": "Play together",
+    "playTogetherHint": "Open a game lobby — coordinate in chat, then queue or start a room.",
+    "playWord": "Word match lobby",
+    "playBrawler": "Brawler lobby",
     "leaderTag": "Leader",
     "generateInviteLink": "Share invite link",
     "meshFriendRequests": "Friend-request everyone here",

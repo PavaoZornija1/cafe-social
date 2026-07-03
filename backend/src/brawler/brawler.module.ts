@@ -10,9 +10,11 @@ import { BrawlerLiveRedisService } from './brawler-live-redis.service';
 import { BrawlerArenaRedisService } from './brawler-arena-redis.service';
 import { BrawlerGateway } from './brawler.gateway';
 import { StatsModule } from '../stats/stats.module';
+import { ChallengeModule } from '../challenge/challenge.module';
+import { PushModule } from '../push/push.module';
 
 @Module({
-  imports: [PrismaModule, PlayerModule, AuthModule, VenueModule, StatsModule],
+  imports: [PrismaModule, PlayerModule, AuthModule, VenueModule, StatsModule, ChallengeModule, PushModule],
   controllers: [BrawlerController],
   providers: [
     BrawlerService,

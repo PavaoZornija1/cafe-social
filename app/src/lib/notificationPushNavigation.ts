@@ -9,6 +9,7 @@ import {
 } from './partnerMarketingPush';
 import { parseVenueOrderNudgePayload } from './venueNudgePush';
 import { navigateWordMatchFromPush } from './wordMatchPushNavigation';
+import { navigateBrawlerMatchFromPush } from './brawlerMatchPushNavigation';
 
 /**
  * Central entry for notification taps (foreground tap + cold start).
@@ -37,15 +38,10 @@ export async function handleNotificationTapNavigation(
     return;
   }
   if (kind === 'perk_granted') {
-    const venueId = typeof raw.venueId === 'string' ? raw.venueId : undefined;
     if (navigationRef.isReady()) {
       const ok = await ensureOnboardingCompleteForNavigation(getToken);
       if (ok) {
-        if (venueId) {
-          navigationRef.navigate('RedeemPerk', { venueId });
-        } else {
-          navigationRef.navigate('PerkWallet');
-        }
+        navigationRef.navigate('PerkWallet');
       }
     }
     return;
@@ -94,7 +90,7 @@ export async function handleNotificationTapNavigation(
     if (navigationRef.isReady()) {
       const ok = await ensureOnboardingCompleteForNavigation(getToken);
       if (ok) {
-        navigationRef.navigate('RedeemPerk', { venueId: perkExpiry.venueId });
+        navigationRef.navigate('PerkWallet');
       }
     }
     return;
@@ -138,5 +134,6 @@ export async function handleNotificationTapNavigation(
     return;
   }
 
+  await navigateBrawlerMatchFromPush(raw, getToken);
   await navigateWordMatchFromPush(raw, getToken);
 }

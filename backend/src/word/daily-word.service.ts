@@ -15,6 +15,7 @@ import { VenueService } from '../venue/venue.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { DailyWordGuessDto, DailyWordScope } from './dto/daily-word-guess.dto';
 import { GameXpAwardService } from '../stats/game-xp-award.service';
+import { ChallengeService } from '../challenge/challenge.service';
 
 const MAX_ATTEMPTS = 6;
 
@@ -35,6 +36,7 @@ export class DailyWordService {
     private readonly subscriptions: SubscriptionRepository,
     private readonly venues: VenueService,
     private readonly gameXp: GameXpAwardService,
+    private readonly challenges: ChallengeService,
   ) {}
 
   private scopeKey(scope: DailyWordScope, venueId?: string): string {
@@ -298,6 +300,11 @@ export class DailyWordService {
 
       if (dto.scope === 'venue' && dto.venueId) {
         void this.feed.recordDailyWordSolved(dto.venueId, player.username);
+        void this.challenges.bumpActiveChallengesForPlayerAtVenue({
+          playerId: player.id,
+          venueId: dto.venueId,
+          trustVenuePresence: true,
+        });
       }
 
       const hintsSolved = this.progressiveDailyHints(nextAttempts, true, word);

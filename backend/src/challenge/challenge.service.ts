@@ -95,12 +95,15 @@ export class ChallengeService {
     increment: number;
     latitude?: number;
     longitude?: number;
+    /** Skip geofence when activity already verified at venue (e.g. completed game). */
+    trustVenuePresence?: boolean;
   }): Promise<{
     challengeId: string;
     progressCount: number;
     isCompleted: boolean;
   }> {
-    const { venueId, challengeId, email, increment, latitude, longitude } = params;
+    const { venueId, challengeId, email, increment, latitude, longitude, trustVenuePresence } =
+      params;
 
     if (!email) throw new UnauthorizedException('Missing user email');
     if (increment <= 0) throw new BadRequestException('increment must be > 0');
@@ -121,7 +124,8 @@ export class ChallengeService {
       throw new BadRequestException('This challenge is not active during the current time window');
     }
 
-    const requiresPresence = challenge.locationRequired || challenge.rewardVenueSpecific;
+    const requiresPresence =
+      !trustVenuePresence && (challenge.locationRequired || challenge.rewardVenueSpecific);
 
     if (requiresPresence) {
       const hasCoords =
@@ -190,5 +194,43 @@ export class ChallengeService {
       progressCount: updated.progressCount,
       isCompleted: !!updated.completedAt,
     };
+  }
+
+  /**
+   * Server-side challenge progress after verified venue activity (game complete, visit, etc.).
+   * Skips geofence when `trustVenuePresence` — activity already implied venue access.
+   */
+  async bumpActiveChallengesForPlayerAtVenue(params: {
+    playerId: string;
+    venueId: string;
+    increment?: number;
+    trustVenuePresence?: boolean;
+  }): Promise<void> {
+    const increment = params.increment ?? 1;
+    if (increment <= 0) return;
+
+    const player = await this.players.findOne(params.playerId);
+
+    const venueRow = await this.venues.findOne(params.venueId);
+    if (venueRow.locked) return;
+
+    const now = new Date();
+    const challengeRows = (await this.challenges.findByVenueId(params.venueId)).filter((c) =>
+      isChallengeActiveWindow(c.activeFrom, c.activeTo, now),
+    );
+
+    for (const challenge of challengeRows) {
+      try {
+        await this.incrementChallengeProgress({
+          venueId: params.venueId,
+          challengeId: challenge.id,
+          email: player.email,
+          increment,
+          trustVenuePresence: params.trustVenuePresence,
+        });
+      } catch {
+        /* skip challenges that require coords or are already complete */
+      }
+    }
   }
 }

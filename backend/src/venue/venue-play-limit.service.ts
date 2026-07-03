@@ -229,4 +229,23 @@ export class VenuePlayLimitService {
       this.funnel.safeLog({ venueId, playerId, kind: 'play' });
     }
   }
+
+  /** Guest daily game count for UI (subscribers should skip calling this). */
+  async getDailyPlayStatus(
+    playerId: string,
+    venueId: string,
+  ): Promise<{ limit: number; used: number; remaining: number; dayKey: string }> {
+    const limit = await this.effectiveDailyGameLimit(venueId);
+    const dayKey = utcDayKey();
+    const day = await this.prisma.playerVenuePlayDay.findUnique({
+      where: { playerId_venueId_dayKey: { playerId, venueId, dayKey } },
+    });
+    const used = day?.gamesPlayed ?? 0;
+    return {
+      limit,
+      used,
+      remaining: Math.max(0, limit - used),
+      dayKey,
+    };
+  }
 }

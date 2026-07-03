@@ -42,6 +42,8 @@ import {
 } from './brawler-arena.events';
 import type { TickBrawlerArenaDto } from './dto/tick-brawler-arena.dto';
 import { resolveIfSnapshotRev } from '../game-runtime/snapshot-rev.util';
+import { ChallengeService } from '../challenge/challenge.service';
+import { PushService } from '../push/push.service';
 
 type BrawlerSessionView = NonNullable<Awaited<ReturnType<BrawlerRepository['findSessionById']>>>;
 
@@ -61,6 +63,8 @@ export class BrawlerService {
     private readonly brawlerArena: BrawlerArenaRedisService,
     private readonly subscriptions: SubscriptionRepository,
     private readonly events: EventEmitter2,
+    private readonly challenges: ChallengeService,
+    private readonly pushNotifications: PushService,
   ) {}
 
   private emitArena(payload: BrawlerArenaSocketPayload) {
@@ -459,6 +463,7 @@ export class BrawlerService {
       participants: dto.participants,
     });
     void this.gameXp.tryAwardSessionWinXp(sessionId);
+    void this.recordVenueChallengesForSession(sessionId);
     await this.brawlerArena.removeState(sessionId);
     await this.syncBrawlerSnapshot(sessionId);
     return {
@@ -810,6 +815,46 @@ export class BrawlerService {
     }
     await this.brawlerArena.initState(sessionId);
     await this.syncBrawlerSnapshot(sessionId);
+
+    const participantIds = session.participants
+      .filter((p) => p.playerId && !p.isBot)
+      .map((p) => p.playerId as string);
+    if (participantIds.length > 0) {
+      void this.pushNotifications.sendToPlayers(
+        participantIds,
+        undefined,
+        {
+          title: 'Cafe Social',
+          body: 'Brawler match is starting — open the app to play!',
+          data: {
+            type: 'brawler_match_start',
+            sessionId,
+            venueId: session.venueId ?? '',
+            pushCategory: 'match',
+          },
+        },
+        { channel: 'match' },
+      );
+    }
+  }
+
+  private recordVenueChallengesForSession(sessionId: string): void {
+    void (async () => {
+      const session = await this.brawlerRepo.findSessionById(sessionId);
+      if (!session || session.status !== GameSessionStatus.FINISHED) return;
+      const cfg = (session.config ?? {}) as { playerVenueIds?: Record<string, string> };
+      const playerVenueIds = cfg.playerVenueIds ?? {};
+      for (const p of session.participants) {
+        if (!p.playerId || p.isBot) continue;
+        const venueId = playerVenueIds[p.playerId] ?? session.venueId;
+        if (!venueId) continue;
+        await this.challenges.bumpActiveChallengesForPlayerAtVenue({
+          playerId: p.playerId,
+          venueId,
+          trustVenuePresence: true,
+        });
+      }
+    })();
   }
 
   async pickPowerup(sessionId: string, dto: PickBrawlerPowerupDto) {

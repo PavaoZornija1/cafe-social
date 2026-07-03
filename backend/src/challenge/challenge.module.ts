@@ -20,5 +20,6 @@ import { RewardModule } from '../reward/reward.module';
   ],
   controllers: [ChallengeController],
   providers: [ChallengeRepository, ChallengeService],
+  exports: [ChallengeRepository, ChallengeService],
 })
 export class ChallengeModule {}

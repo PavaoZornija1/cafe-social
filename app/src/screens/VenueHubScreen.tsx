@@ -756,22 +756,28 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                                                         styles.redeemMiniBtn,
                                                         pressed && styles.ctaPressed,
                                                     ]}
-                                                    onPress={() =>
-                                                        navigation.navigate('RedeemPerk', { venueId })
-                                                    }
+                                                    onPress={() => navigation.navigate('PerkWallet')}
                                                 >
                                                     <Text style={styles.redeemMiniBtnText}>
-                                                        {t('venueHub.perkRedeemCta')}
+                                                        {t('venueHub.perkWalletCta')}
                                                     </Text>
                                                 </Pressable>
                                             </View>
                                         ))}
                                     <Pressable
                                         style={({ pressed }) => [styles.link, styles.linkSpaced, pressed && styles.ctaPressed]}
-                                        onPress={() => navigation.navigate('RewardsHub')}
+                                        onPress={() => navigation.navigate('PerkWallet')}
                                     >
                                         <Text style={styles.linkText}>
                                             {t('venueHub.myRewardsSeeCrossVenue')}
+                                        </Text>
+                                    </Pressable>
+                                    <Pressable
+                                        style={({ pressed }) => [styles.link, styles.linkSpaced, pressed && styles.ctaPressed]}
+                                        onPress={() => navigation.navigate('SubmitReceipt', { venueId })}
+                                    >
+                                        <Text style={styles.linkText}>
+                                            {t('venueHub.submitReceiptCta')}
                                         </Text>
                                     </Pressable>
                                 </>

@@ -7,6 +7,7 @@ import { VenueFunnelService } from '../venue/venue-funnel.service';
 import { VenueModerationService } from '../venue/venue-moderation.service';
 import { PlayerVenueCheckInRepository } from '../venue/player-venue-check-in.repository';
 import { PlayerVenueRepository } from '../venue/player-venue.repository';
+import { ChallengeService } from '../challenge/challenge.service';
 import { PlayerMemberScanService } from './player-member-scan.service';
 
 const memberToken = 'abcdefghijklmnopqrstuv';
@@ -48,6 +49,10 @@ describe('PlayerMemberScanService', () => {
         { provide: PlayerVenueCheckInRepository, useValue: explicitCheckIns },
         { provide: VenueFunnelService, useValue: funnel },
         { provide: DiscoveryService, useValue: discovery },
+        {
+          provide: ChallengeService,
+          useValue: { bumpActiveChallengesForPlayerAtVenue: jest.fn() },
+        },
       ],
     }).compile();
 

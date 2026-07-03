@@ -235,6 +235,7 @@
     "brawlerTitle": "Brawler",
     "brawlerDescription": "Batallas cortas con héroes y potenciadores.",
     "brawlerCta": "Abrir lobby",
+    "brawlerCtaGlobal": "Abrir lobby (global — suscriptores)",
     "brawlerNeedVenue": "Brawler requiere check-in en un local."
   },
   "brawlerLobby": {
@@ -367,7 +368,7 @@
     "modActiveBans": "{{n}} bloqueos activos",
     "modOpenAppeals": "{{n}} apelaciones abiertas",
     "modPartnerToolsHint": "Los gestores actúan en el portal partner; esto es solo lectura para el personal.",
-    "scanSuccessTitle": "Recompensa canjeada",
+    "acknowledge": "Marcar canjeado",
     "scanSuccessBody": "QR verificado y recompensa marcada como canjeada.",
     "refreshA11y": "Actualizar canjes",
     "prevDayA11y": "Día anterior",

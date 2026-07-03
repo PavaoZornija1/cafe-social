@@ -46,6 +46,7 @@ import { CreateOwnerCampaignDto } from './dto/create-owner-campaign.dto';
 import { CreateOwnerCampaignBindingDto } from './dto/create-owner-campaign-binding.dto';
 import { ReviewReceiptDto } from './dto/review-receipt.dto';
 import { VoidRedemptionDto } from './dto/void-redemption.dto';
+import { ScanRedemptionDto } from './dto/scan-redemption.dto';
 import { PartnerOnboardingDto } from './dto/partner-onboarding.dto';
 import { PartnerOrgAccessService } from './partner-org-access.service';
 import { PartnerOnboardingService } from './partner-onboarding.service';
@@ -872,6 +873,24 @@ export class OwnerController {
     const dateYmd =
       dateRaw && dateRaw.trim() !== '' ? dateRaw.trim() : utcTodayYmd();
     return this.staffRedemptions.listRedemptionsForStaffUser(venueId, dateYmd);
+  }
+
+  @Post('venues/:venueId/redemptions/scan')
+  @UseGuards(VenueStaffGuard, PartnerVenueWriteGuard, ThrottlerGuard)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @MinVenueRole(VenueStaffRole.EMPLOYEE)
+  async scanRedemption(
+    @CurrentUser() user: unknown,
+    @Param('venueId', new ParseUUIDPipe()) venueId: string,
+    @Body() body: ScanRedemptionDto,
+  ) {
+    const staffId = await this.staffPlayerId(user);
+    await this.redemptionActions.acknowledgeByStaffCode({
+      venueId,
+      code: body.code,
+      staffPlayerId: staffId,
+    });
+    return { ok: true };
   }
 
   @Post('venues/:venueId/redemptions/:redemptionId/acknowledge')

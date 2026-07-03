@@ -235,6 +235,7 @@
     "brawlerTitle": "Brawler",
     "brawlerDescription": "Kurze Arena-Kämpfe mit Helden und Power-ups.",
     "brawlerCta": "Lobby öffnen",
+    "brawlerCtaGlobal": "Lobby öffnen (global — Abonnenten)",
     "brawlerNeedVenue": "Brawler braucht Check-in (Arena ist ortsgebunden)."
   },
   "brawlerLobby": {
@@ -367,7 +368,7 @@
     "modActiveBans": "{{n}} aktive Sperren",
     "modOpenAppeals": "{{n}} offene Einsprüche",
     "modPartnerToolsHint": "Manager können im Partner-Portal handeln; hier nur Lesen für Personal vor Ort.",
-    "scanSuccessTitle": "Belohnung eingelöst",
+    "acknowledge": "Als eingelöst markieren",
     "scanSuccessBody": "QR verifiziert und Belohnung als eingelöst markiert.",
     "refreshA11y": "Einlösungen aktualisieren",
     "prevDayA11y": "Vorheriger Tag",

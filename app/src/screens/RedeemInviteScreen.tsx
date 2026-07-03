@@ -89,7 +89,7 @@ export default function RedeemInviteScreen({ navigation, route }: Props) {
     try {
       const res = await redeemFriendInvite(jwt, raw);
       if (res.kind === 'PARTY' && res.partyId) {
-        triggerFeedback('lobbyJoined');
+        triggerFeedback('lobbyStart');
         navigation.replace('PartyDetail', { partyId: res.partyId });
         return;
       }

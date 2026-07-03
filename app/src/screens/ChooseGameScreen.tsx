@@ -138,12 +138,14 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
         </Pressable>
 
         <Pressable
-          onPress={() => venueId && navigation.navigate('BrawlerLobby', { venueId })}
-          disabled={!hasVenueContext || showCheckIn}
+          onPress={() => navigation.navigate('BrawlerLobby', venueId ? { venueId } : {})}
+          disabled={(!hasVenueContext && !subscriptionActive) || showCheckIn}
           style={({ pressed }) => [
             styles.card,
             styles.brawlerCard,
-            (!hasVenueContext || showCheckIn) && styles.cardDisabled,
+            (!hasVenueContext && !subscriptionActive) || showCheckIn
+              ? styles.cardDisabled
+              : null,
             pressed && styles.pressed,
           ]}
         >
@@ -156,7 +158,11 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
           </View>
           <Text style={styles.cardDescription}>{t('chooseGame.brawlerDescription')}</Text>
           <Text style={[styles.cardMeta, styles.brawlerMeta]}>
-            {hasVenueContext ? t('chooseGame.brawlerCta') : t('chooseGame.brawlerNeedVenue')}
+            {hasVenueContext
+              ? t('chooseGame.brawlerCta')
+              : subscriptionActive
+                ? t('chooseGame.brawlerCtaGlobal')
+                : t('chooseGame.brawlerNeedVenue')}
           </Text>
         </Pressable>
 

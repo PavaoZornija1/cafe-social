@@ -11,6 +11,7 @@ type WordMatchState = {
   difficulty: string;
   ranked?: boolean;
   venueId?: string | null;
+  playerVenueId?: string | null;
   targetWordCount: number;
   deckCategory?: string | null;
 };
@@ -47,8 +48,6 @@ export async function navigateWordMatchFromPush(
   if (!sessionId) return;
 
   if (!navigationRef.isReady()) return;
-
-  const token = await getToken();
   if (!token) {
     Alert.alert('Cafe Social', 'Sign in to open this match.');
     return;
@@ -81,16 +80,13 @@ export async function navigateWordMatchFromPush(
     typeof state.venueId === 'string' && state.venueId.trim() !== ''
       ? state.venueId.trim()
       : null;
+  const fromPlayerVenue =
+    typeof state.playerVenueId === 'string' && state.playerVenueId.trim() !== ''
+      ? state.playerVenueId.trim()
+      : null;
   const { venue: detected } = await fetchDetectedVenue();
-  const venueId = fromStateVenue ?? fromPushVenue ?? detected?.id ?? null;
-
-  if (!venueId) {
-    Alert.alert(
-      'Cafe Social',
-      'Open the app at a partner café (or enable location) to continue this word match.',
-    );
-    return;
-  }
+  const venueId =
+    fromStateVenue ?? fromPlayerVenue ?? fromPushVenue ?? detected?.id ?? undefined;
 
   const difficulty = asDifficulty(state.difficulty);
   const mode = state.mode === 'versus' ? 'versus' : 'coop';
@@ -101,7 +97,7 @@ export async function navigateWordMatchFromPush(
 
   if (state.status === 'PENDING') {
     navigationRef.navigate('WordMatchWait', {
-      venueId,
+      venueId: venueId ?? '',
       mode,
       difficulty,
       create: false,
@@ -127,7 +123,7 @@ export async function navigateWordMatchFromPush(
   }
 
   navigationRef.navigate('WordMatchWait', {
-    venueId,
+    venueId: venueId ?? '',
     mode,
     difficulty,
     create: false,

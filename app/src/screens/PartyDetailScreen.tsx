@@ -290,6 +290,25 @@ export default function PartyDetailScreen({ navigation, route }: Props) {
             }}
           />
 
+          <View style={styles.playSection}>
+            <Text style={styles.section}>{t('parties.playTogether')}</Text>
+            <Text style={styles.playHint}>{t('parties.playTogetherHint')}</Text>
+            <Pressable
+              style={styles.secondaryBtn}
+              disabled={busy}
+              onPress={() => navigation.navigate('WordLobby', {})}
+            >
+              <Text style={styles.secondaryBtnText}>{t('parties.playWord')}</Text>
+            </Pressable>
+            <Pressable
+              style={styles.secondaryBtn}
+              disabled={busy}
+              onPress={() => navigation.navigate('BrawlerLobby', {})}
+            >
+              <Text style={styles.secondaryBtnText}>{t('parties.playBrawler')}</Text>
+            </Pressable>
+          </View>
+
           <View style={styles.actions}>
             {isLeader && (
               <>
@@ -395,6 +414,8 @@ function createStyles(colors: AppColors) {
   meta: { color: colors.textMuted, paddingHorizontal: 24, marginBottom: 6 },
   badge: { color: colors.honey, paddingHorizontal: 24, fontWeight: '700', fontSize: 12 },
   section: { color: colors.text, fontWeight: '800', marginBottom: 8, marginTop: 12 },
+  playSection: { paddingHorizontal: 24, paddingBottom: 8, gap: 8 },
+  playHint: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginBottom: 4 },
   list: { flex: 1, paddingHorizontal: 24 },
   memberRow: {
     flexDirection: 'row',

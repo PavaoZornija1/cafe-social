@@ -7,6 +7,7 @@ import { VenueFunnelService } from '../venue/venue-funnel.service';
 import { VenueModerationService } from '../venue/venue-moderation.service';
 import { PlayerVenueCheckInRepository } from '../venue/player-venue-check-in.repository';
 import { PlayerVenueRepository } from '../venue/player-venue.repository';
+import { ChallengeService } from '../challenge/challenge.service';
 
 @Injectable()
 export class PlayerMemberScanService {
@@ -17,6 +18,7 @@ export class PlayerMemberScanService {
     private readonly explicitCheckIns: PlayerVenueCheckInRepository,
     private readonly funnel: VenueFunnelService,
     private readonly discovery: DiscoveryService,
+    private readonly challenges: ChallengeService,
   ) {}
 
   /**
@@ -89,6 +91,12 @@ export class PlayerMemberScanService {
       venueId: params.venueId,
       playerId: player.id,
       kind: 'member_scan',
+    });
+
+    void this.challenges.bumpActiveChallengesForPlayerAtVenue({
+      playerId: player.id,
+      venueId: params.venueId,
+      trustVenuePresence: true,
     });
 
     return {

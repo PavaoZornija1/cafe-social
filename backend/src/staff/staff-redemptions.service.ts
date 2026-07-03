@@ -42,6 +42,7 @@ export class StaffRedemptionsService {
       orderBy: { issuedAt: 'desc' },
       include: {
         perk: { select: { code: true, title: true } },
+        player: { select: { username: true } },
       },
     });
 
@@ -60,6 +61,7 @@ export class StaffRedemptionsService {
         return {
           redemptionId: r.id,
           staffVerificationCode: staffVerificationCodeFromRedemptionId(r.id),
+          playerUsername: r.player.username,
           issuedAt: r.issuedAt.toISOString(),
           redeemedAt: r.redeemedAt?.toISOString() ?? null,
           expiresAt: r.expiresAt.toISOString(),

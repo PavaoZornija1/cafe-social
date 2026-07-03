@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { utcDayKey } from '../lib/day-key';
 import { VenueService } from './venue.service';
 import { SubscriptionRepository } from './subscription.repository';
+import { VenuePlayLimitService } from './venue-play-limit.service';
 import type { BeginVenueActivePlayDto } from './dto/begin-venue-active-play.dto';
 import type { ClaimVenuePlayBudgetIapDto } from './dto/claim-venue-play-budget-iap.dto';
 
@@ -39,6 +40,7 @@ export class VenuePlayBudgetService {
     private readonly venues: VenueService,
     private readonly subscriptions: SubscriptionRepository,
     private readonly config: ConfigService,
+    private readonly playLimit: VenuePlayLimitService,
   ) {}
 
   private platformFreeAllowanceSeconds(): number {
@@ -120,6 +122,9 @@ export class VenuePlayBudgetService {
     freeAllowanceSeconds: number;
     iapBonusSecondsRemaining: number;
     inGeofence: boolean | null;
+    dailyGamesLimit: number;
+    dailyGamesUsed: number;
+    dailyGamesRemaining: number;
   }> {
     const unlimited = await this.subscriptions.isActiveSubscriber(params.playerId);
     const dayKey = utcDayKey();
@@ -133,8 +138,16 @@ export class VenuePlayBudgetService {
         freeAllowanceSeconds: this.platformFreeAllowanceSeconds(),
         iapBonusSecondsRemaining: 0,
         inGeofence: null,
+        dailyGamesLimit: 0,
+        dailyGamesUsed: 0,
+        dailyGamesRemaining: 0,
       };
     }
+
+    const dailyPlay = await this.playLimit.getDailyPlayStatus(
+      params.playerId,
+      params.venueId,
+    );
 
     const row = await this.prisma.playerVenueActivePlayBudgetDay.upsert({
       where: {
@@ -175,6 +188,9 @@ export class VenuePlayBudgetService {
       freeAllowanceSeconds: this.platformFreeAllowanceSeconds(),
       iapBonusSecondsRemaining: row.iapBonusSecondsRemaining,
       inGeofence,
+      dailyGamesLimit: dailyPlay.limit,
+      dailyGamesUsed: dailyPlay.used,
+      dailyGamesRemaining: dailyPlay.remaining,
     };
   }
 

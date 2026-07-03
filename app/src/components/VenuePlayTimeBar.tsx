@@ -20,6 +20,9 @@ export type VenuePlayBudgetMeDto = {
   freeAllowanceSeconds: number;
   iapBonusSecondsRemaining: number;
   inGeofence: boolean | null;
+  dailyGamesLimit: number;
+  dailyGamesUsed: number;
+  dailyGamesRemaining: number;
 };
 
 type Props = {
@@ -170,6 +173,13 @@ export default function VenuePlayTimeBar({
       : variant === 'compact'
         ? t('venuePlayBar.compactRemaining', { minutes: remMin })
         : t('venuePlayBar.timeRemaining', { minutes: remMin });
+  const gamesLine =
+    data.dailyGamesLimit > 0
+      ? t('venuePlayBar.gamesRemaining', {
+          remaining: data.dailyGamesRemaining,
+          limit: data.dailyGamesLimit,
+        })
+      : null;
 
   if (variant === 'compact') {
     return (
@@ -190,6 +200,9 @@ export default function VenuePlayTimeBar({
             </Pressable>
           ) : null}
         </View>
+        {gamesLine ? (
+          <Text style={styles.compactLabel}>{gamesLine}</Text>
+        ) : null}
         <View style={styles.compactTrack}>
           <View style={[styles.barFill, { width: `${pct * 100}%` }]} />
         </View>
@@ -214,6 +227,9 @@ export default function VenuePlayTimeBar({
           </Pressable>
         ) : null}
       </View>
+      {gamesLine ? (
+        <Text style={[styles.label, { marginTop: 6 }]}>{gamesLine}</Text>
+      ) : null}
       <View style={styles.barTrack}>
         <View style={[styles.barFill, { width: `${pct * 100}%` }]} />
       </View>

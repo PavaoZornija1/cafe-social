@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import {
   addUtcDaysYmd,
+  acknowledgeStaffRedemption,
   fetchStaffModerationSummary,
   fetchStaffRedemptions,
   utcTodayYmd,
@@ -47,6 +48,7 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
   const [initializing, setInitializing] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [modSummary, setModSummary] = useState<StaffModerationSummary | null>(null);
+  const [ackingId, setAckingId] = useState<string | null>(null);
 
   const payloadRef = useRef(payload);
   payloadRef.current = payload;
@@ -119,7 +121,8 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
       (r) =>
         r.staffVerificationCode.includes(q) ||
         r.perkCode.toUpperCase().includes(q) ||
-        r.perkTitle.toUpperCase().includes(q),
+        r.perkTitle.toUpperCase().includes(q) ||
+        r.playerUsername.toUpperCase().includes(q),
     );
   }, [payload, filter]);
 
@@ -127,6 +130,24 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
     highlight &&
       payload?.redemptions?.length &&
       !payload.redemptions.some((r) => r.staffVerificationCode === highlight),
+  );
+
+  const handleAcknowledge = useCallback(
+    async (redemptionId: string) => {
+      if (ackingId) return;
+      setAckingId(redemptionId);
+      try {
+        const token = await getTokenRef.current();
+        if (!token) throw new Error(t('staff.signInFirst'));
+        await acknowledgeStaffRedemption(token, venueId, redemptionId);
+        await load('refresh');
+      } catch (e) {
+        Alert.alert(t('common.error'), (e as Error).message ?? t('staff.loadFailed'));
+      } finally {
+        setAckingId(null);
+      }
+    },
+    [ackingId, load, t, venueId],
   );
 
   const title = venueName ?? payload?.venueName ?? venueId;
@@ -279,6 +300,8 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
         renderItem={({ item }) => {
           const isHit = highlight && item.staffVerificationCode === highlight;
           const voided = !!item.voidedAt;
+          const canAck = item.status === 'REDEEMABLE' && !voided;
+          const acking = ackingId === item.redemptionId;
           return (
             <View
               style={[
@@ -289,10 +312,28 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
             >
               <Text style={styles.code}>{item.staffVerificationCode}</Text>
               <Text style={styles.perkTitle}>{item.perkTitle}</Text>
+              <Text style={styles.guestName}>@{item.playerUsername}</Text>
               <Text style={styles.perkMeta}>
                 {item.perkCode} · {new Date(item.issuedAt).toISOString()} · {item.status}
                 {voided ? ' · VOID' : ''}
               </Text>
+              {canAck ? (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.ackBtn,
+                    pressed && styles.pressed,
+                    acking && styles.ackBtnDisabled,
+                  ]}
+                  disabled={acking}
+                  onPress={() => void handleAcknowledge(item.redemptionId)}
+                >
+                  {acking ? (
+                    <ActivityIndicator color={colors.textInverse} size="small" />
+                  ) : (
+                    <Text style={styles.ackBtnText}>{t('staff.acknowledge')}</Text>
+                  )}
+                </Pressable>
+              ) : null}
             </View>
           );
         }}
@@ -431,10 +472,32 @@ function createStyles(colors: AppColors) {
       fontWeight: '700',
       marginTop: spacing.sm,
     },
+    guestName: {
+      color: colors.textSecondary,
+      fontSize: 13,
+      fontWeight: '600',
+      marginTop: spacing.xs,
+    },
     perkMeta: {
       color: colors.textMuted,
       fontSize: 12,
       marginTop: spacing.xs,
+    },
+    ackBtn: {
+      marginTop: spacing.md,
+      alignSelf: 'flex-start',
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      borderRadius: radii.pill,
+      backgroundColor: colors.primary,
+      minWidth: 120,
+      alignItems: 'center',
+    },
+    ackBtnDisabled: { opacity: 0.6 },
+    ackBtnText: {
+      color: colors.textInverse,
+      fontWeight: '800',
+      fontSize: 13,
     },
     centerBlock: {
       alignItems: 'center',
