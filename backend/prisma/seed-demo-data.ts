@@ -542,7 +542,7 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
       id: anaParticipantId,
       sessionId: brawlerSessionId,
       playerId: ana,
-      brawlerHeroId: 'hero_blaze',
+      brawlerHeroId: 'hero_frost',
       displayNameSnapshot: 'ana_ba',
       placement: 1,
       score: 3,

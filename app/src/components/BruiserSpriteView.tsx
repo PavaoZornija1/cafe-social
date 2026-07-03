@@ -1,5 +1,5 @@
 import React from 'react';
-import { GORGON_HERO_SPRITE_CONFIG } from '../brawler/bruiserSpritesheet';
+import { TESTER_GOLEM_HERO_SPRITE_CONFIG } from '../brawler/testerGolemSpritesheet';
 import { HeroSpriteView, type HeroSpriteAnim } from './HeroSpriteView';
 
 export type BruiserSpriteAnim = HeroSpriteAnim;
@@ -11,5 +11,5 @@ type Props = Omit<
 
 /** @deprecated Use `HeroSpriteView` with `getHeroSpriteConfig(heroId)`. */
 export function BruiserSpriteView(props: Props) {
-  return <HeroSpriteView config={GORGON_HERO_SPRITE_CONFIG} {...props} />;
+  return <HeroSpriteView config={TESTER_GOLEM_HERO_SPRITE_CONFIG} {...props} />;
 }

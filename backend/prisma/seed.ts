@@ -662,34 +662,6 @@ async function main() {
   // Stable IDs so seed remains idempotent across environments.
   const brawlerHeroes = [
     {
-      id: 'hero_blaze',
-      name: 'Gorgon',
-      isActive: true,
-      archetype: 'Bruiser',
-      avatarImageUrl: 'https://cdn.playvibe.gg/heroes/blaze/avatar.webp',
-      portraitImageUrl: 'https://cdn.playvibe.gg/heroes/blaze/portrait.webp',
-      spriteSheetUrl: 'https://cdn.playvibe.gg/heroes/blaze/spritesheet.webp',
-      spriteMeta: {
-        frameWidth: 128,
-        frameHeight: 128,
-        fps: 12,
-        animations: {
-          idle: [0, 3],
-          run: [4, 11],
-          attack: [12, 17],
-          dash: [18, 23],
-          hit: [24, 27],
-          ko: [28, 33],
-        },
-      },
-      baseHp: 100,
-      moveSpeed: 1.0,
-      dashCooldownMs: 2200,
-      attackDamage: 14,
-      attackKnockback: 1.0,
-      version: 1,
-    },
-    {
       id: 'hero_frost',
       name: 'Ignis',
       isActive: true,
@@ -701,34 +673,19 @@ async function main() {
         frameWidth: 128,
         frameHeight: 128,
         fps: 12,
-        animations: { idle: [0, 3], run: [4, 11], attack: [12, 17], dash: [18, 23], hit: [24, 27], ko: [28, 33] },
+        animations: {
+          idle: [0, 3],
+          run: [0, 8],
+          attack: [0, 11],
+          jump: [0, 4],
+          dash: [0, 4],
+        },
       },
       baseHp: 96,
       moveSpeed: 1.03,
       dashCooldownMs: 2100,
       attackDamage: 13,
       attackKnockback: 1.02,
-      version: 1,
-    },
-    {
-      id: 'hero_bolt',
-      name: 'Vespera',
-      isActive: true,
-      archetype: 'Assassin',
-      avatarImageUrl: 'https://cdn.playvibe.gg/heroes/bolt/avatar.webp',
-      portraitImageUrl: 'https://cdn.playvibe.gg/heroes/bolt/portrait.webp',
-      spriteSheetUrl: 'https://cdn.playvibe.gg/heroes/bolt/spritesheet.webp',
-      spriteMeta: {
-        frameWidth: 128,
-        frameHeight: 128,
-        fps: 12,
-        animations: { idle: [0, 3], run: [4, 11], attack: [12, 17], dash: [18, 23], hit: [24, 27], ko: [28, 33] },
-      },
-      baseHp: 92,
-      moveSpeed: 1.08,
-      dashCooldownMs: 1800,
-      attackDamage: 12,
-      attackKnockback: 0.95,
       version: 1,
     },
     {
@@ -743,55 +700,19 @@ async function main() {
         frameWidth: 128,
         frameHeight: 128,
         fps: 12,
-        animations: { idle: [0, 3], run: [4, 11], attack: [12, 17], dash: [18, 23], hit: [24, 27], ko: [28, 33] },
+        animations: {
+          idle: [0, 4],
+          run: [0, 8],
+          attack: [0, 12],
+          jump: [0, 6],
+          dash: [0, 4],
+        },
       },
       baseHp: 98,
       moveSpeed: 1.01,
       dashCooldownMs: 2000,
       attackDamage: 13,
       attackKnockback: 1.08,
-      version: 1,
-    },
-    {
-      id: 'hero_rift',
-      name: 'Tariel',
-      isActive: true,
-      archetype: 'Tank',
-      avatarImageUrl: 'https://cdn.playvibe.gg/heroes/rift/avatar.webp',
-      portraitImageUrl: 'https://cdn.playvibe.gg/heroes/rift/portrait.webp',
-      spriteSheetUrl: 'https://cdn.playvibe.gg/heroes/rift/spritesheet.webp',
-      spriteMeta: {
-        frameWidth: 128,
-        frameHeight: 128,
-        fps: 12,
-        animations: { idle: [0, 3], run: [4, 11], attack: [12, 17], dash: [18, 23], hit: [24, 27], ko: [28, 33] },
-      },
-      baseHp: 112,
-      moveSpeed: 0.94,
-      dashCooldownMs: 2500,
-      attackDamage: 15,
-      attackKnockback: 1.12,
-      version: 1,
-    },
-    {
-      id: 'hero_nova',
-      name: 'Nova',
-      isActive: true,
-      archetype: 'All-Rounder',
-      avatarImageUrl: 'https://cdn.playvibe.gg/heroes/nova/avatar.webp',
-      portraitImageUrl: 'https://cdn.playvibe.gg/heroes/nova/portrait.webp',
-      spriteSheetUrl: 'https://cdn.playvibe.gg/heroes/nova/spritesheet.webp',
-      spriteMeta: {
-        frameWidth: 128,
-        frameHeight: 128,
-        fps: 12,
-        animations: { idle: [0, 3], run: [4, 11], attack: [12, 17], dash: [18, 23], hit: [24, 27], ko: [28, 33] },
-      },
-      baseHp: 100,
-      moveSpeed: 1.0,
-      dashCooldownMs: 2100,
-      attackDamage: 14,
-      attackKnockback: 1.0,
       version: 1,
     },
     {
@@ -807,12 +728,11 @@ async function main() {
         frameHeight: 128,
         fps: 12,
         animations: {
-          idle: [0, 2],
+          idle: [0, 3],
           run: [0, 7],
-          attack: [0, 2],
-          dash: [0, 2],
-          hit: [0, 2],
-          ko: [0, 2],
+          attack: [0, 11],
+          jump: [0, 4],
+          dash: [0, 3],
         },
       },
       baseHp: 100,
@@ -822,6 +742,13 @@ async function main() {
       attackKnockback: 1.0,
       version: 1,
     },
+  ];
+
+  const retiredBrawlerHeroIds = [
+    'hero_blaze',
+    'hero_bolt',
+    'hero_rift',
+    'hero_nova',
   ];
 
   for (const hero of brawlerHeroes) {
@@ -845,6 +772,11 @@ async function main() {
       create: hero,
     });
   }
+
+  await prisma.brawlerHero.updateMany({
+    where: { id: { in: retiredBrawlerHeroIds } },
+    data: { isActive: false },
+  });
 
   // eslint-disable-next-line no-console
   console.log('Seeding demo players, social, games, partner data…');
