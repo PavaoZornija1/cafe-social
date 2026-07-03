@@ -146,7 +146,9 @@ const RewardClaimCard = React.memo(function RewardClaimCard({
 
       <View style={styles.codeBox}>
         <Text style={styles.codeLabel}>{t('perk.staffVerificationCode')}</Text>
-        <Text style={styles.codeValue}>{r.staffVerificationCode}</Text>
+        <Text style={styles.codeValue}>
+          {r.status === 'LOCKED' ? '—' : r.staffVerificationCode}
+        </Text>
       </View>
 
       <View style={styles.cardActions}>

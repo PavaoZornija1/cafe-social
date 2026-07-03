@@ -55,6 +55,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const venueId = route.params?.venueId;
+  const partyId = route.params?.partyId;
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
@@ -154,6 +155,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
         '/brawler/sessions',
         {
           venueId,
+          ...(partyId ? { partyId } : {}),
           participants: [
             { isBot: false, brawlerHeroId: selectedHeroId },
             { isBot: true, botName: 'Chaos Bot', brawlerHeroId: selectedHeroId },
@@ -221,6 +223,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
       : undefined;
     navigation.navigate('BrawlerVenueQueue', {
       ...(venueId ? { venueId } : {}),
+      ...(partyId ? { partyId } : {}),
       brawlerHeroId: selectedHeroId,
       heroName: selectedHero?.name,
       ranked: queueRanked ? true : undefined,

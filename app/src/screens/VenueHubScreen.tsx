@@ -734,12 +734,17 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                             <Text style={styles.cardTitle}>{t('venueHub.myRewardsHereTitle')}</Text>
                             {refreshingSocial && myVenueRewards.length === 0 ? (
                                 <ActivityIndicator color={colors.honey} style={{ marginTop: 8 }} />
-                            ) : myVenueRewards.filter((r) => r.status === 'REDEEMABLE').length === 0 ? (
+                            ) : myVenueRewards.filter(
+                                  (r) => r.status === 'REDEEMABLE' || r.status === 'LOCKED',
+                              ).length === 0 ? (
                                 <Text style={styles.muted}>{t('venueHub.myRewardsHereEmpty')}</Text>
                             ) : (
                                 <>
                                     {myVenueRewards
-                                        .filter((r) => r.status === 'REDEEMABLE')
+                                        .filter(
+                                          (r) =>
+                                            r.status === 'REDEEMABLE' || r.status === 'LOCKED',
+                                        )
                                         .slice(0, 4)
                                         .map((r) => (
                                             <View key={r.redemptionId} style={styles.rewardRow}>
@@ -748,7 +753,9 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                                                         {r.perkTitle}
                                                     </Text>
                                                     <Text style={styles.hubChallengeMeta}>
-                                                        {t('perk.rewardExpires')} {r.expiresAt.slice(0, 10)}
+                                                        {r.status === 'LOCKED'
+                                                          ? t('perkWallet.statusLocked')
+                                                          : `${t('perk.rewardExpires')} ${r.expiresAt.slice(0, 10)}`}
                                                     </Text>
                                                 </View>
                                                 <Pressable

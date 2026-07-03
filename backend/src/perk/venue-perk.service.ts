@@ -194,7 +194,7 @@ export class VenuePerkService {
           perkId: perk.id,
           playerId: params.playerId,
           voidedAt: null,
-          status: 'REDEEMABLE',
+          status: { in: ['REDEEMABLE', 'LOCKED'] },
           expiresAt: { gt: nowTx },
         },
       });

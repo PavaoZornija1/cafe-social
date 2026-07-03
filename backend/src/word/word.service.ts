@@ -18,6 +18,7 @@ import type { CreateSoloWordSessionDto } from './dto/create-solo-word-session.dt
 import type { CoopGuessDto } from './dto/coop-guess.dto';
 import type { WordSessionPassDto } from './dto/word-session-pass.dto';
 import { GameXpAwardService } from '../stats/game-xp-award.service';
+import { ChallengeService } from '../challenge/challenge.service';
 
 const SOLO_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 
@@ -32,6 +33,7 @@ export class WordService {
     private readonly venuePlayLimit: VenuePlayLimitService,
     private readonly venuePlayBudget: VenuePlayBudgetService,
     private readonly gameXp: GameXpAwardService,
+    private readonly challenges: ChallengeService,
   ) {}
 
   private async assertSoloPlayAllowed(params: {
@@ -246,6 +248,15 @@ export class WordService {
         },
       });
       void this.gameXp.tryAwardSoloWordDeckComplete(sessionId);
+      if (row.venueId) {
+        void this.challenges
+          .bumpActiveChallengesForPlayerAtVenue({
+            playerId: player.id,
+            venueId: row.venueId,
+            trustVenuePresence: true,
+          })
+          .catch(() => undefined);
+      }
       return {
         correct: true,
         finished: true,

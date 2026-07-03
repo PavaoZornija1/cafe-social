@@ -27,7 +27,7 @@ export default function SubmitReceiptScreen({ navigation, route }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
-  const { venueId } = route.params;
+  const { venueId, redemptionId: routeRedemptionId } = route.params;
   const { getToken, isLoaded } = useAuth();
   const [note, setNote] = useState('');
   const [previewUri, setPreviewUri] = useState<string | null>(null);
@@ -77,6 +77,7 @@ export default function SubmitReceiptScreen({ navigation, route }: Props) {
           notePlayer: note.trim() || undefined,
           latitude: coords.lat,
           longitude: coords.lng,
+          ...(routeRedemptionId ? { linkedRedemptionId: routeRedemptionId } : {}),
         },
         token,
       );

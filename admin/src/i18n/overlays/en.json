@@ -164,6 +164,8 @@
     "venueTz": "Venue TZ",
     "uniquePlayersOrg": "Unique players (org)",
     "redemptions": "Redemptions",
+    "redemptionsIssued": "Claims issued",
+    "redemptionsFulfilled": "Fulfilled at venue",
     "visitRedeemPct": "Visit → redeem %",
     "playerDays": "Player-days (all sites)",
     "repeatVisitors": "Repeat visitors",

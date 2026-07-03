@@ -36,7 +36,7 @@ export default function BrawlerVenueQueueScreen({ navigation, route }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
-  const { venueId, ranked = false, brawlerHeroId, heroName, heroStats } = route.params;
+  const { venueId, partyId, ranked = false, brawlerHeroId, heroName, heroStats } = route.params;
   const { getToken, isLoaded } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
@@ -80,6 +80,7 @@ export default function BrawlerVenueQueueScreen({ navigation, route }: Props) {
 
         const baseBody = {
           brawlerHeroId,
+          ...(partyId ? { partyId } : {}),
           ...(ranked ? { ranked: true } : {}),
         };
 
@@ -111,7 +112,7 @@ export default function BrawlerVenueQueueScreen({ navigation, route }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [isLoaded, venueId, brawlerHeroId, ranked, t, pollOnce]);
+  }, [isLoaded, venueId, partyId, brawlerHeroId, ranked, t, pollOnce]);
 
   useEffect(() => {
     if (enrolling || error || !isLoaded) return;

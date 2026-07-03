@@ -144,7 +144,11 @@ export class OwnerRedemptionActionsService {
     }
     return this.prisma.venuePerkRedemption.update({
       where: { id: row.id },
-      data: { status: 'REDEEMABLE' },
+      data: {
+        status: 'REDEEMABLE',
+        voidReason: null,
+        voidedByPlayerId: null,
+      },
     });
   }
 }

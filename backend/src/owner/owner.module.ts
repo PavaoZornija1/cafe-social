@@ -37,7 +37,6 @@ import { NotificationModule } from '../notification/notification.module';
   providers: [
     OwnerAnalyticsService,
     OwnerCampaignService,
-    OwnerRedemptionActionsService,
     PartnerOrgAccessService,
     PartnerOnboardingService,
     OwnerOrganizationVenueService,

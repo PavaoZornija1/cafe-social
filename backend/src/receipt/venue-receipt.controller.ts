@@ -41,6 +41,7 @@ export class VenueReceiptController {
       notePlayer?: string;
       latitude?: number;
       longitude?: number;
+      linkedRedemptionId?: string;
     },
   ) {
     const player = await this.players.findOrCreateByEmail(this.email(user));
@@ -52,6 +53,7 @@ export class VenueReceiptController {
       notePlayer: body?.notePlayer,
       latitude: body?.latitude,
       longitude: body?.longitude,
+      linkedRedemptionId: body?.linkedRedemptionId,
     });
   }
 }

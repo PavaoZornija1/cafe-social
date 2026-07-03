@@ -16,6 +16,11 @@ export class EnqueueBrawlerMatchQueueDto {
   @IsUUID()
   venueId?: string;
 
+  /** When set, caller must be a member; queue pairs only within the same party. */
+  @IsOptional()
+  @IsUUID()
+  partyId?: string;
+
   /** Required when `venueId` is set (presence check). Subscribers may omit. */
   @IsOptional()
   @IsNumber()

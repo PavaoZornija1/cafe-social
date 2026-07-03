@@ -11,6 +11,8 @@ import { useTranslation } from "react-i18next";
 import { TableRowCards } from "@/components/TableRowCards";
 import {
   useOwnerAckRedemptionMutation,
+  useOwnerLockRedemptionMutation,
+  useOwnerUnlockRedemptionMutation,
   useOwnerVoidRedemptionMutation,
   useStaffRedemptionsQuery,
 } from "@/lib/queries";
@@ -35,6 +37,7 @@ export function VenueRedemptionsSection() {
 
   const [dateYmd, setDateYmd] = useState(todayUtc);
   const [voidReason, setVoidReason] = useState("");
+  const [lockReason, setLockReason] = useState("");
 
   const redemptionsQ = useStaffRedemptionsQuery(
     venueId,
@@ -44,6 +47,8 @@ export function VenueRedemptionsSection() {
   );
   const ackMut = useOwnerAckRedemptionMutation(venueId, dateYmd, getToken);
   const voidMut = useOwnerVoidRedemptionMutation(venueId, dateYmd, 30, getToken);
+  const lockMut = useOwnerLockRedemptionMutation(venueId, dateYmd, getToken);
+  const unlockMut = useOwnerUnlockRedemptionMutation(venueId, dateYmd, getToken);
 
   const redemptionsPayload = redemptionsQ.data ?? null;
   const redemptionRows = redemptionsPayload?.redemptions ?? [];
@@ -58,8 +63,22 @@ export function VenueRedemptionsSection() {
       await voidMut.mutateAsync({ redemptionId, reason: voidReason.trim() });
       setVoidReason("");
     },
-    [voidReason, voidMut, t],
+    [voidReason, voidMut, t, setBannerError],
   );
+
+  const handleLock = useCallback(
+    async (redemptionId: string) => {
+      if (!lockReason.trim()) {
+        setBannerError(t("admin.partnerVenueDetail.redemptions.enterLockReasonError"));
+        return;
+      }
+      setBannerError(null);
+      await lockMut.mutateAsync({ redemptionId, reason: lockReason.trim() });
+      setLockReason("");
+    },
+    [lockReason, lockMut, t, setBannerError],
+  );
+
   const redemptionColumns = useMemo(
     () => [
       redemptionCol.accessor("staffVerificationCode", {
@@ -105,17 +124,44 @@ export function VenueRedemptionsSection() {
                   readOnlyDisabled ||
                   ackMut.isPending ||
                   voidMut.isPending ||
-                  row.original.status === "REDEEMED"
+                  lockMut.isPending ||
+                  unlockMut.isPending ||
+                  row.original.status !== "REDEEMABLE"
                 }
                 onClick={() => void ackMut.mutateAsync(row.original.redemptionId)}
                 className="text-xs text-brand text-left disabled:opacity-50"
               >
                 {t("admin.partnerVenueDetail.redemptions.acknowledge")}
               </button>
+              {canAnalytics && row.original.status === "REDEEMABLE" ? (
+                <button
+                  type="button"
+                  disabled={readOnlyDisabled || lockMut.isPending}
+                  onClick={() => void handleLock(row.original.redemptionId)}
+                  className="text-xs text-amber-700 text-left disabled:opacity-50"
+                >
+                  {t("admin.partnerVenueDetail.redemptions.lock")}
+                </button>
+              ) : null}
+              {canAnalytics && row.original.status === "LOCKED" ? (
+                <button
+                  type="button"
+                  disabled={readOnlyDisabled || unlockMut.isPending}
+                  onClick={() => void unlockMut.mutateAsync(row.original.redemptionId)}
+                  className="text-xs text-brand text-left disabled:opacity-50"
+                >
+                  {t("admin.partnerVenueDetail.redemptions.unlock")}
+                </button>
+              ) : null}
               {canAnalytics ? (
                 <button
                   type="button"
-                  disabled={readOnlyDisabled || ackMut.isPending || voidMut.isPending}
+                  disabled={
+                    readOnlyDisabled ||
+                    ackMut.isPending ||
+                    voidMut.isPending ||
+                    row.original.status === "REDEEMED"
+                  }
                   onClick={() => void handleVoid(row.original.redemptionId)}
                   className="text-xs text-red-600 text-left disabled:opacity-50"
                 >
@@ -126,7 +172,18 @@ export function VenueRedemptionsSection() {
           ) : null,
       }),
     ],
-    [role, canAnalytics, readOnlyDisabled, ackMut, voidMut, handleVoid, t],
+    [
+      role,
+      canAnalytics,
+      readOnlyDisabled,
+      ackMut,
+      voidMut,
+      lockMut,
+      unlockMut,
+      handleVoid,
+      handleLock,
+      t,
+    ],
   );
 
   const redemptionTable = useReactTable({
@@ -152,6 +209,13 @@ export function VenueRedemptionsSection() {
                       placeholder={t("admin.partnerVenueDetail.redemptions.voidReasonPlaceholder")}
                       value={voidReason}
                       onChange={(e) => setVoidReason(e.target.value)}
+                    />
+                    <input
+                      disabled={readOnlyDisabled}
+                      className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-sm flex-1 min-w-[200px] disabled:opacity-60"
+                      placeholder={t("admin.partnerVenueDetail.redemptions.lockReasonPlaceholder")}
+                      value={lockReason}
+                      onChange={(e) => setLockReason(e.target.value)}
                     />
                   </div>
                 )}

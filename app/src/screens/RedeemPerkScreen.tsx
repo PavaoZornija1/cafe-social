@@ -42,7 +42,7 @@ type RedeemOk = {
   redeemedAt: string;
 };
 
-type RewardStatus = 'REDEEMABLE' | 'EXPIRED' | 'VOIDED' | 'REDEEMED';
+type RewardStatus = 'REDEEMABLE' | 'EXPIRED' | 'VOIDED' | 'REDEEMED' | 'LOCKED';
 
 function statusLabelKey(status: string): string {
   switch (status) {
@@ -54,6 +54,8 @@ function statusLabelKey(status: string): string {
       return 'perkWallet.statusVoided';
     case 'REDEEMED':
       return 'perkWallet.statusRedeemed';
+    case 'LOCKED':
+      return 'perkWallet.statusLocked';
     default:
       return 'perkWallet.statusOther';
   }
@@ -260,6 +262,10 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
         pillStyle = styles.statusVoided;
         textStyle = styles.statusVoidedText;
         break;
+      case 'LOCKED':
+        pillStyle = styles.statusLocked;
+        textStyle = styles.statusLockedText;
+        break;
       default:
         break;
     }
@@ -416,7 +422,7 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
               {t('perk.myRewards')}
             </Text>
             {myRewards.map((r) => {
-              const dimmed = r.status !== 'REDEEMABLE';
+              const dimmed = r.status !== 'REDEEMABLE' && r.status !== 'LOCKED';
               return (
                 <View key={r.redemptionId} style={[styles.rewardCard, dimmed && styles.cardDimmed]}>
                   <View style={styles.cardHeader}>
@@ -427,6 +433,9 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
                   <Text style={styles.expiryLine}>
                     {t('perk.rewardExpires')} {formatExpiry(r.expiresAt)}
                   </Text>
+                  {r.status === 'LOCKED' ? (
+                    <Text style={styles.lockedHint}>{t('perkWallet.lockedHint')}</Text>
+                  ) : null}
                   {r.status === 'REDEEMABLE' ? (
                     <View style={styles.qrWrap}>
                       <PerkRewardQr
@@ -438,7 +447,9 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
                   ) : null}
                   <View style={styles.codeBox}>
                     <Text style={styles.codeLabel}>{t('perk.staffVerificationCode')}</Text>
-                    <Text style={styles.codeValue}>{r.staffVerificationCode}</Text>
+                    <Text style={styles.codeValue}>
+                      {r.status === 'LOCKED' ? '—' : r.staffVerificationCode}
+                    </Text>
                   </View>
                 </View>
               );
@@ -665,6 +676,15 @@ function createStyles(colors: AppColors) {
     statusReadyText: { color: colors.success },
     statusDone: { backgroundColor: colors.primaryMuted },
     statusDoneText: { color: colors.primary },
+    statusLocked: { backgroundColor: colors.warningBg },
+    statusLockedText: { color: colors.warning },
+    lockedHint: {
+      color: colors.warning,
+      fontSize: 13,
+      lineHeight: 18,
+      marginTop: spacing.sm,
+      fontWeight: '600',
+    },
     statusMuted: { backgroundColor: colors.bgElevated },
     statusMutedText: { color: colors.textMuted },
     statusVoided: { backgroundColor: colors.errorMuted },

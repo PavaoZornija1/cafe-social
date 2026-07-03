@@ -26,6 +26,7 @@ import {
   fetchStaffRedemptions,
   lockStaffRedemption,
   unlockStaffRedemption,
+  voidStaffRedemption,
   utcTodayYmd,
   type OwnerVenueRow,
   type StaffModerationSummary,
@@ -59,6 +60,9 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
   const [lockReason, setLockReason] = useState('');
   const [lockBusy, setLockBusy] = useState(false);
   const [unlockingId, setUnlockingId] = useState<string | null>(null);
+  const [voidTargetId, setVoidTargetId] = useState<string | null>(null);
+  const [voidReason, setVoidReason] = useState('');
+  const [voidBusy, setVoidBusy] = useState(false);
 
   const isManagerPlus =
     venueRole === 'MANAGER' || venueRole === 'OWNER';
@@ -206,6 +210,28 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
     },
     [load, t, unlockingId, venueId],
   );
+
+  const submitVoid = useCallback(async () => {
+    if (!voidTargetId || voidBusy) return;
+    const reason = voidReason.trim();
+    if (reason.length < 3) {
+      Alert.alert(t('common.error'), t('staff.lockReasonRequired'));
+      return;
+    }
+    setVoidBusy(true);
+    try {
+      const token = await getTokenRef.current();
+      if (!token) throw new Error(t('staff.signInFirst'));
+      await voidStaffRedemption(token, venueId, voidTargetId, reason);
+      setVoidTargetId(null);
+      setVoidReason('');
+      await load('refresh');
+    } catch (e) {
+      Alert.alert(t('common.error'), (e as Error).message ?? t('staff.loadFailed'));
+    } finally {
+      setVoidBusy(false);
+    }
+  }, [voidBusy, voidReason, voidTargetId, load, t, venueId]);
 
   const title = venueName ?? payload?.venueName ?? venueId;
   const showInitialSpinner = initializing && !payload;
@@ -361,6 +387,7 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
           const canAck = item.status === 'REDEEMABLE' && !voided;
           const canLock = isManagerPlus && canAck;
           const canUnlock = isManagerPlus && isLocked && !voided;
+          const canVoid = isManagerPlus && !voided && item.status !== 'REDEEMED';
           const acking = ackingId === item.redemptionId;
           return (
             <View
@@ -427,6 +454,17 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
                     )}
                   </Pressable>
                 ) : null}
+                {canVoid ? (
+                  <Pressable
+                    style={({ pressed }) => [styles.voidBtn, pressed && styles.pressed]}
+                    onPress={() => {
+                      setVoidTargetId(item.redemptionId);
+                      setVoidReason('');
+                    }}
+                  >
+                    <Text style={styles.voidBtnText}>{t('staff.voidReward')}</Text>
+                  </Pressable>
+                ) : null}
               </View>
             </View>
           );
@@ -471,6 +509,51 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
                   <ActivityIndicator color={colors.textInverse} size="small" />
                 ) : (
                   <Text style={styles.modalConfirmText}>{t('staff.lockReward')}</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={voidTargetId != null}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setVoidTargetId(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t('staff.voidRewardTitle')}</Text>
+            <Text style={styles.modalHint}>{t('staff.voidRewardHint')}</Text>
+            <TextInput
+              value={voidReason}
+              onChangeText={setVoidReason}
+              placeholder={t('staff.lockReasonPlaceholder')}
+              placeholderTextColor={colors.textMuted}
+              style={styles.lockInput}
+              multiline
+            />
+            <View style={styles.modalActions}>
+              <Pressable
+                style={({ pressed }) => [styles.modalCancel, pressed && styles.pressed]}
+                onPress={() => setVoidTargetId(null)}
+              >
+                <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.modalConfirm,
+                  pressed && styles.pressed,
+                  voidBusy && styles.ackBtnDisabled,
+                ]}
+                disabled={voidBusy}
+                onPress={() => void submitVoid()}
+              >
+                {voidBusy ? (
+                  <ActivityIndicator color={colors.textInverse} size="small" />
+                ) : (
+                  <Text style={styles.modalConfirmText}>{t('staff.voidReward')}</Text>
                 )}
               </Pressable>
             </View>
@@ -775,6 +858,15 @@ function createStyles(colors: AppColors) {
       alignItems: 'center',
     },
     modalConfirmText: { color: colors.textInverse, fontWeight: '800' },
+    voidBtn: {
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: radii.pill,
+      backgroundColor: colors.warningBg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.warningBorder,
+    },
+    voidBtnText: { color: colors.warning, fontWeight: '800', fontSize: 12 },
     pressed: { opacity: 0.88 },
   });
 }

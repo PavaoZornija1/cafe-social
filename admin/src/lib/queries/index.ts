@@ -1431,6 +1431,51 @@ export function useOwnerVoidRedemptionMutation(
   });
 }
 
+export function useOwnerLockRedemptionMutation(
+  venueId: string | undefined,
+  dateYmd: string,
+  getToken: () => Promise<string | null>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ redemptionId, reason }: { redemptionId: string; reason: string }) =>
+      ownerJson<unknown>(getToken, `/owner/venues/${venueId}/redemptions/${redemptionId}/lock`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      }),
+    onSuccess: () => {
+      if (venueId) {
+        void qc.invalidateQueries({
+          queryKey: queryKeys.owner.venueRedemptions(venueId, dateYmd),
+        });
+      }
+    },
+  });
+}
+
+export function useOwnerUnlockRedemptionMutation(
+  venueId: string | undefined,
+  dateYmd: string,
+  getToken: () => Promise<string | null>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (redemptionId: string) =>
+      ownerJson<unknown>(
+        getToken,
+        `/owner/venues/${venueId}/redemptions/${redemptionId}/unlock`,
+        { method: "POST" },
+      ),
+    onSuccess: () => {
+      if (venueId) {
+        void qc.invalidateQueries({
+          queryKey: queryKeys.owner.venueRedemptions(venueId, dateYmd),
+        });
+      }
+    },
+  });
+}
+
 export function useOwnerReviewReceiptMutation(
   venueId: string | undefined,
   getToken: () => Promise<string | null>,

@@ -91,6 +91,19 @@ export function unlockStaffRedemption(token: string, venueId: string, redemption
   );
 }
 
+export function voidStaffRedemption(
+  token: string,
+  venueId: string,
+  redemptionId: string,
+  reason: string,
+) {
+  return apiPost<{ ok: true }>(
+    `/owner/venues/${encodeURIComponent(venueId)}/redemptions/${encodeURIComponent(redemptionId)}/void`,
+    { reason },
+    token,
+  );
+}
+
 export type MemberScanResult = {
   playerId: string;
   username: string;

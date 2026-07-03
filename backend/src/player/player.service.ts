@@ -293,10 +293,16 @@ export class PlayerService {
         perkActiveTo <= horizon;
       const expired =
         !voided && perkActiveTo != null && perkActiveTo.getTime() <= now.getTime();
+      const computedStatus = voided
+        ? 'VOIDED'
+        : r.status === 'REDEEMABLE' && expired
+          ? 'EXPIRED'
+          : r.status;
       return {
         id: r.id,
         redeemedAt: (r.redeemedAt ?? r.issuedAt).toISOString(),
         voided,
+        status: computedStatus,
         venueId: r.venueId,
         venueName: r.venue.name,
         perkCode: r.perk.code,
@@ -309,7 +315,9 @@ export class PlayerService {
       };
     });
 
-    const activeWalletCount = items.filter((i) => !i.voided && !i.expired).length;
+    const activeWalletCount = items.filter(
+      (i) => !i.voided && !i.expired && (i.status === 'REDEEMABLE' || i.status === 'LOCKED'),
+    ).length;
 
     return {
       wallet: {
@@ -358,7 +366,9 @@ export class PlayerService {
       };
     });
 
-    const activeRedeemable = items.filter((i) => i.status === 'REDEEMABLE').length;
+    const activeRedeemable = items.filter(
+      (i) => i.status === 'REDEEMABLE' || i.status === 'LOCKED',
+    ).length;
 
     return { wallet: { activeRedeemable }, items };
   }

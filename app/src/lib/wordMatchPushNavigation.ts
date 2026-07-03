@@ -48,6 +48,8 @@ export async function navigateWordMatchFromPush(
   if (!sessionId) return;
 
   if (!navigationRef.isReady()) return;
+
+  const token = await getToken();
   if (!token) {
     Alert.alert('Cafe Social', 'Sign in to open this match.');
     return;

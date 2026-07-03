@@ -197,12 +197,28 @@ export class BrawlerService {
     );
   }
 
+  private async assertPartyMemberIfNeeded(
+    partyId: string | null | undefined,
+    playerId: string,
+  ): Promise<void> {
+    const id = partyId?.trim();
+    if (!id) return;
+    const member = await this.prisma.partyMember.findUnique({
+      where: { partyId_playerId: { partyId: id, playerId } },
+    });
+    if (!member) {
+      throw new ForbiddenException('Not a party member');
+    }
+  }
+
   listHeroes() {
     return this.brawlerRepo.findActiveHeroes();
   }
 
   async createSession(email: string, dto: CreateBrawlerSessionDto) {
     const requester = await this.players.findOrCreateByEmail(email);
+    const partyId = dto.partyId?.trim() || null;
+    await this.assertPartyMemberIfNeeded(partyId, requester.id);
     const participants = dto.participants.map((p) => {
       if (!p.isBot && !p.playerId) {
         return { ...p, playerId: requester.id };
@@ -474,6 +490,8 @@ export class BrawlerService {
 
   async enqueueVenueBrawlerMatch(email: string, dto: EnqueueBrawlerMatchQueueDto) {
     const player = await this.players.findOrCreateByEmail(email);
+    const partyId = dto.partyId?.trim() || null;
+    await this.assertPartyMemberIfNeeded(partyId, player.id);
     const rawVenueId = dto.venueId?.trim() || null;
     const ranked = Boolean(dto.ranked);
     const heroId = dto.brawlerHeroId.trim();
@@ -510,6 +528,7 @@ export class BrawlerService {
       data: {
         venueId: vId,
         playerId: player.id,
+        partyId,
         ranked,
         brawlerHeroId: heroId,
       },
@@ -566,6 +585,7 @@ export class BrawlerService {
     const waitingAhead = await this.prisma.brawlerMatchQueueEntry.count({
       where: {
         ranked: row.ranked,
+        partyId: row.partyId,
         status: BrawlerMatchQueueStatus.WAITING,
         createdAt: { lt: row.createdAt },
       },
@@ -581,7 +601,7 @@ export class BrawlerService {
       const row = await tx.brawlerMatchQueueEntry.findUnique({
         where: { id: queueEntryId },
       });
-      if (!row || row.status !== BrawlerMatchQueueStatus.WAITING || row.ranked) {
+      if (!row || row.status !== BrawlerMatchQueueStatus.WAITING || row.ranked || row.partyId) {
         return;
       }
 
@@ -678,11 +698,20 @@ export class BrawlerService {
     let createdSessionId: string | null = null;
     const powerups = await this.powerupConfigRows();
     await this.prisma.$transaction(async (tx) => {
-      // Cross-venue pairing: bucket is rules-based only. Each player is gated to their own
-      // venue separately via `playerVenueIds` stamped onto the session config below.
+      const anchor = await tx.brawlerMatchQueueEntry.findFirst({
+        where: {
+          ranked,
+          status: BrawlerMatchQueueStatus.WAITING,
+        },
+        orderBy: { createdAt: 'asc' },
+        select: { partyId: true },
+      });
+      if (!anchor) return;
+
       const pair = await tx.brawlerMatchQueueEntry.findMany({
         where: {
           ranked,
+          partyId: anchor.partyId,
           status: BrawlerMatchQueueStatus.WAITING,
         },
         orderBy: { createdAt: 'asc' },
@@ -741,6 +770,7 @@ export class BrawlerService {
           // Host's venue (or null when host is a subscriber queueing from outside any venue).
           // Per-player play limits below use each participant's own venue from `playerVenueIds`.
           venueId: a.venueId ?? null,
+          partyId: a.partyId ?? null,
           config,
           brawlerSession: { create: {} },
           participants: {

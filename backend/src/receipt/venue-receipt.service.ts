@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { VenueService } from '../venue/venue.service';
 import { PlayerNotificationService } from '../notification/player-notification.service';
 import { VenueStaffNotificationService } from '../notification/venue-staff-notification.service';
+import { OwnerRedemptionActionsService } from '../owner/owner-redemption-actions.service';
 
 const MAX_IMAGE_BYTES = 2_500_000;
 
@@ -22,6 +23,7 @@ export class VenueReceiptService {
     private readonly venues: VenueService,
     private readonly playerNotify: PlayerNotificationService,
     private readonly staffNotify: VenueStaffNotificationService,
+    private readonly redemptionActions: OwnerRedemptionActionsService,
   ) {}
 
   async submit(params: {
@@ -32,6 +34,7 @@ export class VenueReceiptService {
     notePlayer?: string;
     latitude?: number;
     longitude?: number;
+    linkedRedemptionId?: string;
   }) {
     const hasCoords =
       typeof params.latitude === 'number' &&
@@ -53,6 +56,24 @@ export class VenueReceiptService {
       throw new BadRequestException('Image too large (max ~2MB)');
     }
 
+    const linkedRedemptionId = params.linkedRedemptionId?.trim() || null;
+    if (linkedRedemptionId) {
+      const claim = await this.prisma.venuePerkRedemption.findFirst({
+        where: {
+          id: linkedRedemptionId,
+          venueId: params.venueId,
+          playerId: params.playerId,
+          voidedAt: null,
+        },
+      });
+      if (!claim) {
+        throw new BadRequestException('Linked reward claim not found for this venue');
+      }
+      if (claim.status !== 'REDEEMABLE') {
+        throw new BadRequestException('Only ready-to-redeem rewards can be linked to a receipt');
+      }
+    }
+
     const retention = new Date();
     retention.setUTCDate(retention.getUTCDate() + 90);
 
@@ -65,8 +86,19 @@ export class VenueReceiptService {
         notePlayer: params.notePlayer?.trim()?.slice(0, 2000),
         retentionUntil: retention,
         status: ReceiptSubmissionStatus.PENDING,
+        linkedRedemptionId,
       },
     });
+
+    if (linkedRedemptionId) {
+      await this.redemptionActions.lockRedemption({
+        venueId: params.venueId,
+        redemptionId: linkedRedemptionId,
+        staffPlayerId: params.playerId,
+        reason: 'Receipt submitted for staff review',
+      });
+    }
+
     void this.staffNotify.notifyReceiptSubmitted({
       venueId: params.venueId,
       submissionId: row.id,
@@ -75,6 +107,7 @@ export class VenueReceiptService {
     return {
       id: row.id,
       status: row.status,
+      linkedRedemptionId: row.linkedRedemptionId,
       createdAt: row.createdAt.toISOString(),
       retentionUntil: row.retentionUntil?.toISOString() ?? null,
     };
@@ -100,6 +133,7 @@ export class VenueReceiptService {
         retentionUntil: true,
         reviewedAt: true,
         reviewedByPlayerId: true,
+        linkedRedemptionId: true,
         createdAt: true,
         player: { select: { id: true, username: true, email: true } },
       },
@@ -143,6 +177,28 @@ export class VenueReceiptService {
         reviewedByPlayerId: params.reviewerPlayerId,
       },
     });
+
+    if (row.linkedRedemptionId) {
+      if (params.status === 'APPROVED') {
+        await this.redemptionActions.unlockRedemption({
+          venueId: params.venueId,
+          redemptionId: row.linkedRedemptionId,
+        });
+      } else if (params.abuseFlag) {
+        await this.redemptionActions.voidRedemption({
+          venueId: params.venueId,
+          redemptionId: row.linkedRedemptionId,
+          staffPlayerId: params.reviewerPlayerId,
+          reason: params.staffNote?.trim() || 'Receipt rejected (abuse flagged)',
+        });
+      } else {
+        await this.redemptionActions.unlockRedemption({
+          venueId: params.venueId,
+          redemptionId: row.linkedRedemptionId,
+        });
+      }
+    }
+
     void this.playerNotify.notifyReceiptReviewed({
       playerId: row.playerId,
       venueId: params.venueId,

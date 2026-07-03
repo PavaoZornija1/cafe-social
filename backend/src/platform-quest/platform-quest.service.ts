@@ -394,16 +394,24 @@ export class PlatformQuestService {
     start: Date,
     end: Date,
   ): Promise<number> {
-    return this.prisma.gameParticipant.count({
+    const rows = await this.prisma.gameParticipant.findMany({
       where: {
         playerId,
         session: {
-          venueId: { not: null },
           status: GameSessionStatus.FINISHED,
           endedAt: { gte: start, lt: end },
         },
       },
+      select: {
+        session: { select: { venueId: true, config: true } },
+      },
     });
+    return rows.filter((r) => {
+      if (r.session.venueId) return true;
+      const cfg = r.session.config as { playerVenueIds?: Record<string, string> } | null;
+      const pv = cfg?.playerVenueIds?.[playerId];
+      return typeof pv === 'string' && pv.trim() !== '';
+    }).length;
   }
 
   private async countAllWins(playerId: string, start: Date, end: Date): Promise<number> {

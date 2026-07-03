@@ -85,6 +85,7 @@ export default function DiscoverHubScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [engagement, setEngagement] = useState<Engagement | null>(null);
   const [summary, setSummary] = useState<MeSummaryDto | null>(null);
+  const [subscribers, setSubscribers] = useState<{ id: string; username: string }[]>([]);
   const [loadErr, setLoadErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -98,12 +99,23 @@ export default function DiscoverHubScreen({ navigation }: Props) {
         setSummary(null);
         return;
       }
-      const [eng, sum] = await Promise.all([
+      const [eng, sum, subs] = await Promise.all([
         apiGet<Engagement>('/players/me/engagement', token).catch(() => null),
         apiGet<MeSummaryDto>('/players/me/summary', token).catch(() => null),
+        apiGet<MeSummaryDto>('/players/me/summary', token)
+          .then((s) =>
+            s.subscriptionActive
+              ? apiGet<{ id: string; username: string }[]>(
+                  '/social/discover/subscribers',
+                  token,
+                ).catch(() => [])
+              : Promise.resolve([]),
+          )
+          .catch(() => []),
       ]);
       setEngagement(eng);
       setSummary(sum);
+      setSubscribers(Array.isArray(subs) ? subs : []);
     } catch (e) {
       setLoadErr(
         isLikelyNetworkFailure(e)
@@ -242,6 +254,24 @@ export default function DiscoverHubScreen({ navigation }: Props) {
 
         {(summary || engagement) && !loading ? (
           <>
+            {summary?.subscriptionActive ? (
+              <>
+                <Text style={[styles.sectionLabel, styles.sectionSpacer]}>
+                  {t('discoverHub.subscribersTitle')}
+                </Text>
+                {subscribers.length === 0 ? (
+                  <Text style={styles.mutedLine}>{t('discoverHub.subscribersEmpty')}</Text>
+                ) : (
+                  subscribers.slice(0, 12).map((p) => (
+                    <View key={p.id} style={styles.subscriberRow}>
+                      <Ionicons name="person-outline" size={16} color={colors.textSecondary} />
+                      <Text style={styles.subscriberName}>{p.username}</Text>
+                    </View>
+                  ))
+                )}
+              </>
+            ) : null}
+
             <Text style={[styles.sectionLabel, styles.sectionSpacer]}>
               {t('discoverHub.sectionProgress')}
             </Text>
@@ -457,6 +487,28 @@ function createStyles(colors: AppColors) {
       color: colors.textMuted,
       fontSize: 13,
       lineHeight: 18,
+    },
+    mutedLine: {
+      color: colors.textMuted,
+      fontSize: 14,
+      marginBottom: spacing.md,
+    },
+    subscriberRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      backgroundColor: colors.surface,
+      borderRadius: radii.md,
+      marginBottom: spacing.xs,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    subscriberName: {
+      color: colors.text,
+      fontWeight: '700',
+      fontSize: 15,
     },
     badgeRow: {
       flexDirection: 'row',

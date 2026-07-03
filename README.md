@@ -69,12 +69,12 @@ npx expo run:ios --device
 - **Friends**: **add by username**, cancel **outgoing** requests, incoming + **Accept**, **share invite** from the screen.
 - **Staff mode** (Clerk users on **`VenueStaff`**): **Settings → Your venues** (hidden when not on staff) — UTC-day perk list with **guest name**, **Mark redeemed** per row, **QR scan** / manual code (member card or perk). **Member scan** records visits.
 - **Perk wallet** (`PerkWallet` screen): cross-venue claimed perks with staff QR/code. **Rewards hub** = platform quests (XP), separate from perks.
-- **Receipt upload**: **Venue hub → Submit receipt** (also `SubmitReceipt` screen).
+- **Receipt upload**: **Venue hub → Submit receipt** (also `SubmitReceipt` screen). Optional `linkedRedemptionId` locks the linked perk claim until staff review; **APPROVED** unlocks, **REJECTED** unlocks (or voids if `abuseFlag`).
 - **Play limits (guests)**: **active play time** budget + **daily game count** (default 50/UTC day); both surfaced in play UI. Subscribers bypass limits.
-- **Brawler**: arena 1v1 queue (global pool), practice, Socket.IO arena; **push** on match start (`brawler_match_start`).
-- **Receipt proof (JWT)**: `POST /venue-context/:venueId/receipts` `{ imageData (data URL base64), mimeType?, notePlayer?, detectedVenueId? }` — same presence rule as perks; **90-day** `retentionUntil` target. Owners: `GET /owner/venues/:venueId/receipts`, `GET .../receipts/:id` (includes image), `POST .../receipts/:id/review` `{ status: APPROVED|REJECTED, staffNote?, abuseFlag? }`.
-- **Redemption audit**: `POST /owner/venues/:venueId/redemptions/scan` `{ code }` (**EMPLOYEE**+, throttled — marks **REDEEMED** by 8-char staff code), `POST .../redemptions/:redemptionId/acknowledge` (**EMPLOYEE**+), `POST .../void` (**MANAGER**+, `{ reason }`). Staff list includes **guest username**. Voided rows excluded from active analytics counts; CSV export includes void/ack columns.
-- **Owner analytics v2** (same `GET /owner/venues/:venueId/analytics`): **per-perk** counts, **hour-of-day** (UTC + optional venue **IANA** timezone from `Venue.analyticsTimeZone`, set in Partner CMS), **funnel** (unique visitors vs redeemers), **voided** count. **`GET .../analytics/export.csv`** — redemptions CSV (**MANAGER**+).
+- **Brawler**: arena 1v1 queue (global pool, optional **`partyId`** bucket), practice, Socket.IO arena; **push** on match start (`brawler_match_start`).
+- **Receipt proof (JWT)**: `POST /venue-context/:venueId/receipts` `{ imageData, mimeType?, notePlayer?, latitude, longitude, linkedRedemptionId? }` — same presence rule as perks; **90-day** `retentionUntil`. Owners: `GET /owner/venues/:venueId/receipts`, `GET .../receipts/:id`, `POST .../receipts/:id/review` `{ status: APPROVED|REJECTED, staffNote?, abuseFlag? }`.
+- **Redemption audit**: `POST /owner/venues/:venueId/redemptions/scan` `{ code }` (**EMPLOYEE**+), `POST .../acknowledge` (**EMPLOYEE**+), `POST .../lock` and `POST .../unlock` (**MANAGER**+), `POST .../void` (**MANAGER**+, `{ reason }`). **LOCKED** claims block duplicate issuance. Staff list includes **guest username**. Voided rows excluded from active analytics; CSV includes **status** + **redeemed_at**.
+- **Owner analytics v2**: **issued** vs **fulfilled** redemption counts (fulfilled = `redeemedAt` in period), per-perk split, hour-of-day, funnel, voided. **`GET .../analytics/export.csv`** — redemptions CSV (**MANAGER**+).
 - **Campaigns**: `VenueCampaign` + `VenueCampaignSend` log; **`GET/POST /owner/venues/:venueId/campaigns`**, **`POST .../campaigns/:id/send`** — targets players with a **visit day** at that venue in the last **segmentDays** (UTC day keys); **Expo push** via `partner_marketing` channel (**`partnerMarketingPush` and not `totalPrivacy`**). Re-send after **FAILED** clears prior send rows.
 
 ### Not done yet (good next steps)
@@ -145,7 +145,7 @@ npx expo start
 
 ```bash
 cd app
-cp .env.example .env     # EXPO_PUBLIC_CLERK_*, EXPO_PUBLIC_API_URL (e.g. http://LOCAL_IP:3001/api)
+cp .env.example .env     # EXPO_PUBLIC_CLERK_*, EXPO_PUBLIC_API_URL (e.g. http://LOCAL_IP:3005/api)
 npm install
 
 # Align native module versions with Expo SDK 54

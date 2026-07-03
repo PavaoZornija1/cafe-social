@@ -698,24 +698,32 @@ export class OwnerAnalyticsService {
       'perk_code',
       'perk_title',
       'player_id',
+      'status',
       'voided',
       'void_reason',
-      'issued_at_utc',
+      'redeemed_at_utc',
     ].join(',');
 
-    const lines = rows.map((r) =>
-      [
+    const lines = rows.map((r) => {
+      const voided = r.voidedAt != null;
+      const status = voided
+        ? 'VOIDED'
+        : r.status === 'REDEEMABLE' && r.expiresAt.getTime() <= Date.now()
+          ? 'EXPIRED'
+          : r.status;
+      return [
         r.id,
         staffVerificationCodeFromRedemptionId(r.id),
         r.issuedAt.toISOString(),
         csvEscape(r.perk.code),
         csvEscape(r.perk.title),
         r.playerId,
-        r.voidedAt ? 'yes' : 'no',
+        status,
+        voided ? 'yes' : 'no',
         r.voidReason ? csvEscape(r.voidReason) : '',
         r.redeemedAt?.toISOString() ?? '',
-      ].join(','),
-    );
+      ].join(',');
+    });
 
     return [header, ...lines].join('\n');
   }

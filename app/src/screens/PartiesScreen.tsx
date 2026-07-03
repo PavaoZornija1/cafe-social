@@ -107,7 +107,7 @@ export default function PartiesScreen({ navigation }: Props) {
       );
       setNewName('');
       triggerFeedback('lobbyStart');
-      navigation.navigate('PartyDetail', { partyId: created.id });
+      navigation.navigate('PartyDetail', { partyId: created.id, justCreated: true });
     } catch (e) {
       setCreateError((e as Error).message || t('parties.createFailed'));
     } finally {

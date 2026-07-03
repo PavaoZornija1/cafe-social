@@ -354,8 +354,12 @@ export function PartnerAnalyticsHub() {
               <p className="text-xl font-semibold text-slate-900">{orgAnalytics.visits.uniquePlayers}</p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-              <p className="text-xs text-slate-500">{t("admin.partnerAnalytics.redemptions")}</p>
-              <p className="text-xl font-semibold text-slate-900">{orgAnalytics.redemptions.total}</p>
+              <p className="text-xs text-slate-500">{t("admin.partnerAnalytics.redemptionsIssued")}</p>
+              <p className="text-xl font-semibold text-slate-900">{orgAnalytics.redemptions.issued}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+              <p className="text-xs text-slate-500">{t("admin.partnerAnalytics.redemptionsFulfilled")}</p>
+              <p className="text-xl font-semibold text-slate-900">{orgAnalytics.redemptions.fulfilled}</p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
               <p className="text-xs text-slate-500">{t("admin.partnerAnalytics.visitRedeemPct")}</p>
@@ -431,10 +435,14 @@ export function PartnerAnalyticsHub() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <p className="text-sm text-slate-600">{t("admin.partnerAnalytics.activeRedemptions")}</p>
-              <p className="text-2xl font-semibold mt-1">{venueAnalytics.redemptions.total}</p>
+              <p className="text-2xl font-semibold mt-1">{venueAnalytics.redemptions.issued}</p>
               <p className="text-xs text-slate-500 mt-1">
                 {t("admin.partnerAnalytics.voided")}: {venueAnalytics.redemptions.voided}
               </p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-sm text-slate-600">{t("admin.partnerAnalytics.redemptionsFulfilled")}</p>
+              <p className="text-2xl font-semibold mt-1">{venueAnalytics.redemptions.fulfilled}</p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <p className="text-sm text-slate-600">{t("admin.partnerAnalytics.uniqueVisitors")}</p>

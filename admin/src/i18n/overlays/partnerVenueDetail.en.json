@@ -242,6 +242,10 @@
     "actions": "Actions",
     "acknowledge": "Acknowledge",
     "void": "Void",
+    "lock": "Lock",
+    "unlock": "Unlock",
+    "lockReasonPlaceholder": "Lock reason (managers)",
+    "enterLockReasonError": "Enter a lock reason (manager/owner).",
     "noRedemptionsForDay": "No redemptions for this day.",
     "enterVoidReasonError": "Enter a void reason (manager/owner)."
   },

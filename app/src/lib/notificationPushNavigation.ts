@@ -47,14 +47,10 @@ export async function handleNotificationTapNavigation(
     return;
   }
   if (kind === 'receipt_reviewed') {
-    const venueId = typeof raw.venueId === 'string' ? raw.venueId : undefined;
     if (navigationRef.isReady()) {
       const ok = await ensureOnboardingCompleteForNavigation(getToken);
       if (ok) {
-        navigationRef.navigate('MainTabs', { screen: 'HomeTab' });
-        if (venueId) {
-          navigationRef.navigate('VenueHub', { venueId });
-        }
+        navigationRef.navigate('PerkWallet');
       }
     }
     return;

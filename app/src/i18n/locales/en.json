@@ -377,6 +377,9 @@
     "acknowledge": "Mark redeemed",
     "lockReward": "Lock",
     "unlockReward": "Unlock",
+    "voidReward": "Void",
+    "voidRewardTitle": "Void reward",
+    "voidRewardHint": "Permanently void this claim. The guest will not be able to redeem it.",
     "lockRewardTitle": "Lock reward",
     "lockRewardHint": "Guest cannot redeem until a manager unlocks. Add a short reason for your team.",
     "lockReasonPlaceholder": "Reason (required)",
@@ -546,7 +549,9 @@
     "redeemPerkTitle": "Redeem perk code",
     "redeemPerkHint": "Enter a staff code while you're at a partner café.",
     "progressTitle": "Your level",
-    "crossVenueStats": "Across venues"
+    "crossVenueStats": "Across venues",
+    "subscribersTitle": "Subscribers nearby",
+    "subscribersEmpty": "No other subscribers are discoverable right now."
   },
   "inbox": {
     "title": "Invites & requests",
@@ -925,6 +930,12 @@
     "members": "Members",
     "playTogether": "Play together",
     "playTogetherHint": "Open a game lobby — coordinate in chat, then queue or start a room.",
+    "playAtVenue": "Detected at {{venue}} — venue games will use this café.",
+    "playGlobalSubscriber": "Subscriber — you can play from anywhere.",
+    "playNeedVenue": "At a partner café for venue games, or subscribe to play from anywhere.",
+    "detailJustCreatedTitle": "Party created",
+    "detailJustCreatedHint": "Share an invite link so friends can join, then pick a game below.",
+    "waitingForFriends": "You're the only one here — invite friends to fill the party.",
     "playWord": "Word match lobby",
     "playBrawler": "Brawler lobby",
     "leaderTag": "Leader",

@@ -414,6 +414,8 @@ model VenueReceiptSubmission {
   retentionUntil     DateTime?
   reviewedAt         DateTime?
   reviewedByPlayerId String?
+  /// When set, submitting locks this perk claim pending staff review.
+  linkedRedemptionId String?
 
   venue    Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
   player   Player @relation("ReceiptSubmitter", fields: [playerId], references: [id], onDelete: Cascade)
@@ -1069,6 +1071,7 @@ model Party {
   playerInvites PartyPlayerInvite[]
   gameSessions GameSession[]
   wordMatchQueueEntries WordMatchQueueEntry[]
+  brawlerMatchQueueEntries BrawlerMatchQueueEntry[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1664,13 +1667,17 @@ model BrawlerMatchQueueEntry {
   brawlerHeroId    String?
   status           BrawlerMatchQueueStatus @default(WAITING)
   matchedSessionId String?
+  /// When set, matchmaking pairs only entries with the same party.
+  partyId          String?
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
 
   venue  Venue?  @relation(fields: [venueId], references: [id], onDelete: Cascade)
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  party  Party?  @relation(fields: [partyId], references: [id], onDelete: SetNull)
 
   @@index([ranked, status, createdAt], map: "BrawlerMatchQueueEntry_bucket_idx")
+  @@index([partyId, ranked, status, createdAt], map: "BrawlerMatchQueueEntry_party_bucket_idx")
   @@index([playerId, status], map: "BrawlerMatchQueueEntry_player_status_idx")
   @@index([venueId, status], map: "BrawlerMatchQueueEntry_venue_status_idx")
 }

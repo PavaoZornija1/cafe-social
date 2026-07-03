@@ -30,6 +30,7 @@ export type RootStackParamList = {
      */
     BrawlerVenueQueue: {
       venueId?: string;
+      partyId?: string;
       brawlerHeroId: string;
       heroName?: string;
       ranked?: boolean;
@@ -57,7 +58,7 @@ export type RootStackParamList = {
     FriendCard: undefined;
     ScanFriendQr: undefined;
     Parties: undefined;
-    PartyDetail: { partyId: string };
+    PartyDetail: { partyId: string; justCreated?: boolean };
     RedeemInvite: { token?: string } | undefined;
     RedeemPerk: { venueId?: string } | undefined;
     RewardsHub: undefined;
@@ -123,5 +124,5 @@ export type RootStackParamList = {
       highlightCode?: string;
     };
     StaffQrScan: { venueId: string; venueName?: string };
-    SubmitReceipt: { venueId: string };
+    SubmitReceipt: { venueId: string; redemptionId?: string };
 };
