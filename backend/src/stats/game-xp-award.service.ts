@@ -27,10 +27,12 @@ import {
 type WordMatchConfigJson = {
   wordGameMode?: 'coop' | 'versus';
   ranked?: boolean;
+  playerVenueIds?: Record<string, string>;
 };
 
 type BrawlerMatchConfigJson = {
   ranked?: boolean;
+  playerVenueIds?: Record<string, string>;
 };
 
 const ELO_K = 32;
@@ -108,16 +110,21 @@ export class GameXpAwardService {
     });
     if (!session) return awarded;
 
+    const cfg = session.config as unknown as WordMatchConfigJson & BrawlerMatchConfigJson | null;
+    const playerVenueIds = cfg?.playerVenueIds ?? {};
+    const venueForPlayer = (playerId: string): string | null =>
+      playerVenueIds[playerId] ?? session.venueId;
+
     if (session.gameType === GameType.WORD_GAME) {
-      const cfg = session.config as unknown as WordMatchConfigJson | null;
       const mode = cfg?.wordGameMode;
-      const atVenue = Boolean(session.venueId);
 
       if (mode === 'coop') {
         for (const p of session.participants) {
           if (!p.playerId || p.result !== GameParticipantResult.WIN) continue;
+          const venueId = venueForPlayer(p.playerId);
+          const atVenue = Boolean(venueId);
           const d = atVenue ? XP_WORD_COOP_PERFECT : XP_WORD_COOP_GLOBAL;
-          await this.addXp(p.playerId, session.venueId, d);
+          await this.addXp(p.playerId, venueId, d);
           awarded[p.playerId] = d;
         }
       } else if (mode === 'versus') {
@@ -126,11 +133,13 @@ export class GameXpAwardService {
           .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
         for (let i = 0; i < humans.length; i++) {
           const pid = humans[i]!.playerId!;
+          const venueId = venueForPlayer(pid);
+          const atVenue = Boolean(venueId);
           let d = 0;
           if (i === 0) d = atVenue ? XP_WORD_VERSUS_FIRST : XP_WORD_VERSUS_FIRST_GLOBAL;
           else if (i === 1) d = atVenue ? XP_WORD_VERSUS_SECOND : XP_WORD_VERSUS_SECOND_GLOBAL;
           if (d > 0) {
-            await this.addXp(pid, session.venueId, d);
+            await this.addXp(pid, venueId, d);
             awarded[pid] = d;
           }
         }
@@ -203,23 +212,27 @@ export class GameXpAwardService {
     const baseXp = session.venueId ? XP_VENUE_WIN : XP_GLOBAL_WIN;
     for (const p of session.participants) {
       if (!p.playerId || p.result !== GameParticipantResult.WIN) continue;
-      let delta = baseXp;
+      const venueId = venueForPlayer(p.playerId);
+      const atVenue = Boolean(venueId);
+      let delta = atVenue ? baseXp : XP_GLOBAL_WIN;
       if (session.gameType === GameType.BRAWLER) {
         const kills = p.kills ?? 0;
         const deaths = p.deaths ?? 0;
         const raw =
-          baseXp + kills * BRAWLER_XP_PER_KILL - deaths * BRAWLER_XP_PER_DEATH_PENALTY;
+          (atVenue ? XP_VENUE_WIN : XP_GLOBAL_WIN) +
+          kills * BRAWLER_XP_PER_KILL -
+          deaths * BRAWLER_XP_PER_DEATH_PENALTY;
         delta = Math.round(
           Math.max(BRAWLER_WIN_XP_MIN, Math.min(BRAWLER_WIN_XP_MAX, raw)),
         );
       }
-      await this.addXp(p.playerId, session.venueId, delta);
+      await this.addXp(p.playerId, venueId, delta);
       awarded[p.playerId] = delta;
     }
 
     if (session.gameType === GameType.BRAWLER) {
-      const cfg = session.config as unknown as BrawlerMatchConfigJson | null;
-      const ranked = Boolean(cfg?.ranked);
+      const brawlerCfg = cfg as BrawlerMatchConfigJson | null;
+      const ranked = Boolean(brawlerCfg?.ranked);
       if (!ranked || session.rankAwardedAt) return awarded;
 
       const humans = session.participants.filter((p) => p.playerId);

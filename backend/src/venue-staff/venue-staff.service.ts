@@ -68,6 +68,7 @@ export class VenueStaffService {
                 trialStartedAt: true,
                 trialEndsAt: true,
                 platformBillingPlan: true,
+                platformBillingModel: true,
                 platformBillingStatus: true,
                 platformBillingRenewsAt: true,
                 platformBillingSyncedAt: true,

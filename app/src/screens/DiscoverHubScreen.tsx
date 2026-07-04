@@ -82,15 +82,18 @@ export default function DiscoverHubScreen({ navigation }: Props) {
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
 
-  const [loading, setLoading] = useState(true);
+  const [initializing, setInitializing] = useState(true);
   const [engagement, setEngagement] = useState<Engagement | null>(null);
   const [summary, setSummary] = useState<MeSummaryDto | null>(null);
   const [subscribers, setSubscribers] = useState<{ id: string; username: string }[]>([]);
   const [loadErr, setLoadErr] = useState<string | null>(null);
+  const hasLoadedRef = useRef(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
     if (!isLoaded) return;
-    setLoading(true);
+    if (mode === 'initial' && !hasLoadedRef.current) {
+      setInitializing(true);
+    }
     setLoadErr(null);
     try {
       const token = await getTokenRef.current();
@@ -123,13 +126,14 @@ export default function DiscoverHubScreen({ navigation }: Props) {
           : (e as Error).message || t('discoverHub.loadError'),
       );
     } finally {
-      setLoading(false);
+      hasLoadedRef.current = true;
+      setInitializing(false);
     }
   }, [isLoaded, t]);
 
   useFocusEffect(
     useCallback(() => {
-      void load();
+      void load(hasLoadedRef.current ? 'refresh' : 'initial');
     }, [load]),
   );
 
@@ -165,7 +169,7 @@ export default function DiscoverHubScreen({ navigation }: Props) {
           </Pressable>
           <Text style={styles.title}>{t('discoverHub.title')}</Text>
           <Pressable
-            onPress={() => void load()}
+            onPress={() => void load('refresh')}
             style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
             accessibilityRole="button"
             accessibilityLabel={t('discoverHub.refreshA11y')}
@@ -248,11 +252,11 @@ export default function DiscoverHubScreen({ navigation }: Props) {
           onPress={() => navigation.navigate('RedeemPerk', {})}
         />
 
-        {loading && !engagement && !summary ? (
+        {initializing && !summary && !engagement ? (
           <ActivityIndicator color={colors.primary} style={styles.loader} />
         ) : null}
 
-        {(summary || engagement) && !loading ? (
+        {(summary || engagement) && !initializing ? (
           <>
             {summary?.subscriptionActive ? (
               <>

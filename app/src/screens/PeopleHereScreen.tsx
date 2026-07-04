@@ -60,6 +60,7 @@ export default function PeopleHereScreen({ navigation, route }: Props) {
   const [partiesLoading, setPartiesLoading] = useState(false);
   const [partyInviteBusy, setPartyInviteBusy] = useState<string | null>(null);
   const [friendBusyId, setFriendBusyId] = useState<string | null>(null);
+  const hasLoadedRef = useRef(false);
 
   const peopleRef = useRef(people);
   peopleRef.current = people;
@@ -69,7 +70,7 @@ export default function PeopleHereScreen({ navigation, route }: Props) {
       if (!isLoaded) return;
 
       const hasPeople = peopleRef.current.length > 0;
-      if (mode === 'initial' && !hasPeople) {
+      if (mode === 'initial' && !hasLoadedRef.current) {
         setInitializing(true);
       } else if (mode === 'refresh') {
         setRefreshing(true);
@@ -94,11 +95,12 @@ export default function PeopleHereScreen({ navigation, route }: Props) {
         setMyPlayerId(summary.playerId ?? null);
         setPeople(Array.isArray(list) ? list : []);
       } catch {
-        if (!hasPeople) {
+        if (!hasLoadedRef.current) {
           setPeople([]);
           setMyPlayerId(null);
         }
       } finally {
+        hasLoadedRef.current = true;
         setInitializing(false);
         setRefreshing(false);
       }
@@ -108,16 +110,12 @@ export default function PeopleHereScreen({ navigation, route }: Props) {
 
   useFocusEffect(
     useCallback(() => {
-      if (peopleRef.current.length > 0) {
-        void load('refresh');
-      } else {
-        void load('initial');
-      }
+      void load(hasLoadedRef.current ? 'refresh' : 'initial');
     }, [load]),
   );
 
   const handleRefresh = useCallback(() => {
-    void load(peopleRef.current.length > 0 ? 'refresh' : 'initial');
+    void load('refresh');
   }, [load]);
 
   const sendFriendRequest = useCallback(

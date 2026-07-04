@@ -80,77 +80,83 @@ export class VenueOfferService {
       params.longitude!,
     );
 
-    const offer = await this.prisma.venueOffer.findFirst({
-      where: { id: params.offerId, venueId: params.venueId },
-    });
-    if (!offer) throw new NotFoundException('Offer not found for this venue');
-
-    if (offer.fulfillment !== VenueOfferFulfillment.MEMBER_CARD) {
-      throw new BadRequestException(
-        'This offer applies automatically — no claim needed',
-      );
-    }
-
     const now = new Date();
-    if (!isOfferLiveForPublic(offer, now)) {
-      throw new BadRequestException('This offer is not available');
-    }
-    if (isGloballyExhausted(offer)) {
-      throw new BadRequestException('This offer is fully redeemed');
-    }
 
-    const existing = await this.prisma.venueOfferRedemption.findFirst({
-      where: { offerId: offer.id, playerId: params.playerId },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (existing) {
-      return {
-        redemptionId: existing.id,
-        status: existing.status,
-        title: offer.title,
-        body: offer.body,
-        alreadyClaimed: true,
-      };
-    }
+    return this.prisma.$transaction(
+      async (tx) => {
+        const offer = await tx.venueOffer.findFirst({
+          where: { id: params.offerId, venueId: params.venueId },
+        });
+        if (!offer) throw new NotFoundException('Offer not found for this venue');
 
-    const refreshed = await this.prisma.venueOffer.findUnique({ where: { id: offer.id } });
-    if (!refreshed) throw new NotFoundException('Offer not found');
-    if (isGloballyExhausted(refreshed)) {
-      throw new BadRequestException('This offer is fully redeemed');
-    }
+        if (offer.fulfillment !== VenueOfferFulfillment.MEMBER_CARD) {
+          throw new BadRequestException(
+            'This offer applies automatically — no claim needed',
+          );
+        }
 
-    if (
-      refreshed.maxRedemptionsPerPlayer != null &&
-      refreshed.maxRedemptionsPerPlayer > 1
-    ) {
-      const playerCount = await this.prisma.venueOfferRedemption.count({
-        where: { offerId: offer.id, playerId: params.playerId },
-      });
-      if (playerCount >= refreshed.maxRedemptionsPerPlayer) {
-        throw new ConflictException('You already used this offer as many times as allowed');
-      }
-    }
+        if (!isOfferLiveForPublic(offer, now)) {
+          throw new BadRequestException('This offer is not available');
+        }
+        if (isGloballyExhausted(offer)) {
+          throw new BadRequestException('This offer is fully redeemed');
+        }
 
-    const redemption = await this.prisma.venueOfferRedemption.create({
-      data: {
-        offerId: offer.id,
-        playerId: params.playerId,
-        status: 'PENDING',
+        const existing = await tx.venueOfferRedemption.findFirst({
+          where: { offerId: offer.id, playerId: params.playerId },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (existing) {
+          return {
+            redemptionId: existing.id,
+            status: existing.status,
+            title: offer.title,
+            body: offer.body,
+            alreadyClaimed: true,
+          };
+        }
+
+        if (
+          offer.maxRedemptionsPerPlayer != null &&
+          offer.maxRedemptionsPerPlayer > 1
+        ) {
+          const playerCount = await tx.venueOfferRedemption.count({
+            where: { offerId: offer.id, playerId: params.playerId },
+          });
+          if (playerCount >= offer.maxRedemptionsPerPlayer) {
+            throw new ConflictException('You already used this offer as many times as allowed');
+          }
+        }
+
+        const incrementResult = await tx.venueOffer.updateMany({
+          where: {
+            id: offer.id,
+            OR: [{ maxRedemptions: null }, { redemptionCount: { lt: offer.maxRedemptions! } }],
+          },
+          data: { redemptionCount: { increment: 1 } },
+        });
+        if (incrementResult.count === 0) {
+          throw new BadRequestException('This offer is fully redeemed');
+        }
+
+        const redemption = await tx.venueOfferRedemption.create({
+          data: {
+            offerId: offer.id,
+            playerId: params.playerId,
+            status: 'PENDING',
+          },
+        });
+
+        return {
+          redemptionId: redemption.id,
+          status: redemption.status,
+          title: offer.title,
+          body: offer.body,
+          alreadyClaimed: false,
+        };
       },
-    });
-
-    await this.prisma.venueOffer.update({
-      where: { id: offer.id },
-      data: { redemptionCount: { increment: 1 } },
-    });
-
-    return {
-      redemptionId: redemption.id,
-      status: redemption.status,
-      title: offer.title,
-      body: offer.body,
-      alreadyClaimed: false,
-    };
+      { maxWait: 5000, timeout: 10000 },
+    );
   }
 
   /** @deprecated Use claimMemberCardOffer — kept name for route compatibility. */

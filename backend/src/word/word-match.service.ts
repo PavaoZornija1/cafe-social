@@ -790,10 +790,13 @@ export class WordMatchService {
       const nextIdx = idx + 1;
       const perfectRun =
         session.wordSession.wordsSolvedCount + 1 === wordIds.length && nextIdx >= wordIds.length;
-      await tx.wordSession.update({
-        where: { sessionId },
+      const advanced = await tx.wordSession.updateMany({
+        where: { sessionId, sharedWordIndex: idx },
         data: { sharedWordIndex: nextIdx, wordsSolvedCount: { increment: 1 } },
       });
+      if (advanced.count === 0) {
+        throw new ConflictException('word index advanced by another player');
+      }
 
       if (nextIdx >= wordIds.length) {
         await tx.gameSession.update({

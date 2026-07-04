@@ -31,6 +31,8 @@ const perkCol = createColumnHelper<{
   code: string;
   title: string;
   count: number;
+  issuedCount: number;
+  fulfilledCount: number;
 }>();
 const dayCountCol = createColumnHelper<{ day: string; count: number }>();
 const hourCol = createColumnHelper<{ hour: number; count: number }>();

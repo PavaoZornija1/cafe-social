@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -44,11 +44,14 @@ export default function BanAppealScreen({ navigation, route }: Props) {
     const { getToken } = useAuth();
     const [message, setMessage] = useState('');
     const [submitting, setSubmitting] = useState(false);
-    const [loadingAppeals, setLoadingAppeals] = useState(true);
+    const [initializingAppeals, setInitializingAppeals] = useState(true);
     const [appeals, setAppeals] = useState<MyAppealRow[]>([]);
+    const hasLoadedRef = useRef(false);
 
-    const loadAppeals = useCallback(async () => {
-        setLoadingAppeals(true);
+    const loadAppeals = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
+        if (mode === 'initial' && !hasLoadedRef.current) {
+            setInitializingAppeals(true);
+        }
         try {
             const token = await getToken();
             if (!token) {
@@ -60,13 +63,14 @@ export default function BanAppealScreen({ navigation, route }: Props) {
         } catch {
             setAppeals([]);
         } finally {
-            setLoadingAppeals(false);
+            hasLoadedRef.current = true;
+            setInitializingAppeals(false);
         }
     }, [getToken]);
 
     useFocusEffect(
         useCallback(() => {
-            void loadAppeals();
+            void loadAppeals(hasLoadedRef.current ? 'refresh' : 'initial');
         }, [loadAppeals]),
     );
 
@@ -147,7 +151,7 @@ export default function BanAppealScreen({ navigation, route }: Props) {
                         {t('banAppeal.subtitle')}
                     </Text>
 
-                    {loadingAppeals ? (
+                    {initializingAppeals && !hasLoadedRef.current ? (
                         <View style={styles.centerRow}>
                             <ActivityIndicator color="#a78bfa" />
                         </View>
@@ -203,7 +207,7 @@ export default function BanAppealScreen({ navigation, route }: Props) {
                         </View>
                     ) : null}
 
-                    {!loadingAppeals && !showResolved && !showPending ? (
+                    {!initializingAppeals && !showResolved && !showPending ? (
                         <>
                             <Text style={styles.label}>{t('banAppeal.messageLabel')}</Text>
                             <TextInput

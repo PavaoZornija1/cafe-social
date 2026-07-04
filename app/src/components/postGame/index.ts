@@ -1,2 +1,2 @@
 export { default as PostGameCarouselHost } from './PostGameCarouselHost';
-export { showPostGameCarousel, hidePostGameCarousel } from './postGameStore';
+export { showPostGameCarousel, hidePostGameCarousel, subscribePostGameDismiss } from './postGameStore';

@@ -56,12 +56,13 @@ export default function PartyDetailScreen({ navigation, route }: Props) {
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
 
-  const [loading, setLoading] = useState(true);
+  const [initializing, setInitializing] = useState(true);
   const [party, setParty] = useState<Party | null>(null);
   const [meId, setMeId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [playContext, setPlayContext] = useState<PlayContext | null>(null);
+  const hasLoadedRef = useRef(false);
 
   const openPartyPlay = useCallback(
     async (screen: 'WordLobby' | 'BrawlerLobby') => {
@@ -94,9 +95,11 @@ export default function PartyDetailScreen({ navigation, route }: Props) {
     }
   }, []);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
     if (!isLoaded) return;
-    setLoading(true);
+    if (mode === 'initial' && !hasLoadedRef.current) {
+      setInitializing(true);
+    }
     try {
       const token = await getTokenRef.current();
       if (!token) {
@@ -112,13 +115,14 @@ export default function PartyDetailScreen({ navigation, route }: Props) {
     } catch {
       setParty(null);
     } finally {
-      setLoading(false);
+      hasLoadedRef.current = true;
+      setInitializing(false);
     }
   }, [isLoaded, partyId]);
 
   useFocusEffect(
     useCallback(() => {
-      void load();
+      void load(hasLoadedRef.current ? 'refresh' : 'initial');
       void loadPlayContext();
     }, [load, loadPlayContext]),
   );
@@ -279,7 +283,7 @@ export default function PartyDetailScreen({ navigation, route }: Props) {
 
   const partyTitle = party?.name?.trim() || t('parties.unnamed');
 
-  if (!isLoaded || loading) {
+  if (!isLoaded || (initializing && !hasLoadedRef.current)) {
     return (
       <SafeAreaView style={styles.safe}>
         <ScreenHeader

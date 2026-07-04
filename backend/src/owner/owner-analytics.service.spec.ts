@@ -12,6 +12,7 @@ describe('OwnerAnalyticsService', () => {
     venueFeedEvent: { findMany: jest.fn() },
     venueFunnelEvent: { findMany: jest.fn() },
     venuePerk: { findMany: jest.fn() },
+    venueOfferRedemption: { count: jest.fn() },
     proximityArrivalPushLog: { count: jest.fn() },
     playerVenueGeofenceEvent: { count: jest.fn() },
     playerVenuePolygonSession: { findMany: jest.fn() },
@@ -37,6 +38,7 @@ describe('OwnerAnalyticsService', () => {
     prisma.venuePerk.findMany.mockResolvedValue([
       { id: 'perk1', title: 'Free coffee', code: 'COFFEE' },
     ]);
+    prisma.venueOfferRedemption.count.mockResolvedValue(0);
     prisma.proximityArrivalPushLog.count.mockResolvedValue(0);
     prisma.playerVenueGeofenceEvent.count.mockResolvedValue(0);
     prisma.playerVenuePolygonSession.findMany.mockResolvedValue([]);

@@ -22,3 +22,11 @@ export async function invalidateVenueSession(
 export async function invalidateMeSummary(queryClient: QueryClient): Promise<void> {
   await queryClient.invalidateQueries({ queryKey: queryKeys.me.summary() });
 }
+
+/** After post-game carousel dismiss — refresh XP, perks, challenges, and quests. */
+export async function invalidatePostGameProgress(queryClient: QueryClient): Promise<void> {
+  await invalidateMeSummary(queryClient);
+  await queryClient.invalidateQueries({ queryKey: queryKeys.me.engagement() });
+  await queryClient.invalidateQueries({ queryKey: queryKeys.venue.all });
+  await queryClient.invalidateQueries({ queryKey: queryKeys.quests.all });
+}

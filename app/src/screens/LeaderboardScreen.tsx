@@ -73,6 +73,7 @@ export default function LeaderboardScreen({ navigation, route }: Props) {
 
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
+  const hasLoadedRef = useRef(false);
 
   useEffect(() => {
     if (paramScope) setScope(paramScope);
@@ -88,9 +89,9 @@ export default function LeaderboardScreen({ navigation, route }: Props) {
       if (!isLoaded) return;
 
       const hasRows = rowsRef.current.length > 0;
-      if (mode === 'initial' && !hasRows) {
+      if (mode === 'initial' && !hasLoadedRef.current) {
         setInitializing(true);
-      } else if (mode === 'refresh') {
+      } else if (mode === 'refresh' || (mode === 'initial' && hasLoadedRef.current)) {
         setRefreshing(true);
       }
       setHint(null);
@@ -171,11 +172,12 @@ export default function LeaderboardScreen({ navigation, route }: Props) {
 
         setRows(Array.isArray(board) ? board : []);
       } catch {
-        if (!hasRows) {
+        if (!hasLoadedRef.current) {
           setRows([]);
           setHint(tRef.current('leaderboard.loadError'));
         }
       } finally {
+        hasLoadedRef.current = true;
         setInitializing(false);
         setRefreshing(false);
       }
@@ -185,19 +187,19 @@ export default function LeaderboardScreen({ navigation, route }: Props) {
 
   useEffect(() => {
     if (!isLoaded) return;
-    void load('initial');
-  }, [isLoaded, load]);
+    void load(hasLoadedRef.current ? 'refresh' : 'initial');
+  }, [isLoaded, scope, load]);
 
   useFocusEffect(
     useCallback(() => {
-      if (rowsRef.current.length > 0) {
+      if (hasLoadedRef.current) {
         void load('refresh');
       }
     }, [load]),
   );
 
   const handleRefresh = useCallback(() => {
-    void load(rowsRef.current.length > 0 ? 'refresh' : 'initial');
+    void load('refresh');
   }, [load]);
 
   const scopes: { key: Scope; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [

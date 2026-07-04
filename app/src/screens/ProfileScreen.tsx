@@ -62,20 +62,24 @@ export default function ProfileScreen({ navigation }: Props) {
 
   const meQuery = useMeSummaryQuery();
   const summary = meQuery.data ?? null;
-  const [perkLoading, setPerkLoading] = useState(true);
+  const [perkInitializing, setPerkInitializing] = useState(true);
   const [perkPayload, setPerkPayload] = useState<PerkRedemptionsPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
-  const loading = meQuery.isLoading || perkLoading;
+  const hasLoadedPerksRef = useRef(false);
+  const showInitialSpinner =
+    (meQuery.isLoading && !meQuery.data) || (perkInitializing && !hasLoadedPerksRef.current);
 
   const displayName =
     user?.firstName ||
     user?.primaryEmailAddress?.emailAddress ||
     t('home.guestName');
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
     if (!isLoaded) return;
-    setPerkLoading(true);
+    if (mode === 'initial' && !hasLoadedPerksRef.current) {
+      setPerkInitializing(true);
+    }
     setError(null);
     try {
       const token = await getTokenRef.current();
@@ -128,13 +132,14 @@ export default function ProfileScreen({ navigation }: Props) {
       setError(t('profile.loadError'));
       setPerkPayload(null);
     } finally {
-      setPerkLoading(false);
+      hasLoadedPerksRef.current = true;
+      setPerkInitializing(false);
     }
-  }, [isLoaded, t]);
+  }, [isLoaded, meQuery, t]);
 
   useFocusEffect(
     useCallback(() => {
-      void load();
+      void load(hasLoadedPerksRef.current ? 'refresh' : 'initial');
     }, [load]),
   );
 
@@ -220,7 +225,7 @@ export default function ProfileScreen({ navigation }: Props) {
       ) : null}
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {loading && !summary ? (
+        {showInitialSpinner && !summary ? (
           <ActivityIndicator color={colors.primary} style={styles.loader} />
         ) : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -281,7 +286,7 @@ export default function ProfileScreen({ navigation }: Props) {
         ) : null}
 
         <Text style={styles.sectionTitle}>{t('profile.recentPerksTitle')}</Text>
-        {!loading && redemptionItems.length === 0 ? (
+        {!showInitialSpinner && redemptionItems.length === 0 ? (
           <Text style={styles.muted}>{t('profile.recentPerksEmpty')}</Text>
         ) : (
           redemptionItems.slice(0, 5).map((row) => (

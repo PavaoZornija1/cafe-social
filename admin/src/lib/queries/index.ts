@@ -521,7 +521,13 @@ export function useVenuePerksQuery(
     queryKey: queryKeys.admin.perks(venueId ?? ""),
     queryFn: () =>
       portalFetch<
-        { id: string; code: string; title: string; redemptionCount: number }[]
+        {
+          id: string;
+          code: string;
+          title: string;
+          redemptionCount: number;
+          autoRedeem: boolean;
+        }[]
       >(getToken, `/admin/venues/${venueId}/perks`, { method: "GET" }),
     enabled: Boolean(enabled && venueId),
   });
@@ -765,6 +771,7 @@ export function useStaffRedemptionsQuery(
         redemptions: {
           redemptionId: string;
           staffVerificationCode: string;
+          playerUsername: string;
           issuedAt: string;
           redeemedAt: string | null;
           expiresAt: string;

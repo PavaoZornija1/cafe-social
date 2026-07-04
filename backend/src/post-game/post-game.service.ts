@@ -133,42 +133,56 @@ export class PostGameService {
     if (!session || session.status !== GameSessionStatus.FINISHED) return;
     if (session.postGameProcessedAt) return;
 
-    const participants = await this.prisma.gameParticipant.findMany({
-      where: { sessionId, isBot: false, playerId: { not: null } },
-      select: { playerId: true },
+    const claim = await this.prisma.gameSession.updateMany({
+      where: {
+        id: sessionId,
+        status: GameSessionStatus.FINISHED,
+        postGameProcessedAt: null,
+      },
+      data: { postGameProcessedAt: new Date() },
     });
-    const processStartedAt = new Date();
-    const tierBeforeByPlayer: Record<string, TierProgressDto> = {};
-    const questsBeforeByPlayer: Record<string, Set<string>> = {};
-    await Promise.all(
-      participants.map(async (row) => {
-        const playerId = row.playerId!;
-        tierBeforeByPlayer[playerId] = await this.tierProgressForPlayer(playerId);
-        questsBeforeByPlayer[playerId] = await this.platformQuests.claimableQuestKeySet(playerId);
-      }),
-    );
+    if (claim.count === 0) return;
 
-    const xpByPlayer = await this.gameXp.tryAwardSessionWinXp(sessionId);
-    const challengeResultsByPlayer = await this.bumpChallengesForGameSession(sessionId);
-    const payloads = await this.buildAllGameSessionPayloads(
-      sessionId,
-      xpByPlayer,
-      challengeResultsByPlayer,
-      { processStartedAt, tierBeforeByPlayer, questsBeforeByPlayer },
-    );
-
-    await this.prisma.$transaction(async (tx) => {
-      for (const [participantId, payload] of Object.entries(payloads)) {
-        await tx.gameParticipant.update({
-          where: { id: participantId },
-          data: { postGameSnapshot: payload as unknown as Prisma.InputJsonValue },
-        });
-      }
-      await tx.gameSession.update({
-        where: { id: sessionId },
-        data: { postGameProcessedAt: new Date() },
+    try {
+      const participants = await this.prisma.gameParticipant.findMany({
+        where: { sessionId, isBot: false, playerId: { not: null } },
+        select: { playerId: true },
       });
-    });
+      const processStartedAt = new Date();
+      const tierBeforeByPlayer: Record<string, TierProgressDto> = {};
+      const questsBeforeByPlayer: Record<string, Set<string>> = {};
+      await Promise.all(
+        participants.map(async (row) => {
+          const playerId = row.playerId!;
+          tierBeforeByPlayer[playerId] = await this.tierProgressForPlayer(playerId);
+          questsBeforeByPlayer[playerId] = await this.platformQuests.claimableQuestKeySet(playerId);
+        }),
+      );
+
+      const xpByPlayer = await this.gameXp.tryAwardSessionWinXp(sessionId);
+      const challengeResultsByPlayer = await this.bumpChallengesForGameSession(sessionId);
+      const payloads = await this.buildAllGameSessionPayloads(
+        sessionId,
+        xpByPlayer,
+        challengeResultsByPlayer,
+        { processStartedAt, tierBeforeByPlayer, questsBeforeByPlayer },
+      );
+
+      await this.prisma.$transaction(async (tx) => {
+        for (const [participantId, payload] of Object.entries(payloads)) {
+          await tx.gameParticipant.update({
+            where: { id: participantId },
+            data: { postGameSnapshot: payload as unknown as Prisma.InputJsonValue },
+          });
+        }
+      });
+    } catch (err) {
+      await this.prisma.gameSession.updateMany({
+        where: { id: sessionId, postGameProcessedAt: { not: null } },
+        data: { postGameProcessedAt: null },
+      });
+      throw err;
+    }
   }
 
   private async bumpChallengesForGameSession(

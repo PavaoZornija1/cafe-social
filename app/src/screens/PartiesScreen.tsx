@@ -57,16 +57,19 @@ export default function PartiesScreen({ navigation }: Props) {
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
 
-  const [loading, setLoading] = useState(true);
+  const [initializing, setInitializing] = useState(true);
   const [parties, setParties] = useState<PartyListItem[]>([]);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [createError, setCreateError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const hasLoadedRef = useRef(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
     if (!isLoaded) return;
-    setLoading(true);
+    if (mode === 'initial' && !hasLoadedRef.current) {
+      setInitializing(true);
+    }
     setLoadError(null);
     try {
       const token = await getTokenRef.current();
@@ -80,13 +83,14 @@ export default function PartiesScreen({ navigation }: Props) {
       setParties([]);
       setLoadError((e as Error).message || t('parties.loadFailed'));
     } finally {
-      setLoading(false);
+      hasLoadedRef.current = true;
+      setInitializing(false);
     }
   }, [isLoaded, t]);
 
   useFocusEffect(
     useCallback(() => {
-      void load();
+      void load(hasLoadedRef.current ? 'refresh' : 'initial');
     }, [load]),
   );
 
@@ -218,14 +222,14 @@ export default function PartiesScreen({ navigation }: Props) {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t('parties.yourParties')}</Text>
-          {!loading && parties.length > 0 ? (
+          {!initializing && parties.length > 0 ? (
             <View style={styles.countPill}>
               <Text style={styles.countPillText}>{parties.length}</Text>
             </View>
           ) : null}
         </View>
 
-        {loading ? (
+        {initializing && !hasLoadedRef.current ? (
           <View style={styles.listLoading}>
             <ActivityIndicator color={colors.primary} />
           </View>
@@ -236,7 +240,7 @@ export default function PartiesScreen({ navigation }: Props) {
             <Text style={styles.emptyBody}>{loadError}</Text>
             <Pressable
               style={({ pressed }) => [styles.retryBtn, pressed && styles.pressed]}
-              onPress={() => void load()}
+              onPress={() => void load('initial')}
             >
               <Text style={styles.retryBtnText}>{t('common.retry')}</Text>
             </Pressable>
