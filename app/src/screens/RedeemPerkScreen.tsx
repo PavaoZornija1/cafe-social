@@ -29,7 +29,7 @@ import {
   type VenueRedeemableReward,
 } from '../lib/venuePerksApi';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
-import { useDetectedVenueQuery } from '../query';
+import { useDetectedVenueQuery, useVenueSession } from '../query';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
@@ -101,6 +101,7 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
 
   const detectQuery = useDetectedVenueQuery({ refetchOnScreenFocus: false });
   const routeVenueId = route.params?.venueId ?? null;
+  const session = useVenueSession({ routeVenueId });
   const detectRef = useRef(detectQuery);
   detectRef.current = detectQuery;
 
@@ -194,6 +195,10 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
   }, [loadPerks]);
 
   const redeem = async () => {
+    if (!session.canDoVenueActions) {
+      Alert.alert(t('common.error'), t('home.playLockedHint'));
+      return;
+    }
     const raw = code.trim().toUpperCase();
     if (!raw) {
       Alert.alert(t('common.error'), t('perk.codeRequired'));

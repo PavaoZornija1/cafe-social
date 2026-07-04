@@ -15,7 +15,6 @@ import VenuePlayTimeBar from '../components/VenuePlayTimeBar';
 import type { AppNavigationProps } from '../navigation/screenProps';
 import {
   useAuthToken,
-  useMeSummaryQuery,
   useVenueOffersQuery,
   useVenueSession,
 } from '../query';
@@ -41,17 +40,15 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
     showCheckIn,
     venueLocked,
     venueLockKey,
-    playBlocked,
     canEnterVenueContext,
+    subscriptionActive,
+    canDoVenueActions,
     isLoading: accessLoading,
   } = session;
-  const hasVenueContext = Boolean(playVenueId);
 
   const { getToken } = useAuthToken();
-  const meQuery = useMeSummaryQuery({ refetchOnScreenFocus: false });
-  const subscriptionActive = Boolean(meQuery.data?.subscriptionActive);
 
-  const offersQuery = useVenueOffersQuery(!playBlocked ? playVenueId : null);
+  const offersQuery = useVenueOffersQuery(playVenueId);
   const activeXpMultiplier = useMemo(() => {
     const offers = offersQuery.data ?? [];
     return Math.max(
@@ -67,6 +64,7 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
   };
 
   const openWordLobby = () => {
+    if (!canDoVenueActions) return;
     navigation.navigate('WordLobby', {
       ...(playVenueId ? { venueId: playVenueId } : {}),
       ...(challengeId ? { challengeId } : {}),
@@ -74,13 +72,13 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
   };
 
   const openBrawlerLobby = () => {
+    if (!canDoVenueActions) return;
     navigation.navigate('BrawlerLobby', playVenueId ? { venueId: playVenueId } : {});
   };
 
-  const brawlerBlocked =
-    playBlocked || accessLoading || (!hasVenueContext && !subscriptionActive);
-  const wordBlocked =
-    playBlocked || accessLoading || (!canEnterVenueContext && !subscriptionActive);
+  const playBlocked = accessLoading || !canDoVenueActions;
+  const wordBlocked = playBlocked;
+  const brawlerBlocked = playBlocked;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -121,7 +119,16 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
           </View>
         ) : null}
 
-        {!playBlocked && activeXpMultiplier > 1 ? (
+        {!canDoVenueActions && !accessLoading && !venueLocked ? (
+          <View style={styles.lockBanner}>
+            <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+            <Text style={[styles.lockBannerText, { color: colors.textSecondary }]}>
+              {t('home.playLockedHint')}
+            </Text>
+          </View>
+        ) : null}
+
+        {canDoVenueActions && activeXpMultiplier > 1 ? (
           <View style={styles.xpBoostBanner}>
             <Ionicons name="flash" size={18} color={colors.xp} />
             <Text style={styles.xpBoostText}>
@@ -135,13 +142,13 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
           <Text style={styles.heroSub}>
             {venueLocked
               ? t('chooseGame.heroLocked')
-              : hasVenueContext
+              : playVenueId
                 ? t('chooseGame.heroVenue')
                 : t('chooseGame.heroGlobal')}
           </Text>
         </View>
 
-        {playVenueId && !playBlocked ? (
+        {playVenueId && canDoVenueActions ? (
           <VenuePlayTimeBar
             venueId={playVenueId}
             getToken={async () => (await getToken()) ?? null}
@@ -200,7 +207,7 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
           <Text style={[styles.cardMeta, styles.brawlerMeta]}>
             {accessLoading
               ? t('common.loading')
-              : hasVenueContext
+              : playVenueId
                 ? t('chooseGame.brawlerCta')
                 : subscriptionActive
                   ? t('chooseGame.brawlerCtaGlobal')

@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -230,7 +231,11 @@ export default function ChallengesScreen({ navigation, route }: Props) {
 
   const openPlayForChallenge = useCallback(
     (source: AutoProgressSource) => {
-      const venueId = venue?.id;
+      if (!session.canDoVenueActions) {
+        Alert.alert(t('home.playLockedHint'));
+        return;
+      }
+      const venueId = venue?.id ?? session.venueScopedId ?? undefined;
       switch (source) {
         case 'WORD_MATCH':
           navigation.navigate('WordLobby', { venueId });
@@ -249,7 +254,7 @@ export default function ChallengesScreen({ navigation, route }: Props) {
           break;
       }
     },
-    [navigation, venue?.id],
+    [navigation, session.canDoVenueActions, session.venueScopedId, t, venue?.id],
   );
 
   const venueLocked = isVenuePartnerLocked(venueLock);
@@ -493,7 +498,7 @@ export default function ChallengesScreen({ navigation, route }: Props) {
                   </View>
                 ) : null}
 
-                {playLabel && !c.isCompleted && isActive ? (
+                {playLabel && !c.isCompleted && isActive && session.canDoVenueActions ? (
                   <Pressable
                     onPress={() => openPlayForChallenge(progressSource)}
                     style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
@@ -501,7 +506,8 @@ export default function ChallengesScreen({ navigation, route }: Props) {
                     <Text style={styles.actionText}>{t(playLabel)}</Text>
                   </Pressable>
                 ) : c.isCompleted &&
-                  c.rewardRedemptionStatus === 'REDEEMABLE' ? (
+                  c.rewardRedemptionStatus === 'REDEEMABLE' &&
+                  session.canDoVenueActions ? (
                   <Pressable
                     onPress={() => navigation.navigate('PerkWallet')}
                     style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}

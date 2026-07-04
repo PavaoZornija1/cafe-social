@@ -2,9 +2,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 
 import { needsExplicitCheckInBanner } from '../../lib/explicitCheckIn';
+import { buildVenueActionAccess } from '../../lib/venueActionAccess';
 import { isVenuePartnerLocked, venueLockMessageKey } from '../../lib/venueLock';
 import { invalidateVenueSession } from '../invalidateVenueSession';
 import { useDetectedVenueQuery } from './useDetectedVenueQuery';
+import { useMeSummaryQuery } from './useMeSummaryQuery';
 import { useVenueAccessQuery } from './useVenueAccessQuery';
 
 export type UseVenueSessionOptions = {
@@ -28,9 +30,13 @@ export function useVenueSession(options?: UseVenueSessionOptions) {
   const coords = detect.data?.coords ?? null;
 
   const accessQuery = useVenueAccessQuery(playVenueId, coords);
+  const meQuery = useMeSummaryQuery({ refetchOnScreenFocus: false });
 
   const access = accessQuery.data ?? null;
   const detectedVenue = detect.data?.venue ?? null;
+  const subscriptionActive = Boolean(
+    meQuery.data?.subscriptionActive ?? access?.subscriptionActive,
+  );
 
   const showCheckIn = needsExplicitCheckInBanner(access);
   const venueLocked =
@@ -42,6 +48,14 @@ export function useVenueSession(options?: UseVenueSessionOptions) {
   const canEnterVenueContext = Boolean(
     playVenueId && access?.canEnterVenueContext && !venueLocked,
   );
+  const { canDoVenueActions, venueScopedId } = buildVenueActionAccess({
+    subscriptionActive,
+    canEnterVenueContext,
+    playVenueId,
+    venueLocked,
+    isPhysicallyAtVenue: access?.isPhysicallyAtVenue,
+    bannedFromVenue: access?.bannedFromVenue,
+  });
 
   const isLoading =
     detect.isLoading || (Boolean(playVenueId) && accessQuery.isLoading);
@@ -68,6 +82,9 @@ export function useVenueSession(options?: UseVenueSessionOptions) {
       venueLockKey,
       playBlocked,
       canEnterVenueContext,
+      subscriptionActive,
+      canDoVenueActions,
+      venueScopedId,
       isLoading,
       isFetching,
       detectError: detect.error,
@@ -86,6 +103,9 @@ export function useVenueSession(options?: UseVenueSessionOptions) {
       venueLockKey,
       playBlocked,
       canEnterVenueContext,
+      subscriptionActive,
+      canDoVenueActions,
+      venueScopedId,
       isLoading,
       isFetching,
       detect.error,

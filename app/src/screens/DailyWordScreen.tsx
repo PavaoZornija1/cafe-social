@@ -22,6 +22,7 @@ import { fetchDetectedVenue } from '../lib/venueDetectClient';
 import { emitPlatformQuestProgressChanged } from '../lib/platformQuestEvents';
 import { toApiWordLanguage } from '../lib/wordDeckLanguage';
 import type { RootStackParamList } from '../navigation/type';
+import { useVenueSession } from '../query';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
@@ -59,6 +60,7 @@ export default function DailyWordScreen({ navigation }: Props) {
   const { getToken } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
+  const session = useVenueSession();
 
   const [bootstrapping, setBootstrapping] = useState(true);
   const [scope, setScope] = useState<'global' | 'venue'>('venue');
@@ -127,9 +129,11 @@ export default function DailyWordScreen({ navigation }: Props) {
     setError(null);
 
     try {
-      if (scope === 'venue' && !venueGps) {
+      if (scope === 'venue' && (!venueGps || !session.canDoVenueActions)) {
         setState(null);
-        setError(t('dailyWord.needVenue'));
+        setError(
+          venueGps ? t('home.playLockedHint') : t('dailyWord.needVenue'),
+        );
         return;
       }
       if (scope === 'global' && !subscriptionActive) {
@@ -159,7 +163,7 @@ export default function DailyWordScreen({ navigation }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [bootstrapping, scope, subscriptionActive, venueGps, t, i18n.language]);
+  }, [bootstrapping, scope, session.canDoVenueActions, subscriptionActive, venueGps, t, i18n.language]);
 
   useEffect(() => {
     void loadDaily();
@@ -167,6 +171,14 @@ export default function DailyWordScreen({ navigation }: Props) {
 
   const onSubmit = async () => {
     if (!state || submitting) return;
+    if (scope === 'venue' && !session.canDoVenueActions) {
+      setError(t('home.playLockedHint'));
+      return;
+    }
+    if (scope === 'global' && !subscriptionActive) {
+      setError(t('dailyWord.globalRequiresSub'));
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {

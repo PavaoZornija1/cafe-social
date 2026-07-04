@@ -19,6 +19,7 @@ import LinearGradientFill from '../components/ui/LinearGradientFill';
 import { apiPost } from '../lib/api';
 import { triggerFeedback } from '../lib/feedback';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
+import { useVenueSession } from '../query';
 import type { RootStackParamList } from '../navigation/type';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
@@ -31,12 +32,17 @@ export default function WordMatchJoinScreen({ navigation, route }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
   const { venueId, challengeId } = route.params ?? {};
+  const session = useVenueSession({ routeVenueId: venueId });
   const { getToken, isLoaded } = useAuth();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const onJoin = async () => {
+    if (!session.canDoVenueActions) {
+      setError(t('home.playLockedHint'));
+      return;
+    }
     setError(null);
     const trimmed = code.trim().toUpperCase();
     if (trimmed.length < 4) {

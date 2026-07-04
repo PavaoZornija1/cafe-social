@@ -27,7 +27,7 @@ import type {
 } from '../lib/venuePerksApi';
 import { isReceiptSubmissionsEnabled } from '../lib/receiptSubmissionsFeature';
 import { isLikelyNetworkFailure } from '../lib/isNetworkError';
-import { useVenueHubQuery, useVenuePublicCardQuery } from '../query';
+import { useVenueHubQuery, useVenuePublicCardQuery, useVenueSession } from '../query';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
@@ -164,6 +164,8 @@ export default function VenueHubScreen({ navigation, route }: Props) {
 
     const cardQuery = useVenuePublicCardQuery(venueId);
     const hubQuery = useVenueHubQuery(isSignedIn ? venueId : null);
+    const session = useVenueSession({ routeVenueId: venueId });
+    const canDoVenueActions = session.canDoVenueActions;
 
     const publicCard = (cardQuery.data as VenuePublicCard | undefined) ?? null;
     const loadError = cardQuery.isError
@@ -287,7 +289,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                                 </View>
                             </View>
                             <View style={styles.quickActions}>
-                                {isSignedIn && !venueLocked ? (
+                                {isSignedIn && !venueLocked && canDoVenueActions ? (
                                     <Pressable
                                         style={({ pressed }) => [styles.quickChip, pressed && styles.ctaPressed]}
                                         onPress={() => navigation.navigate('ChooseGame', { venueId })}
@@ -522,9 +524,11 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                             <Text style={styles.muted}>
                                 {venueLocked && venueLockKey
                                     ? t(venueLockKey)
-                                    : t('venueHub.playGamesHint')}
+                                    : !canDoVenueActions
+                                      ? t('home.playLockedHint')
+                                      : t('venueHub.playGamesHint')}
                             </Text>
-                            {!venueLocked ? (
+                            {!venueLocked && canDoVenueActions ? (
                                 <Pressable
                                     style={({ pressed }) => [
                                         styles.pillBtn,

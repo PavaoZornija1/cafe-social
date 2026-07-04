@@ -14,7 +14,7 @@ import VenuePlayTimeBar from '../components/VenuePlayTimeBar';
 
 import type { RootStackParamList } from '../navigation/type';
 import { toApiWordLanguage } from '../lib/wordDeckLanguage';
-import { useMeSummaryQuery, useVenueSession } from '../query';
+import { useVenueSession } from '../query';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
@@ -45,15 +45,14 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
     showCheckIn,
     venueLocked,
     venueLockKey,
-    playBlocked,
     canEnterVenueContext,
+    subscriptionActive,
+    canDoVenueActions,
+    venueScopedId,
     isLoading: accessLoading,
   } = session;
-  const meQuery = useMeSummaryQuery({ refetchOnScreenFocus: false });
-  const subscriptionActive = Boolean(meQuery.data?.subscriptionActive);
-  const playAllowed =
-    !playBlocked && !accessLoading && (canEnterVenueContext || subscriptionActive);
-  const activeVenueId = canEnterVenueContext ? playVenueId : null;
+  const playAllowed = !accessLoading && canDoVenueActions;
+  const activeVenueId = venueScopedId;
 
   const [difficulty, setDifficulty] = useState<Difficulty>('easy');
   const [playKind, setPlayKind] = useState<PlayKind>('solo');
@@ -193,7 +192,7 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
           </View>
         ) : null}
 
-        {!playAllowed && !playBlocked && !accessLoading ? (
+        {!playAllowed && !accessLoading ? (
           <View style={styles.lockBanner}>
             <Ionicons name="location-outline" size={18} color={colors.error} />
             <Text style={styles.lockBannerText}>{t('wordLobby.needVenueCheckIn')}</Text>

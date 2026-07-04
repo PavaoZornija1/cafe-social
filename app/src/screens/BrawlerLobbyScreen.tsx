@@ -15,8 +15,8 @@ import {
   View,
 } from 'react-native';
 import { apiGet, apiPost } from '../lib/api';
-import type { MeSummaryDto } from '../lib/meSummary';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
+import { useVenueSession } from '../query';
 import {
   getHeroLobbyAvatarSource,
   isArenaSpriteHero,
@@ -61,6 +61,8 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const venueId = route.params?.venueId;
   const partyId = route.params?.partyId;
+  const session = useVenueSession({ routeVenueId: venueId });
+  const { canDoVenueActions, subscriptionActive, venueScopedId } = session;
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
@@ -75,7 +77,6 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
   const [soloDifficulty, setSoloDifficulty] = useState<'easy' | 'normal' | 'hard'>('normal');
   /** Venue queue: casual (false) vs ranked (true). */
   const [queueRanked, setQueueRanked] = useState(false);
-  const [subscriptionActive, setSubscriptionActive] = useState(false);
   const [powerups, setPowerups] = useState<BrawlerPowerupDef[]>([]);
 
   useEffect(() => {
@@ -108,23 +109,8 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
     };
   }, [isLoaded]);
 
-  useEffect(() => {
-    if (!isLoaded) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const token = await getTokenRef.current();
-        if (!token) return;
-        const summary = await apiGet<MeSummaryDto>('/players/me/summary', token);
-        if (!cancelled) setSubscriptionActive(Boolean(summary.subscriptionActive));
-      } catch {
-        // Non-blocking — without a known sub, we just hide the global CTA.
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isLoaded]);
+  const matchmakingAvailable = canDoVenueActions && Boolean(venueScopedId || subscriptionActive);
+  const practiceDisabled = !canDoVenueActions || !selectedHeroId || creating || loadingHeroes;
 
   const selectedHero = useMemo(
     () => heroes.find((h) => h.id === selectedHeroId) ?? null,
@@ -140,6 +126,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
   };
 
   const onStartPracticeVsBot = async () => {
+    if (!canDoVenueActions) return;
     if (!selectedHeroId) return;
     if (!isLoaded) return;
 
@@ -215,6 +202,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
   };
 
   const onFindMatch = () => {
+    if (!canDoVenueActions) return;
     if (!selectedHeroId) return;
     if (!isArenaSpriteHero(selectedHeroId)) {
       Alert.alert(t('brawlerLobby.heroGateTitle'), t('brawlerLobby.heroGateBody'));
@@ -240,6 +228,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
   };
 
   const onStartSolo = () => {
+    if (!canDoVenueActions) return;
     if (!selectedHeroId) return;
     if (!isArenaSpriteHero(selectedHeroId)) {
       Alert.alert(t('brawlerLobby.heroGateTitle'), t('brawlerLobby.heroGateBody'));
@@ -250,6 +239,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
   };
 
   const startSoloMatch = () => {
+    if (!canDoVenueActions) return;
     if (!selectedHeroId) return;
     const heroStats: BrawlerArenaHeroStats | undefined = selectedHero
       ? {
@@ -395,7 +385,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
           powerups={powerups}
         />
 
-        {venueId || subscriptionActive ? (
+        {matchmakingAvailable ? (
           <View style={styles.rankCard}>
             <Text style={styles.sectionLabel}>{t('brawlerLobby.queueRankTitle')}</Text>
             <View style={styles.rankRow}>
@@ -428,11 +418,11 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
             <Text style={styles.rankHint}>{t('brawlerLobby.queueGlobalHint')}</Text>
             <Pressable
               onPress={onFindMatch}
-              disabled={!selectedHeroId || creating || loadingHeroes}
+              disabled={practiceDisabled}
               style={({ pressed }) => [
                 styles.queueCta,
                 pressed && styles.pressed,
-                (!selectedHeroId || creating || loadingHeroes) && styles.ctaDisabled,
+                practiceDisabled && styles.ctaDisabled,
               ]}
             >
               <Text style={styles.queueCtaText}>{t('brawlerLobby.findMatch')}</Text>
@@ -441,6 +431,10 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
         ) : (
           <Text style={styles.venueHint}>{t('brawlerLobby.venueRequiredQueue')}</Text>
         )}
+
+        {!canDoVenueActions ? (
+          <Text style={styles.venueHint}>{t('home.playLockedHint')}</Text>
+        ) : null}
 
         <View style={styles.rosterCard}>
           <Text style={styles.sectionLabel}>{t('brawlerLobby.practiceRosterTitle')}</Text>
@@ -451,12 +445,12 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
         <View style={styles.startRow}>
           <Pressable
             onPress={onStartSolo}
-            disabled={!selectedHeroId || creating || loadingHeroes}
+            disabled={practiceDisabled}
             style={({ pressed }) => [
               styles.startButton,
               styles.startButtonSolo,
               pressed && styles.pressed,
-              (!selectedHeroId || creating || loadingHeroes) && styles.ctaDisabled,
+              practiceDisabled && styles.ctaDisabled,
             ]}
           >
             <Text style={styles.startButtonTextDark}>{t('brawlerLobby.soloMode')}</Text>
@@ -465,12 +459,12 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
 
           <Pressable
             onPress={onStartPracticeVsBot}
-            disabled={!selectedHeroId || creating || loadingHeroes}
+            disabled={practiceDisabled}
             style={({ pressed }) => [
               styles.startButton,
               styles.startButtonMulti,
               pressed && styles.pressed,
-              (!selectedHeroId || creating || loadingHeroes) && styles.ctaDisabled,
+              practiceDisabled && styles.ctaDisabled,
             ]}
           >
             <Text style={styles.startButtonText}>

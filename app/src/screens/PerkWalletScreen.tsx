@@ -23,6 +23,7 @@ import {
   type GlobalRewardClaimsPayload,
 } from '../lib/venuePerksApi';
 import { isReceiptSubmissionsEnabled } from '../lib/receiptSubmissionsFeature';
+import { useVenueSession } from '../query';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
@@ -200,6 +201,8 @@ export default function PerkWalletScreen({ navigation }: Props) {
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
+  const session = useVenueSession();
+  const showStaffQr = session.canDoVenueActions;
 
   const [initializing, setInitializing] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -353,7 +356,7 @@ export default function PerkWalletScreen({ navigation }: Props) {
                 styles={styles}
                 colors={colors}
                 navigation={navigation}
-                showQr
+                showQr={showStaffQr}
               />
             ))}
           </>

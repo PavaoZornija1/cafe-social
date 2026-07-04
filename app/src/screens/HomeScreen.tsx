@@ -111,10 +111,12 @@ export default function HomeScreen({ navigation }: Props) {
     const venueLocked = session.venueLocked;
     const venueLockKey = session.venueLockKey;
     const canPlayVenueContext = session.canEnterVenueContext;
-    const canPlayGlobal = Boolean(meSummary?.subscriptionActive);
-    const gamesPlayable = canPlayVenueContext || canPlayGlobal;
+    const canDoVenueActions = session.canDoVenueActions;
+    const venueScopedId = session.venueScopedId;
+    const subscriptionActive = session.subscriptionActive;
+    const gamesPlayable = canDoVenueActions;
     const playDisabledReason =
-      venueLocked && !canPlayGlobal && venueLockKey
+      venueLocked && !subscriptionActive && venueLockKey
         ? t(venueLockKey)
         : !gamesPlayable
           ? t('home.playLockedHint')
@@ -156,11 +158,6 @@ export default function HomeScreen({ navigation }: Props) {
                 return;
             }
 
-            if (!access?.canEnterVenueContext) {
-                setVenueChallenges([]);
-                return;
-            }
-
             if (!isLoaded) return;
 
             try {
@@ -184,10 +181,10 @@ export default function HomeScreen({ navigation }: Props) {
         return () => {
             cancelled = true;
         };
-    }, [access?.canEnterVenueContext, detectedVenue?.id, isLoaded]);
+    }, [detectedVenue?.id, isLoaded]);
 
     const loadRetention = useCallback(async () => {
-        if (!detectedVenue?.id || !access?.canEnterVenueContext || !isLoaded) {
+        if (!detectedVenue?.id || !isLoaded) {
             setVenueDailyWord(null);
             setFriendsAtVenue([]);
             return;
@@ -239,7 +236,7 @@ export default function HomeScreen({ navigation }: Props) {
             setVenueDailyWord(null);
             setFriendsAtVenue([]);
         }
-    }, [access?.canEnterVenueContext, detectCoords, detectedVenue?.id, isLoaded]);
+    }, [detectCoords, detectedVenue?.id, isLoaded]);
 
     useFocusEffect(
         useCallback(() => {
@@ -279,15 +276,15 @@ export default function HomeScreen({ navigation }: Props) {
 
     const handlePlay = () => {
         if (!gamesPlayable) return;
-        if (canPlayVenueContext && detectedVenue?.id) {
+        if (venueScopedId) {
             const activeChallenge = venueChallenges.find((c) => !c.isCompleted) ?? venueChallenges[0];
             navigation.navigate('PlayTab', {
-                venueId: detectedVenue.id,
+                venueId: venueScopedId,
                 challengeId: activeChallenge?.id,
             });
             return;
         }
-        if (canPlayGlobal) {
+        if (subscriptionActive) {
             navigation.navigate('PlayTab', {});
         }
     };
@@ -334,6 +331,11 @@ export default function HomeScreen({ navigation }: Props) {
                 return;
             }
 
+            if (!canDoVenueActions) {
+                Alert.alert(t('home.playLockedHint'));
+                return;
+            }
+
             setClaimingOfferId(offer.id);
             try {
                 const token = await getTokenRef.current();
@@ -362,7 +364,7 @@ export default function HomeScreen({ navigation }: Props) {
                 setClaimingOfferId(null);
             }
         },
-        [detectedVenue, detectCoords, offersQuery, navigation, t],
+        [canDoVenueActions, detectedVenue, detectCoords, offersQuery, navigation, t],
     );
 
     return (
@@ -399,7 +401,7 @@ export default function HomeScreen({ navigation }: Props) {
                     <ExplicitCheckInBanner colors={colors} onScan={openQrCheckIn} />
                 ) : null}
 
-                {venueDailyWord && detectedVenue && access?.canEnterVenueContext ? (
+                {venueDailyWord && detectedVenue ? (
                     <HomeVenueDailyWordChip
                         colors={colors}
                         streak={venueDailyWord.streak}
@@ -439,7 +441,7 @@ export default function HomeScreen({ navigation }: Props) {
                     disabled={loadingVenue || !gamesPlayable}
                     disabledReason={playDisabledReason}
                     activeXpMultiplier={
-                      canPlayVenueContext
+                      venueScopedId || canPlayVenueContext
                         ? Math.max(
                             1,
                             ...rewardOffers
