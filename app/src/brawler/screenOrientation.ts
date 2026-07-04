@@ -2,25 +2,15 @@ import type { NavigationState, PartialState } from '@react-navigation/native';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { Platform } from 'react-native';
 
+import { getActiveRouteName } from '../navigation/getActiveRouteName';
+
+export { getActiveRouteName };
+
 /** Landscape only in the arena; hero lobby (`BrawlerLobby`) stays portrait. */
 const LANDSCAPE_ROUTE_NAMES = new Set(['BrawlerArena']);
 
 /** Skip redundant `lockAsync` calls — repeating them on every nav tick can stall the bridge. */
 let lastArenaOrientationLock: boolean | null = null;
-
-export function getActiveRouteName(
-  state: NavigationState | PartialState<NavigationState> | undefined,
-): string | undefined {
-  if (state == null || state.index === undefined) return undefined;
-  const route = state.routes[state.index];
-  if (!route) return undefined;
-  if (route.state) {
-    return getActiveRouteName(
-      route.state as NavigationState | PartialState<NavigationState>,
-    );
-  }
-  return route.name;
-}
 
 /**
  * Lock landscape only on `BrawlerArena` (after “Enter arena”); portrait elsewhere.

@@ -1,20 +1,20 @@
 import { useAuth } from '@clerk/expo';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import ExplicitCheckInBanner from '../components/home/ExplicitCheckInBanner';
 import ScreenHeader from '../components/ScreenHeader';
 import LobbySection from '../components/word/lobby/LobbySection';
 import { LobbyChipPicker, LobbyModePicker, LobbySegmentedControl } from '../components/word/lobby/LobbyPickers';
 import WordLobbyHero from '../components/word/lobby/WordLobbyHero';
 import VenuePlayTimeBar from '../components/VenuePlayTimeBar';
 
-import { apiGet } from '../lib/api';
-import type { MeSummaryDto } from '../lib/meSummary';
 import type { RootStackParamList } from '../navigation/type';
 import { toApiWordLanguage } from '../lib/wordDeckLanguage';
+import { useMeSummaryQuery, useVenueSession } from '../query';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
@@ -38,7 +38,23 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { t, i18n } = useTranslation();
-  const { venueId, challengeId, partyId } = route.params ?? {};
+  const { venueId: routeVenueId, challengeId, partyId } = route.params ?? {};
+  const session = useVenueSession({ routeVenueId });
+  const {
+    playVenueId,
+    showCheckIn,
+    venueLocked,
+    venueLockKey,
+    playBlocked,
+    canEnterVenueContext,
+    isLoading: accessLoading,
+  } = session;
+  const meQuery = useMeSummaryQuery({ refetchOnScreenFocus: false });
+  const subscriptionActive = Boolean(meQuery.data?.subscriptionActive);
+  const playAllowed =
+    !playBlocked && !accessLoading && (canEnterVenueContext || subscriptionActive);
+  const activeVenueId = canEnterVenueContext ? playVenueId : null;
+
   const [difficulty, setDifficulty] = useState<Difficulty>('easy');
   const [playKind, setPlayKind] = useState<PlayKind>('solo');
   const [versusRanked, setVersusRanked] = useState(false);
@@ -47,28 +63,13 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
     null,
   );
 
-  const { isLoaded, getToken } = useAuth();
+  const { getToken } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
-  const [subscriptionActive, setSubscriptionActive] = useState(false);
 
-  useEffect(() => {
-    if (!isLoaded) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const token = await getTokenRef.current();
-        if (!token) return;
-        const summary = await apiGet<MeSummaryDto>('/players/me/summary', token);
-        if (!cancelled) setSubscriptionActive(Boolean(summary.subscriptionActive));
-      } catch {
-        /* non-blocking */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isLoaded]);
+  const openQrCheckIn = () => {
+    if (playVenueId) navigation.navigate('QrScan', { venueId: playVenueId });
+  };
 
   const difficultyLabel = useMemo(() => {
     if (difficulty === 'easy') return t('wordLobby.easyDesc');
@@ -114,11 +115,12 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
   );
 
   const onPrimary = () => {
+    if (!playAllowed) return;
     if (playKind === 'solo') {
       navigation.navigate('GameLaunch', {
         kind: 'word',
         word: {
-          venueId,
+          ...(activeVenueId ? { venueId: activeVenueId } : {}),
           challengeId,
           difficulty,
           mode: 'solo',
@@ -129,7 +131,7 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
       return;
     }
     navigation.navigate('WordMatchWait', {
-      venueId,
+      ...(activeVenueId ? { venueId: activeVenueId } : {}),
       challengeId,
       partyId,
       mode: playKind,
@@ -142,9 +144,10 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
   };
 
   const onFindMatch = () => {
+    if (!playAllowed) return;
     if (playKind !== 'coop' && playKind !== 'versus') return;
     navigation.navigate('WordVenueQueue', {
-      ...(venueId ? { venueId } : {}),
+      ...(activeVenueId ? { venueId: activeVenueId } : {}),
       challengeId,
       partyId,
       mode: playKind,
@@ -155,7 +158,11 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
     });
   };
 
-  const heroSubtitle = venueId ? t('wordLobby.venueLineShort') : t('wordLobby.globalLine');
+  const heroSubtitle = canEnterVenueContext
+    ? t('wordLobby.venueLineShort')
+    : subscriptionActive
+      ? t('wordLobby.globalLine')
+      : t('wordLobby.needVenueCheckIn');
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -173,9 +180,29 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
           languageLabel={appDeckLabel}
         />
 
-        {venueId ? (
+        {showCheckIn ? (
+          <View style={styles.checkInWrap}>
+            <ExplicitCheckInBanner colors={colors} onScan={openQrCheckIn} />
+          </View>
+        ) : null}
+
+        {venueLocked && venueLockKey ? (
+          <View style={styles.lockBanner}>
+            <Ionicons name="lock-closed" size={18} color={colors.error} />
+            <Text style={styles.lockBannerText}>{t(venueLockKey)}</Text>
+          </View>
+        ) : null}
+
+        {!playAllowed && !playBlocked && !accessLoading ? (
+          <View style={styles.lockBanner}>
+            <Ionicons name="location-outline" size={18} color={colors.error} />
+            <Text style={styles.lockBannerText}>{t('wordLobby.needVenueCheckIn')}</Text>
+          </View>
+        ) : null}
+
+        {activeVenueId ? (
           <VenuePlayTimeBar
-            venueId={venueId}
+            venueId={activeVenueId}
             getToken={() => getTokenRef.current()}
             subscriptionActive={subscriptionActive}
             variant="compact"
@@ -262,7 +289,12 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
 
         <Pressable
           onPress={onPrimary}
-          style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
+          disabled={!playAllowed}
+          style={({ pressed }) => [
+            styles.primaryBtn,
+            !playAllowed && styles.btnDisabled,
+            pressed && styles.pressed,
+          ]}
         >
           <Text style={styles.primaryBtnText}>
             {playKind === 'solo' ? t('wordLobby.startSolo') : t('wordLobby.startRoom')}
@@ -270,7 +302,7 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
           <Ionicons name="arrow-forward" size={18} color={colors.textInverse} />
         </Pressable>
 
-        {(venueId || subscriptionActive) && (playKind === 'coop' || playKind === 'versus') ? (
+        {playAllowed && (activeVenueId || subscriptionActive) && (playKind === 'coop' || playKind === 'versus') ? (
           <>
             <Pressable
               onPress={onFindMatch}
@@ -284,8 +316,19 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
         ) : null}
 
         <Pressable
-          onPress={() => navigation.navigate('WordMatchJoin', { venueId, challengeId })}
-          style={({ pressed }) => [styles.linkBtn, pressed && styles.pressed]}
+          onPress={() => {
+            if (!playAllowed) return;
+            navigation.navigate('WordMatchJoin', {
+              ...(activeVenueId ? { venueId: activeVenueId } : {}),
+              challengeId,
+            });
+          }}
+          disabled={!playAllowed}
+          style={({ pressed }) => [
+            styles.linkBtn,
+            !playAllowed && styles.btnDisabled,
+            pressed && styles.pressed,
+          ]}
         >
           <Ionicons name="key-outline" size={16} color={colors.primary} />
           <Text style={styles.linkBtnText}>{t('wordLobby.joinWithCode')}</Text>
@@ -302,6 +345,25 @@ function createStyles(colors: AppColors) {
       paddingHorizontal: spacing.xl,
       paddingTop: spacing.sm,
       paddingBottom: spacing.xxl,
+    },
+    checkInWrap: { marginBottom: spacing.md },
+    lockBanner: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+      padding: spacing.md,
+      borderRadius: radii.lg,
+      backgroundColor: colors.errorMuted,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.error,
+    },
+    lockBannerText: {
+      flex: 1,
+      color: colors.error,
+      fontSize: 14,
+      fontWeight: '700',
+      lineHeight: 20,
     },
     summaryCard: {
       flexDirection: 'row',
@@ -393,6 +455,7 @@ function createStyles(colors: AppColors) {
       fontWeight: '800',
       fontSize: 14,
     },
+    btnDisabled: { opacity: 0.55 },
     pressed: { opacity: 0.9 },
   });
 }

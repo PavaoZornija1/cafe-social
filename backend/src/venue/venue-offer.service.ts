@@ -113,44 +113,44 @@ export class VenueOfferService {
       };
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      const refreshed = await tx.venueOffer.findUnique({ where: { id: offer.id } });
-      if (!refreshed) throw new NotFoundException('Offer not found');
-      if (isGloballyExhausted(refreshed)) {
-        throw new BadRequestException('This offer is fully redeemed');
-      }
+    const refreshed = await this.prisma.venueOffer.findUnique({ where: { id: offer.id } });
+    if (!refreshed) throw new NotFoundException('Offer not found');
+    if (isGloballyExhausted(refreshed)) {
+      throw new BadRequestException('This offer is fully redeemed');
+    }
 
-      const playerCount = await tx.venueOfferRedemption.count({
+    if (
+      refreshed.maxRedemptionsPerPlayer != null &&
+      refreshed.maxRedemptionsPerPlayer > 1
+    ) {
+      const playerCount = await this.prisma.venueOfferRedemption.count({
         where: { offerId: offer.id, playerId: params.playerId },
       });
-      if (
-        refreshed.maxRedemptionsPerPlayer != null &&
-        playerCount >= refreshed.maxRedemptionsPerPlayer
-      ) {
+      if (playerCount >= refreshed.maxRedemptionsPerPlayer) {
         throw new ConflictException('You already used this offer as many times as allowed');
       }
+    }
 
-      const redemption = await tx.venueOfferRedemption.create({
-        data: {
-          offerId: offer.id,
-          playerId: params.playerId,
-          status: 'PENDING',
-        },
-      });
-
-      await tx.venueOffer.update({
-        where: { id: offer.id },
-        data: { redemptionCount: { increment: 1 } },
-      });
-
-      return {
-        redemptionId: redemption.id,
-        status: redemption.status,
-        title: offer.title,
-        body: offer.body,
-        alreadyClaimed: false,
-      };
+    const redemption = await this.prisma.venueOfferRedemption.create({
+      data: {
+        offerId: offer.id,
+        playerId: params.playerId,
+        status: 'PENDING',
+      },
     });
+
+    await this.prisma.venueOffer.update({
+      where: { id: offer.id },
+      data: { redemptionCount: { increment: 1 } },
+    });
+
+    return {
+      redemptionId: redemption.id,
+      status: redemption.status,
+      title: offer.title,
+      body: offer.body,
+      alreadyClaimed: false,
+    };
   }
 
   /** @deprecated Use claimMemberCardOffer — kept name for route compatibility. */

@@ -100,7 +100,11 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
   getTokenRef.current = getToken;
 
   const detectQuery = useDetectedVenueQuery({ refetchOnScreenFocus: false });
-  const venueId = detectQuery.data?.venue?.id ?? route.params?.venueId ?? null;
+  const routeVenueId = route.params?.venueId ?? null;
+  const detectRef = useRef(detectQuery);
+  detectRef.current = detectQuery;
+
+  const [resolvedVenueId, setResolvedVenueId] = useState<string | null>(routeVenueId);
 
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -118,8 +122,7 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
 
   const loadPerks = useCallback(
     async (mode: 'initial' | 'refresh') => {
-      const hasData = teasersRef.current.length > 0 || myRewardsRef.current.length > 0;
-      if (mode === 'initial' && !hasData) {
+      if (mode === 'initial' && !hasLoadedRef.current) {
         setInitializing(true);
       } else if (mode === 'refresh') {
         setRefreshing(true);
@@ -132,14 +135,17 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
         if (!token) {
           setTeasers([]);
           setMyRewards([]);
+          setResolvedVenueId(null);
           return;
         }
 
-        let activeVenueId = venueId;
+        let activeVenueId = routeVenueId ?? detectRef.current.data?.venue?.id ?? null;
         if (!activeVenueId) {
-          const result = await detectQuery.refetch();
+          const result = await detectRef.current.refetch();
           activeVenueId = result.data?.venue?.id ?? null;
         }
+        setResolvedVenueId(activeVenueId);
+
         if (!activeVenueId) {
           setTeasers([]);
           setMyRewards([]);
@@ -163,19 +169,16 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
         setRefreshing(false);
       }
     },
-    [isLoaded, venueId, detectQuery],
+    [isLoaded, routeVenueId],
   );
 
   const loadPerksRef = useRef(loadPerks);
   loadPerksRef.current = loadPerks;
 
   useEffect(() => {
-    if (!isLoaded) {
-      setInitializing(false);
-      return;
-    }
-    void loadPerks('initial');
-  }, [isLoaded, loadPerks]);
+    if (!isLoaded) return;
+    void loadPerks(hasLoadedRef.current ? 'refresh' : 'initial');
+  }, [isLoaded, routeVenueId, loadPerks]);
 
   useFocusEffect(
     useCallback(() => {
@@ -250,6 +253,17 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
 
   const showInitialSpinner =
     initializing && teasers.length === 0 && myRewards.length === 0 && !lastOk;
+
+  const showNoVenue =
+    !showInitialSpinner && hasLoadedRef.current && !resolvedVenueId;
+
+  const showEmptyPerks =
+    !showInitialSpinner &&
+    !showNoVenue &&
+    hasLoadedRef.current &&
+    teasers.length === 0 &&
+    myRewards.length === 0 &&
+    !lastOk;
 
   const renderStatusPill = (status: string) => {
     const labelKey = statusLabelKey(status);
@@ -391,6 +405,20 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
           </View>
         ) : null}
 
+        {showNoVenue ? (
+          <View style={styles.emptyCard}>
+            <Ionicons name="location-outline" size={32} color={colors.textMuted} />
+            <Text style={styles.emptyText}>{t('perk.needVenue')}</Text>
+          </View>
+        ) : null}
+
+        {showEmptyPerks ? (
+          <View style={styles.emptyCard}>
+            <Ionicons name="gift-outline" size={32} color={colors.textMuted} />
+            <Text style={styles.emptyText}>{t('perk.emptyAtVenue')}</Text>
+          </View>
+        ) : null}
+
         {!showInitialSpinner && teasers.length > 0 ? (
           <>
             <Text style={styles.sectionTitle}>{t('perk.availableAtVenue')}</Text>
@@ -464,9 +492,9 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
                     <Pressable
                       style={({ pressed }) => [styles.submitReceiptBtn, pressed && styles.pressed]}
                       onPress={() => {
-                        if (!venueId) return;
+                        if (!resolvedVenueId) return;
                         navigation.navigate('SubmitReceipt', {
-                          venueId,
+                          venueId: resolvedVenueId,
                           redemptionId: r.redemptionId,
                         });
                       }}
@@ -574,6 +602,27 @@ function createStyles(colors: AppColors) {
       marginBottom: spacing.lg,
       gap: spacing.md,
     },
+    centerBlock: {
+      paddingVertical: spacing.xl,
+      alignItems: 'center',
+    },
+    emptyCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      padding: spacing.xl,
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginBottom: spacing.lg,
+    },
+    emptyText: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      fontWeight: '600',
+      textAlign: 'center',
+      lineHeight: 20,
+    },
     sectionTitle: {
       fontSize: 12,
       fontWeight: '800',
@@ -612,10 +661,6 @@ function createStyles(colors: AppColors) {
     primaryBtnText: { color: colors.textInverse, fontWeight: '900', fontSize: 16 },
     pressed: { opacity: 0.88 },
     disabled: { opacity: 0.6 },
-    centerBlock: {
-      alignItems: 'center',
-      paddingVertical: spacing.xl,
-    },
     codeBox: {
       backgroundColor: colors.bgElevated,
       borderRadius: radii.md,

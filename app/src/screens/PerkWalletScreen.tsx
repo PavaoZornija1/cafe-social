@@ -208,12 +208,12 @@ export default function PerkWalletScreen({ navigation }: Props) {
 
   const payloadRef = useRef(payload);
   payloadRef.current = payload;
+  const hasLoadedRef = useRef(false);
 
   const fetchRewards = useCallback(async (mode: 'initial' | 'refresh') => {
     if (!isLoaded) return;
 
-    const hasData = Boolean(payloadRef.current);
-    if (mode === 'initial' && !hasData) {
+    if (mode === 'initial' && !hasLoadedRef.current) {
       setInitializing(true);
     } else if (mode === 'refresh') {
       setRefreshing(true);
@@ -223,15 +223,16 @@ export default function PerkWalletScreen({ navigation }: Props) {
     try {
       const token = await getTokenRef.current();
       if (!token) {
-        if (!hasData) setPayload(null);
+        if (!hasLoadedRef.current) setPayload(null);
         return;
       }
       const data = await fetchMyGlobalRewardClaims(token);
       setPayload(data);
     } catch {
       setError(tRef.current('perkWallet.loadError'));
-      if (!hasData) setPayload(null);
+      if (!hasLoadedRef.current) setPayload(null);
     } finally {
+      hasLoadedRef.current = true;
       setInitializing(false);
       setRefreshing(false);
     }
@@ -239,14 +240,13 @@ export default function PerkWalletScreen({ navigation }: Props) {
 
   useEffect(() => {
     if (!isLoaded) return;
-    void fetchRewards('initial');
+    void fetchRewards(hasLoadedRef.current ? 'refresh' : 'initial');
   }, [isLoaded, fetchRewards]);
 
   useFocusEffect(
     useCallback(() => {
-      if (payloadRef.current) {
-        void fetchRewards('refresh');
-      }
+      if (!hasLoadedRef.current) return;
+      void fetchRewards('refresh');
     }, [fetchRewards]),
   );
 
@@ -267,7 +267,7 @@ export default function PerkWalletScreen({ navigation }: Props) {
     return { redeemable: r, history: h };
   }, [items]);
 
-  const showInitialSpinner = initializing && !payload;
+  const showInitialSpinner = initializing && payload === null && !error;
 
   return (
     <SafeAreaView style={styles.safe}>

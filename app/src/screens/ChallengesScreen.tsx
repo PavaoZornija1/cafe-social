@@ -99,6 +99,8 @@ export default function ChallengesScreen({ navigation, route }: Props) {
   const routeVenueId = route.params?.venueId;
   const routeVenueName = route.params?.venueName;
   const session = useVenueSession({ routeVenueId });
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
 
   const [venue, setVenue] = useState<Venue | null>(null);
   const [initializing, setInitializing] = useState(true);
@@ -118,8 +120,8 @@ export default function ChallengesScreen({ navigation, route }: Props) {
 
   const fetchChallenges = useCallback(
     async (mode: 'initial' | 'refresh') => {
-      const hasData = challengesRef.current.length > 0;
-      if (mode === 'initial' && !hasData) {
+      const sessionSnap = sessionRef.current;
+      if (mode === 'initial' && !hasLoadedRef.current) {
         setInitializing(true);
       } else if (mode === 'refresh') {
         setRefreshing(true);
@@ -128,20 +130,24 @@ export default function ChallengesScreen({ navigation, route }: Props) {
 
       try {
         if (!isLoaded) return;
+        if (sessionSnap.isLoading && !routeVenueId) return;
 
         if (mode === 'refresh') {
-          await session.refetch();
+          await sessionSnap.refetch();
         }
 
-        const playVenueId = session.playVenueId;
+        const playVenueId = sessionRef.current.playVenueId;
+        const access = sessionRef.current.access;
+        const detectedVenue = sessionRef.current.detectedVenue;
+
         const activeVenue: Venue | null = playVenueId
           ? {
               id: playVenueId,
               name:
                 routeVenueName?.trim() ||
-                session.detectedVenue?.name ||
+                detectedVenue?.name ||
                 playVenueId,
-              isPremium: Boolean(session.access?.isPremium),
+              isPremium: Boolean(access?.isPremium),
             }
           : null;
 
@@ -165,8 +171,8 @@ export default function ChallengesScreen({ navigation, route }: Props) {
         const token = await getTokenRef.current();
         if (!token) throw new Error('Not authenticated');
 
-        const lockFields = session.access
-          ? { locked: session.access.locked, lockReason: session.access.lockReason }
+        const lockFields = access
+          ? { locked: access.locked, lockReason: access.lockReason }
           : null;
 
         if (isVenuePartnerLocked(lockFields)) {
@@ -181,21 +187,17 @@ export default function ChallengesScreen({ navigation, route }: Props) {
         setChallenges(Array.isArray(list) ? list : []);
       } catch (e) {
         setError((e as Error).message || tRef.current('challenges.loadError'));
-        if (!hasData) setChallenges([]);
+        if (challengesRef.current.length === 0) setChallenges([]);
       } finally {
+        if (sessionRef.current.isLoading && !routeVenueId && !hasLoadedRef.current) {
+          return;
+        }
         hasLoadedRef.current = true;
         setInitializing(false);
         setRefreshing(false);
       }
     },
-    [
-      isLoaded,
-      routeVenueName,
-      session.playVenueId,
-      session.detectedVenue?.name,
-      session.access,
-      session.refetch,
-    ],
+    [isLoaded, routeVenueId, routeVenueName],
   );
 
   const fetchChallengesRef = useRef(fetchChallenges);
@@ -203,8 +205,17 @@ export default function ChallengesScreen({ navigation, route }: Props) {
 
   useEffect(() => {
     if (!isLoaded) return;
-    void fetchChallenges('initial');
-  }, [isLoaded, fetchChallenges]);
+    if (session.isLoading && !routeVenueId) return;
+    void fetchChallenges(hasLoadedRef.current ? 'refresh' : 'initial');
+  }, [
+    isLoaded,
+    routeVenueId,
+    session.isLoading,
+    session.playVenueId,
+    session.access?.locked,
+    session.access?.canEnterVenueContext,
+    fetchChallenges,
+  ]);
 
   useFocusEffect(
     useCallback(() => {
@@ -249,7 +260,10 @@ export default function ChallengesScreen({ navigation, route }: Props) {
       ? t('challenges.subtitleVenue', { venue: venue.name })
       : t('challenges.subtitleEmpty');
 
-  const showInitialSpinner = initializing && challenges.length === 0 && !error;
+  const showInitialSpinner =
+    (initializing || (session.isLoading && !routeVenueId)) &&
+    challenges.length === 0 &&
+    !error;
 
   return (
     <SafeAreaView style={styles.safe}>

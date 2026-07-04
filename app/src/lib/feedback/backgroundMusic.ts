@@ -194,6 +194,9 @@ export async function syncBackgroundMusic(track: BackgroundMusicTrack | null): P
 
   if (Platform.OS === 'web') return;
   if (!getFeedbackPrefs().backgroundMusicEnabled || track === null || appState !== 'active') {
+    if (!getFeedbackPrefs().backgroundMusicEnabled) {
+      desiredTrack = null;
+    }
     crossfadeInFlight = fadeOutAndUnload();
     await crossfadeInFlight;
     crossfadeInFlight = null;
@@ -242,5 +245,10 @@ export async function stopBackgroundMusic(): Promise<void> {
 }
 
 export function syncBackgroundMusicForRoute(routeName: string | undefined): void {
+  if (!getFeedbackPrefs().backgroundMusicEnabled) {
+    desiredTrack = null;
+    void stopBackgroundMusic();
+    return;
+  }
   void syncBackgroundMusic(trackForRoute(routeName));
 }

@@ -39,6 +39,7 @@ import {
   triggerFeedbackPreview,
 } from '../lib/feedback';
 import { navigationRef } from '../navigation/navigationRef';
+import { getActiveRouteName } from '../navigation/getActiveRouteName';
 import { revokeBackgroundApiToken } from '../lib/backgroundTokenSync';
 import { unregisterExpoPushTokenFromBackend } from '../lib/expoPush';
 import { createAndShareFriendInviteLink } from '../lib/friendInviteShare';
@@ -599,7 +600,9 @@ export default function SettingsScreen({ navigation }: Props) {
                 setBackgroundMusicEnabled(v);
                 void persistBackgroundMusicEnabled(v);
                 if (v) {
-                  syncBackgroundMusicForRoute(navigationRef.getCurrentRoute()?.name);
+                  syncBackgroundMusicForRoute(
+                    getActiveRouteName(navigationRef.getRootState()),
+                  );
                 } else {
                   void stopBackgroundMusic();
                 }

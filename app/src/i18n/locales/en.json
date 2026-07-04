@@ -256,6 +256,7 @@
     "wordDescription": "Multi-round clue games: solo or create/join a room. Not the same as Daily word.",
     "wordCtaVenue": "Open word lobby (this venue)",
     "wordCtaGlobal": "Open word lobby (global — subscribers)",
+    "wordNeedVenue": "Word rooms need a venue check-in (or play globally with a subscription).",
     "needVenue": "Check in at a venue first.",
     "brawlerTitle": "Brawler",
     "brawlerDescription": "Short arena battles with heroes and power-ups.",
@@ -805,6 +806,7 @@
     "startSolo": "Start solo",
     "startRoom": "Create room",
     "joinWithCode": "Join with code",
+    "needVenueCheckIn": "Turn on location and check in at a partner café to play word rooms. Subscribers can also play from anywhere.",
     "deckLengthTitle": "Words per game",
     "deckLengthHint": "Same deck length for everyone in a room.",
     "categoryTitle": "Category filter",
@@ -1167,6 +1169,7 @@
     "redeemedByYou": "You already redeemed this offer.",
     "fullyRedeemedLabel": "Fully redeemed — ask staff for new codes.",
     "myRewards": "My redeemable rewards",
+    "emptyAtVenue": "No perks or rewards here yet — finish a challenge or ask staff for a code when offers go live.",
     "rewardStatus": "Status",
     "rewardExpires": "Expires"
   },

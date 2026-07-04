@@ -42,6 +42,7 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
     venueLocked,
     venueLockKey,
     playBlocked,
+    canEnterVenueContext,
     isLoading: accessLoading,
   } = session;
   const hasVenueContext = Boolean(playVenueId);
@@ -78,6 +79,8 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
 
   const brawlerBlocked =
     playBlocked || accessLoading || (!hasVenueContext && !subscriptionActive);
+  const wordBlocked =
+    playBlocked || accessLoading || (!canEnterVenueContext && !subscriptionActive);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -149,11 +152,11 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
 
         <Pressable
           onPress={openWordLobby}
-          disabled={playBlocked || accessLoading}
+          disabled={wordBlocked}
           style={({ pressed }) => [
             styles.card,
             styles.wordCard,
-            (playBlocked || accessLoading) && styles.cardDisabled,
+            wordBlocked && styles.cardDisabled,
             pressed && styles.pressed,
           ]}
         >
@@ -166,7 +169,13 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
           </View>
           <Text style={styles.cardDescription}>{t('chooseGame.wordDescription')}</Text>
           <Text style={styles.cardMeta}>
-            {hasVenueContext ? t('chooseGame.wordCtaVenue') : t('chooseGame.wordCtaGlobal')}
+            {accessLoading
+              ? t('common.loading')
+              : canEnterVenueContext
+                ? t('chooseGame.wordCtaVenue')
+                : subscriptionActive
+                  ? t('chooseGame.wordCtaGlobal')
+                  : t('chooseGame.wordNeedVenue')}
           </Text>
         </Pressable>
 
