@@ -11,7 +11,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -34,22 +33,27 @@ export default function QrScanScreen({ navigation, route }: Props) {
   const { getToken, isLoaded } = useAuth();
   const [permission, requestPermission] = useCameraPermissions();
   const [loading, setLoading] = useState(false);
-  const [qrVenueId, setQrVenueId] = useState<string>(route.params?.venueId ?? '');
+  const knownVenueId = route.params?.venueId?.trim() || '';
+  const [scannedVenueId, setScannedVenueId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [scanEnabled, setScanEnabled] = useState(true);
-  const [scannedVenueId, setScannedVenueId] = useState<string | null>(null);
 
   const canUseCamera = Platform.OS !== 'web';
   const cameraReady = canUseCamera && Boolean(permission?.granted);
+  /** Prefer a fresh scan; otherwise the venue we opened this screen from. */
+  const venueId = scannedVenueId ?? knownVenueId;
+  const readyToCheckIn = venueId.length > 0;
 
   useEffect(() => {
-    if (route.params?.venueId) setQrVenueId(route.params.venueId);
-  }, [route.params?.venueId]);
+    // Opening from a known venue (Home / hub) — no need to keep scanning.
+    if (knownVenueId) setScanEnabled(false);
+  }, [knownVenueId]);
 
   const handleRegister = async () => {
     setError(null);
+    const id = venueId.trim();
 
-    if (!qrVenueId.trim()) {
+    if (!id) {
       setError(t('qr.emptyCode'));
       return;
     }
@@ -69,7 +73,7 @@ export default function QrScanScreen({ navigation, route }: Props) {
 
       try {
         await apiPost(
-          `/venue-context/${encodeURIComponent(qrVenueId.trim())}/register`,
+          `/venue-context/${encodeURIComponent(id)}/register`,
           body,
           token,
         );
@@ -92,18 +96,17 @@ export default function QrScanScreen({ navigation, route }: Props) {
 
   const onBarcodeScanned = useCallback(
     ({ data }: { data: string }) => {
-      if (!scanEnabled) return;
+      if (!scanEnabled || loading) return;
       const id = parseVenueIdFromQr(data);
       if (id) {
         setScanEnabled(false);
-        setQrVenueId(id);
         setScannedVenueId(id);
         setError(null);
       } else {
         setError(t('qr.scanUnrecognized'));
       }
     },
-    [scanEnabled, t],
+    [scanEnabled, loading, t],
   );
 
   const resetScan = () => {
@@ -137,97 +140,101 @@ export default function QrScanScreen({ navigation, route }: Props) {
           <View style={styles.heroIconWrap}>
             <Ionicons name="qr-code-outline" size={28} color={colors.textInverse} />
           </View>
-          <Text style={styles.heroTitle}>{t('qr.heroTitle')}</Text>
-          <Text style={styles.heroSub}>{t('qr.subtitle')}</Text>
+          <Text style={styles.heroTitle}>
+            {knownVenueId && !scannedVenueId ? t('qr.heroTitleKnownVenue') : t('qr.heroTitle')}
+          </Text>
+          <Text style={styles.heroSub}>
+            {knownVenueId && !scannedVenueId ? t('qr.subtitleKnownVenue') : t('qr.subtitle')}
+          </Text>
         </View>
 
-        <View style={styles.scannerSection}>
-          <Text style={styles.sectionTitle}>{t('qr.scanSectionTitle')}</Text>
-          <View style={styles.scannerWrap}>
-            {cameraReady ? (
-              <>
-                <CameraView
-                  style={styles.camera}
-                  facing="back"
-                  barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                  onBarcodeScanned={scanEnabled ? onBarcodeScanned : undefined}
-                />
-                <View style={styles.viewfinder} pointerEvents="none">
-                  <View style={[styles.corner, styles.cornerTL]} />
-                  <View style={[styles.corner, styles.cornerTR]} />
-                  <View style={[styles.corner, styles.cornerBL]} />
-                  <View style={[styles.corner, styles.cornerBR]} />
-                </View>
-                {!scanEnabled ? (
-                  <View style={styles.scanPausedOverlay}>
-                    <Ionicons name="checkmark-circle" size={40} color={colors.success} />
-                    <Text style={styles.scanPausedText}>{t('qr.codeCaptured')}</Text>
+        {knownVenueId && !scanEnabled && !scannedVenueId ? (
+          <Pressable
+            style={({ pressed }) => [styles.secondaryBtn, styles.scanInsteadBtn, pressed && styles.pressed]}
+            onPress={() => {
+              setScanEnabled(true);
+              setError(null);
+            }}
+            disabled={loading}
+          >
+            <Ionicons name="scan-outline" size={16} color={colors.primary} />
+            <Text style={styles.secondaryBtnText}>{t('qr.scanInstead')}</Text>
+          </Pressable>
+        ) : null}
+
+        {!knownVenueId || scanEnabled || scannedVenueId ? (
+          <View style={styles.scannerSection}>
+            <Text style={styles.sectionTitle}>{t('qr.scanSectionTitle')}</Text>
+            <View style={styles.scannerWrap}>
+              {cameraReady ? (
+                <>
+                  <CameraView
+                    style={styles.camera}
+                    facing="back"
+                    barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                    onBarcodeScanned={scanEnabled ? onBarcodeScanned : undefined}
+                  />
+                  <View style={styles.viewfinder} pointerEvents="none">
+                    <View style={[styles.corner, styles.cornerTL]} />
+                    <View style={[styles.corner, styles.cornerTR]} />
+                    <View style={[styles.corner, styles.cornerBL]} />
+                    <View style={[styles.corner, styles.cornerBR]} />
                   </View>
-                ) : null}
-              </>
-            ) : (
-              <View style={styles.scannerFallback}>
-                <Ionicons
-                  name={canUseCamera ? 'camera-outline' : 'globe-outline'}
-                  size={36}
-                  color={colors.textMuted}
-                />
-                <Text style={styles.scannerText}>
-                  {!canUseCamera
-                    ? t('qr.webNoCamera')
-                    : permission?.granted === false
-                      ? t('qr.cameraDenied')
-                      : t('qr.cameraPrompt')}
-                </Text>
-                {canUseCamera && permission && !permission.granted ? (
-                  <Pressable
-                    style={({ pressed }) => [styles.permBtn, pressed && styles.pressed]}
-                    onPress={() => void requestPermission()}
-                  >
-                    <Ionicons name="camera" size={16} color={colors.textInverse} />
-                    <Text style={styles.permBtnText}>{t('qr.allowCamera')}</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            )}
-          </View>
-
-          {cameraReady ? (
-            <Pressable
-              style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
-              onPress={resetScan}
-            >
-              <Ionicons name="scan-outline" size={16} color={colors.primary} />
-              <Text style={styles.secondaryBtnText}>{t('qr.scanAgain')}</Text>
-            </Pressable>
-          ) : null}
-        </View>
-
-        <View style={styles.manualSection}>
-          <Text style={styles.sectionTitle}>{t('qr.manualEntryTitle')}</Text>
-          <View style={styles.inputRow}>
-            <Ionicons name="storefront-outline" size={20} color={colors.textMuted} />
-            <TextInput
-              style={styles.input}
-              placeholder={t('qr.venuePlaceholder')}
-              placeholderTextColor={colors.textMuted}
-              value={qrVenueId}
-              onChangeText={(value) => {
-                setQrVenueId(value);
-                setScannedVenueId(null);
-                setScanEnabled(true);
-              }}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-          {scannedVenueId ? (
-            <View style={styles.capturedBadge}>
-              <Ionicons name="checkmark-circle" size={14} color={colors.success} />
-              <Text style={styles.capturedBadgeText}>{t('qr.codeCaptured')}</Text>
+                  {!scanEnabled && scannedVenueId ? (
+                    <View style={styles.scanPausedOverlay}>
+                      <Ionicons name="checkmark-circle" size={40} color={colors.success} />
+                      <Text style={styles.scanPausedText}>{t('qr.codeCaptured')}</Text>
+                    </View>
+                  ) : null}
+                </>
+              ) : (
+                <View style={styles.scannerFallback}>
+                  <Ionicons
+                    name={canUseCamera ? 'camera-outline' : 'globe-outline'}
+                    size={36}
+                    color={colors.textMuted}
+                  />
+                  <Text style={styles.scannerText}>
+                    {!canUseCamera
+                      ? t('qr.webNoCamera')
+                      : permission?.granted === false
+                        ? t('qr.cameraDenied')
+                        : t('qr.cameraPrompt')}
+                  </Text>
+                  {canUseCamera && permission && !permission.granted ? (
+                    <Pressable
+                      style={({ pressed }) => [styles.permBtn, pressed && styles.pressed]}
+                      onPress={() => void requestPermission()}
+                    >
+                      <Ionicons name="camera" size={16} color={colors.textInverse} />
+                      <Text style={styles.permBtnText}>{t('qr.allowCamera')}</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              )}
             </View>
-          ) : null}
-        </View>
+
+            {cameraReady && scannedVenueId ? (
+              <Pressable
+                style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
+                onPress={resetScan}
+                disabled={loading}
+              >
+                <Ionicons name="scan-outline" size={16} color={colors.primary} />
+                <Text style={styles.secondaryBtnText}>{t('qr.scanAgain')}</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
+        {readyToCheckIn ? (
+          <View style={styles.readyCard}>
+            <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+            <Text style={styles.readyText}>
+              {scannedVenueId ? t('qr.codeCaptured') : t('qr.readyKnownVenue')}
+            </Text>
+          </View>
+        ) : null}
 
         {error ? (
           <View style={styles.errorBanner}>
@@ -240,10 +247,10 @@ export default function QrScanScreen({ navigation, route }: Props) {
           style={({ pressed }) => [
             styles.primaryBtn,
             pressed && styles.pressed,
-            (loading || !isLoaded) && styles.primaryBtnDisabled,
+            (loading || !isLoaded || !readyToCheckIn) && styles.primaryBtnDisabled,
           ]}
           onPress={() => void handleRegister()}
-          disabled={loading || !isLoaded}
+          disabled={loading || !isLoaded || !readyToCheckIn}
         >
           {loading ? (
             <ActivityIndicator color={colors.textInverse} />
@@ -426,45 +433,20 @@ function createStyles(colors: AppColors) {
       paddingHorizontal: spacing.md,
     },
     secondaryBtnText: { color: colors.primary, fontWeight: '700', fontSize: 13 },
-    manualSection: {
-      backgroundColor: colors.surface,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.border,
-      borderRadius: radii.xl,
-      padding: spacing.lg,
-      marginBottom: spacing.lg,
-      gap: spacing.md,
-    },
-    inputRow: {
+    scanInsteadBtn: { marginBottom: spacing.lg },
+    readyCard: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.sm,
-      backgroundColor: colors.bgElevated,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.border,
-      borderRadius: radii.lg,
-      paddingHorizontal: spacing.md,
-    },
-    input: {
-      flex: 1,
-      paddingVertical: spacing.md,
-      color: colors.text,
-      fontSize: 15,
-      fontWeight: '600',
-    },
-    capturedBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      alignSelf: 'flex-start',
-      gap: spacing.xs,
       backgroundColor: colors.successMuted,
-      borderRadius: radii.pill,
-      paddingVertical: spacing.xs,
-      paddingHorizontal: spacing.md,
+      borderRadius: radii.lg,
+      padding: spacing.md,
+      marginBottom: spacing.lg,
     },
-    capturedBadgeText: {
+    readyText: {
+      flex: 1,
       color: colors.success,
-      fontSize: 12,
+      fontSize: 14,
       fontWeight: '800',
     },
     errorBanner: {
