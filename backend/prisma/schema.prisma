@@ -1220,6 +1220,8 @@ model SoloWordSession {
   wordsSolved Int @default(0)
   /// Set once when deck-complete XP has been granted.
   winXpAwarded Boolean @default(false)
+  /// Cached post-game carousel payload for the solo player.
+  postGameSnapshot Json?
 
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
@@ -1515,6 +1517,8 @@ model GameSession {
   winXpAwardedAt DateTime?
   /// Set once competitive rank deltas have been applied for this session (idempotency; any ranked mode).
   rankAwardedAt DateTime?
+  /// Set once post-game XP, challenge bumps, and participant snapshots have been captured.
+  postGameProcessedAt DateTime?
   /// Winner stored at participant level (supports bots + non-player entities).
   winnerParticipantId String?
   createdAt   DateTime          @default(now())
@@ -1555,6 +1559,8 @@ model GameParticipant {
   kills        Int      @default(0)
   deaths       Int      @default(0)
   assists      Int      @default(0)
+  /// Cached post-game carousel payload for this participant.
+  postGameSnapshot Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   session      GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)

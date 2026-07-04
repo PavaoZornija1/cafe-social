@@ -21,11 +21,12 @@ import { toApiWordLanguage } from '../lib/wordDeckLanguage';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { useVenueActivePlayBudgetSync } from '../lib/useVenueActivePlayBudgetSync';
 import { triggerFeedback } from '../lib/feedback';
-import { emitPlatformQuestProgressChanged } from '../lib/platformQuestEvents';
+import { presentPostGameCarousel } from '../lib/postGame/openPostGameCarousel';
+import type { PostGamePayload } from '../lib/postGame/types';
+import { hidePostGameCarousel } from '../components/postGame';
 import WordGameClueCard from '../components/word/WordGameClueCard';
 import ScreenHeader from '../components/ScreenHeader';
 import WordGameHud from '../components/word/WordGameHud';
-import WordGameResultPanel from '../components/word/WordGameResultPanel';
 import WordGameVersusBoard from '../components/word/WordGameVersusBoard';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
@@ -75,6 +76,7 @@ type MatchState = {
   deckCategory?: string | null;
   participants: MatchParticipant[];
   snapshotRev?: number | null;
+  postGame?: PostGamePayload;
 };
 
 function secondsPerWord(diff?: string): number {
@@ -119,9 +121,12 @@ export default function WordGameScreen({ navigation, route }: Props) {
   const [soloSessionId, setSoloSessionId] = useState<string | null>(null);
   const [soloTargetCount, setSoloTargetCount] = useState(sessionWordsCount);
   const [subscriptionActive, setSubscriptionActive] = useState(false);
+  const [soloFinished, setSoloFinished] = useState(false);
+  const [postGamePayload, setPostGamePayload] = useState<PostGamePayload | null>(null);
 
   const soloStartedRef = useRef(false);
   const mpBootDoneRef = useRef(false);
+  const postGamePresentedRef = useRef(false);
   const submittingRef = useRef(false);
   const timeUpFiredRef = useRef(false);
   const timerUrgentFiredRef = useRef(false);
@@ -479,8 +484,86 @@ export default function WordGameScreen({ navigation, route }: Props) {
   }, [matchSessionId, isLoaded, matchMode, coopIdx, myVersusScore, t]);
 
   const finishSession = useCallback(() => {
+    hidePostGameCarousel();
     navigation.replace('MainTabs');
   }, [navigation]);
+
+  const onRematch = useCallback(async () => {
+    if (!matchSessionId || !matchState) return;
+    setRematchBusy(true);
+    try {
+      const token = await getTokenRef.current();
+      if (!token) return;
+      const res = await apiPost<{ sessionId: string }>(
+        `/words/matches/${encodeURIComponent(matchSessionId)}/rematch`,
+        {
+          ...(typeof matchSnapshotRevRef.current === 'number'
+            ? { ifSnapshotRev: matchSnapshotRevRef.current }
+            : {}),
+        },
+        token,
+      );
+      hidePostGameCarousel();
+      postGamePresentedRef.current = false;
+      setPostGamePayload(null);
+      navigation.replace('WordMatchWait', {
+        venueId,
+        challengeId,
+        mode: matchState.mode,
+        difficulty: difficulty as 'easy' | 'normal' | 'hard',
+        create: false,
+        sessionId: res.sessionId,
+        wordCount: matchState.targetWordCount,
+        wordCategory: matchState.deckCategory ?? undefined,
+        ranked:
+          matchState.mode === 'versus' && (matchState.ranked ?? rankedRoute)
+            ? true
+            : undefined,
+      });
+    } finally {
+      setRematchBusy(false);
+    }
+  }, [
+    matchSessionId,
+    matchState,
+    navigation,
+    venueId,
+    challengeId,
+    difficulty,
+    rankedRoute,
+  ]);
+
+  const presentResults = useCallback(
+    (payload: PostGamePayload) => {
+      if (postGamePresentedRef.current) return;
+      postGamePresentedRef.current = true;
+      const won = payload.summary.won;
+      triggerFeedback(won ? 'matchWin' : 'matchLoss');
+      presentPostGameCarousel(payload, {
+        onDone: finishSession,
+        onRematch: payload.summary.showRematch ? () => void onRematch() : undefined,
+        rematchBusy,
+      });
+    },
+    [finishSession, onRematch, rematchBusy],
+  );
+
+  useEffect(() => {
+    if (postGamePayload) {
+      presentResults(postGamePayload);
+    }
+  }, [postGamePayload, presentResults]);
+
+  useEffect(() => {
+    if (matchState?.status === 'FINISHED' && matchState.postGame) {
+      setPostGamePayload(matchState.postGame);
+    }
+  }, [matchState?.status, matchState?.postGame]);
+
+  useEffect(() => {
+    if (matchState?.status !== 'FINISHED' || matchState.postGame || !matchSessionId) return;
+    void fetchMatchState();
+  }, [matchState?.status, matchState?.postGame, matchSessionId, fetchMatchState]);
 
   const handleTimeUp = useCallback(async () => {
     if (submittingRef.current) return;
@@ -581,6 +664,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
           wordIndex: number;
           targetWordCount: number;
           currentWord: WordRow | null;
+          postGame?: PostGamePayload;
         }>(
           `/words/session/${encodeURIComponent(soloSessionId)}/pass`,
           {
@@ -599,9 +683,10 @@ export default function WordGameScreen({ navigation, route }: Props) {
           res.finished ? t('wordGame.timeExpiredSoloDone') : t('wordGame.timeExpiredSoloSkip'),
         );
         if (res.finished) {
-          emitPlatformQuestProgressChanged();
+          setSoloFinished(true);
+          if (res.postGame) setPostGamePayload(res.postGame);
           triggerFeedback('matchWin');
-          await finishSession();
+          return;
         }
         return;
       }
@@ -609,7 +694,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
       timeUpFiredRef.current = false;
       setWrongFeedback(t('wordGame.timerPassError'));
     }
-  }, [matchMode, matchSessionId, soloSessionId, t, finishSession, fetchMatchState]);
+  }, [matchMode, matchSessionId, soloSessionId, t, fetchMatchState]);
 
   const timerWordKey = `${currentWord?.id ?? ''}|${matchSessionId ?? ''}|${soloSessionId ?? ''}|${matchMode}`;
 
@@ -619,25 +704,10 @@ export default function WordGameScreen({ navigation, route }: Props) {
   }, [timerWordKey]);
 
   useEffect(() => {
-    if (matchState?.status === 'FINISHED') {
-      emitPlatformQuestProgressChanged();
-    }
-  }, [matchState?.status]);
-
-  useEffect(() => {
     if (matchState?.status !== 'FINISHED') {
       matchEndFeedbackFiredRef.current = false;
-      return;
     }
-    if (matchEndFeedbackFiredRef.current) return;
-    matchEndFeedbackFiredRef.current = true;
-    const result = matchState.participants.find((p) => p.isYou)?.result ?? null;
-    if (matchMode === 'coop' || result === 'WIN') {
-      triggerFeedback('matchWin');
-    } else {
-      triggerFeedback('matchLoss');
-    }
-  }, [matchState?.status, matchState?.participants, matchMode]);
+  }, [matchState?.status]);
 
   useEffect(() => {
     const mpFinished = matchState?.status === 'FINISHED';
@@ -674,6 +744,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
           correct: boolean;
           newIndex: number;
           currentWord: WordRow | null;
+          postGame?: PostGamePayload;
         };
         try {
           res = await apiPost(
@@ -706,6 +777,9 @@ export default function WordGameScreen({ navigation, route }: Props) {
         setExtraHintRevealed(false);
         setGuess('');
         if (res.currentWord) setDeck([res.currentWord]);
+        if (res.done && res.postGame) {
+          setPostGamePayload(res.postGame);
+        }
         try {
           const s = await apiGet<MatchState>(
             `/words/matches/${encodeURIComponent(matchSessionId)}/state`,
@@ -729,6 +803,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
           finished: boolean;
           yourScore: number;
           currentWord: WordRow | null;
+          postGame?: PostGamePayload;
         };
         try {
           res = await apiPost(
@@ -763,7 +838,9 @@ export default function WordGameScreen({ navigation, route }: Props) {
         if (res.currentWord) setDeck([res.currentWord]);
         setIdx(res.yourScore);
         if (res.finished) {
-          emitPlatformQuestProgressChanged();
+          if (res.postGame) {
+            setPostGamePayload(res.postGame);
+          }
           try {
             const s = await apiGet<MatchState>(
               `/words/matches/${encodeURIComponent(matchSessionId)}/state`,
@@ -773,6 +850,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
               matchSnapshotRevRef.current = s.snapshotRev;
             }
             setMatchState(s);
+            if (s.postGame) setPostGamePayload(s.postGame);
           } catch {
             /* socket refresh */
           }
@@ -805,6 +883,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
         wordIndex: number;
         targetWordCount: number;
         currentWord: WordRow | null;
+        postGame?: PostGamePayload;
       }>(
         `/words/session/${encodeURIComponent(soloSessionId)}/guess`,
         {
@@ -828,9 +907,9 @@ export default function WordGameScreen({ navigation, route }: Props) {
       if (res.currentWord) setDeck([res.currentWord]);
       setIdx(res.wordIndex);
       if (res.finished) {
-        emitPlatformQuestProgressChanged();
+        setSoloFinished(true);
+        if (res.postGame) setPostGamePayload(res.postGame);
         triggerFeedback('matchWin');
-        await finishSession();
         return;
       }
     } finally {
@@ -838,7 +917,7 @@ export default function WordGameScreen({ navigation, route }: Props) {
     }
   };
 
-  const showFinished = matchState?.status === 'FINISHED';
+  const showFinished = matchState?.status === 'FINISHED' || soloFinished;
   const myResult = matchState?.participants.find((p) => p.isYou)?.result ?? null;
 
   const progressLineLabel =
@@ -901,40 +980,6 @@ export default function WordGameScreen({ navigation, route }: Props) {
   }
 
   if (showFinished) {
-    const won = matchMode === 'coop' || myResult === 'WIN';
-    const onRematch = async () => {
-      if (!matchSessionId || !matchState) return;
-      setRematchBusy(true);
-      try {
-        const token = await getTokenRef.current();
-        if (!token) return;
-        const res = await apiPost<{ sessionId: string }>(
-          `/words/matches/${encodeURIComponent(matchSessionId)}/rematch`,
-          {
-            ...(typeof matchSnapshotRevRef.current === 'number'
-              ? { ifSnapshotRev: matchSnapshotRevRef.current }
-              : {}),
-          },
-          token,
-        );
-        navigation.replace('WordMatchWait', {
-          venueId,
-          challengeId,
-          mode: matchState.mode,
-          difficulty: difficulty as 'easy' | 'normal' | 'hard',
-          create: false,
-          sessionId: res.sessionId,
-          wordCount: matchState.targetWordCount,
-          wordCategory: matchState.deckCategory ?? undefined,
-          ranked:
-            matchState.mode === 'versus' && (matchState.ranked ?? rankedRoute)
-              ? true
-              : undefined,
-        });
-      } finally {
-        setRematchBusy(false);
-      }
-    };
     return (
       <SafeAreaView style={styles.safe}>
         <ScreenHeader
@@ -943,16 +988,10 @@ export default function WordGameScreen({ navigation, route }: Props) {
           onBack={leaveGame}
           backLabel={t('common.back')}
         />
-        <WordGameResultPanel
-          colors={colors}
-          won={won}
-          matchMode={matchMode}
-          participants={matchState?.participants ?? []}
-          showRematch={Boolean(matchSessionId)}
-          rematchBusy={rematchBusy}
-          onRematch={onRematch}
-          onDone={() => finishSession()}
-        />
+        <View style={styles.centerBlock}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={styles.mutedCenter}>{t('postGame.loadingSummary')}</Text>
+        </View>
       </SafeAreaView>
     );
   }

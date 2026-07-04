@@ -88,6 +88,11 @@ function buildService(opts: {
   readSnapshot?: jest.Mock;
   recordWordMatchStarted?: jest.Mock;
   awardSessionXp?: jest.Mock;
+  postGame?: {
+    onGameSessionFinished: jest.Mock;
+    getForGameSession: jest.Mock;
+    onSoloWordFinished: jest.Mock;
+  };
   decks?: unknown[];
 } = {}) {
   const prisma = opts.prisma ?? buildPrismaDouble();
@@ -123,8 +128,10 @@ function buildService(opts: {
     removeSnapshot: opts.removeSnapshot ?? jest.fn().mockResolvedValue(undefined),
     readSnapshot: opts.readSnapshot ?? jest.fn().mockResolvedValue(null),
   };
-  const challenges = {
-    recordWordMatchFinished: jest.fn().mockResolvedValue(undefined),
+  const postGame = opts.postGame ?? {
+    onGameSessionFinished: jest.fn().mockResolvedValue(undefined),
+    getForGameSession: jest.fn().mockResolvedValue({ moments: [], summary: { game: 'word', won: false } }),
+    onSoloWordFinished: jest.fn(),
   };
 
   const svc = new WordMatchService(
@@ -138,9 +145,8 @@ function buildService(opts: {
     venues as never,
     venuePlayLimit as never,
     venuePlayBudget as never,
-    gameXp as never,
     liveRedis as never,
-    challenges as never,
+    postGame as never,
   );
   return {
     svc,
@@ -152,6 +158,7 @@ function buildService(opts: {
     venues,
     liveRedis,
     gameXp,
+    postGame,
     pushNotifications,
     venueFeed,
   };
@@ -300,13 +307,17 @@ describe('WordMatchService.leave', () => {
       return baseSession;
     });
     const refreshSnapshot = jest.fn().mockResolvedValue(undefined);
-    const awardSessionXp = jest.fn().mockResolvedValue(undefined);
+    const onGameSessionFinished = jest.fn().mockResolvedValue(undefined);
 
-    const { svc } = buildService({
+    const { svc, postGame } = buildService({
       prisma,
       player: { id: 'player-a', username: 'Alice' },
       refreshSnapshot,
-      awardSessionXp,
+      postGame: {
+        onGameSessionFinished,
+        getForGameSession: jest.fn(),
+        onSoloWordFinished: jest.fn(),
+      },
     });
 
     const result = await svc.leave('alice@x', sessionId);
@@ -343,8 +354,7 @@ describe('WordMatchService.leave', () => {
     );
     // Authoritative writes complete; Redis snapshot is then refreshed.
     expect(refreshSnapshot).toHaveBeenCalledWith(sessionId);
-    // XP award fires off (best-effort).
-    expect(awardSessionXp).toHaveBeenCalledWith(sessionId);
+    expect(onGameSessionFinished).toHaveBeenCalledWith(sessionId);
   });
 
   it('cancels a PENDING session when the last participant leaves', async () => {

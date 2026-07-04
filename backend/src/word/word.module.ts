@@ -19,6 +19,7 @@ import { VenueFeedModule } from '../venue-feed/venue-feed.module';
 import { VenueModule } from '../venue/venue.module';
 import { StatsModule } from '../stats/stats.module';
 import { ChallengeModule } from '../challenge/challenge.module';
+import { PostGameModule } from '../post-game/post-game.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { ChallengeModule } from '../challenge/challenge.module';
     VenueModule,
     StatsModule,
     ChallengeModule,
+    PostGameModule,
   ],
   controllers: [WordController, WordMatchController, DailyWordController],
   providers: [

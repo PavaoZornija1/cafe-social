@@ -1267,5 +1267,15 @@
     "leaveBody": "Your current match will end if you leave now.",
     "leave": "Leave",
     "cancel": "Cancel"
+  },
+  "postGame": {
+    "summaryTitle": "Match over",
+    "summaryWon": "Nice work — you won!",
+    "summaryLost": "Good effort — try again soon.",
+    "done": "Done",
+    "rematch": "Rematch",
+    "autoAdvanceHint": "Next in a moment… tap dots to jump ahead or back.",
+    "loadingSummary": "Wrapping up your results…",
+    "nextTierHint": "Next up: {{tier}}"
   }
 }

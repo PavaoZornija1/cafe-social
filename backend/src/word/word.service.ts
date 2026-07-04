@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ChallengeAutoProgressSource, type WordCategory } from '@prisma/client';
+import { type WordCategory } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlayerService } from '../player/player.service';
 import { SubscriptionRepository } from '../venue/subscription.repository';
@@ -17,8 +17,8 @@ import { normalizeGuess } from './word-match.util';
 import type { CreateSoloWordSessionDto } from './dto/create-solo-word-session.dto';
 import type { CoopGuessDto } from './dto/coop-guess.dto';
 import type { WordSessionPassDto } from './dto/word-session-pass.dto';
-import { GameXpAwardService } from '../stats/game-xp-award.service';
-import { ChallengeService } from '../challenge/challenge.service';
+import { PostGameService } from '../post-game/post-game.service';
+import type { PostGamePayloadDto } from '../post-game/post-game.types';
 
 const SOLO_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 
@@ -32,8 +32,7 @@ export class WordService {
     private readonly venues: VenueService,
     private readonly venuePlayLimit: VenuePlayLimitService,
     private readonly venuePlayBudget: VenuePlayBudgetService,
-    private readonly gameXp: GameXpAwardService,
-    private readonly challenges: ChallengeService,
+    private readonly postGame: PostGameService,
   ) {}
 
   private async assertSoloPlayAllowed(params: {
@@ -247,25 +246,14 @@ export class WordService {
           wordsSolved: { increment: 1 },
         },
       });
-      void this.gameXp.tryAwardSoloWordDeckComplete(sessionId);
-      if (row.venueId) {
-        void this.challenges
-          .bumpActiveChallengesForPlayerAtVenue({
-            playerId: player.id,
-            venueId: row.venueId,
-            trustVenuePresence: true,
-            activityAtVenue: true,
-            countsAsWin: true,
-            source: ChallengeAutoProgressSource.WORD_MATCH,
-          })
-          .catch(() => undefined);
-      }
+      const postGame = await this.postGame.onSoloWordFinished(sessionId, player.id);
       return {
         correct: true,
         finished: true,
         wordIndex: nextIdx,
         targetWordCount: row.wordIds.length,
         currentWord: null,
+        postGame,
       };
     }
 
@@ -320,13 +308,14 @@ export class WordService {
         where: { id: sessionId },
         data: { wordIndex: nextIdx, finishedAt: new Date() },
       });
-      void this.gameXp.tryAwardSoloWordDeckComplete(sessionId);
+      const postGame = await this.postGame.onSoloWordFinished(sessionId, player.id);
       return {
         passed: true,
         finished: true,
         wordIndex: nextIdx,
         targetWordCount: row.wordIds.length,
         currentWord: null,
+        postGame,
       };
     }
 

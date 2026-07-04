@@ -8,8 +8,6 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   BrawlerMatchQueueStatus,
-  ChallengeAutoProgressSource,
-  GameParticipantResult,
   GameSessionStatus,
   GameType,
   type GameEventType,
@@ -22,7 +20,6 @@ import { VenuePlayBudgetService } from '../venue/venue-play-budget.service';
 import { VenueService } from '../venue/venue.service';
 import { SubscriptionRepository } from '../venue/subscription.repository';
 import { BrawlerRepository } from './brawler.repository';
-import { GameXpAwardService } from '../stats/game-xp-award.service';
 import {
   CreateBrawlerSessionDto,
   type CreateBrawlerParticipantDto,
@@ -44,7 +41,7 @@ import {
 } from './brawler-arena.events';
 import type { TickBrawlerArenaDto } from './dto/tick-brawler-arena.dto';
 import { resolveIfSnapshotRev } from '../game-runtime/snapshot-rev.util';
-import { ChallengeService } from '../challenge/challenge.service';
+import { PostGameService } from '../post-game/post-game.service';
 import { PushService } from '../push/push.service';
 
 type BrawlerSessionView = NonNullable<Awaited<ReturnType<BrawlerRepository['findSessionById']>>>;
@@ -60,12 +57,11 @@ export class BrawlerService {
     private readonly venuePlayLimit: VenuePlayLimitService,
     private readonly venuePlayBudget: VenuePlayBudgetService,
     private readonly venues: VenueService,
-    private readonly gameXp: GameXpAwardService,
+    private readonly postGame: PostGameService,
     private readonly brawlerLive: BrawlerLiveRedisService,
     private readonly brawlerArena: BrawlerArenaRedisService,
     private readonly subscriptions: SubscriptionRepository,
     private readonly events: EventEmitter2,
-    private readonly challenges: ChallengeService,
     private readonly pushNotifications: PushService,
   ) {}
 
@@ -451,7 +447,12 @@ export class BrawlerService {
     };
   }
 
-  async finalizeSession(sessionId: string, dto: FinalizeBrawlerSessionDto, ifMatchHeader?: string) {
+  async finalizeSession(
+    sessionId: string,
+    dto: FinalizeBrawlerSessionDto,
+    email: string,
+    ifMatchHeader?: string,
+  ) {
     await this.assertBrawlerIfSnapshotRev(
       sessionId,
       resolveIfSnapshotRev(ifMatchHeader, dto.ifSnapshotRev),
@@ -480,13 +481,15 @@ export class BrawlerService {
       winnerParticipantId: dto.winnerParticipantId,
       participants: dto.participants,
     });
-    void this.gameXp.tryAwardSessionWinXp(sessionId);
-    void this.recordVenueChallengesForSession(sessionId);
+    const player = await this.players.findOrCreateByEmail(email);
+    await this.postGame.onGameSessionFinished(sessionId);
+    const postGame = await this.postGame.getForGameSession(sessionId, player.id);
     await this.brawlerArena.removeState(sessionId);
     await this.syncBrawlerSnapshot(sessionId);
     return {
       ...session,
       snapshotRev: await this.readBrawlerSnapshotRev(sessionId),
+      postGame,
     };
   }
 
@@ -868,29 +871,6 @@ export class BrawlerService {
         { channel: 'match' },
       );
     }
-  }
-
-  private recordVenueChallengesForSession(sessionId: string): void {
-    void (async () => {
-      const session = await this.brawlerRepo.findSessionById(sessionId);
-      if (!session || session.status !== GameSessionStatus.FINISHED) return;
-      const cfg = (session.config ?? {}) as { playerVenueIds?: Record<string, string> };
-      const playerVenueIds = cfg.playerVenueIds ?? {};
-      for (const p of session.participants) {
-        if (!p.playerId || p.isBot) continue;
-        const venueId = playerVenueIds[p.playerId] ?? session.venueId;
-        if (!venueId) continue;
-        const countsAsWin = p.result === GameParticipantResult.WIN;
-        await this.challenges.bumpActiveChallengesForPlayerAtVenue({
-          playerId: p.playerId,
-          venueId,
-          trustVenuePresence: true,
-          activityAtVenue: true,
-          countsAsWin,
-          source: ChallengeAutoProgressSource.BRAWLER,
-        });
-      }
-    })();
   }
 
   async pickPowerup(sessionId: string, dto: PickBrawlerPowerupDto) {

@@ -1241,5 +1241,15 @@
     "leaveBody": "Trenutna utakmica završava ako sada odeš.",
     "leave": "Napusti",
     "cancel": "Odustani"
+  },
+  "postGame": {
+    "summaryTitle": "Utakmica završena",
+    "summaryWon": "Odlično — pobijedio/la si!",
+    "summaryLost": "Dobar pokušaj — pokušaj ponovno uskoro.",
+    "done": "Gotovo",
+    "rematch": "Revans",
+    "autoAdvanceHint": "Sljedeće za tren… dodirni točkice za skok naprijed ili natrag.",
+    "loadingSummary": "Pripremamo tvoje rezultate…",
+    "nextTierHint": "Sljedeća razina: {{tier}}"
   }
 }

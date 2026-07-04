@@ -18,6 +18,7 @@ import { VenuePresenceHeartbeat } from '../components/VenuePresenceHeartbeat';
 import { AlwaysLocationPromptEffect } from '../components/AlwaysLocationPromptEffect';
 import { ProximityGeofenceSyncEffect } from '../components/ProximityGeofenceSyncEffect';
 import { BackgroundTokenSyncEffect } from '../components/BackgroundTokenSyncEffect';
+import { PostGameCarouselHost } from '../components/postGame';
 import { FriendsInboxBadgeProvider } from '../context/FriendsInboxBadgeContext';
 import { useAppTheme } from '../theme/ThemeContext';
 import { navigationRef } from './navigationRef';
@@ -102,6 +103,7 @@ export default function AppNavigation({ linking }: Props) {
       <StatusBar style="dark" />
       <FriendsInboxBadgeProvider>
         <RootStack />
+        <PostGameCarouselHost />
       </FriendsInboxBadgeProvider>
     </NavigationContainer>
   );

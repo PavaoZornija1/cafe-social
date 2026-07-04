@@ -109,11 +109,12 @@ export class BrawlerController {
 
   @Post('sessions/:sessionId/finalize')
   finalizeSession(
+    @CurrentUser() user: unknown,
     @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
     @Headers('if-match') ifMatch: string | undefined,
     @Body() dto: FinalizeBrawlerSessionDto,
   ) {
-    return this.brawler.finalizeSession(sessionId, dto, ifMatch);
+    return this.brawler.finalizeSession(sessionId, dto, this.email(user), ifMatch);
   }
 
   @Post('sessions/:sessionId/abandon')

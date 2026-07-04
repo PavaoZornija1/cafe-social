@@ -12,7 +12,6 @@ import {
   GameType,
   WordMatchQueueMode,
   WordMatchQueueStatus,
-  ChallengeAutoProgressSource,
   type Prisma,
   type PrismaClient,
   type WordCategory,
@@ -33,11 +32,11 @@ import { VenuePlayLimitService } from '../venue/venue-play-limit.service';
 import { VenuePlayBudgetService } from '../venue/venue-play-budget.service';
 import { VenueService } from '../venue/venue.service';
 import { normalizeGuess } from './word-match.util';
-import { GameXpAwardService } from '../stats/game-xp-award.service';
 import { WordMatchLiveRedisService } from './word-match-live-redis.service';
 import type { WordMatchLiveSnapshotV1 } from './word-match-snapshot.util';
 import { resolveIfSnapshotRev } from '../game-runtime/snapshot-rev.util';
-import { ChallengeService } from '../challenge/challenge.service';
+import { PostGameService } from '../post-game/post-game.service';
+import type { PostGamePayloadDto } from '../post-game/post-game.types';
 
 export type WordMatchConfig = {
   wordGameMode: 'coop' | 'versus';
@@ -78,10 +77,25 @@ export class WordMatchService {
     private readonly venues: VenueService,
     private readonly venuePlayLimit: VenuePlayLimitService,
     private readonly venuePlayBudget: VenuePlayBudgetService,
-    private readonly gameXp: GameXpAwardService,
     private readonly liveRedis: WordMatchLiveRedisService,
-    private readonly challenges: ChallengeService,
+    private readonly postGame: PostGameService,
   ) {}
+
+  private async attachPostGame<T extends object>(
+    sessionId: string,
+    playerId: string,
+    payload: T,
+    finished: boolean,
+  ): Promise<T & { postGame?: PostGamePayloadDto }> {
+    if (!finished) return payload;
+    await this.postGame.onGameSessionFinished(sessionId);
+    const postGame = await this.postGame.getForGameSession(sessionId, playerId);
+    return { ...payload, postGame };
+  }
+
+  private async finishPostGameSession(sessionId: string): Promise<void> {
+    await this.postGame.onGameSessionFinished(sessionId);
+  }
 
   private mapSnapshotToPublicState(snap: WordMatchLiveSnapshotV1, viewerPlayerId?: string) {
     return {
@@ -563,7 +577,13 @@ export class WordMatchService {
       snapshotRev: null as number | null,
     };
     void this.syncWordMatchSnapshot(sessionId);
-    return payload;
+    const base = payload;
+    if (base.status === GameSessionStatus.FINISHED && viewerPlayerId) {
+      await this.postGame.onGameSessionFinished(sessionId);
+      const postGame = await this.postGame.getForGameSession(sessionId, viewerPlayerId);
+      return { ...base, postGame };
+    }
+    return base;
   }
 
   private async ensureParticipant(sessionId: string, playerId: string) {
@@ -815,10 +835,7 @@ export class WordMatchService {
       this.pushSessionRefresh(sessionId, { reason: 'coop_guess' });
     }
     if (result.done) {
-      if (result.perfectCoop) {
-        void this.gameXp.tryAwardSessionWinXp(sessionId);
-      }
-      this.recordVenueChallengesForSession(sessionId);
+      return this.attachPostGame(sessionId, player.id, result, true);
     }
     return result;
   }
@@ -891,6 +908,9 @@ export class WordMatchService {
 
     await this.syncWordMatchSnapshot(sessionId);
     this.pushSessionRefresh(sessionId, { reason: 'coop_pass' });
+    if (result.done) {
+      return this.attachPostGame(sessionId, player.id, result, true);
+    }
     return result;
   }
 
@@ -1014,8 +1034,7 @@ export class WordMatchService {
       });
     }
     if (result.finished) {
-      void this.gameXp.tryAwardSessionWinXp(sessionId);
-      this.recordVenueChallengesForSession(sessionId);
+      return this.attachPostGame(sessionId, player.id, result, true);
     }
     return result;
   }
@@ -1097,7 +1116,7 @@ export class WordMatchService {
             where: { id: sole.id },
             data: { result: GameParticipantResult.WIN, placement: 1 },
           });
-          void this.gameXp.tryAwardSessionWinXp(sessionId);
+          await this.finishPostGameSession(sessionId);
         } else if (stillActive.length === 0) {
           await this.prisma.gameSession.update({
             where: { id: sessionId },
@@ -1531,8 +1550,8 @@ export class WordMatchService {
     } else {
       this.pushSessionRefresh(sessionId, { reason: 'coop_pass' });
     }
-    if (result.perfectCoop) {
-      void this.gameXp.tryAwardSessionWinXp(sessionId);
+    if (result.perfectCoop || result.sessionFinished) {
+      await this.finishPostGameSession(sessionId);
     }
     return { done: result.done, sessionFinished: result.sessionFinished };
   }
@@ -1628,8 +1647,7 @@ export class WordMatchService {
       }
     }
     if (result.finished) {
-      void this.gameXp.tryAwardSessionWinXp(sessionId);
-      this.recordVenueChallengesForSession(sessionId);
+      await this.finishPostGameSession(sessionId);
     }
     return result;
   }
@@ -1762,31 +1780,5 @@ export class WordMatchService {
     if (createdSessionId) {
       await this.activateWordMatchSession(createdSessionId);
     }
-  }
-
-  private recordVenueChallengesForSession(sessionId: string): void {
-    void (async () => {
-      const session = await this.prisma.gameSession.findUnique({
-        where: { id: sessionId },
-        include: { participants: true },
-      });
-      if (!session || session.status !== GameSessionStatus.FINISHED) return;
-      const config = session.config as unknown as WordMatchConfig;
-      const playerVenueIds = config.playerVenueIds ?? {};
-      for (const p of session.participants) {
-        if (!p.playerId || p.isBot) continue;
-        const venueId = playerVenueIds[p.playerId] ?? session.venueId;
-        if (!venueId) continue;
-        const countsAsWin = p.result === GameParticipantResult.WIN;
-        await this.challenges.bumpActiveChallengesForPlayerAtVenue({
-          playerId: p.playerId,
-          venueId,
-          trustVenuePresence: true,
-          activityAtVenue: true,
-          countsAsWin,
-          source: ChallengeAutoProgressSource.WORD_MATCH,
-        });
-      }
-    })();
   }
 }

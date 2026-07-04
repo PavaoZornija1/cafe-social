@@ -559,4 +559,29 @@ export class PlatformQuestService {
     if (p.result !== GameParticipantResult.WIN) return 0;
     return base;
   }
+
+  /** Claimable individual quests across daily + weekly hubs (excludes bundle). */
+  async listClaimableQuestsForPlayer(
+    playerId: string,
+  ): Promise<Array<{ period: QuestPeriod; key: string; title: string; xpReward: number }>> {
+    const out: Array<{ period: QuestPeriod; key: string; title: string; xpReward: number }> = [];
+    for (const period of ['daily', 'weekly'] as const) {
+      const hub = await this.buildHub(playerId, period);
+      for (const quest of hub.quests) {
+        if (quest.status !== 'claimable') continue;
+        out.push({
+          period,
+          key: quest.key,
+          title: quest.title,
+          xpReward: quest.xpReward,
+        });
+      }
+    }
+    return out;
+  }
+
+  async claimableQuestKeySet(playerId: string): Promise<Set<string>> {
+    const rows = await this.listClaimableQuestsForPlayer(playerId);
+    return new Set(rows.map((row) => `${row.period}:${row.key}`));
+  }
 }

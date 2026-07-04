@@ -72,8 +72,10 @@ export class GameXpAwardService {
   /**
    * Awards XP once per finished session.
    * Word games use mode-specific payouts; brawler uses kill/death-adjusted win XP; others use WIN + base.
+   * Returns XP granted per player id (empty when already awarded or none granted).
    */
-  async tryAwardSessionWinXp(sessionId: string): Promise<void> {
+  async tryAwardSessionWinXp(sessionId: string): Promise<Record<string, number>> {
+    const awarded: Record<string, number> = {};
     const claim = await this.prisma.gameSession.updateMany({
       where: {
         id: sessionId,
@@ -82,7 +84,7 @@ export class GameXpAwardService {
       },
       data: { winXpAwardedAt: new Date() },
     });
-    if (claim.count === 0) return;
+    if (claim.count === 0) return awarded;
 
     const session = await this.prisma.gameSession.findUnique({
       where: { id: sessionId },
@@ -104,7 +106,7 @@ export class GameXpAwardService {
         },
       },
     });
-    if (!session) return;
+    if (!session) return awarded;
 
     if (session.gameType === GameType.WORD_GAME) {
       const cfg = session.config as unknown as WordMatchConfigJson | null;
@@ -116,6 +118,7 @@ export class GameXpAwardService {
           if (!p.playerId || p.result !== GameParticipantResult.WIN) continue;
           const d = atVenue ? XP_WORD_COOP_PERFECT : XP_WORD_COOP_GLOBAL;
           await this.addXp(p.playerId, session.venueId, d);
+          awarded[p.playerId] = d;
         }
       } else if (mode === 'versus') {
         const humans = session.participants
@@ -126,7 +129,10 @@ export class GameXpAwardService {
           let d = 0;
           if (i === 0) d = atVenue ? XP_WORD_VERSUS_FIRST : XP_WORD_VERSUS_FIRST_GLOBAL;
           else if (i === 1) d = atVenue ? XP_WORD_VERSUS_SECOND : XP_WORD_VERSUS_SECOND_GLOBAL;
-          await this.addXp(pid, session.venueId, d);
+          if (d > 0) {
+            await this.addXp(pid, session.venueId, d);
+            awarded[pid] = d;
+          }
         }
 
         const ranked = Boolean(cfg?.ranked);
@@ -191,7 +197,7 @@ export class GameXpAwardService {
           }
         }
       }
-      return;
+      return awarded;
     }
 
     const baseXp = session.venueId ? XP_VENUE_WIN : XP_GLOBAL_WIN;
@@ -208,22 +214,23 @@ export class GameXpAwardService {
         );
       }
       await this.addXp(p.playerId, session.venueId, delta);
+      awarded[p.playerId] = delta;
     }
 
     if (session.gameType === GameType.BRAWLER) {
       const cfg = session.config as unknown as BrawlerMatchConfigJson | null;
       const ranked = Boolean(cfg?.ranked);
-      if (!ranked || session.rankAwardedAt) return;
+      if (!ranked || session.rankAwardedAt) return awarded;
 
       const humans = session.participants.filter((p) => p.playerId);
-      if (humans.length !== 2) return;
+      if (humans.length !== 2) return awarded;
 
       const h0 = humans[0]!;
       const h1 = humans[1]!;
-      if (!h0.playerId || !h1.playerId) return;
+      if (!h0.playerId || !h1.playerId) return awarded;
       const r0 = h0.result;
       const r1 = h1.result;
-      if (r0 == null || r1 == null) return;
+      if (r0 == null || r1 == null) return awarded;
 
       const [aId, bId] = [h0.playerId, h1.playerId].sort() as [string, string];
       const ha = humans.find((h) => h.playerId === aId)!;
@@ -247,14 +254,14 @@ export class GameXpAwardService {
         sa = 0.5;
         sb = 0.5;
       } else {
-        return;
+        return awarded;
       }
 
       const claimRank = await this.prisma.gameSession.updateMany({
         where: { id: sessionId, rankAwardedAt: null },
         data: { rankAwardedAt: new Date() },
       });
-      if (claimRank.count === 0) return;
+      if (claimRank.count === 0) return awarded;
 
       const [pa, pb] = await Promise.all([
         this.prisma.player.findUnique({
@@ -287,10 +294,11 @@ export class GameXpAwardService {
         },
       });
     }
+    return awarded;
   }
 
-  /** Solo word deck completed (one player). */
-  async tryAwardSoloWordDeckComplete(sessionId: string): Promise<void> {
+  /** Solo word deck completed (one player). Returns XP granted (0 if none). */
+  async tryAwardSoloWordDeckComplete(sessionId: string): Promise<number> {
     const row = await this.prisma.soloWordSession.findUnique({
       where: { id: sessionId },
       select: {
@@ -303,25 +311,26 @@ export class GameXpAwardService {
         globalPlay: true,
       },
     });
-    if (!row?.finishedAt || row.winXpAwarded) return;
+    if (!row?.finishedAt || row.winXpAwarded) return 0;
 
     if (row.wordsSolved !== row.wordIds.length) {
       await this.prisma.soloWordSession.update({
         where: { id: sessionId },
         data: { winXpAwarded: true },
       });
-      return;
+      return 0;
     }
 
     const claim = await this.prisma.soloWordSession.updateMany({
       where: { id: sessionId, finishedAt: { not: null }, winXpAwarded: false },
       data: { winXpAwarded: true },
     });
-    if (claim.count === 0) return;
+    if (claim.count === 0) return 0;
 
     const atVenue = Boolean(row.venueId && !row.globalPlay);
     const delta = atVenue ? XP_WORD_SOLO_VENUE : XP_WORD_SOLO_GLOBAL;
     await this.addXp(row.playerId, atVenue ? row.venueId : null, delta);
+    return delta;
   }
 
   /** Daily word first correct solve for that day/scope. */

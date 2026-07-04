@@ -136,8 +136,9 @@ function buildService(opts: {
   const events = {
     emit: jest.fn(),
   };
-  const challenges = {
-    recordBrawlerMatchFinished: jest.fn().mockResolvedValue(undefined),
+  const postGame = {
+    onGameSessionFinished: jest.fn().mockResolvedValue(undefined),
+    getForGameSession: jest.fn().mockResolvedValue({ moments: [], summary: { game: 'brawler', won: false } }),
   };
   const pushNotifications = { sendToPlayers: jest.fn() };
 
@@ -148,12 +149,11 @@ function buildService(opts: {
     venuePlayLimit as never,
     venuePlayBudget as never,
     venues as never,
-    gameXp as never,
+    postGame as never,
     brawlerLive as never,
     brawlerArena as never,
     subscriptions as never,
     events as never,
-    challenges as never,
     pushNotifications as never,
   );
   return {

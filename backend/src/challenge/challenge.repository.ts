@@ -106,6 +106,21 @@ export class ChallengeRepository {
     });
   }
 
+  findTitleById(challengeId: string): Promise<string | null> {
+    return this.prisma.challenge
+      .findUnique({ where: { id: challengeId }, select: { title: true } })
+      .then((row) => row?.title ?? null);
+  }
+
+  findPerkTitleById(challengeId: string): Promise<string | null> {
+    return this.prisma.challenge
+      .findUnique({
+        where: { id: challengeId },
+        select: { rewardPerk: { select: { title: true } } },
+      })
+      .then((row) => row?.rewardPerk?.title ?? null);
+  }
+
   getVenueIsPremium(venueId: string): Promise<boolean> {
     return this.prisma.venue
       .findUnique({

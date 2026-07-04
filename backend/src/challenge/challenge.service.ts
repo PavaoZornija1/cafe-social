@@ -22,6 +22,7 @@ import {
   type ChallengeScheduleInput,
   type ChallengeWindowStatus,
 } from '../lib/challenge-window';
+import type { ChallengeBumpResult } from '../post-game/post-game.types';
 
 export type VenueChallengeDto = {
   id: string;
@@ -257,7 +258,18 @@ export class ChallengeService {
       trustVenuePresence,
       activityAtVenue,
       challenge,
+      challengeTitle: (await this.challenges.findTitleById(challengeId)) ?? 'Challenge',
+      perkTitle: (await this.challenges.findPerkTitleById(challengeId)) ?? null,
       venueTimeZone,
+    }).then((bump) => {
+      if (bump) {
+        return {
+          challengeId: bump.challengeId,
+          progressCount: bump.progressCount,
+          isCompleted: bump.newlyCompleted || bump.progressCount >= bump.targetCount,
+        };
+      }
+      return this.progressSnapshot(player.id, challengeId, challenge);
     });
   }
 
@@ -272,12 +284,10 @@ export class ChallengeService {
     activityAtVenue?: boolean;
     countsAsWin?: boolean;
     challenge: ChallengeTargetRow;
+    challengeTitle: string;
+    perkTitle?: string | null;
     venueTimeZone: string | null;
-  }): Promise<{
-    challengeId: string;
-    progressCount: number;
-    isCompleted: boolean;
-  }> {
+  }): Promise<ChallengeBumpResult | null> {
     const {
       playerId,
       venueId,
@@ -291,9 +301,11 @@ export class ChallengeService {
       challenge,
       venueTimeZone,
     } = params;
+    const challengeTitle = params.challengeTitle;
+    const perkTitleHint = params.perkTitle ?? null;
 
     if (challenge.requiresWin && countsAsWin === false) {
-      return this.progressSnapshot(playerId, challengeId, challenge);
+      return null;
     }
 
     const schedule = this.scheduleForChallenge(challenge, venueTimeZone);
@@ -346,13 +358,10 @@ export class ChallengeService {
     }
 
     if (completedForPeriod) {
-      return {
-        challengeId,
-        progressCount: currentCount,
-        isCompleted: true,
-      };
+      return null;
     }
 
+    const previousCount = currentCount;
     const newCount = currentCount + increment;
     const isCompleted = newCount >= challenge.targetCount;
     const completedAt = isCompleted ? new Date() : null;
@@ -366,6 +375,9 @@ export class ChallengeService {
       periodKey: challenge.resetsWeekly ? weekKey : undefined,
     });
 
+    let perkGranted = false;
+    let perkTitle: string | null = perkTitleHint;
+
     if (newlyCompleted && challenge.rewardPerkId) {
       const grant = await this.rewardGrants.tryIssueChallengePerkGrant({
         playerId,
@@ -376,18 +388,25 @@ export class ChallengeService {
         weekKey: challenge.resetsWeekly ? weekKey : undefined,
       });
       if (grant.ok) {
+        perkGranted = true;
         await this.challenges.markRewardClaimed(playerId, challengeId, new Date());
       }
     }
 
-    const xpGain = increment * 10 + (newlyCompleted ? 50 : 0);
-    await this.venueStats.addVenueXp(playerId, challenge.venueId, xpGain);
+    const challengeXpGain = increment * 10 + (newlyCompleted ? 50 : 0);
+    await this.venueStats.addVenueXp(playerId, challenge.venueId, challengeXpGain);
     await this.tierRewards.syncTierRewards(playerId);
 
     return {
       challengeId: updated.challengeId,
+      title: challengeTitle,
+      previousCount,
       progressCount: updated.progressCount,
-      isCompleted: !!updated.completedAt,
+      targetCount: challenge.targetCount,
+      newlyCompleted,
+      perkTitle,
+      challengeXpGain,
+      perkGranted,
     };
   }
 
@@ -419,14 +438,14 @@ export class ChallengeService {
     latitude?: number;
     longitude?: number;
     source: ChallengeAutoProgressSource;
-  }): Promise<void> {
+  }): Promise<ChallengeBumpResult[]> {
     const increment = params.increment ?? 1;
-    if (increment <= 0) return;
+    if (increment <= 0) return [];
 
     await this.moderation.assertNotBanned(params.venueId, params.playerId);
 
     const venueRow = await this.venues.findOne(params.venueId);
-    if (venueRow.locked) return;
+    if (venueRow.locked) return [];
 
     const venueTimeZone = await this.challenges.getVenueTimeZone(params.venueId);
     const now = new Date();
@@ -436,12 +455,13 @@ export class ChallengeService {
       return isChallengeActiveWindow(schedule, now);
     });
 
+    const results: ChallengeBumpResult[] = [];
     for (const challenge of challengeRows) {
       try {
         const target = await this.challenges.getChallengeTarget(challenge.id);
         if (!target) continue;
 
-        await this.applyChallengeProgress({
+        const bump = await this.applyChallengeProgress({
           playerId: params.playerId,
           venueId: params.venueId,
           challengeId: challenge.id,
@@ -452,11 +472,15 @@ export class ChallengeService {
           latitude: params.latitude,
           longitude: params.longitude,
           challenge: target,
+          challengeTitle: challenge.title,
+          perkTitle: challenge.rewardPerk?.title ?? null,
           venueTimeZone,
         });
+        if (bump) results.push(bump);
       } catch {
         /* skip challenges that require coords or are already complete */
       }
     }
+    return results;
   }
 }

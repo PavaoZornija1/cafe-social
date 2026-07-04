@@ -1241,5 +1241,15 @@
     "leaveBody": "Tu partida actual terminará si sales ahora.",
     "leave": "Salir",
     "cancel": "Cancelar"
+  },
+  "postGame": {
+    "summaryTitle": "Partida terminada",
+    "summaryWon": "¡Bien hecho — ganaste!",
+    "summaryLost": "Buen intento — vuelve pronto.",
+    "done": "Listo",
+    "rematch": "Revancha",
+    "autoAdvanceHint": "Siguiente en un momento… toca los puntos para ir adelante o atrás.",
+    "loadingSummary": "Preparando tus resultados…",
+    "nextTierHint": "Siguiente: {{tier}}"
   }
 }

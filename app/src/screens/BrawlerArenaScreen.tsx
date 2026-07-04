@@ -43,7 +43,6 @@ import { heroFollowCamera } from '../brawler/arena/spectateView';
 import { ArenaDevPanel } from '../brawler/arena/components/ArenaDevPanel';
 import { ArenaHud } from '../brawler/arena/components/ArenaHud';
 import {
-  ArenaResultsOverlay,
   ArenaVenuePvpHoldOverlay,
 } from '../brawler/arena/components/ArenaOverlays';
 import { ArenaWorldView } from '../brawler/arena/components/ArenaWorldView';
@@ -56,7 +55,6 @@ import { createArenaStyles } from '../brawler/arena/styles';
 import type {
   ActiveBuff,
   BrawlerPowerupDef,
-  BrawlerResultsScoreRow,
   Dummy,
   DmgFloat,
   Enemy,
@@ -79,11 +77,12 @@ import type { RootStackParamList } from '../navigation/type';
 import { applyArenaSocketEvent } from '../brawler/arena/arenaRealtime';
 import { apiGet, apiPost } from '../lib/api';
 import { triggerFeedback } from '../lib/feedback';
-import { emitPlatformQuestProgressChanged } from '../lib/platformQuestEvents';
+import { presentPostGameCarousel } from '../lib/postGame/openPostGameCarousel';
+import type { PostGamePayload } from '../lib/postGame/types';
+import { hidePostGameCarousel } from '../components/postGame';
 import { useBrawlerSocket } from '../lib/useBrawlerSocket';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { useVenueActivePlayBudgetSync } from '../lib/useVenueActivePlayBudgetSync';
-import { previewBrawlerWinXp } from '../lib/brawlerWinXp';
 import { useAppTheme } from '../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BrawlerArena'>;
@@ -156,10 +155,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       ]);
     },
   });
-  const [resultsOverlay, setResultsOverlay] = useState<{
-    title: string;
-    scoreboard: BrawlerResultsScoreRow[];
-  } | null>(null);
+  const postGamePresentedRef = useRef(false);
 
   const soloOptions = route.params?.soloOptions;
   const soloDifficulty = soloOptions?.difficulty ?? 'normal';
@@ -507,7 +503,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           kills: p.isBot ? 0 : playerKillsRef.current,
           deaths: p.isBot ? 0 : playerDeathsRef.current,
         }));
-        await apiPost(
+        const finalizeRes = await apiPost<{ postGame?: PostGamePayload }>(
           `/brawler/sessions/${encodeURIComponent(sessionId)}/finalize`,
           {
             winnerParticipantId: winnerId,
@@ -519,40 +515,19 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           token,
         );
         if (!opts.showResults) return;
-        const labelFor = (p: TrackedParticipant) => {
-          if (p.isBot) return p.botName ?? 'Bot';
-          return p.displayNameSnapshot ?? 'You';
-        };
-        const venueScoped = Boolean(route.params.venueId);
-        const sortedPayload = [...participantsPayload].sort(
-          (a, b) => (a.placement ?? 99) - (b.placement ?? 99),
-        );
-        const scoreboard: BrawlerResultsScoreRow[] = sortedPayload.map((row) => {
-          const p = participantsRef.current.find((x) => x.id === row.participantId);
-          const name = p ? labelFor(p) : row.participantId;
-          const kills = row.kills ?? 0;
-          const deaths = row.deaths ?? 0;
-          const won = row.result === 'WIN';
-          let xpGained = 0;
-          if (won && p && !p.isBot) {
-            xpGained = previewBrawlerWinXp(venueScoped, kills, deaths);
-          }
-          return {
-            name,
-            kills,
-            deaths,
-            xpGained,
-            resultLabel:
-              row.result === 'WIN'
-                ? t('brawlerMatch.resultWin')
-                : t('brawlerMatch.resultLoss'),
-          };
-        });
-        setResultsOverlay({ title: t('brawlerMatch.matchResultsTitle'), scoreboard });
-        emitPlatformQuestProgressChanged();
-        const humanParticipant = participantsRef.current.find((p) => !p.isBot);
-        if (humanParticipant) {
-          triggerFeedback(winnerId === humanParticipant.id ? 'matchWin' : 'matchLoss');
+        if (finalizeRes.postGame && !postGamePresentedRef.current) {
+          postGamePresentedRef.current = true;
+          const humanParticipant = participantsRef.current.find((p) => !p.isBot);
+          const won = humanParticipant?.id === winnerId;
+          triggerFeedback(won ? 'matchWin' : 'matchLoss');
+          presentPostGameCarousel(finalizeRes.postGame, {
+            onDone: () => {
+              hidePostGameCarousel();
+              navigation.replace('BrawlerLobby', {
+                venueId: route.params.venueId,
+              });
+            },
+          });
         }
       } catch (e) {
         finalizeStartedRef.current = false;
@@ -1051,7 +1026,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
   const dmgFloats = dmgFloatsRef.current;
 
-  const showKdHud = arenaReadyHud && !resultsOverlay && !venueTwoHumanHold;
+  const showKdHud = arenaReadyHud && !venueTwoHumanHold;
   const matchNowMs = Math.floor(matchElapsedShown * 1000);
   const activePowerupRows = buildActivePowerupHudRows(
     activeBuffsRef.current,
@@ -1064,7 +1039,6 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     !heroDeadOpen &&
     !showPreMatchOverlay &&
     !venueTwoHumanHold &&
-    !resultsOverlay &&
     (activePowerupRows.length > 0 ||
       (powerupPickupFlashRef.current != null &&
         powerupPickupFlashRef.current.endsAtMs > matchNowMs));
@@ -1081,7 +1055,6 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     arenaReadyHud &&
     !showPreMatchOverlay &&
     !venueTwoHumanHold &&
-    !resultsOverlay &&
     (controlsLive || isSpectating);
 
   return (
@@ -1289,29 +1262,6 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           buttonLabel={t('brawlerMatch.backToLobby')}
           onLeave={() => {
             void abandonVenueTwoHumanAndLeave();
-          }}
-        />
-      ) : null}
-
-      {resultsOverlay ? (
-        <ArenaResultsOverlay
-          styles={styles}
-          title={resultsOverlay.title}
-          tableLabels={{
-            subtitle: t('brawlerMatch.resultsSubtitle'),
-            player: t('brawlerMatch.resultsPlayer'),
-            kills: t('brawlerMatch.resultsKills'),
-            deaths: t('brawlerMatch.resultsDeaths'),
-            xp: t('brawlerMatch.resultsXp'),
-            outcome: t('brawlerMatch.resultsOutcome'),
-            backToLobby: t('brawlerMatch.backToLobby'),
-          }}
-          scoreboard={resultsOverlay.scoreboard}
-          onBackToLobby={() => {
-            setResultsOverlay(null);
-            navigation.replace('BrawlerLobby', {
-              venueId: route.params.venueId,
-            });
           }}
         />
       ) : null}

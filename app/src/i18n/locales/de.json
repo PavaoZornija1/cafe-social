@@ -1241,5 +1241,15 @@
     "leaveBody": "Dein aktuelles Match endet, wenn du jetzt gehst.",
     "leave": "Verlassen",
     "cancel": "Abbrechen"
+  },
+  "postGame": {
+    "summaryTitle": "Spiel beendet",
+    "summaryWon": "Stark — du hast gewonnen!",
+    "summaryLost": "Guter Versuch — bald wieder.",
+    "done": "Fertig",
+    "rematch": "Revanche",
+    "autoAdvanceHint": "Gleich weiter… Tippe die Punkte zum Springen.",
+    "loadingSummary": "Ergebnisse werden geladen…",
+    "nextTierHint": "Als Nächstes: {{tier}}"
   }
 }
