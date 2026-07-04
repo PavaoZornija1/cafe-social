@@ -1,7 +1,8 @@
 import type { PostGameCarouselActions, PostGamePayload } from '../../lib/postGame/types';
 
 type Listener = () => void;
-type DismissListener = () => void;
+export type PostGameDismissReason = 'dismiss' | 'complete';
+type DismissListener = (reason: PostGameDismissReason) => void;
 
 type PostGameStoreState = {
   visible: boolean;
@@ -21,6 +22,12 @@ const dismissListeners = new Set<DismissListener>();
 function emit() {
   for (const listener of listeners) {
     listener();
+  }
+}
+
+function emitDismiss(reason: PostGameDismissReason) {
+  for (const listener of dismissListeners) {
+    listener(reason);
   }
 }
 
@@ -46,13 +53,25 @@ export function showPostGameCarousel(
   emit();
 }
 
+/** Hide carousel without completing (user can return to match-end UI). */
 export function hidePostGameCarousel(): void {
-  const wasVisible = state.visible;
+  if (!state.visible) return;
   state = { visible: false, payload: null, actions: null };
   emit();
-  if (wasVisible) {
-    for (const listener of dismissListeners) {
-      listener();
-    }
-  }
+  emitDismiss('dismiss');
+}
+
+/** Finish carousel: hide, refresh progress queries, then run screen onDone (navigate). */
+export function completePostGameCarousel(): void {
+  const actions = state.actions;
+  if (!state.visible) return;
+  state = { visible: false, payload: null, actions: null };
+  emit();
+  emitDismiss('complete');
+  actions?.onDone();
+}
+
+/** @deprecated Prefer hidePostGameCarousel or completePostGameCarousel. */
+export function dismissPostGameCarousel(): void {
+  hidePostGameCarousel();
 }

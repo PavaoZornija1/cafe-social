@@ -26,9 +26,10 @@ type Props = {
   colors: AppColors;
   icon: PostGameMomentIcon;
   won?: boolean;
+  compact?: boolean;
 };
 
-export default function SunburstHero({ colors, icon, won }: Props) {
+export default function SunburstHero({ colors, icon, won, compact = false }: Props) {
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -52,10 +53,11 @@ export default function SunburstHero({ colors, icon, won }: Props) {
     return () => animation.stop();
   }, [pulse]);
 
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, compact), [colors, compact]);
   const heroScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] });
   const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.72, 1] });
   const iconName = won === false ? 'flag-outline' : ICON_MAP[icon];
+  const iconSize = compact ? 28 : 56;
 
   return (
     <View style={styles.wrap}>
@@ -81,7 +83,7 @@ export default function SunburstHero({ colors, icon, won }: Props) {
         <Ionicons
           key={idx}
           name="sparkles"
-          size={s.size}
+          size={compact ? Math.max(8, s.size - 3) : s.size}
           color={colors.honey}
           style={[
             styles.sparkle,
@@ -93,43 +95,47 @@ export default function SunburstHero({ colors, icon, won }: Props) {
         />
       ))}
       <Animated.View style={[styles.iconCircle, { transform: [{ scale: heroScale }] }]}>
-        <Ionicons name={iconName} size={56} color={colors.xp} />
+        <Ionicons name={iconName} size={iconSize} color={colors.xp} />
       </Animated.View>
     </View>
   );
 }
 
-function createStyles(colors: AppColors) {
+function createStyles(colors: AppColors, compact = false) {
+  const wrap = compact ? 96 : 220;
+  const glow = compact ? 68 : 170;
+  const rayH = compact ? 42 : 92;
+  const iconCircle = compact ? 52 : 96;
   return StyleSheet.create({
     wrap: {
-      width: 220,
-      height: 220,
+      width: wrap,
+      height: wrap,
       alignSelf: 'center',
       alignItems: 'center',
       justifyContent: 'center',
     },
     glow: {
       position: 'absolute',
-      width: 170,
-      height: 170,
+      width: glow,
+      height: glow,
       borderRadius: 999,
       overflow: 'hidden',
     },
     ray: {
       position: 'absolute',
-      width: 8,
-      height: 92,
+      width: compact ? 6 : 8,
+      height: rayH,
       borderRadius: 999,
       backgroundColor: '#FFF0BF',
-      top: 18,
+      top: compact ? 8 : 18,
     },
     sparkle: {
       position: 'absolute',
       opacity: 0.9,
     },
     iconCircle: {
-      width: 96,
-      height: 96,
+      width: iconCircle,
+      height: iconCircle,
       borderRadius: 999,
       backgroundColor: colors.surface,
       alignItems: 'center',

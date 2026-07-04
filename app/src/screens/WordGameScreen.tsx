@@ -484,7 +484,6 @@ export default function WordGameScreen({ navigation, route }: Props) {
   }, [matchSessionId, isLoaded, matchMode, coopIdx, myVersusScore, t]);
 
   const finishSession = useCallback(() => {
-    hidePostGameCarousel();
     navigation.replace('MainTabs');
   }, [navigation]);
 

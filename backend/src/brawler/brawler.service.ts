@@ -460,7 +460,13 @@ export class BrawlerService {
     const existingSession = await this.brawlerRepo.findSessionById(sessionId);
     if (!existingSession) throw new NotFoundException('session not found');
     if (existingSession.status === GameSessionStatus.FINISHED) {
-      throw new BadRequestException('session already finished');
+      const player = await this.players.findOrCreateByEmail(email);
+      const postGame = await this.postGame.getForGameSession(sessionId, player.id);
+      return {
+        ...existingSession,
+        snapshotRev: await this.readBrawlerSnapshotRev(sessionId),
+        postGame,
+      };
     }
     if (existingSession.status === GameSessionStatus.CANCELLED) {
       throw new BadRequestException('session was cancelled');

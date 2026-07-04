@@ -84,6 +84,8 @@ export type ArenaGameLoopConfig = {
   isSpectatingRef: MutableRefObject<boolean>;
   devMatchTimerEnabled: boolean;
   sessionId: string | undefined;
+  /** When true the RAF loop is torn down (match ended / post-game). */
+  arenaPaused: boolean;
   controlsLive: boolean;
   difficultyTuning: { enemySpeedMul: number; contactDmg: number };
   bump: () => void;
@@ -172,6 +174,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
     isSpectatingRef,
     devMatchTimerEnabled,
     sessionId,
+    arenaPaused,
     controlsLive,
     difficultyTuning,
     bump,
@@ -240,7 +243,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
   } = config;
 
   useEffect(() => {
-    if (arenaInnerH <= 0) return;
+    if (arenaPaused || arenaInnerH <= 0) return;
     const rafRef = { current: 0 };
     let cancelled = false;
     let last =
@@ -1414,6 +1417,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
     heroDeadOpen,
     isSpectatingRef,
     devMatchTimerEnabled,
+    arenaPaused,
     HERO_FEET_EMBED_GROUND_PLATFORM_PX,
     HERO_FEET_EMBED_FLOATING_PLATFORM_PX,
     sessionId,

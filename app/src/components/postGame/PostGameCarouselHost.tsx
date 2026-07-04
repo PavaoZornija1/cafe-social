@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useSyncExternalStore } from 'react';
+import React, { useEffect, useSyncExternalStore } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import PostGameCarouselModal from './PostGameCarouselModal';
 import {
   getPostGameCarouselState,
   hidePostGameCarousel,
+  completePostGameCarousel,
   subscribePostGameCarousel,
   subscribePostGameDismiss,
 } from './postGameStore';
@@ -19,25 +20,23 @@ export default function PostGameCarouselHost() {
     getPostGameCarouselState,
     getPostGameCarouselState,
   );
-  const [visible, setVisible] = useState(snapshot.visible);
 
   useEffect(() => {
-    setVisible(snapshot.visible);
-  }, [snapshot.visible]);
-
-  useEffect(() => {
-    return subscribePostGameDismiss(() => {
-      void invalidatePostGameProgress(queryClient);
+    return subscribePostGameDismiss((reason) => {
+      if (reason === 'complete') {
+        void invalidatePostGameProgress(queryClient);
+      }
     });
   }, [queryClient]);
 
   return (
     <PostGameCarouselModal
       colors={colors}
-      visible={visible}
+      visible={snapshot.visible}
       payload={snapshot.payload}
       actions={snapshot.actions}
       onClose={() => hidePostGameCarousel()}
+      onComplete={() => completePostGameCarousel()}
     />
   );
 }

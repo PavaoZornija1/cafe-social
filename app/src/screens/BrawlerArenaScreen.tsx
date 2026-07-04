@@ -77,9 +77,11 @@ import type { RootStackParamList } from '../navigation/type';
 import { applyArenaSocketEvent } from '../brawler/arena/arenaRealtime';
 import { apiGet, apiPost } from '../lib/api';
 import { triggerFeedback } from '../lib/feedback';
-import { presentPostGameCarousel } from '../lib/postGame/openPostGameCarousel';
+import { useQueryClient } from '@tanstack/react-query';
+import { emitPlatformQuestProgressChanged } from '../lib/platformQuestEvents';
+import { invalidatePostGameProgress } from '../query/invalidateVenueSession';
+import { PostGameCarouselModal } from '../components/postGame';
 import type { PostGamePayload } from '../lib/postGame/types';
-import { hidePostGameCarousel } from '../components/postGame';
 import { useBrawlerSocket } from '../lib/useBrawlerSocket';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { useVenueActivePlayBudgetSync } from '../lib/useVenueActivePlayBudgetSync';
@@ -141,6 +143,16 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const trackedSessionGateRef = useRef(!sessionId);
   /** Same tick as session sets `setDevMatchTimerEnabled(true)` — avoids RAF before `devMatchTimerLiveRef` updates. */
   const pendingMatchTimerFromSessionRef = useRef(false);
+  const [matchComplete, setMatchComplete] = useState(false);
+  const [postGameActive, setPostGameActive] = useState(false);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+  const arenaPaused = matchComplete || postGameActive;
 
   useVenueActivePlayBudgetSync({
     getToken: () => getTokenRef.current(),
@@ -148,7 +160,13 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     subscriptionActive,
     kind: 'brawler',
     gameSessionId: sessionId,
-    enabled: Boolean(routeVenueId && sessionId && !subscriptionActive && trackedSessionReady),
+    enabled: Boolean(
+      routeVenueId &&
+        sessionId &&
+        !subscriptionActive &&
+        trackedSessionReady &&
+        !matchComplete,
+    ),
     onBudgetExhausted: () => {
       Alert.alert(t('brawlerMatch.playTimeExhaustedTitle'), t('brawlerMatch.playTimeExhaustedBody'), [
         { text: 'OK', onPress: () => navigationRef.current.replace('MainTabs') },
@@ -364,11 +382,32 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
   useBrawlerSocket({
     sessionId,
-    enabled: Boolean(sessionId && trackedSessionReady && !venueTwoHumanHold),
+    enabled: Boolean(sessionId && trackedSessionReady && !venueTwoHumanHold && !matchComplete),
     getToken: () => getTokenRef.current(),
     onArenaEvent: handleArenaSocketEvent,
     onRefresh: refreshArenaState,
   });
+
+  const queryClient = useQueryClient();
+  const [postGamePayload, setPostGamePayload] = useState<PostGamePayload | null>(null);
+
+  const completeBrawlerPostGame = useCallback(() => {
+    if (!mountedRef.current) return;
+    setPostGameActive(false);
+    setPostGamePayload(null);
+    postGamePresentedRef.current = false;
+    emitPlatformQuestProgressChanged();
+    void invalidatePostGameProgress(queryClient);
+    navigation.replace('BrawlerLobby', { venueId: route.params.venueId });
+  }, [navigation, queryClient, route.params.venueId]);
+
+  const dismissBrawlerPostGame = useCallback(() => {
+    if (!mountedRef.current) return;
+    setPostGameActive(false);
+    setPostGamePayload(null);
+    postGamePresentedRef.current = false;
+    setGameOverOpen(true);
+  }, []);
 
   useEffect(() => {
     if (!sessionId) {
@@ -442,10 +481,14 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         matchClockRef.current = matchMaxSRef.current;
         matchEndedRef.current = false;
         setGameOverOpen(false);
+        setMatchComplete(false);
         setHeroDeadOpen(false);
         setDeathChoiceOpen(false);
         isSpectatingRef.current = false;
         finalizeStartedRef.current = false;
+        postGamePresentedRef.current = false;
+        setPostGamePayload(null);
+        setPostGameActive(false);
         setTrackedSessionReady(true);
         playerKillsRef.current = 0;
         playerDeathsRef.current = 0;
@@ -479,6 +522,50 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     }
   }, [heroDeadOpen]);
 
+  const presentBrawlerPostGame = useCallback(
+    (postGame: PostGamePayload, won: boolean) => {
+      if (!mountedRef.current || postGamePresentedRef.current) return;
+      postGamePresentedRef.current = true;
+      setPostGameActive(true);
+      setPostGamePayload(postGame);
+      setGameOverOpen(false);
+      setDeathChoiceOpen(false);
+      setHeroDeadOpen(false);
+      isSpectatingRef.current = false;
+      joyRef.current.x = 0;
+      joyRef.current.y = 0;
+      requestAnimationFrame(() => {
+        if (mountedRef.current) triggerFeedback(won ? 'matchWin' : 'matchLoss');
+      });
+    },
+    [],
+  );
+
+  const postBrawlerFinalize = useCallback(
+    async (
+      token: string,
+      body: Record<string, unknown>,
+    ): Promise<{ postGame?: PostGamePayload }> => {
+      try {
+        return await apiPost<{ postGame?: PostGamePayload }>(
+          `/brawler/sessions/${encodeURIComponent(sessionId!)}/finalize`,
+          body,
+          token,
+        );
+      } catch (e) {
+        const status = (e as Error & { status?: number }).status;
+        if (status !== 409) throw e;
+        const { winnerParticipantId, participants } = body;
+        return apiPost<{ postGame?: PostGamePayload }>(
+          `/brawler/sessions/${encodeURIComponent(sessionId!)}/finalize`,
+          { winnerParticipantId, participants },
+          token,
+        );
+      }
+    },
+    [sessionId],
+  );
+
   const finalizeBrawlerSession = useCallback(
     async (opts: { showResults: boolean }) => {
       if (!sessionId || finalizeStartedRef.current) return;
@@ -503,42 +590,53 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           kills: p.isBot ? 0 : playerKillsRef.current,
           deaths: p.isBot ? 0 : playerDeathsRef.current,
         }));
-        const finalizeRes = await apiPost<{ postGame?: PostGamePayload }>(
-          `/brawler/sessions/${encodeURIComponent(sessionId)}/finalize`,
-          {
-            winnerParticipantId: winnerId,
-            participants: participantsPayload,
-            ...(typeof brawlerSnapshotRevRef.current === 'number'
-              ? { ifSnapshotRev: brawlerSnapshotRevRef.current }
-              : {}),
-          },
-          token,
-        );
+        try {
+          const latest = await apiGet<{ snapshotRev?: number | null }>(
+            `/brawler/sessions/${encodeURIComponent(sessionId)}`,
+            token,
+          );
+          if (typeof latest.snapshotRev === 'number') {
+            brawlerSnapshotRevRef.current = latest.snapshotRev;
+          }
+        } catch {
+          /* best-effort rev refresh */
+        }
+
+        const finalizeBody = {
+          winnerParticipantId: winnerId,
+          participants: participantsPayload,
+          ...(typeof brawlerSnapshotRevRef.current === 'number'
+            ? { ifSnapshotRev: brawlerSnapshotRevRef.current }
+            : {}),
+        };
+        const finalizeRes = await postBrawlerFinalize(token, finalizeBody);
         if (!opts.showResults) return;
-        if (finalizeRes.postGame && !postGamePresentedRef.current) {
-          postGamePresentedRef.current = true;
-          const humanParticipant = participantsRef.current.find((p) => !p.isBot);
-          const won = humanParticipant?.id === winnerId;
-          triggerFeedback(won ? 'matchWin' : 'matchLoss');
-          presentPostGameCarousel(finalizeRes.postGame, {
-            onDone: () => {
-              hidePostGameCarousel();
-              navigation.replace('BrawlerLobby', {
-                venueId: route.params.venueId,
-              });
-            },
-          });
+        if (!mountedRef.current) return;
+        const humanParticipant = participantsRef.current.find((p) => !p.isBot);
+        const won = humanParticipant?.id === winnerId;
+        if (finalizeRes.postGame) {
+          presentBrawlerPostGame(finalizeRes.postGame, won);
+        } else {
+          setGameOverOpen(true);
         }
       } catch (e) {
+        if (!mountedRef.current) return;
         finalizeStartedRef.current = false;
-        Alert.alert(t('brawlerMatch.finalizeFailedTitle'), (e as Error).message || t('common.error'));
+        setGameOverOpen(true);
+        Alert.alert(
+          t('brawlerMatch.finalizeFailedTitle'),
+          (e as Error).message || t('common.error'),
+        );
       }
     },
-    [heroDeadOpen, route.params.venueId, sessionId, t],
+    [heroDeadOpen, postBrawlerFinalize, presentBrawlerPostGame, sessionId, t],
   );
 
   useEffect(() => {
     if (!sessionId || venueTwoHumanHold || !gameOverOpen) return;
+    setDeathChoiceOpen(false);
+    isSpectatingRef.current = false;
+    setMatchComplete(true);
     void finalizeBrawlerSession({ showResults: true });
   }, [sessionId, venueTwoHumanHold, gameOverOpen, finalizeBrawlerSession]);
 
@@ -831,12 +929,14 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       : 1;
 
   const arenaReadyHud = arenaW >= 32 && arenaInnerH >= 32;
-  const controlsLive = devMatchTimerEnabled
-    ? arenaReadyHud &&
-      preMatchLeftRef.current <= 0 &&
-      !matchEndedRef.current &&
-      !heroDeadOpen
-    : arenaReadyHud && !heroDeadOpen;
+  const controlsLive =
+    !arenaPaused &&
+    (devMatchTimerEnabled
+      ? arenaReadyHud &&
+        preMatchLeftRef.current <= 0 &&
+        !matchEndedRef.current &&
+        !heroDeadOpen
+      : arenaReadyHud && !heroDeadOpen);
 
   useArenaGameLoop({
     arenaW,
@@ -852,6 +952,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     isSpectatingRef,
     devMatchTimerEnabled,
     sessionId,
+    arenaPaused,
     controlsLive,
     difficultyTuning,
     bump,
@@ -989,6 +1090,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   }, [navigation, route.params.venueId, sessionId]);
 
   const requestExitFromHud = useCallback(() => {
+    if (postGameActive) return;
     if (venueTwoHumanHoldRef.current) {
       void abandonVenueTwoHumanAndLeave();
       return;
@@ -998,7 +1100,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       return;
     }
     if (gameOverOpen) {
-      navigation.goBack();
+      navigation.replace('BrawlerLobby', { venueId: route.params.venueId });
       return;
     }
     Alert.alert(
@@ -1139,12 +1241,12 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           showPreMatchOverlay={showPreMatchOverlay}
           preMatchCeil={preMatchCeil}
           preMatchLabel={t('brawlerMatch.preMatchLabel')}
-          showMatchOverOverlay={gameOverOpen}
+          showMatchOverOverlay={gameOverOpen && !postGameActive}
           gameOverTitle={t('brawlerMatch.gameOverTitle')}
           gameOverHint={t('brawlerMatch.gameOverHint')}
           gameOverReplayLabel={t('brawlerMatch.gameOverReplay')}
           gameOverExitLabel={t('brawlerMatch.gameOverExit')}
-          showHeroDeadOverlay={deathChoiceOpen}
+          showHeroDeadOverlay={deathChoiceOpen && !postGameActive && !gameOverOpen}
           heroDeadTitle={t('brawlerMatch.heroDeadTitle')}
           heroDeadBody={t('brawlerMatch.heroDeadBody')}
           heroDeadLeaveLabel={t('brawlerMatch.heroDeadLeave')}
@@ -1159,7 +1261,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           showHeroStatsHud={showHeroStatsHud}
           heroStatRows={heroStatRows}
           onReplay={resetArenaRound}
-          onExit={() => navigation.goBack()}
+          onExit={() => {
+            navigation.replace('BrawlerLobby', { venueId: route.params.venueId });
+          }}
         />
 
         <View style={[styles.hudOverlay, { top: safeInsets.top }]}>
@@ -1263,6 +1367,18 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           onLeave={() => {
             void abandonVenueTwoHumanAndLeave();
           }}
+        />
+      ) : null}
+
+      {postGameActive && postGamePayload ? (
+        <PostGameCarouselModal
+          colors={colors}
+          variant="overlay"
+          visible
+          payload={postGamePayload}
+          actions={{ onDone: completeBrawlerPostGame }}
+          onClose={dismissBrawlerPostGame}
+          onComplete={completeBrawlerPostGame}
         />
       ) : null}
     </View>

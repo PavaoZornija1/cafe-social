@@ -9,7 +9,7 @@ export async function ensureAudioSession(): Promise<void> {
   try {
     await Audio.setAudioModeAsync({
       allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,
+      playsInSilentModeIOS: false,
       staysActiveInBackground: false,
       interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
       interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,

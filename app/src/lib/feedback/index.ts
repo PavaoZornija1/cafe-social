@@ -1,13 +1,14 @@
 export {
   getFeedbackPrefs,
   loadFeedbackPrefs,
-  setBackgroundMusicEnabled,
   setHapticsEnabled,
   setSoundEffectsEnabled,
   type FeedbackPrefs,
 } from './feedbackPrefs';
+export { setBackgroundMusicEnabled } from './setBackgroundMusicEnabled';
 export {
   stopBackgroundMusic,
+  stopBackgroundMusicImmediate,
   syncBackgroundMusic,
   syncBackgroundMusicForRoute,
   trackForRoute,

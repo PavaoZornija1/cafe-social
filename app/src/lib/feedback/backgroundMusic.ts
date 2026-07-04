@@ -146,6 +146,10 @@ async function crossfadeToTrack(track: BackgroundMusicTrack): Promise<void> {
   const outgoing = musicSound;
   const outgoingTrack = activeTrack;
   const incoming = await loadTrackSound(track);
+  if (gen !== fadeGeneration || !getFeedbackPrefs().backgroundMusicEnabled) {
+    await stopAndUnload(incoming);
+    return;
+  }
   musicSound = incoming;
   activeTrack = track;
 
@@ -242,6 +246,22 @@ export function duckBackgroundMusic(duckFactor = 0.52, holdMs = 950): void {
 export async function stopBackgroundMusic(): Promise<void> {
   desiredTrack = null;
   await fadeOutAndUnload();
+}
+
+/** Stops playback immediately (user toggled music off). */
+export async function stopBackgroundMusicImmediate(): Promise<void> {
+  desiredTrack = null;
+  fadeGeneration += 1;
+  clearDuckTimer();
+  if (crossfadeInFlight) {
+    try {
+      await crossfadeInFlight;
+    } catch {
+      /* */
+    }
+  }
+  crossfadeInFlight = null;
+  await unloadMusicImmediate();
 }
 
 export function syncBackgroundMusicForRoute(routeName: string | undefined): void {

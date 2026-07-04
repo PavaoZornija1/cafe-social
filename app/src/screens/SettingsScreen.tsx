@@ -34,7 +34,6 @@ import {
   setBackgroundMusicEnabled as persistBackgroundMusicEnabled,
   setHapticsEnabled as persistHapticsEnabled,
   setSoundEffectsEnabled as persistSoundEffectsEnabled,
-  stopBackgroundMusic,
   syncBackgroundMusicForRoute,
   triggerFeedbackPreview,
 } from '../lib/feedback';
@@ -85,9 +84,9 @@ export default function SettingsScreen({ navigation }: Props) {
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
   const queryClient = useQueryClient();
-  const meQuery = useMeSummaryQuery();
+  const meQuery = useMeSummaryQuery({ refetchOnScreenFocus: false });
   const [busy, setBusy] = useState(false);
-  const [privacyLoading, setPrivacyLoading] = useState(true);
+  const privacyPending = !meQuery.data && meQuery.isPending;
   const [discoverable, setDiscoverable] = useState(true);
   const [totalPrivacy, setTotalPrivacy] = useState(false);
   const [partnerMarketingPush, setPartnerMarketingPush] = useState(true);
@@ -102,9 +101,15 @@ export default function SettingsScreen({ navigation }: Props) {
   const [offeringsIssue, setOfferingsIssue] = useState<'none' | 'no_current' | 'no_packages'>('none');
   const [locationPerms, setLocationPerms] = useState<LocationPermissionSummary | null>(null);
   const [locationBusy, setLocationBusy] = useState(false);
-  const [soundEffectsEnabled, setSoundEffectsEnabled] = useState(true);
-  const [hapticsEnabled, setHapticsEnabledState] = useState(true);
-  const [backgroundMusicEnabled, setBackgroundMusicEnabled] = useState(true);
+  const [soundEffectsEnabled, setSoundEffectsEnabled] = useState(
+    () => getFeedbackPrefs().soundEffectsEnabled,
+  );
+  const [hapticsEnabled, setHapticsEnabledState] = useState(
+    () => getFeedbackPrefs().hapticsEnabled,
+  );
+  const [backgroundMusicEnabled, setBackgroundMusicEnabled] = useState(
+    () => getFeedbackPrefs().backgroundMusicEnabled,
+  );
   const [hasStaffVenues, setHasStaffVenues] = useState(false);
   const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '—';
   const rcNative = isRevenueCatNativeConfigured();
@@ -114,24 +119,35 @@ export default function SettingsScreen({ navigation }: Props) {
   const switchThumb = colors.surface;
 
   const applyMeSummary = useCallback((s: MeSummaryDto) => {
-    setDiscoverable(s.discoverable ?? true);
-    setTotalPrivacy(s.totalPrivacy ?? false);
-    setPartnerMarketingPush(s.partnerMarketingPush ?? true);
-    setMatchActivityPush(s.matchActivityPush ?? true);
-    setEmailNotifications(s.emailNotifications ?? true);
-    setSubscriptionActive(s.subscriptionActive ?? false);
+    const nextDiscoverable = s.discoverable ?? true;
+    const nextTotalPrivacy = s.totalPrivacy ?? false;
+    const nextPartnerMarketingPush = s.partnerMarketingPush ?? true;
+    const nextMatchActivityPush = s.matchActivityPush ?? true;
+    const nextEmailNotifications = s.emailNotifications ?? true;
+    const nextSubscriptionActive = s.subscriptionActive ?? false;
+    setDiscoverable((prev) => (prev === nextDiscoverable ? prev : nextDiscoverable));
+    setTotalPrivacy((prev) => (prev === nextTotalPrivacy ? prev : nextTotalPrivacy));
+    setPartnerMarketingPush((prev) =>
+      prev === nextPartnerMarketingPush ? prev : nextPartnerMarketingPush,
+    );
+    setMatchActivityPush((prev) => (prev === nextMatchActivityPush ? prev : nextMatchActivityPush));
+    setEmailNotifications((prev) =>
+      prev === nextEmailNotifications ? prev : nextEmailNotifications,
+    );
+    setSubscriptionActive((prev) =>
+      prev === nextSubscriptionActive ? prev : nextSubscriptionActive,
+    );
   }, []);
 
   useEffect(() => {
     if (meQuery.data) {
       applyMeSummary(meQuery.data);
-      setPrivacyLoading(false);
-    } else if (meQuery.isError) {
-      setPrivacyLoading(false);
-    } else if (meQuery.isLoading) {
-      setPrivacyLoading(true);
     }
-  }, [meQuery.data, meQuery.isError, meQuery.isLoading, applyMeSummary]);
+  }, [meQuery.data, applyMeSummary]);
+
+  useEffect(() => {
+    void loadFeedbackPrefs();
+  }, []);
 
   const refreshSubscriptionOnly = useCallback(
     async (silent: boolean): Promise<boolean> => {
@@ -151,7 +167,6 @@ export default function SettingsScreen({ navigation }: Props) {
 
   const loadPrivacy = useCallback(async (): Promise<boolean> => {
     if (!isLoaded) return false;
-    setPrivacyLoading(true);
     let active = false;
     try {
       const result = await meQuery.refetch();
@@ -161,8 +176,6 @@ export default function SettingsScreen({ navigation }: Props) {
       active = s.subscriptionActive ?? false;
     } catch {
       Alert.alert(t('common.error'), t('settings.privacyLoadError'));
-    } finally {
-      setPrivacyLoading(false);
     }
     return active;
   }, [isLoaded, meQuery, applyMeSummary, t]);
@@ -206,14 +219,8 @@ export default function SettingsScreen({ navigation }: Props) {
 
   useFocusEffect(
     useCallback(() => {
-      void loadPrivacy();
+      void meQuery.refetch();
       void refreshLocationPerms();
-      void loadFeedbackPrefs().then(() => {
-        const prefs = getFeedbackPrefs();
-        setSoundEffectsEnabled(prefs.soundEffectsEnabled);
-        setHapticsEnabledState(prefs.hapticsEnabled);
-        setBackgroundMusicEnabled(prefs.backgroundMusicEnabled);
-      });
       void (async () => {
         if (!isLoaded) return;
         try {
@@ -228,7 +235,7 @@ export default function SettingsScreen({ navigation }: Props) {
           setHasStaffVenues(false);
         }
       })();
-    }, [isLoaded, loadPrivacy, refreshLocationPerms]),
+    }, [isLoaded, meQuery, refreshLocationPerms]),
   );
 
   const locationStatusKey = (() => {
@@ -343,7 +350,7 @@ export default function SettingsScreen({ navigation }: Props) {
   };
 
   const refreshSubscriptionStatus = async () => {
-    if (!isLoaded || privacyLoading) return;
+    if (!isLoaded || privacyPending) return;
     setSubscriptionPendingFollowUp(false);
     const active = await loadPrivacy();
     if (!active && rcNative && Platform.OS !== 'web') {
@@ -443,40 +450,39 @@ export default function SettingsScreen({ navigation }: Props) {
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.privacy')}</Text>
         <Text style={styles.hint}>{t('settings.privacyHint')}</Text>
-        {privacyLoading ? (
-          <View style={styles.privacyLoading}>
-            <ActivityIndicator color={colors.primary} />
-          </View>
-        ) : (
-          <View style={styles.toggleCard}>
-            <View style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>{t('settings.discoverable')}</Text>
-              <Switch
-                value={discoverable}
-                disabled={privacySaving || totalPrivacy}
-                onValueChange={(v) => {
-                  setDiscoverable(v);
-                  void persistPrivacy({ discoverable: v });
-                }}
-                trackColor={{ true: switchTrackOn, false: switchTrackOff }}
-                thumbColor={switchThumb}
-              />
+        <View style={styles.toggleCard}>
+          {privacyPending ? (
+            <View style={styles.toggleRowLoading}>
+              <ActivityIndicator color={colors.primary} />
             </View>
-            <View style={[styles.toggleRow, styles.toggleRowBorder]}>
-              <Text style={styles.toggleLabel}>{t('settings.totalPrivacy')}</Text>
-              <Switch
-                value={totalPrivacy}
-                disabled={privacySaving}
-                onValueChange={(v) => {
-                  setTotalPrivacy(v);
-                  void persistPrivacy({ totalPrivacy: v });
-                }}
-                trackColor={{ true: colors.error, false: switchTrackOff }}
-                thumbColor={switchThumb}
-              />
-            </View>
+          ) : null}
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>{t('settings.discoverable')}</Text>
+            <Switch
+              value={discoverable}
+              disabled={privacyPending || privacySaving || totalPrivacy}
+              onValueChange={(v) => {
+                setDiscoverable(v);
+                void persistPrivacy({ discoverable: v });
+              }}
+              trackColor={{ true: switchTrackOn, false: switchTrackOff }}
+              thumbColor={switchThumb}
+            />
           </View>
-        )}
+          <View style={[styles.toggleRow, styles.toggleRowBorder]}>
+            <Text style={styles.toggleLabel}>{t('settings.totalPrivacy')}</Text>
+            <Switch
+              value={totalPrivacy}
+              disabled={privacyPending || privacySaving}
+              onValueChange={(v) => {
+                setTotalPrivacy(v);
+                void persistPrivacy({ totalPrivacy: v });
+              }}
+              trackColor={{ true: colors.error, false: switchTrackOff }}
+              thumbColor={switchThumb}
+            />
+          </View>
+        </View>
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.location')}</Text>
         <View style={styles.card}>
@@ -507,54 +513,48 @@ export default function SettingsScreen({ navigation }: Props) {
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.notifications')}</Text>
         <Text style={styles.hint}>{t('settings.notificationsHint')}</Text>
-        {privacyLoading ? (
-          <View style={styles.privacyLoading}>
-            <ActivityIndicator color={colors.primary} />
+        <View style={styles.toggleCard}>
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>{t('settings.pushMatchActivity')}</Text>
+            <Switch
+              value={matchActivityPush}
+              disabled={privacyPending || privacySaving}
+              onValueChange={(v) => {
+                setMatchActivityPush(v);
+                void persistPrivacy({ matchActivityPush: v });
+              }}
+              trackColor={{ true: switchTrackOn, false: switchTrackOff }}
+              thumbColor={switchThumb}
+            />
           </View>
-        ) : (
-          <View style={styles.toggleCard}>
-            <View style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>{t('settings.pushMatchActivity')}</Text>
-              <Switch
-                value={matchActivityPush}
-                disabled={privacySaving}
-                onValueChange={(v) => {
-                  setMatchActivityPush(v);
-                  void persistPrivacy({ matchActivityPush: v });
-                }}
-                trackColor={{ true: switchTrackOn, false: switchTrackOff }}
-                thumbColor={switchThumb}
-              />
-            </View>
-            <View style={[styles.toggleRow, styles.toggleRowBorder]}>
-              <Text style={styles.toggleLabel}>{t('settings.pushPartnerMarketing')}</Text>
-              <Switch
-                value={partnerMarketingPush}
-                disabled={privacySaving}
-                onValueChange={(v) => {
-                  setPartnerMarketingPush(v);
-                  void persistPrivacy({ partnerMarketingPush: v });
-                }}
-                trackColor={{ true: switchTrackOn, false: switchTrackOff }}
-                thumbColor={switchThumb}
-              />
-            </View>
-            <View style={[styles.toggleRow, styles.toggleRowBorder]}>
-              <Text style={styles.toggleLabel}>{t('settings.emailSocialActivity')}</Text>
-              <Switch
-                value={emailNotifications}
-                disabled={privacySaving}
-                onValueChange={(v) => {
-                  setEmailNotifications(v);
-                  void persistPrivacy({ emailNotifications: v });
-                }}
-                trackColor={{ true: switchTrackOn, false: switchTrackOff }}
-                thumbColor={switchThumb}
-              />
-            </View>
-            <Text style={styles.pushFootnote}>{t('settings.pushPartnerFootnote')}</Text>
+          <View style={[styles.toggleRow, styles.toggleRowBorder]}>
+            <Text style={styles.toggleLabel}>{t('settings.pushPartnerMarketing')}</Text>
+            <Switch
+              value={partnerMarketingPush}
+              disabled={privacyPending || privacySaving}
+              onValueChange={(v) => {
+                setPartnerMarketingPush(v);
+                void persistPrivacy({ partnerMarketingPush: v });
+              }}
+              trackColor={{ true: switchTrackOn, false: switchTrackOff }}
+              thumbColor={switchThumb}
+            />
           </View>
-        )}
+          <View style={[styles.toggleRow, styles.toggleRowBorder]}>
+            <Text style={styles.toggleLabel}>{t('settings.emailSocialActivity')}</Text>
+            <Switch
+              value={emailNotifications}
+              disabled={privacyPending || privacySaving}
+              onValueChange={(v) => {
+                setEmailNotifications(v);
+                void persistPrivacy({ emailNotifications: v });
+              }}
+              trackColor={{ true: switchTrackOn, false: switchTrackOff }}
+              thumbColor={switchThumb}
+            />
+          </View>
+          <Text style={styles.pushFootnote}>{t('settings.pushPartnerFootnote')}</Text>
+        </View>
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.feedbackTitle')}</Text>
         <Text style={styles.hint}>{t('settings.feedbackHint')}</Text>
@@ -603,8 +603,6 @@ export default function SettingsScreen({ navigation }: Props) {
                   syncBackgroundMusicForRoute(
                     getActiveRouteName(navigationRef.getRootState()),
                   );
-                } else {
-                  void stopBackgroundMusic();
                 }
               }}
               trackColor={{ true: switchTrackOn, false: switchTrackOff }}
@@ -665,7 +663,7 @@ export default function SettingsScreen({ navigation }: Props) {
         ) : null}
         <View style={styles.card}>
           <Text style={styles.cardText}>
-            {privacyLoading
+            {privacyPending
               ? '…'
               : subscriptionActive
                 ? t('settings.subscriptionActive')
@@ -680,7 +678,7 @@ export default function SettingsScreen({ navigation }: Props) {
             <View style={styles.followUpStrip}>
               <Text style={styles.followUpStripText}>{t('settings.subscriptionPendingFollowUp')}</Text>
               <Pressable
-                disabled={privacyLoading}
+                disabled={privacyPending}
                 style={({ pressed }) => [styles.refreshStatusBtn, pressed && styles.actionRowPressed]}
                 onPress={() => void refreshSubscriptionStatus()}
               >
@@ -709,11 +707,11 @@ export default function SettingsScreen({ navigation }: Props) {
             <>
               {!subscriptionActive ? (
                 <Pressable
-                  disabled={rcBusy || privacyLoading}
+                  disabled={rcBusy || privacyPending}
                   style={({ pressed }) => [
                     styles.linkRow,
                     pressed && styles.actionRowPressed,
-                    (rcBusy || privacyLoading) && styles.actionRowDisabled,
+                    (rcBusy || privacyPending) && styles.actionRowDisabled,
                   ]}
                   onPress={() => void openRevenueCatSubscribe()}
                 >
@@ -723,22 +721,22 @@ export default function SettingsScreen({ navigation }: Props) {
                 </Pressable>
               ) : null}
               <Pressable
-                disabled={rcBusy || privacyLoading}
+                disabled={rcBusy || privacyPending}
                 style={({ pressed }) => [
                   styles.linkRow,
                   pressed && styles.actionRowPressed,
-                  (rcBusy || privacyLoading) && styles.actionRowDisabled,
+                  (rcBusy || privacyPending) && styles.actionRowDisabled,
                 ]}
                 onPress={() => void restoreRevenueCat()}
               >
                 <Text style={styles.linkText}>{t('settings.subscriptionRestore')}</Text>
               </Pressable>
               <Pressable
-                disabled={rcBusy || privacyLoading}
+                disabled={rcBusy || privacyPending}
                 style={({ pressed }) => [
                   styles.linkRow,
                   pressed && styles.actionRowPressed,
-                  (rcBusy || privacyLoading) && styles.actionRowDisabled,
+                  (rcBusy || privacyPending) && styles.actionRowDisabled,
                 ]}
                 onPress={() => void openStoreSubscriptions()}
               >
@@ -776,11 +774,11 @@ export default function SettingsScreen({ navigation }: Props) {
               <Text style={styles.cardText}>{t('settings.venuePlayBudgetLead')}</Text>
               <Text style={styles.cardTextSecondary}>{t('settings.venuePlayBudgetFairPlay')}</Text>
               <Pressable
-                disabled={rcBusy || privacyLoading}
+                disabled={rcBusy || privacyPending}
                 style={({ pressed }) => [
                   styles.linkRow,
                   pressed && styles.actionRowPressed,
-                  (rcBusy || privacyLoading) && styles.actionRowDisabled,
+                  (rcBusy || privacyPending) && styles.actionRowDisabled,
                 ]}
                 onPress={() =>
                   void promptVenuePlayTimePurchaseDialog({
@@ -966,7 +964,10 @@ function createStyles(colors: AppColors) {
     langRowPressed: { opacity: 0.92 },
     langName: { color: colors.text, fontWeight: '700', fontSize: 16 },
     langNameActive: { color: colors.primaryDark },
-    privacyLoading: { marginTop: spacing.lg, alignItems: 'center' },
+    toggleRowLoading: {
+      alignItems: 'center',
+      paddingVertical: spacing.md,
+    },
     toggleCard: {
       marginTop: spacing.md,
       backgroundColor: colors.surface,

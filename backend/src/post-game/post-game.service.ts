@@ -4,7 +4,7 @@ import {
   GameParticipantResult,
   GameSessionStatus,
   GameType,
-  type Prisma,
+  Prisma,
 } from '@prisma/client';
 import { ChallengeService } from '../challenge/challenge.service';
 import type { TierProgressDto } from '../lib/xp-tier-ladder.util';
@@ -125,13 +125,37 @@ export class PostGameService {
     return payload;
   }
 
+  private async waitForGameSessionSnapshots(sessionId: string, maxMs = 8000): Promise<void> {
+    const started = Date.now();
+    while (Date.now() - started < maxMs) {
+      const humans = await this.prisma.gameParticipant.count({
+        where: { sessionId, isBot: false, playerId: { not: null } },
+      });
+      if (humans === 0) return;
+      const pending = await this.prisma.gameParticipant.findFirst({
+        where: {
+          sessionId,
+          isBot: false,
+          playerId: { not: null },
+          postGameSnapshot: { equals: Prisma.DbNull },
+        },
+        select: { id: true },
+      });
+      if (!pending) return;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
+
   private async ensureGameSessionProcessed(sessionId: string): Promise<void> {
     const session = await this.prisma.gameSession.findUnique({
       where: { id: sessionId },
       select: { id: true, status: true, postGameProcessedAt: true },
     });
     if (!session || session.status !== GameSessionStatus.FINISHED) return;
-    if (session.postGameProcessedAt) return;
+    if (session.postGameProcessedAt) {
+      await this.waitForGameSessionSnapshots(sessionId);
+      return;
+    }
 
     const claim = await this.prisma.gameSession.updateMany({
       where: {
