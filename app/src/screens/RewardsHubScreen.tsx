@@ -1,8 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
-import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -21,14 +20,13 @@ import QuestDetailModal from '../components/rewards/QuestDetailModal';
 import QuestPeriodToggle from '../components/rewards/QuestPeriodToggle';
 import {
   claimPlatformQuest,
-  fetchPlatformQuestHub,
   formatQuestResetCountdown,
-  type PlatformQuestHubPayload,
   type PlatformQuestRow,
   type QuestPeriod,
 } from '../lib/platformQuestApi';
 import { subscribePlatformQuestProgressChanged } from '../lib/platformQuestEvents';
 import type { RootStackParamList } from '../navigation/type';
+import { usePlatformQuestHubQuery } from '../query';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
@@ -44,57 +42,32 @@ export default function RewardsHubScreen({ navigation }: Props) {
   getTokenRef.current = getToken;
 
   const [period, setPeriod] = useState<QuestPeriod>('daily');
-  const [hub, setHub] = useState<PlatformQuestHubPayload | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const questQuery = usePlatformQuestHubQuery(period);
+  const hub = questQuery.data ?? null;
+  const loading = questQuery.isLoading;
+  const refreshing = questQuery.isFetching && !questQuery.isLoading;
   const [claimingKey, setClaimingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedQuest, setSelectedQuest] = useState<PlatformQuestRow | null>(null);
 
-  const load = useCallback(
-    async (mode: 'initial' | 'refresh') => {
-      if (!isLoaded) return;
-      if (mode === 'initial') setLoading(true);
-      else setRefreshing(true);
-      setError(null);
-      try {
-        const token = await getTokenRef.current();
-        if (!token) {
-          setHub(null);
-          return;
-        }
-        const data = await fetchPlatformQuestHub(token, period);
-        setHub(data);
-      } catch {
-        setError(t('questHub.loadError'));
-        setHub(null);
-      } finally {
-        if (mode === 'initial') setLoading(false);
-        else setRefreshing(false);
-      }
-    },
-    [isLoaded, period, t],
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      void load('initial');
-    }, [load]),
-  );
+  useEffect(() => {
+    if (questQuery.isError) setError(t('questHub.loadError'));
+    else setError(null);
+  }, [questQuery.isError, t]);
 
   useEffect(() => {
     return subscribePlatformQuestProgressChanged(() => {
-      void load('refresh');
+      void questQuery.refetch();
     });
-  }, [load]);
+  }, [questQuery]);
 
   const handleClaim = async (questKey: string) => {
     const token = await getTokenRef.current();
     if (!token) return;
     setClaimingKey(questKey);
     try {
-      const next = await claimPlatformQuest(token, period, questKey);
-      setHub(next);
+      await claimPlatformQuest(token, period, questKey);
+      await questQuery.refetch();
     } catch {
       setError(t('questHub.claimError'));
     } finally {
@@ -132,7 +105,7 @@ export default function RewardsHubScreen({ navigation }: Props) {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => void load('refresh')}
+            onRefresh={() => void questQuery.refetch()}
             tintColor={colors.primary}
           />
         }

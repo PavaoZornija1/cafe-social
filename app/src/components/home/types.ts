@@ -2,11 +2,11 @@ export type HomeVenue = { id: string; name: string; isPremium: boolean; locked?:
 
 export type HomeVenueAccess = {
   venueId: string;
-  isPremium: boolean;
+  isPremium?: boolean;
   locked?: boolean;
   lockReason?: string | null;
-  visitedBefore: boolean;
-  subscriptionActive: boolean;
+  visitedBefore?: boolean;
+  subscriptionActive?: boolean;
   canEnterVenueContext: boolean;
   bannedFromVenue?: boolean;
   requiresExplicitCheckIn?: boolean;

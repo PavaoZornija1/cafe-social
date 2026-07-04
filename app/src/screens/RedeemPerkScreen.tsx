@@ -29,6 +29,7 @@ import {
   type VenueRedeemableReward,
 } from '../lib/venuePerksApi';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
+import { useDetectedVenueQuery } from '../query';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
@@ -98,6 +99,9 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
 
+  const detectQuery = useDetectedVenueQuery({ refetchOnScreenFocus: false });
+  const venueId = detectQuery.data?.venue?.id ?? route.params?.venueId ?? null;
+
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [lastOk, setLastOk] = useState<RedeemOk | null>(null);
@@ -131,16 +135,20 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
           return;
         }
 
-        const { venue } = await fetchDetectedVenue();
-        if (!venue) {
+        let activeVenueId = venueId;
+        if (!activeVenueId) {
+          const result = await detectQuery.refetch();
+          activeVenueId = result.data?.venue?.id ?? null;
+        }
+        if (!activeVenueId) {
           setTeasers([]);
           setMyRewards([]);
           return;
         }
 
         const [list, mine] = await Promise.all([
-          fetchVenuePerkTeasers(venue.id, token),
-          fetchMyVenueRewards(venue.id, token),
+          fetchVenuePerkTeasers(activeVenueId, token),
+          fetchMyVenueRewards(activeVenueId, token),
         ]);
         setTeasers(list);
         setMyRewards(mine);
@@ -155,7 +163,7 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
         setRefreshing(false);
       }
     },
-    [isLoaded],
+    [isLoaded, venueId, detectQuery],
   );
 
   const loadPerksRef = useRef(loadPerks);
@@ -455,12 +463,13 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
                   {r.status === 'REDEEMABLE' && isReceiptSubmissionsEnabled() ? (
                     <Pressable
                       style={({ pressed }) => [styles.submitReceiptBtn, pressed && styles.pressed]}
-                      onPress={() =>
+                      onPress={() => {
+                        if (!venueId) return;
                         navigation.navigate('SubmitReceipt', {
                           venueId,
                           redemptionId: r.redemptionId,
-                        })
-                      }
+                        });
+                      }}
                     >
                       <Text style={styles.submitReceiptBtnText}>
                         {t('perkWallet.submitReceiptToUnlock')}

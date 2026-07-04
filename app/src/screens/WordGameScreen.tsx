@@ -355,11 +355,19 @@ export default function WordGameScreen({ navigation, route }: Props) {
         let start: Awaited<ReturnType<typeof tryStart>>;
         try {
           start = await tryStart(primary);
-        } catch {
+        } catch (firstErr) {
           if (primary !== 'en') {
-            start = await tryStart('en');
+            try {
+              start = await tryStart('en');
+            } catch {
+              throw firstErr instanceof Error
+                ? firstErr
+                : new Error(t('wordGame.loadError'));
+            }
           } else {
-            throw new Error(t('wordGame.loadError'));
+            throw firstErr instanceof Error
+              ? firstErr
+              : new Error(t('wordGame.loadError'));
           }
         }
         if (cancelled) return;

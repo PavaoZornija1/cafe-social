@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@clerk/expo';
+import { useQueryClient } from '@tanstack/react-query';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -20,6 +21,7 @@ import { apiPost } from '../lib/api';
 import { triggerFeedback } from '../lib/feedback';
 import { getCoordinatesForVenueDetect } from '../lib/locationForDetect';
 import { parseVenueIdFromQr } from '../lib/parseVenueQr';
+import { invalidateVenueSession } from '../query';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
@@ -31,6 +33,7 @@ export default function QrScanScreen({ navigation, route }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
   const { getToken, isLoaded } = useAuth();
+  const queryClient = useQueryClient();
   const [permission, requestPermission] = useCameraPermissions();
   const [loading, setLoading] = useState(false);
   const knownVenueId = route.params?.venueId?.trim() || '';
@@ -86,6 +89,7 @@ export default function QrScanScreen({ navigation, route }: Props) {
       }
 
       triggerFeedback('checkIn');
+      await invalidateVenueSession(queryClient, id);
       navigation.replace('MainTabs');
     } catch (e) {
       setError((e as Error).message || t('qr.unlockError'));

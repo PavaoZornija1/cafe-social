@@ -29,6 +29,7 @@ import { resolveArenaSafeInsets } from '../brawler/arena/arenaSafeArea';
 import {
   arenaHeroCombat,
   computeLavaSurfaceY,
+  matchElapsedFromRemaining,
   matchPhaseKey,
   matchPhaseLabelDyn,
   type MatchPhaseKey,
@@ -313,7 +314,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const preMatchLeftRef = useRef(
     DEFAULT_MATCH_TIMER_ENABLED ? PRE_MATCH_COUNTDOWN_S : 0,
   );
-  const matchClockRef = useRef(0);
+  /** Seconds **remaining** (countdown). Phases/lava use elapsed = max − remaining. */
+  const matchClockRef = useRef(DEFAULT_MATCH_MAX_S);
   const matchEndedRef = useRef(false);
   const [gameOverOpen, setGameOverOpen] = useState(false);
   const lastAnnouncedPhaseKeyRef = useRef<MatchPhaseKey | null>(null);
@@ -441,7 +443,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         pendingMatchTimerFromSessionRef.current = true;
         setDevMatchTimerEnabled(true);
         preMatchLeftRef.current = PRE_MATCH_COUNTDOWN_S;
-        matchClockRef.current = 0;
+        matchClockRef.current = matchMaxSRef.current;
         matchEndedRef.current = false;
         setGameOverOpen(false);
         setHeroDeadOpen(false);
@@ -697,7 +699,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     if (gameOverOpen || deathChoiceOpen || venueTwoHumanHold) return;
     if (sessionId && !trackedSessionReady) return;
 
-    const elapsed = matchClockRef.current;
+    const elapsed = matchElapsedFromRemaining(
+      matchClockRef.current,
+      matchMaxSRef.current,
+    );
     const key = matchPhaseKey(
       elapsed,
       matchChaosEndSRef.current,
@@ -788,7 +793,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     idleFrameRef.current = 0;
     idleAccum.current = 0;
     matchEndedRef.current = false;
-    matchClockRef.current = 0;
+    matchClockRef.current = matchMaxSRef.current;
     preMatchLeftRef.current = devMatchTimerEnabled ? PRE_MATCH_COUNTDOWN_S : 0;
     powerupsOnMapRef.current = [];
     powerupSpawnAccumRef.current = 0;
@@ -952,14 +957,18 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     preMatchCeil > 0 &&
     devMatchTimerEnabled &&
     (!sessionId || trackedSessionReady);
-  const matchClockShown = matchClockRef.current;
+  const matchRemainingShown = matchClockRef.current;
+  const matchElapsedShown = matchElapsedFromRemaining(
+    matchRemainingShown,
+    matchMaxSRef.current,
+  );
   const phaseShown = matchPhaseLabelDyn(
-    matchClockShown,
+    matchElapsedShown,
     matchChaosEndSRef.current,
     matchEndgameEndSRef.current,
   );
   const lavaSurfaceY = computeLavaSurfaceY(
-    matchClockShown,
+    matchElapsedShown,
     matchEndgameEndSRef.current,
     matchMaxSRef.current,
     worldH,
@@ -1043,7 +1052,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const dmgFloats = dmgFloatsRef.current;
 
   const showKdHud = arenaReadyHud && !resultsOverlay && !venueTwoHumanHold;
-  const matchNowMs = Math.floor(matchClockShown * 1000);
+  const matchNowMs = Math.floor(matchElapsedShown * 1000);
   const activePowerupRows = buildActivePowerupHudRows(
     activeBuffsRef.current,
     powerupDefsRef.current,
@@ -1189,7 +1198,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
             deaths={playerDeathsRef.current}
             showHudMatchClock={showHudMatchClock}
             phaseLabel={phaseShown}
-            matchClockSeconds={matchClockShown}
+            matchClockSeconds={matchRemainingShown}
             sessionId={sessionId}
             onToggleDev={() => setDevOpen((o) => !o)}
             resetLabel={sessionId ? t('brawlerMatch.hudLobby') : t('brawlerMatch.hudReset')}
@@ -1211,7 +1220,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           onMatchTimerPress={() => {
             setDevMatchTimerEnabled((v) => !v);
             preMatchLeftRef.current = !devMatchTimerEnabled ? PRE_MATCH_COUNTDOWN_S : 0;
-            matchClockRef.current = 0;
+            matchClockRef.current = matchMaxSRef.current;
             matchEndedRef.current = false;
             setGameOverOpen(false);
             bump();

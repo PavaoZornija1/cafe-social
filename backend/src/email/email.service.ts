@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { isDeliverableEmail } from './deliverable-email';
 
 const RESEND_API = 'https://api.resend.com/emails';
 
@@ -16,6 +17,7 @@ export class EmailService {
   /**
    * Transactional email via Resend. No-op when `RESEND_API_KEY` is unset.
    * Set `RESEND_FROM_EMAIL` to a verified domain sender (e.g. `Cafe Social <hello@yourdomain.com>`).
+   * Skips synthetic Clerk placeholders (`*@clerk.local`).
    */
   async send(params: {
     to: string;
@@ -23,6 +25,11 @@ export class EmailService {
     html: string;
     tags?: { name: string; value: string }[];
   }): Promise<void> {
+    if (!isDeliverableEmail(params.to)) {
+      this.log.debug(`Skipping email to non-deliverable address: ${params.to}`);
+      return;
+    }
+
     const apiKey = this.config.get<string>('RESEND_API_KEY')?.trim();
     if (!apiKey) {
       this.log.debug('RESEND_API_KEY unset; skipping email');

@@ -14,6 +14,7 @@ type Props = {
   deaths: number;
   showHudMatchClock: boolean;
   phaseLabel: string;
+  /** Seconds remaining (countdown). */
   matchClockSeconds: number;
   sessionId: string | undefined;
   onToggleDev: () => void;

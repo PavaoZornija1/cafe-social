@@ -30,11 +30,17 @@ export function arenaHeroCombat(stats: BrawlerArenaHeroStats | undefined) {
   };
 }
 
+/** HUD clock — `seconds` is time **remaining** (countdown). */
 export function formatMatchClock(seconds: number): string {
-  const s = Math.max(0, Math.floor(seconds));
+  const s = Math.max(0, Math.ceil(seconds - 1e-6));
   const m = Math.floor(s / 60);
   const r = s % 60;
   return `${m}:${r.toString().padStart(2, '0')}`;
+}
+
+/** Elapsed match time from countdown remaining. */
+export function matchElapsedFromRemaining(remainingS: number, matchMaxS: number): number {
+  return Math.max(0, Math.min(matchMaxS, matchMaxS - Math.max(0, remainingS)));
 }
 
 export type MatchPhaseKey = 'chaos' | 'endgame' | 'sudden_death';
@@ -71,7 +77,8 @@ export const LAVA_MAX_HEIGHT_FRAC = 0.5;
 
 /**
  * Top Y of the rising lava surface during sudden death, or `null` before that phase.
- * Lava grows from the bottom toward {@link LAVA_MAX_HEIGHT_FRAC} of map height.
+ * Lava grows from the bottom toward {@link LAVA_MAX_HEIGHT_FRAC} of map height
+ * as the countdown runs through the sudden-death window.
  */
 export function computeLavaSurfaceY(
   elapsedS: number,

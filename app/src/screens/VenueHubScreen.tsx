@@ -1,8 +1,7 @@
 import { useAuth } from '@clerk/expo';
-import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
     ActivityIndicator,
     Linking,
@@ -18,19 +17,17 @@ import { useTranslation } from 'react-i18next';
 import LinearGradientFill from '../components/ui/LinearGradientFill';
 import ExplicitCheckInBanner from '../components/home/ExplicitCheckInBanner';
 import type { RootStackParamList } from '../navigation/type';
-import { apiGet } from '../lib/api';
 import { venueInitial } from '../lib/geo';
 import { needsExplicitCheckInBanner } from '../lib/explicitCheckIn';
 import { isVenuePartnerLocked, venueLockMessageKey } from '../lib/venueLock';
 import { openOrderingOrMenu } from '../lib/openOrderingLinks';
-import {
-    fetchMyVenueRewards,
-    fetchVenuePerkTeasers,
-    type VenuePerkPublicTeaser,
-    type VenueRedeemableReward,
+import type {
+    VenuePerkPublicTeaser,
+    VenueRedeemableReward,
 } from '../lib/venuePerksApi';
 import { isReceiptSubmissionsEnabled } from '../lib/receiptSubmissionsFeature';
 import { isLikelyNetworkFailure } from '../lib/isNetworkError';
+import { useVenueHubQuery, useVenuePublicCardQuery } from '../query';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
@@ -161,186 +158,46 @@ export default function VenueHubScreen({ navigation, route }: Props) {
     const styles = useMemo(() => createStyles(colors), [colors]);
     const { t } = useTranslation();
     const { venueId, venueName } = route.params;
-    const { isLoaded, getToken, isSignedIn } = useAuth();
-    const getTokenRef = useRef(getToken);
-    getTokenRef.current = getToken;
+    const { isSignedIn } = useAuth();
     const title = venueName ?? venueId;
     const receiptsEnabled = isReceiptSubmissionsEnabled();
 
-    const [loadError, setLoadError] = useState<string | null>(null);
-    const [publicCard, setPublicCard] = useState<VenuePublicCard | null>(null);
-    const [initializingCard, setInitializingCard] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const publicCardRef = useRef(publicCard);
-    publicCardRef.current = publicCard;
-    const [access, setAccess] = useState<VenueAccess | null>(null);
-    const [friendsVisit, setFriendsVisit] = useState<FriendsVisitSummary | null>(null);
-    const [friendsAtVenue, setFriendsAtVenue] = useState<FriendAtVenueRow[]>([]);
-    const [engagement, setEngagement] = useState<Engagement | null>(null);
-    const [venuePerks, setVenuePerks] = useState<VenuePerkPublicTeaser[]>([]);
-    const [venueFeed, setVenueFeed] = useState<VenueFeedItem[]>([]);
-    const [refreshingSocial, setRefreshingSocial] = useState(false);
-    const hasSocialDataRef = useRef(false);
-    const [hubChallenges, setHubChallenges] = useState<HubVenueChallenge[]>([]);
-    const [peopleHereCount, setPeopleHereCount] = useState(0);
-    const [myVenueRewards, setMyVenueRewards] = useState<VenueRedeemableReward[]>([]);
-    const [leaderboardPreview, setLeaderboardPreview] = useState<LeaderboardPreviewRow[]>([]);
-    const [hubOffers, setHubOffers] = useState<VenuePublicOffer[]>([]);
+    const cardQuery = useVenuePublicCardQuery(venueId);
+    const hubQuery = useVenueHubQuery(isSignedIn ? venueId : null);
+
+    const publicCard = (cardQuery.data as VenuePublicCard | undefined) ?? null;
+    const loadError = cardQuery.isError
+        ? isLikelyNetworkFailure(cardQuery.error)
+            ? t('home.venueErrorNetwork')
+            : (cardQuery.error as Error)?.message || t('venueHub.loadError')
+        : null;
+    const initializingCard = cardQuery.isLoading;
+    const refreshing =
+        (cardQuery.isFetching && !cardQuery.isLoading) ||
+        (hubQuery.isFetching && !hubQuery.isLoading);
+
+    const access = (hubQuery.data?.access as VenueAccess | undefined) ?? null;
+    const friendsVisit = hubQuery.data?.friendsVisit ?? null;
+    const friendsAtVenue = (hubQuery.data?.friendsAtVenue ?? []) as FriendAtVenueRow[];
+    const engagement = (hubQuery.data?.engagement as Engagement | null) ?? null;
+    const venuePerks = (hubQuery.data?.perks ?? []) as VenuePerkPublicTeaser[];
+    const venueFeed = (hubQuery.data?.feed ?? []) as VenueFeedItem[];
+    const refreshingSocial = hubQuery.isFetching && !hubQuery.isLoading;
+    const hubChallenges = (hubQuery.data?.challenges ?? []) as HubVenueChallenge[];
+    const peopleHereCount = hubQuery.data?.peopleHereCount ?? 0;
+    const myVenueRewards = (hubQuery.data?.myRewards ?? []) as VenueRedeemableReward[];
+    const leaderboardPreview = (hubQuery.data?.leaderboardPreview ??
+        []) as LeaderboardPreviewRow[];
+    const hubOffers = (hubQuery.data?.offers ?? []) as VenuePublicOffer[];
 
     const displayName = publicCard?.name ?? title;
     const venueLogoInitial = venueInitial(displayName);
     const addressPreview = publicCard ? venueAddressLines(publicCard)[0] ?? null : null;
 
-    const loadCard = useCallback(async (mode: 'initial' | 'refresh') => {
-        const hasCard = Boolean(publicCardRef.current);
-        if (mode === 'initial' && !hasCard) {
-            setInitializingCard(true);
-        } else if (mode === 'refresh') {
-            setRefreshing(true);
-        }
-        setLoadError(null);
-        try {
-            const card = await apiGet<VenuePublicCard>(`/venues/${encodeURIComponent(venueId)}/public-card`);
-            setPublicCard({
-                ...card,
-                offers: Array.isArray(card.offers) ? card.offers : [],
-            });
-        } catch (e) {
-            if (!hasCard) setPublicCard(null);
-            setLoadError(
-                isLikelyNetworkFailure(e)
-                    ? t('home.venueErrorNetwork')
-                    : (e as Error).message || t('venueHub.loadError'),
-            );
-        } finally {
-            setInitializingCard(false);
-            setRefreshing(false);
-        }
-    }, [venueId, t]);
-
-    const loadAuthenticated = useCallback(async (mode: 'initial' | 'refresh') => {
-        if (!isLoaded) return;
-        const token = await getTokenRef.current();
-        if (!token) {
-            setHubChallenges([]);
-            setPeopleHereCount(0);
-            setMyVenueRewards([]);
-            setLeaderboardPreview([]);
-            hasSocialDataRef.current = false;
-            return;
-        }
-        if (mode === 'refresh' || hasSocialDataRef.current) {
-            setRefreshingSocial(true);
-        }
-        try {
-            const a = await apiGet<VenueAccess>(
-                `/venue-context/${encodeURIComponent(venueId)}/access`,
-                token,
-            );
-            setAccess(a);
-
-            const [fv, fat, eng, perks, chList, peopleList, rewardsList, boardList, offersPayload] =
-                await Promise.all([
-                apiGet<FriendsVisitSummary>(
-                    `/social/venues/${encodeURIComponent(venueId)}/friends-visit-summary`,
-                    token,
-                ).catch(() => null),
-                apiGet<{ friends: FriendAtVenueRow[] }>(
-                    `/social/venues/${encodeURIComponent(venueId)}/friends-at-venue`,
-                    token,
-                ).catch(() => ({ friends: [] })),
-                apiGet<Engagement>('/players/me/engagement', token).catch(() => null),
-                fetchVenuePerkTeasers(venueId, token).catch(() => []),
-                apiGet<HubVenueChallenge[]>(
-                    `/venue-context/${encodeURIComponent(venueId)}/challenges`,
-                    token,
-                ).catch(() => []),
-                apiGet<PeopleHereRow[]>(
-                    `/social/venues/${encodeURIComponent(venueId)}/people-here`,
-                    token,
-                ).catch(() => []),
-                fetchMyVenueRewards(venueId, token).catch(() => []),
-                apiGet<LeaderboardPreviewRow[]>(
-                    `/venues/${encodeURIComponent(venueId)}/leaderboard/xp`,
-                    token,
-                ).catch(() => []),
-                apiGet<{ offers: VenuePublicOffer[] }>(
-                    `/venue-context/${encodeURIComponent(venueId)}/offers`,
-                    token,
-                ).catch(() => ({ offers: [] })),
-            ]);
-            setFriendsVisit(fv);
-            setFriendsAtVenue(Array.isArray(fat.friends) ? fat.friends : []);
-            setEngagement(eng);
-            setVenuePerks(perks);
-            setHubChallenges(Array.isArray(chList) ? chList : []);
-            setPeopleHereCount(Array.isArray(peopleList) ? peopleList.length : 0);
-            setMyVenueRewards(Array.isArray(rewardsList) ? rewardsList : []);
-            setLeaderboardPreview(Array.isArray(boardList) ? boardList.slice(0, 3) : []);
-            setHubOffers(Array.isArray(offersPayload.offers) ? offersPayload.offers : []);
-            hasSocialDataRef.current = true;
-
-            if (a.canEnterVenueContext) {
-                const feed = await apiGet<VenueFeedItem[]>(
-                    `/social/venues/${encodeURIComponent(venueId)}/feed?limit=20`,
-                    token,
-                ).catch(() => []);
-                setVenueFeed(Array.isArray(feed) ? feed : []);
-            } else {
-                setVenueFeed([]);
-            }
-        } catch {
-            if (!hasSocialDataRef.current) {
-                setAccess(null);
-                setFriendsVisit(null);
-                setFriendsAtVenue([]);
-                setEngagement(null);
-                setVenuePerks([]);
-                setVenueFeed([]);
-                setHubChallenges([]);
-                setPeopleHereCount(0);
-                setMyVenueRewards([]);
-                setLeaderboardPreview([]);
-            }
-        } finally {
-            setRefreshingSocial(false);
-        }
-    }, [venueId, isLoaded]);
-
-    useEffect(() => {
-        setPublicCard(null);
-        setLoadError(null);
-        hasSocialDataRef.current = false;
-    }, [venueId]);
-
-    useEffect(() => {
-        void loadCard('initial');
-    }, [venueId, loadCard]);
-
-    useFocusEffect(
-        useCallback(() => {
-            if (publicCardRef.current) {
-                void loadCard('refresh');
-            }
-        }, [loadCard]),
-    );
-
-    useEffect(() => {
-        void loadAuthenticated('initial');
-    }, [loadAuthenticated]);
-
-    useFocusEffect(
-        useCallback(() => {
-            if (hasSocialDataRef.current) {
-                void loadAuthenticated('refresh');
-            }
-        }, [loadAuthenticated]),
-    );
-
     const handleRefresh = useCallback(() => {
-        void loadCard(publicCardRef.current ? 'refresh' : 'initial');
-        void loadAuthenticated(hasSocialDataRef.current ? 'refresh' : 'initial');
-    }, [loadAuthenticated, loadCard]);
+        void cardQuery.refetch();
+        void hubQuery.refetch();
+    }, [cardQuery, hubQuery]);
 
     const badgeLabel = (key: string): string => {
         if (key === 'regular_this_week') return t('home.badgeRegularWeek');

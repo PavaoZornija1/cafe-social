@@ -18,14 +18,11 @@ import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiGet } from '../lib/api';
 import {
-  buildVenueAccessQuery,
-  fetchDetectedVenue,
-} from '../lib/venueDetectClient';
-import {
   isVenuePartnerLocked,
   venueLockMessageKey,
   type VenueLockFields,
 } from '../lib/venueLock';
+import { useVenueSession } from '../query';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
@@ -101,17 +98,23 @@ export default function ChallengesScreen({ navigation, route }: Props) {
   getTokenRef.current = getToken;
   const routeVenueId = route.params?.venueId;
   const routeVenueName = route.params?.venueName;
+  const session = useVenueSession({ routeVenueId });
 
   const [venue, setVenue] = useState<Venue | null>(null);
   const [initializing, setInitializing] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [challenges, setChallenges] = useState<VenueChallenge[]>([]);
-  const [venueLock, setVenueLock] = useState<VenueLockFields | null>(null);
 
   const challengesRef = useRef(challenges);
   challengesRef.current = challenges;
   const hasLoadedRef = useRef(false);
+
+  const venueLock: VenueLockFields | null = session.access
+    ? { locked: session.access.locked, lockReason: session.access.lockReason }
+    : session.detectedVenue?.locked
+      ? { locked: true }
+      : null;
 
   const fetchChallenges = useCallback(
     async (mode: 'initial' | 'refresh') => {
@@ -126,18 +129,21 @@ export default function ChallengesScreen({ navigation, route }: Props) {
       try {
         if (!isLoaded) return;
 
-        let activeVenue: Venue | null = null;
-
-        if (routeVenueId) {
-          activeVenue = {
-            id: routeVenueId,
-            name: routeVenueName?.trim() || routeVenueId,
-            isPremium: false,
-          };
-        } else {
-          const { venue: detected } = await fetchDetectedVenue();
-          activeVenue = detected;
+        if (mode === 'refresh') {
+          await session.refetch();
         }
+
+        const playVenueId = session.playVenueId;
+        const activeVenue: Venue | null = playVenueId
+          ? {
+              id: playVenueId,
+              name:
+                routeVenueName?.trim() ||
+                session.detectedVenue?.name ||
+                playVenueId,
+              isPremium: Boolean(session.access?.isPremium),
+            }
+          : null;
 
         setVenue((prev) => {
           if (!activeVenue) return null;
@@ -153,26 +159,15 @@ export default function ChallengesScreen({ navigation, route }: Props) {
 
         if (!activeVenue) {
           setChallenges([]);
-          setVenueLock(null);
           return;
         }
 
         const token = await getTokenRef.current();
         if (!token) throw new Error('Not authenticated');
 
-        const { coords } = await fetchDetectedVenue().catch(() => ({
-          venue: null,
-          coords: null,
-        }));
-        const accessQs = buildVenueAccessQuery(coords);
-        const access = await apiGet<VenueLockFields & { venueId: string }>(
-          `/venue-context/${encodeURIComponent(activeVenue.id)}/access${accessQs}`,
-          token,
-        ).catch(() => null);
-        const lockFields = access
-          ? { locked: access.locked, lockReason: access.lockReason }
+        const lockFields = session.access
+          ? { locked: session.access.locked, lockReason: session.access.lockReason }
           : null;
-        setVenueLock(lockFields);
 
         if (isVenuePartnerLocked(lockFields)) {
           setChallenges([]);
@@ -187,14 +182,20 @@ export default function ChallengesScreen({ navigation, route }: Props) {
       } catch (e) {
         setError((e as Error).message || tRef.current('challenges.loadError'));
         if (!hasData) setChallenges([]);
-        setVenueLock(null);
       } finally {
         hasLoadedRef.current = true;
         setInitializing(false);
         setRefreshing(false);
       }
     },
-    [isLoaded, routeVenueId, routeVenueName],
+    [
+      isLoaded,
+      routeVenueName,
+      session.playVenueId,
+      session.detectedVenue?.name,
+      session.access,
+      session.refetch,
+    ],
   );
 
   const fetchChallengesRef = useRef(fetchChallenges);

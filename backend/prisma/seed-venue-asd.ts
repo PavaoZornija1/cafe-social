@@ -1,6 +1,6 @@
 /**
- * Idempotent test content for the partner venue named "asd".
- * Does not touch geofence / coordinates / polygon.
+ * Idempotent test content for partner venue **Grbavica Home**
+ * (legacy name `asd`, id below). Does not touch geofence / coordinates / polygon.
  *
  *   cd backend && npx ts-node prisma/seed-venue-asd.ts
  */
@@ -27,8 +27,13 @@ const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString }),
 });
 
+/** Known local test venue (was named "asd"). */
+const VENUE_ID = '1e1846b1-6b59-46e2-85e6-6bbbe589d6a9';
+const VENUE_NAME = 'Grbavica Home';
+
 /** Stable IDs so re-runs upsert cleanly. */
 const IDS = {
+  nudgeAssignment: 'a5d50001-0001-4000-8000-000000000001',
   perkWord: 'a5d10001-0001-4000-8000-000000000001',
   perkBrawler: 'a5d10001-0001-4000-8000-000000000002',
   perkHappyHour: 'a5d10001-0001-4000-8000-000000000003',
@@ -49,14 +54,28 @@ const IDS = {
 
 async function main() {
   const venue = await prisma.venue.findFirst({
-    where: { name: { equals: 'asd', mode: 'insensitive' } },
+    where: {
+      OR: [
+        { id: VENUE_ID },
+        { name: { equals: 'asd', mode: 'insensitive' } },
+        { name: { equals: VENUE_NAME, mode: 'insensitive' } },
+      ],
+    },
     select: {
       id: true,
       name: true,
       analyticsTimeZone: true,
       menuUrl: true,
       orderingUrl: true,
-      _count: { select: { challenges: true, perks: true, offers: true, campaigns: true } },
+      _count: {
+        select: {
+          challenges: true,
+          perks: true,
+          offers: true,
+          campaigns: true,
+          nudgeAssignments: true,
+        },
+      },
     },
   });
 
@@ -66,7 +85,7 @@ async function main() {
       orderBy: { name: 'asc' },
       take: 20,
     });
-    console.error('No venue named "asd" found. Nearby venues:');
+    console.error(`No venue ${VENUE_ID} / "asd" / "${VENUE_NAME}" found. Nearby venues:`);
     for (const v of names) console.error(`  - ${v.name} (${v.id})`);
     process.exit(1);
   }
@@ -74,7 +93,7 @@ async function main() {
   const venueId = venue.id;
   console.log(`Seeding test content for venue "${venue.name}" (${venueId})`);
   console.log(
-    `  before: challenges=${venue._count.challenges} perks=${venue._count.perks} offers=${venue._count.offers} campaigns=${venue._count.campaigns}`,
+    `  before: challenges=${venue._count.challenges} perks=${venue._count.perks} offers=${venue._count.offers} campaigns=${venue._count.campaigns} nudges=${venue._count.nudgeAssignments}`,
   );
 
   // Soft partner fields only — never geofence / lat / lng / polygon.
@@ -101,13 +120,75 @@ async function main() {
   await prisma.venue.update({
     where: { id: venueId },
     data: {
+      name: VENUE_NAME,
       locked: false,
       lockReason: null,
+      proximityAlertsEnabled: true,
+      proximityAlertRadiusMeters: 100,
       analyticsTimeZone: venueFull.analyticsTimeZone?.trim() || 'Europe/Sarajevo',
-      ...(venueFull.menuUrl ? {} : { menuUrl: 'https://example.com/asd/menu' }),
-      ...(venueFull.orderingUrl ? {} : { orderingUrl: 'https://example.com/asd/order' }),
+      menuUrl: 'https://example.com/grbavica-home/menu',
+      orderingUrl: 'https://example.com/grbavica-home/order',
+      orderNudgeTitle: 'Still at {{venueName}}?',
+      orderNudgeBody:
+        'Grab something from the menu — open Cafe Social for today’s offer at {{venueName}}.',
     },
   });
+  if (venue.name !== VENUE_NAME) {
+    console.log(`  renamed "${venue.name}" → "${VENUE_NAME}"`);
+  }
+
+  // Short dwell delay for local testing (override global 30m).
+  const coffeeTemplate = await prisma.venueOrderNudgeTemplate.findFirst({
+    where: { code: 'nudge_coffee_order_drink_v1', active: true },
+    select: { id: true },
+  });
+  if (coffeeTemplate) {
+    await prisma.venueNudgeAssignment.upsert({
+      where: {
+        venueId_templateId: { venueId, templateId: coffeeTemplate.id },
+      },
+      update: {
+        enabled: true,
+        sortOrder: 0,
+        afterMinutesOverride: 1,
+        titleOverride: 'Still at Grbavica Home?',
+        bodyOverride:
+          'Thirsty? Treat yourself — open Cafe Social for the menu at Grbavica Home.',
+      },
+      create: {
+        id: IDS.nudgeAssignment,
+        venueId,
+        templateId: coffeeTemplate.id,
+        enabled: true,
+        sortOrder: 0,
+        afterMinutesOverride: 1,
+        titleOverride: 'Still at Grbavica Home?',
+        bodyOverride:
+          'Thirsty? Treat yourself — open Cafe Social for the menu at Grbavica Home.',
+      },
+    });
+    console.log('  dwell order nudge: 1 minute delay (coffee template assignment)');
+  } else {
+    console.warn(
+      '  no active nudge_coffee_order_drink_v1 template — run main seed for templates',
+    );
+  }
+
+  // Clear stuck dwell / arrival logs so you can re-test nudges immediately.
+  const clearedDwell = await prisma.player.updateMany({
+    where: { venueNudgeSessionVenueId: venueId },
+    data: {
+      venueNudgeSessionVenueId: null,
+      venueNudgeSessionStartedAt: null,
+      venueNudgeLastSentAt: null,
+    },
+  });
+  const clearedArrival = await prisma.proximityArrivalPushLog.deleteMany({
+    where: { venueId },
+  });
+  console.log(
+    `  reset for re-test: dwell sessions cleared=${clearedDwell.count}, arrival logs deleted=${clearedArrival.count}`,
+  );
   if (venueFull.locked) {
     console.log(
       `  unlocked venue (was locked: ${venueFull.lockReason ?? 'unknown'}) and extended org trial 30d`,
@@ -120,7 +201,7 @@ async function main() {
       code: 'ASD_WORD_SESSION',
       title: 'Free espresso shot',
       subtitle: 'Word challenge reward',
-      body: 'Show staff after finishing a word session at asd.',
+      body: 'Show staff after finishing a word session at Grbavica Home.',
       autoRedeem: false,
     },
     {
@@ -192,7 +273,7 @@ async function main() {
     {
       id: IDS.offerFeatured,
       title: '2× XP this afternoon',
-      body: 'Play games at asd — venue XP is automatically doubled while this promo is live. No claim needed.',
+      body: 'Play games at Grbavica Home — venue XP is automatically doubled while this promo is live. No claim needed.',
       isFeatured: true,
       fulfillment: VenueOfferFulfillment.AUTO,
       autoXpMultiplier: 2,
@@ -249,7 +330,7 @@ async function main() {
   const challenges = [
     {
       id: IDS.chWordOnce,
-      title: '1 word session at asd',
+      title: '1 word session at Grbavica Home',
       description: 'Finish any word game session while at this café.',
       autoProgressSource: ChallengeAutoProgressSource.WORD_MATCH,
       targetCount: 1,

@@ -17,7 +17,11 @@ import {
   spawnOnBottomPlatform,
   type PlatformWorld,
 } from '../arenaPlatforms';
-import { computeLavaSurfaceY, matchPhaseMods } from './combat';
+import {
+  computeLavaSurfaceY,
+  matchElapsedFromRemaining,
+  matchPhaseMods,
+} from './combat';
 import { aabbOverlap, overlapX } from './collision';
 import {
   ATTACK_DURATION_S,
@@ -294,11 +298,13 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
 
       if (arenaReady && matchTimerOn && preMatchLeftRef.current <= 0) {
         if (!matchEndedRef.current) {
-          matchClockRef.current = Math.min(
-            matchMaxSRef.current,
-            matchClockRef.current + dt,
-          );
-          if (matchClockRef.current >= matchMaxSRef.current) {
+          // Countdown: remaining seconds until match end (phases/lava use elapsed).
+          if (matchClockRef.current <= 0 && matchMaxSRef.current > 0) {
+            matchClockRef.current = matchMaxSRef.current;
+          }
+          matchClockRef.current = Math.max(0, matchClockRef.current - dt);
+          if (matchClockRef.current <= 0) {
+            matchClockRef.current = 0;
             matchEndedRef.current = true;
             setGameOverOpen(true);
           }
@@ -352,13 +358,18 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
       const plats = platformsRef.current;
       const prevY = prevPlayerY.current;
 
-      const phaseMods = matchPhaseMods(
+      const matchElapsedS = matchElapsedFromRemaining(
         matchClockRef.current,
+        matchMaxSRef.current,
+      );
+      const phaseMods = matchPhaseMods(
+        matchElapsedS,
         matchChaosEndSRef.current,
         matchEndgameEndSRef.current,
       );
 
-      const nowMs = Math.floor(matchClockRef.current * 1000);
+      // Buff timers use elapsed match time (monotonic), not countdown remaining.
+      const nowMs = Math.floor(matchElapsedS * 1000);
 
       // Power-ups: expire local buff state (server remains source of truth for pickups).
       if (activeBuffsRef.current.length > 0) {
@@ -1229,7 +1240,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
 
       // Sudden-death lava: feet in lava = permanent death for this match.
       const lavaSurfaceY = computeLavaSurfaceY(
-        matchClockRef.current,
+        matchElapsedS,
         matchEndgameEndSRef.current,
         matchMaxSRef.current,
         worldHLiveRef.current,

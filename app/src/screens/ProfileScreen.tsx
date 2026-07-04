@@ -21,8 +21,8 @@ import type { AppNavigationProps } from '../navigation/screenProps';
 import { useIsTabRoot } from '../navigation/useIsTabRoot';
 import { apiGet } from '../lib/api';
 import type { MeSummaryDto } from '../lib/meSummary';
-import { syncOnboardingFromServerSummary } from '../lib/onboardingStorage';
 import { createAndShareFriendInviteLink } from '../lib/friendInviteShare';
+import { useMeSummaryQuery } from '../query';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
@@ -60,11 +60,13 @@ export default function ProfileScreen({ navigation }: Props) {
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
 
-  const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState<MeSummaryDto | null>(null);
+  const meQuery = useMeSummaryQuery();
+  const summary = meQuery.data ?? null;
+  const [perkLoading, setPerkLoading] = useState(true);
   const [perkPayload, setPerkPayload] = useState<PerkRedemptionsPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const loading = meQuery.isLoading || perkLoading;
 
   const displayName =
     user?.firstName ||
@@ -73,24 +75,19 @@ export default function ProfileScreen({ navigation }: Props) {
 
   const load = useCallback(async () => {
     if (!isLoaded) return;
-    setLoading(true);
+    setPerkLoading(true);
     setError(null);
     try {
       const token = await getTokenRef.current();
       if (!token) {
-        setSummary(null);
         setPerkPayload(null);
         return;
       }
-      const [s, raw] = await Promise.all([
-        apiGet<MeSummaryDto>('/players/me/summary', token),
-        apiGet<PerkRedemptionsPayload | PerkRedemptionItem[]>(
-          '/players/me/perk-redemptions',
-          token,
-        ),
-      ]);
-      await syncOnboardingFromServerSummary(s);
-      setSummary(s);
+      await meQuery.refetch();
+      const raw = await apiGet<PerkRedemptionsPayload | PerkRedemptionItem[]>(
+        '/players/me/perk-redemptions',
+        token,
+      );
       if (raw && typeof raw === 'object' && 'items' in raw && Array.isArray(raw.items)) {
         setPerkPayload(raw as PerkRedemptionsPayload);
       } else if (
@@ -129,10 +126,9 @@ export default function ProfileScreen({ navigation }: Props) {
       }
     } catch {
       setError(t('profile.loadError'));
-      setSummary(null);
       setPerkPayload(null);
     } finally {
-      setLoading(false);
+      setPerkLoading(false);
     }
   }, [isLoaded, t]);
 

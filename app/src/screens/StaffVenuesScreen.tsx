@@ -1,8 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '@clerk/expo';
-import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -17,8 +16,9 @@ import type { TFunction } from 'i18next';
 
 import ScreenHeader from '../components/ScreenHeader';
 import LinearGradientFill from '../components/ui/LinearGradientFill';
-import { fetchOwnerVenues, type OwnerVenueRow } from '../lib/ownerStaffApi';
+import type { OwnerVenueRow } from '../lib/ownerStaffApi';
 import type { RootStackParamList } from '../navigation/type';
+import { useStaffVenuesQuery } from '../query';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
@@ -76,40 +76,21 @@ export default function StaffVenuesScreen({ navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
-  const { getToken, isLoaded } = useAuth();
-  const getTokenRef = useRef(getToken);
-  getTokenRef.current = getToken;
-
-  const [rows, setRows] = useState<OwnerVenueRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const { isLoaded } = useAuth();
+  const staffQuery = useStaffVenuesQuery();
+  const rows = staffQuery.data ?? [];
+  const loading = staffQuery.isLoading;
+  const loadError = !isLoaded
+    ? null
+    : staffQuery.isError
+      ? (staffQuery.error as Error)?.message ?? t('staff.loadFailed')
+      : !staffQuery.isLoading && !staffQuery.isFetching && !staffQuery.data
+        ? t('staff.signInFirst')
+        : null;
 
   const load = useCallback(async () => {
-    if (!isLoaded) return;
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const token = await getTokenRef.current();
-      if (!token) {
-        setRows([]);
-        setLoadError(t('staff.signInFirst'));
-        return;
-      }
-      const data = await fetchOwnerVenues(token);
-      setRows(data.venues);
-    } catch (e) {
-      setRows([]);
-      setLoadError((e as Error).message ?? t('staff.loadFailed'));
-    } finally {
-      setLoading(false);
-    }
-  }, [isLoaded, t]);
-
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load]),
-  );
+    await staffQuery.refetch();
+  }, [staffQuery]);
 
   if (!isLoaded) {
     return (

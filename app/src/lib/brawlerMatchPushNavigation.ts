@@ -77,5 +77,6 @@ export async function navigateBrawlerMatchFromPush(
     return;
   }
 
-  navigationRef.navigate('BrawlerVenueQueue', { venueId });
+  // No hero on the push payload — send user to lobby to pick one.
+  navigationRef.navigate('BrawlerLobby', venueId ? { venueId } : {});
 }

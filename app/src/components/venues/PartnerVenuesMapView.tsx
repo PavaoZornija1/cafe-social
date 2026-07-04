@@ -99,8 +99,13 @@ function PartnerVenuesMapView({
             key={venue.id}
             identifier={venue.id}
             coordinate={{ latitude: venue.latitude, longitude: venue.longitude }}
-            pinColor={venue.isHere ? colors.success : colors.primary}
-            selected={selectedMarkerId === venue.id}
+            pinColor={
+              selectedMarkerId === venue.id
+                ? colors.honey
+                : venue.isHere
+                  ? colors.success
+                  : colors.primary
+            }
             onPress={(e) => {
               e.stopPropagation?.();
               onSelectVenue(venue.id);

@@ -13,6 +13,7 @@ import AppNavigation from './src/navigation/AppNavigation';
 import type { RootStackParamList } from './src/navigation/type';
 import { initGameFeedback, preloadFeedbackSounds } from './src/lib/feedback';
 import { initI18n } from './src/i18n';
+import { QueryProvider } from './src/query';
 import { ThemeProvider, useAppTheme } from './src/theme/ThemeContext';
 
 // Required so OAuth redirect (e.g. Google SSO) can close the browser and return to the app
@@ -85,7 +86,9 @@ function AppBoot({ linking }: { linking: LinkingOptions<RootStackParamList> }) {
 
   return (
     <ClerkProvider publishableKey={publishableKey!} tokenCache={tokenCache}>
-      <AppNavigation linking={linking} />
+      <QueryProvider>
+        <AppNavigation linking={linking} />
+      </QueryProvider>
     </ClerkProvider>
   );
 }

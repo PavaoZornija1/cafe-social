@@ -24,7 +24,10 @@ import SettingsNavRow from '../components/settings/SettingsNavRow';
 import ScreenHeader from '../components/ScreenHeader';
 import type { RootStackParamList } from '../navigation/type';
 import { LANGUAGE_OPTIONS, type AppLanguage, setAppLanguage } from '../i18n';
+import { useQueryClient } from '@tanstack/react-query';
 import { apiDelete, apiGet, apiPatch } from '../lib/api';
+import type { MeSummaryDto } from '../lib/meSummary';
+import { invalidateMeSummary, useMeSummaryQuery } from '../query';
 import {
   getFeedbackPrefs,
   loadFeedbackPrefs,
@@ -80,6 +83,8 @@ export default function SettingsScreen({ navigation }: Props) {
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
+  const queryClient = useQueryClient();
+  const meQuery = useMeSummaryQuery();
   const [busy, setBusy] = useState(false);
   const [privacyLoading, setPrivacyLoading] = useState(true);
   const [discoverable, setDiscoverable] = useState(true);
@@ -107,14 +112,32 @@ export default function SettingsScreen({ navigation }: Props) {
   const switchTrackOff = colors.borderStrong;
   const switchThumb = colors.surface;
 
+  const applyMeSummary = useCallback((s: MeSummaryDto) => {
+    setDiscoverable(s.discoverable ?? true);
+    setTotalPrivacy(s.totalPrivacy ?? false);
+    setPartnerMarketingPush(s.partnerMarketingPush ?? true);
+    setMatchActivityPush(s.matchActivityPush ?? true);
+    setEmailNotifications(s.emailNotifications ?? true);
+    setSubscriptionActive(s.subscriptionActive ?? false);
+  }, []);
+
+  useEffect(() => {
+    if (meQuery.data) {
+      applyMeSummary(meQuery.data);
+      setPrivacyLoading(false);
+    } else if (meQuery.isError) {
+      setPrivacyLoading(false);
+    } else if (meQuery.isLoading) {
+      setPrivacyLoading(true);
+    }
+  }, [meQuery.data, meQuery.isError, meQuery.isLoading, applyMeSummary]);
+
   const refreshSubscriptionOnly = useCallback(
     async (silent: boolean): Promise<boolean> => {
       if (!isLoaded) return false;
       try {
-        const token = await getTokenRef.current();
-        if (!token) return false;
-        const s = await apiGet<MeSummary>('/players/me/summary', token);
-        const active = s.subscriptionActive ?? false;
+        const result = await meQuery.refetch();
+        const active = result.data?.subscriptionActive ?? false;
         setSubscriptionActive(active);
         return active;
       } catch {
@@ -122,7 +145,7 @@ export default function SettingsScreen({ navigation }: Props) {
         return false;
       }
     },
-    [isLoaded, t],
+    [isLoaded, meQuery, t],
   );
 
   const loadPrivacy = useCallback(async (): Promise<boolean> => {
@@ -130,23 +153,18 @@ export default function SettingsScreen({ navigation }: Props) {
     setPrivacyLoading(true);
     let active = false;
     try {
-      const token = await getTokenRef.current();
-      if (!token) return false;
-      const s = await apiGet<MeSummary>('/players/me/summary', token);
-      setDiscoverable(s.discoverable);
-      setTotalPrivacy(s.totalPrivacy);
-      setPartnerMarketingPush(s.partnerMarketingPush ?? true);
-      setMatchActivityPush(s.matchActivityPush ?? true);
-      setEmailNotifications(s.emailNotifications ?? true);
+      const result = await meQuery.refetch();
+      const s = result.data;
+      if (!s) return false;
+      applyMeSummary(s);
       active = s.subscriptionActive ?? false;
-      setSubscriptionActive(active);
     } catch {
       Alert.alert(t('common.error'), t('settings.privacyLoadError'));
     } finally {
       setPrivacyLoading(false);
     }
     return active;
-  }, [isLoaded, t]);
+  }, [isLoaded, meQuery, applyMeSummary, t]);
 
   useEffect(() => {
     if (subscriptionActive) {
@@ -247,6 +265,7 @@ export default function SettingsScreen({ navigation }: Props) {
     setPrivacySaving(true);
     try {
       await apiPatch('/players/me/settings', patch, token);
+      await invalidateMeSummary(queryClient);
     } catch {
       Alert.alert(t('common.error'), t('settings.privacyLoadError'));
       await loadPrivacy();

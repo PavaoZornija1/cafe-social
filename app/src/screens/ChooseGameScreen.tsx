@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '@clerk/expo';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   Pressable,
   SafeAreaView,
@@ -14,11 +13,12 @@ import { useTranslation } from 'react-i18next';
 import ExplicitCheckInBanner from '../components/home/ExplicitCheckInBanner';
 import VenuePlayTimeBar from '../components/VenuePlayTimeBar';
 import type { AppNavigationProps } from '../navigation/screenProps';
-import { usePlayVenueAccess } from '../hooks/usePlayVenueAccess';
-import { needsExplicitCheckInBanner } from '../lib/explicitCheckIn';
-import { isVenuePartnerLocked, venueLockMessageKey } from '../lib/venueLock';
-import { apiGet } from '../lib/api';
-import type { MeSummaryDto } from '../lib/meSummary';
+import {
+  useAuthToken,
+  useMeSummaryQuery,
+  useVenueOffersQuery,
+  useVenueSession,
+} from '../query';
 import { useIsTabRoot } from '../navigation/useIsTabRoot';
 import type { AppColors } from '../theme/colors';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -32,73 +32,52 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const isTabRoot = useIsTabRoot('PlayTab');
   const params = route.params as { venueId?: string; challengeId?: string } | undefined;
-  const venueId = params?.venueId;
+  const routeVenueId = params?.venueId;
   const challengeId = params?.challengeId;
-  const hasVenueContext = Boolean(venueId);
-  const { access, resolvedVenueId } = usePlayVenueAccess(venueId);
-  const showCheckIn = needsExplicitCheckInBanner(access);
-  const venueLocked = isVenuePartnerLocked(access);
-  const venueLockKey = venueLockMessageKey(access);
-  const playBlocked = showCheckIn || venueLocked;
-  const playVenueId = resolvedVenueId ?? venueId ?? null;
 
-  const { isLoaded, getToken } = useAuth();
-  const getTokenRef = useRef(getToken);
-  getTokenRef.current = getToken;
-  const [subscriptionActive, setSubscriptionActive] = useState(false);
-  const [activeXpMultiplier, setActiveXpMultiplier] = useState(1);
+  const session = useVenueSession({ routeVenueId });
+  const {
+    playVenueId,
+    showCheckIn,
+    venueLocked,
+    venueLockKey,
+    playBlocked,
+    isLoading: accessLoading,
+  } = session;
+  const hasVenueContext = Boolean(playVenueId);
 
-  useEffect(() => {
-    if (!isLoaded) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const token = await getTokenRef.current();
-        if (!token) return;
-        const summary = await apiGet<MeSummaryDto>('/players/me/summary', token);
-        if (!cancelled) setSubscriptionActive(Boolean(summary.subscriptionActive));
-      } catch {
-        /* non-blocking */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isLoaded]);
+  const { getToken } = useAuthToken();
+  const meQuery = useMeSummaryQuery({ refetchOnScreenFocus: false });
+  const subscriptionActive = Boolean(meQuery.data?.subscriptionActive);
 
-  useEffect(() => {
-    if (!isLoaded || !playVenueId || playBlocked) {
-      setActiveXpMultiplier(1);
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      try {
-        const token = await getTokenRef.current();
-        if (!token) return;
-        const payload = await apiGet<{
-          offers: { fulfillment?: string; autoXpMultiplier?: number | null }[];
-        }>(`/venue-context/${encodeURIComponent(playVenueId)}/offers`, token);
-        const mult = Math.max(
-          1,
-          ...(payload.offers ?? [])
-            .filter((o) => o.fulfillment === 'AUTO' && (o.autoXpMultiplier ?? 0) > 1)
-            .map((o) => o.autoXpMultiplier ?? 1),
-        );
-        if (!cancelled) setActiveXpMultiplier(mult);
-      } catch {
-        if (!cancelled) setActiveXpMultiplier(1);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isLoaded, playVenueId, playBlocked]);
+  const offersQuery = useVenueOffersQuery(!playBlocked ? playVenueId : null);
+  const activeXpMultiplier = useMemo(() => {
+    const offers = offersQuery.data ?? [];
+    return Math.max(
+      1,
+      ...offers
+        .filter((o) => o.fulfillment === 'AUTO' && (o.autoXpMultiplier ?? 0) > 1)
+        .map((o) => o.autoXpMultiplier ?? 1),
+    );
+  }, [offersQuery.data]);
 
   const openQrCheckIn = () => {
-    const id = resolvedVenueId ?? venueId;
-    if (id) navigation.navigate('QrScan', { venueId: id });
+    if (playVenueId) navigation.navigate('QrScan', { venueId: playVenueId });
   };
+
+  const openWordLobby = () => {
+    navigation.navigate('WordLobby', {
+      ...(playVenueId ? { venueId: playVenueId } : {}),
+      ...(challengeId ? { challengeId } : {}),
+    });
+  };
+
+  const openBrawlerLobby = () => {
+    navigation.navigate('BrawlerLobby', playVenueId ? { venueId: playVenueId } : {});
+  };
+
+  const brawlerBlocked =
+    playBlocked || accessLoading || (!hasVenueContext && !subscriptionActive);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -162,19 +141,19 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
         {playVenueId && !playBlocked ? (
           <VenuePlayTimeBar
             venueId={playVenueId}
-            getToken={() => getTokenRef.current()}
+            getToken={async () => (await getToken()) ?? null}
             subscriptionActive={subscriptionActive}
             variant="compact"
           />
         ) : null}
 
         <Pressable
-          onPress={() => navigation.navigate('WordLobby', { venueId, challengeId })}
-          disabled={playBlocked}
+          onPress={openWordLobby}
+          disabled={playBlocked || accessLoading}
           style={({ pressed }) => [
             styles.card,
             styles.wordCard,
-            playBlocked && styles.cardDisabled,
+            (playBlocked || accessLoading) && styles.cardDisabled,
             pressed && styles.pressed,
           ]}
         >
@@ -192,14 +171,12 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
         </Pressable>
 
         <Pressable
-          onPress={() => navigation.navigate('BrawlerLobby', venueId ? { venueId } : {})}
-          disabled={(!hasVenueContext && !subscriptionActive) || playBlocked}
+          onPress={openBrawlerLobby}
+          disabled={brawlerBlocked}
           style={({ pressed }) => [
             styles.card,
             styles.brawlerCard,
-            (!hasVenueContext && !subscriptionActive) || playBlocked
-              ? styles.cardDisabled
-              : null,
+            brawlerBlocked ? styles.cardDisabled : null,
             pressed && styles.pressed,
           ]}
         >
@@ -212,11 +189,13 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
           </View>
           <Text style={styles.cardDescription}>{t('chooseGame.brawlerDescription')}</Text>
           <Text style={[styles.cardMeta, styles.brawlerMeta]}>
-            {hasVenueContext
-              ? t('chooseGame.brawlerCta')
-              : subscriptionActive
-                ? t('chooseGame.brawlerCtaGlobal')
-                : t('chooseGame.brawlerNeedVenue')}
+            {accessLoading
+              ? t('common.loading')
+              : hasVenueContext
+                ? t('chooseGame.brawlerCta')
+                : subscriptionActive
+                  ? t('chooseGame.brawlerCtaGlobal')
+                  : t('chooseGame.brawlerNeedVenue')}
           </Text>
         </Pressable>
 
@@ -257,13 +236,14 @@ function createStyles(colors: AppColors) {
       fontSize: 28,
       fontWeight: '900',
       letterSpacing: -0.5,
+      textAlign: 'center',
     },
     subtitle: {
-      color: colors.textSecondary,
-      fontSize: 15,
-      lineHeight: 22,
-      marginTop: spacing.sm,
+      color: colors.textMuted,
+      fontSize: 14,
+      fontWeight: '600',
       marginBottom: spacing.lg,
+      lineHeight: 20,
     },
     checkInWrap: { marginBottom: spacing.md },
     lockBanner: {
@@ -291,17 +271,11 @@ function createStyles(colors: AppColors) {
       marginBottom: spacing.md,
       padding: spacing.md,
       borderRadius: radii.lg,
-      backgroundColor: colors.primaryMuted,
+      backgroundColor: colors.honeyMuted,
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.xp,
+      borderColor: colors.honey,
     },
-    xpBoostText: {
-      flex: 1,
-      color: colors.text,
-      fontSize: 14,
-      fontWeight: '800',
-      lineHeight: 20,
-    },
+    xpBoostText: { flex: 1, color: colors.honeyDark, fontWeight: '800', fontSize: 14 },
     hero: {
       backgroundColor: colors.hero,
       borderRadius: radii.xl,
@@ -309,59 +283,55 @@ function createStyles(colors: AppColors) {
       marginBottom: spacing.lg,
       gap: spacing.sm,
     },
-    heroTitle: {
-      color: colors.textInverse,
-      fontSize: 22,
-      fontWeight: '900',
-    },
+    heroTitle: { color: colors.textInverse, fontSize: 20, fontWeight: '900' },
     heroSub: {
       color: colors.textInverse,
-      opacity: 0.9,
+      opacity: 0.92,
       fontSize: 14,
       fontWeight: '600',
       lineHeight: 20,
     },
     card: {
       backgroundColor: colors.surface,
-      borderRadius: radii.lg,
+      borderRadius: radii.xl,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
       padding: spacing.lg,
       marginBottom: spacing.md,
-      gap: spacing.sm,
     },
-    cardHeaderRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
-    },
-    wordCard: { borderColor: colors.primary },
-    brawlerCard: { borderColor: colors.xp },
-    cardDisabled: { opacity: 0.5 },
+    wordCard: {},
+    brawlerCard: {},
+    cardDisabled: { opacity: 0.55 },
+    cardHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
     cardIcon: {
-      width: 44,
-      height: 44,
+      width: 48,
+      height: 48,
       borderRadius: radii.md,
       alignItems: 'center',
       justifyContent: 'center',
-      flexShrink: 0,
     },
-    cardTitle: {
-      flex: 1,
-      color: colors.text,
-      fontSize: 18,
+    cardTitle: { flex: 1, color: colors.text, fontSize: 18, fontWeight: '900' },
+    cardDescription: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      fontWeight: '600',
+      lineHeight: 20,
+      marginTop: spacing.md,
+    },
+    cardMeta: {
+      color: colors.primary,
+      fontSize: 13,
       fontWeight: '800',
+      marginTop: spacing.sm,
     },
-    cardDescription: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
-    cardMeta: { color: colors.primary, fontSize: 12, fontWeight: '700' },
     brawlerMeta: { color: colors.xp },
     dailyNote: {
       color: colors.textMuted,
       fontSize: 12,
+      fontWeight: '600',
       lineHeight: 17,
       marginTop: spacing.sm,
-      textAlign: 'center',
     },
-    pressed: { opacity: 0.92 },
+    pressed: { opacity: 0.9 },
   });
 }

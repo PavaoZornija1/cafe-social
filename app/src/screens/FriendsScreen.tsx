@@ -1,7 +1,6 @@
 import { useAuth } from '@clerk/expo';
-import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,14 +15,14 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { AppNavigationProps } from '../navigation/screenProps';
 import { useIsTabRoot } from '../navigation/useIsTabRoot';
-import { apiDelete, apiGet, apiPost } from '../lib/api';
+import { apiDelete, apiPost } from '../lib/api';
 import { createAndShareFriendInviteLink } from '../lib/friendInviteShare';
-import {
-  fetchSocialInbox,
-  type SocialInboxPartyInvite,
-  type SocialInboxFriendRequest,
+import type {
+  SocialInboxPartyInvite,
+  SocialInboxFriendRequest,
 } from '../lib/socialInboxApi';
 import { useFriendsInboxBadge } from '../context/FriendsInboxBadgeContext';
+import { useSocialFriendsQuery } from '../query';
 import FriendAvatarRow from '../components/friends/FriendAvatarRow';
 import { PrimaryButton } from '../components/ui';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -58,57 +57,32 @@ export default function FriendsScreen({ navigation }: Props) {
   getTokenRef.current = getToken;
 
   const { refreshPendingCount } = useFriendsInboxBadge();
+  const friendsQuery = useSocialFriendsQuery();
 
-  const [loading, setLoading] = useState(true);
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [incoming, setIncoming] = useState<IncomingRow[]>([]);
-  const [partyInvites, setPartyInvites] = useState<SocialInboxPartyInvite[]>([]);
-  const [outgoing, setOutgoing] = useState<OutgoingRow[]>([]);
-  const [blocked, setBlocked] = useState<BlockedRow[]>([]);
+  const loading = friendsQuery.isLoading;
+  const friends = friendsQuery.data?.friends ?? [];
+  const incoming = friendsQuery.data?.incoming ?? [];
+  const partyInvites = friendsQuery.data?.partyInvites ?? [];
+  const outgoing = friendsQuery.data?.outgoing ?? [];
+  const blocked = friendsQuery.data?.blocked ?? [];
   const [sharing, setSharing] = useState(false);
   const [usernameDraft, setUsernameDraft] = useState('');
   const [requestBusy, setRequestBusy] = useState(false);
 
   const load = useCallback(async () => {
-    if (!isLoaded) return;
-    setLoading(true);
     try {
-      const token = await getTokenRef.current();
-      if (!token) {
-        setFriends([]);
-        setIncoming([]);
-        setPartyInvites([]);
-        setOutgoing([]);
-        return;
-      }
-      const [inbox, f, bl] = await Promise.all([
-        fetchSocialInbox(token),
-        apiGet<Friend[]>('/social/friends', token),
-        apiGet<BlockedRow[]>('/players/me/blocks', token),
-      ]);
-      setFriends(f);
-      setIncoming(inbox.friendRequestsIncoming);
-      setPartyInvites(inbox.partyInvitesIncoming);
-      setOutgoing(inbox.friendRequestsOutgoing);
-      setBlocked(Array.isArray(bl) ? bl : []);
+      await friendsQuery.refetch();
       void refreshPendingCount();
     } catch {
       Alert.alert(t('common.error'), t('friends.loadError'));
-      setFriends([]);
-      setIncoming([]);
-      setPartyInvites([]);
-      setOutgoing([]);
-      setBlocked([]);
-    } finally {
-      setLoading(false);
     }
-  }, [isLoaded, t, refreshPendingCount]);
+  }, [friendsQuery, refreshPendingCount, t]);
 
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load]),
-  );
+  useEffect(() => {
+    if (friendsQuery.isError) {
+      Alert.alert(t('common.error'), t('friends.loadError'));
+    }
+  }, [friendsQuery.isError, t]);
 
   const shareInvite = async () => {
     setSharing(true);

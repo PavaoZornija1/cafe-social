@@ -155,9 +155,38 @@ Approximate, OS-dependent (requires **Always** location):
 
 Play geofence / “people here” still use foreground GPS + presence heartbeat. Expect missed or delayed events on some devices.
 
-### Not done yet (good next steps)
+**Push testing:** Arrival and dwell nudges need an **Expo push token** on the player (`POST /players/me/push-token`). Use a **physical device** (or a simulator with push entitlements), allow notifications, sign in once, and bring the app to foreground so `ExpoPushRegistrar` runs. Simulators often have **zero** tokens — the dwell scheduler will still log candidates but no notification is delivered.
 
-- **EAS** production builds, App Store / Play Store assets.
+**Transactional email:** Resend (`RESEND_API_KEY` + `RESEND_FROM_EMAIL`). Guest friend/party emails only go to **real** addresses — synthetic `*@clerk.local` rows are skipped.
+
+### App client state (TanStack Query)
+
+Shared server state lives under `app/src/query/`:
+
+| Hook | Data |
+|------|------|
+| `useVenueSession` | Detected venue + access / check-in / lock |
+| `useMeSummaryQuery` | XP, subscription, privacy prefs |
+| `useVenueHubQuery` | Partner hub bundle (offers, challenges, feed, …) |
+| `useSocialFriendsQuery` | Friends, inbox, blocks |
+| `usePlatformQuestHubQuery` | Daily/weekly quests |
+| `useStaffVenuesQuery` | Staff venue list |
+
+After check-in or settings changes, call `invalidateVenueSession` / `invalidateMeSummary`.
+
+### Store submission checklist
+
+1. **EAS** — `app/eas.json` profiles: `development`, `preview`, `staging`, `production`. Set secrets for `EXPO_PUBLIC_API_URL`, Clerk, legal URLs, RevenueCat.
+2. **Legal** — Production `EXPO_PUBLIC_PRIVACY_POLICY_URL` / `TERMS` pointing at admin `/privacy` and `/terms`; set `NEXT_PUBLIC_LEGAL_*` on the admin host.
+3. **Account deletion** — Settings → Delete my account (already wired).
+4. **Push / location** — App Privacy / Data safety questionnaires; Always location copy in `app.config.js`.
+5. **Counsel** — Review legal page templates before listing.
+
+```bash
+cd app
+npx eas build --profile preview --platform ios
+npx eas build --profile production --platform all
+```
 
 ### Realtime word matches (Socket.IO)
 

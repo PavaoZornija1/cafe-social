@@ -12,35 +12,15 @@ import HomeVenueDailyWordChip from '../components/home/HomeVenueDailyWordChip';
 import HomeVenueStrip from '../components/home/HomeVenueStrip';
 import type { FriendAtVenueRow, HomePublicOffer } from '../components/home/types';
 import { apiGet, apiPost } from '../lib/api';
-import { needsExplicitCheckInBanner } from '../lib/explicitCheckIn';
-import { isVenuePartnerLocked, venueLockMessageKey } from '../lib/venueLock';
 import { emitPlatformQuestProgressChanged } from '../lib/platformQuestEvents';
 import { isLikelyNetworkFailure } from '../lib/isNetworkError';
-import type { Coordinates } from '../lib/locationForDetect';
-import type { MeSummaryDto } from '../lib/meSummary';
-import { syncOnboardingFromServerSummary } from '../lib/onboardingStorage';
-import { buildVenueAccessQuery, fetchDetectedVenue } from '../lib/venueDetectClient';
+import { useMeSummaryQuery, useVenueOffersQuery, useVenueSession } from '../query';
 import type { TabScreenProps } from '../navigation/screenProps';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { spacing } from '../theme/tokens';
 
 type Props = TabScreenProps<'HomeTab'>;
-
-type Venue = { id: string; name: string; isPremium: boolean; locked?: boolean };
-type VenueAccess = {
-    venueId: string;
-    isPremium: boolean;
-    locked?: boolean;
-    lockReason?: string | null;
-    visitedBefore: boolean;
-    subscriptionActive: boolean;
-    canEnterVenueContext: boolean;
-    bannedFromVenue?: boolean;
-    requiresExplicitCheckIn?: boolean;
-    isPhysicallyAtVenue?: boolean;
-    hasExplicitCheckIn?: boolean;
-};
 
 type VenueChallenge = {
     id: string;
@@ -103,27 +83,34 @@ export default function HomeScreen({ navigation }: Props) {
             (value) => typeof value === 'string' && value.trim().length > 0,
         )?.trim() ?? t('home.guestName');
 
-    const [detectedVenue, setDetectedVenue] = useState<Venue | null>(null);
-    const [access, setAccess] = useState<VenueAccess | null>(null);
-    const [loadingVenue, setLoadingVenue] = useState(true);
-    const [venueError, setVenueError] = useState<string | null>(null);
+    const session = useVenueSession();
+    const meQuery = useMeSummaryQuery();
+    const meSummary = meQuery.data ?? null;
+    const loadingSummary = meQuery.isLoading;
+    const detectedVenue = session.detectedVenue;
+    const access = session.access;
+    const detectCoords = session.coords;
+    const loadingVenue = session.isLoading;
+    const venueError = session.detectError
+        ? isLikelyNetworkFailure(session.detectError)
+            ? t('home.venueErrorNetwork')
+            : (session.detectError as Error).message || t('home.loadVenueError')
+        : session.accessError
+          ? (session.accessError as Error).message || t('home.loadVenueError')
+          : null;
+
+    const offersQuery = useVenueOffersQuery(detectedVenue?.id);
+    const venueOffers = (offersQuery.data ?? []) as VenuePublicOffer[];
+
     const [venueChallenges, setVenueChallenges] = useState<VenueChallenge[]>([]);
-    const [meSummary, setMeSummary] = useState<MeSummaryDto | null>(null);
-    const [loadingSummary, setLoadingSummary] = useState(false);
     const [publicCard, setPublicCard] = useState<VenuePublicCard | null>(null);
-    const [detectCoords, setDetectCoords] = useState<Coordinates | null>(null);
     const [venueDailyWord, setVenueDailyWord] = useState<VenueDailyWordState | null>(null);
     const [friendsAtVenue, setFriendsAtVenue] = useState<FriendAtVenueRow[]>([]);
-    const [venueOffers, setVenueOffers] = useState<VenuePublicOffer[]>([]);
     const [claimingOfferId, setClaimingOfferId] = useState<string | null>(null);
 
-    const venueLocked = isVenuePartnerLocked(access) || Boolean(detectedVenue?.locked);
-    const venueLockKey = venueLockMessageKey(
-      access?.locked ? access : detectedVenue?.locked ? { locked: true } : null,
-    );
-    const canPlayVenueContext = Boolean(
-      detectedVenue && access?.canEnterVenueContext && !venueLocked,
-    );
+    const venueLocked = session.venueLocked;
+    const venueLockKey = session.venueLockKey;
+    const canPlayVenueContext = session.canEnterVenueContext;
     const canPlayGlobal = Boolean(meSummary?.subscriptionActive);
     const gamesPlayable = canPlayVenueContext || canPlayGlobal;
     const playDisabledReason =
@@ -133,109 +120,11 @@ export default function HomeScreen({ navigation }: Props) {
           ? t('home.playLockedHint')
           : null;
 
-    const loadMeSummary = useCallback(async () => {
-        if (!isLoaded) return;
-        setLoadingSummary(true);
-        try {
-            const token = await getTokenRef.current();
-            if (!token) {
-                setMeSummary(null);
-                return;
-            }
-            const s = await apiGet<MeSummaryDto>('/players/me/summary', token);
-            await syncOnboardingFromServerSummary(s);
-            setMeSummary(s);
-        } catch {
-            setMeSummary(null);
-        } finally {
-            setLoadingSummary(false);
-        }
-    }, [isLoaded]);
-
-    useFocusEffect(
-        useCallback(() => {
-            void loadMeSummary();
-        }, [loadMeSummary]),
-    );
-
-    useEffect(() => {
-        let cancelled = false;
-
-        async function run() {
-            setLoadingVenue(true);
-            setVenueError(null);
-
-            try {
-                const { venue, coords } = await fetchDetectedVenue();
-                if (cancelled) return;
-                setDetectedVenue(venue);
-                setDetectCoords(coords);
-
-                if (!venue) {
-                    setAccess(null);
-                    return;
-                }
-
-                if (!isLoaded) return;
-
-                const token = await getTokenRef.current();
-                if (!token) throw new Error('Not authenticated');
-
-                const accessQs = buildVenueAccessQuery(coords);
-                const a = await apiGet<VenueAccess>(
-                    `/venue-context/${encodeURIComponent(venue.id)}/access${accessQs}`,
-                    token,
-                );
-                if (cancelled) return;
-                setAccess(a);
-            } catch (e) {
-                if (cancelled) return;
-                setVenueError(
-                    isLikelyNetworkFailure(e)
-                        ? t('home.venueErrorNetwork')
-                        : (e as Error).message || t('home.loadVenueError'),
-                );
-            } finally {
-                if (!cancelled) setLoadingVenue(false);
-            }
-        }
-
-        run();
-        return () => {
-            cancelled = true;
-        };
-    }, [isLoaded, t]);
-
-    const loadVenueOffers = useCallback(async () => {
-        if (!detectedVenue || !isLoaded) {
-            setVenueOffers([]);
-            return;
-        }
-        try {
-            const token = await getTokenRef.current();
-            if (token) {
-                const payload = await apiGet<{ offers: VenuePublicOffer[] }>(
-                    `/venue-context/${encodeURIComponent(detectedVenue.id)}/offers`,
-                    token,
-                );
-                setVenueOffers(Array.isArray(payload.offers) ? payload.offers : []);
-                return;
-            }
-            const card = await apiGet<VenuePublicCard>(
-                `/venues/${encodeURIComponent(detectedVenue.id)}/public-card`,
-            );
-            setVenueOffers(Array.isArray(card.offers) ? card.offers : []);
-        } catch {
-            setVenueOffers([]);
-        }
-    }, [detectedVenue, isLoaded]);
-
     useEffect(() => {
         let cancelled = false;
         async function run() {
             if (!detectedVenue) {
                 setPublicCard(null);
-                setVenueOffers([]);
                 return;
             }
             try {
@@ -251,13 +140,12 @@ export default function HomeScreen({ navigation }: Props) {
             } catch {
                 if (!cancelled) setPublicCard(null);
             }
-            if (!cancelled) await loadVenueOffers();
         }
         void run();
         return () => {
             cancelled = true;
         };
-    }, [detectedVenue?.id, loadVenueOffers]);
+    }, [detectedVenue?.id]);
 
     useEffect(() => {
         let cancelled = false;
@@ -413,7 +301,7 @@ export default function HomeScreen({ navigation }: Props) {
     };
 
     const streak = venueDailyWord?.streak ?? 0;
-    const showCheckInBanner = needsExplicitCheckInBanner(access);
+    const showCheckInBanner = session.showCheckIn;
     const openQrCheckIn = useCallback(() => {
         if (!detectedVenue) return;
         navigation.navigate('QrScan', { venueId: detectedVenue.id });
@@ -450,13 +338,13 @@ export default function HomeScreen({ navigation }: Props) {
             try {
                 const token = await getTokenRef.current();
                 if (!token) throw new Error(t('home.loadVenueError'));
-                const { coords } = await fetchDetectedVenue({ locationAccuracy: 'high' });
+                const coords = detectCoords;
                 await apiPost(
                     `/venue-context/${encodeURIComponent(detectedVenue.id)}/offers/${encodeURIComponent(offer.id)}/redeem`,
                     { latitude: coords?.lat, longitude: coords?.lng },
                     token,
                 );
-                await loadVenueOffers();
+                await offersQuery.refetch();
                 Alert.alert(
                     t('home.dashboard.offerClaimedTitle'),
                     t('home.dashboard.offerClaimedBody'),
@@ -474,7 +362,7 @@ export default function HomeScreen({ navigation }: Props) {
                 setClaimingOfferId(null);
             }
         },
-        [detectedVenue, loadVenueOffers, navigation, t],
+        [detectedVenue, detectCoords, offersQuery, navigation, t],
     );
 
     return (
