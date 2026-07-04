@@ -14,8 +14,10 @@ export const JUMP_VELOCITY = -640;
 export const MAX_AIR_JUMPS = 1;
 /** Second jump impulse relative to the first. */
 export const DOUBLE_JUMP_VELOCITY_MUL = 0.9;
-/** Stick Y above this (pull down) while grounded drops through floating platforms. */
-export const DROP_THROUGH_JOY_THRESHOLD = 0.35;
+/** Stick Y at/above this (pull down hard) while grounded can drop through floating platforms. */
+export const DROP_THROUGH_JOY_THRESHOLD = 0.68;
+/** Must hold down this long (seconds) before drop-through starts — avoids accidental taps. */
+export const DROP_THROUGH_HOLD_S = 0.2;
 /** Downward nudge when starting a drop-through (px/s). */
 export const DROP_THROUGH_INITIAL_VY = 200;
 /** Feet must pass this far below the platform slab before it becomes solid again. */

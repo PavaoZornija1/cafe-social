@@ -54,8 +54,12 @@ Owners **do not** set arrival radius or toggle proximity rings (super-admin CMS 
 
 ### Dwell / in-venue nudges
 
-- Separate from arrival ring — tied to presence inside play polygon and product rules (order nudge, campaigns, streak-at-risk for daily word)
+- Order-nudge dwell clock can start from **OS proximity-ring enter** (app killed, Always location) or from **foreground polygon presence**
+- Ring enter does **not** set play-polygon presence (“people here” / PPV sessions stay client GPS)
+- Server scheduler (every 5 min) sends due order nudges without the app open
+- Ring exit clears ring-started dwell when the player is not polygon-present
 - Do not expect an arrival push if the player is already checked in / present at that venue
+- Expect **approximate** timing — OS geofence delivery varies by device and battery settings
 
 ---
 

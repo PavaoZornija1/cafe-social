@@ -15,7 +15,6 @@ import { apiGet, apiPost } from '../lib/api';
 import { needsExplicitCheckInBanner } from '../lib/explicitCheckIn';
 import { isVenuePartnerLocked, venueLockMessageKey } from '../lib/venueLock';
 import { emitPlatformQuestProgressChanged } from '../lib/platformQuestEvents';
-import { setBackgroundApiToken } from '../lib/backgroundApiToken';
 import { isLikelyNetworkFailure } from '../lib/isNetworkError';
 import type { Coordinates } from '../lib/locationForDetect';
 import type { MeSummaryDto } from '../lib/meSummary';
@@ -141,10 +140,8 @@ export default function HomeScreen({ navigation }: Props) {
             const token = await getTokenRef.current();
             if (!token) {
                 setMeSummary(null);
-                void setBackgroundApiToken(null);
                 return;
             }
-            void setBackgroundApiToken(token);
             const s = await apiGet<MeSummaryDto>('/players/me/summary', token);
             await syncOnboardingFromServerSummary(s);
             setMeSummary(s);

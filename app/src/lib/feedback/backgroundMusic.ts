@@ -16,20 +16,10 @@ const CROSSFADE_MS = 650;
 const FADE_OUT_MS = 400;
 const FADE_STEPS = 10;
 
-const GAME_ROUTES = new Set([
-  'WordGame',
-  'BrawlerArena',
-  'DailyWord',
-  'WordMatchWait',
-  'WordVenueQueue',
-  'WordLobby',
-  'WordMatchJoin',
-  'ChooseGame',
-  'BrawlerLobby',
-  'BrawlerVenueQueue',
-]);
-
 const SILENT_ROUTES = new Set(['Login', 'SignUp', 'Onboarding']);
+
+/** Intro + live match screens use the upbeat game loop; lobbies stay on café home. */
+const GAME_MUSIC_ROUTES = new Set(['GameLaunch', 'WordGame', 'BrawlerArena']);
 
 let musicSound: Audio.Sound | null = null;
 let activeTrack: BackgroundMusicTrack | null = null;
@@ -93,9 +83,13 @@ async function stopAndUnload(sound: Audio.Sound): Promise<void> {
   }
 }
 
+/**
+ * Café home loop on lobbies and tabs; game loop on the launch intro and live matches.
+ * Auth/onboarding stay silent.
+ */
 export function trackForRoute(routeName: string | undefined): BackgroundMusicTrack | null {
   if (!routeName || SILENT_ROUTES.has(routeName)) return null;
-  if (GAME_ROUTES.has(routeName)) return 'game';
+  if (GAME_MUSIC_ROUTES.has(routeName)) return 'game';
   return 'home';
 }
 

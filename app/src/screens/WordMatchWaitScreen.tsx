@@ -203,15 +203,21 @@ export default function WordMatchWaitScreen({ navigation, route }: Props) {
     if (navigatedToGameRef.current) return;
     if (!sessionId || matchState?.status !== 'ACTIVE') return;
     navigatedToGameRef.current = true;
-    triggerFeedback('lobbyStart');
-    navigation.replace('WordGame', {
-      venueId,
-      challengeId,
-      difficulty: (matchState.difficulty as 'easy' | 'normal' | 'hard') ?? difficulty,
-      mode: matchState.mode,
-      matchSessionId: sessionId,
-      sessionWordsCount: matchState.targetWordCount,
-      ranked: matchState.mode === 'versus' && matchState.ranked ? true : undefined,
+    navigation.replace('GameLaunch', {
+      kind: 'word',
+      players: (matchState.participants ?? []).map((p) => ({
+        username: p.username,
+        isYou: p.isYou,
+      })),
+      word: {
+        venueId,
+        challengeId,
+        difficulty: (matchState.difficulty as 'easy' | 'normal' | 'hard') ?? difficulty,
+        mode: matchState.mode,
+        matchSessionId: sessionId,
+        sessionWordsCount: matchState.targetWordCount,
+        ranked: matchState.mode === 'versus' && matchState.ranked ? true : undefined,
+      },
     });
   }, [
     matchState?.status,

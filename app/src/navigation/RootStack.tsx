@@ -21,6 +21,7 @@ import WordVenueQueueScreen from '../screens/WordVenueQueueScreen';
 import WordMatchJoinScreen from '../screens/WordMatchJoinScreen';
 import WordMatchWaitScreen from '../screens/WordMatchWaitScreen';
 import WordGameScreen from '../screens/WordGameScreen';
+import GameLaunchScreen from '../screens/GameLaunchScreen';
 import PartiesScreen from '../screens/PartiesScreen';
 import PartyDetailScreen from '../screens/PartyDetailScreen';
 import RedeemInviteScreen from '../screens/RedeemInviteScreen';
@@ -89,6 +90,11 @@ export default function RootStack() {
             <Stack.Screen name="WordVenueQueue" component={WordVenueQueueScreen} />
             <Stack.Screen name="WordMatchJoin" component={WordMatchJoinScreen} />
             <Stack.Screen name="WordMatchWait" component={WordMatchWaitScreen} />
+            <Stack.Screen
+                name="GameLaunch"
+                component={GameLaunchScreen}
+                options={{ gestureEnabled: false, animation: 'fade' }}
+            />
             <Stack.Screen name="WordGame" component={WordGameScreen} />
             <Stack.Screen name="StaffVenues" component={StaffVenuesScreen} />
             <Stack.Screen name="StaffRedemptions" component={StaffRedemptionsScreen} />

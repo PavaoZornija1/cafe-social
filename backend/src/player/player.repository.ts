@@ -48,6 +48,10 @@ export class PlayerRepository {
     return this.prisma.player.update({ where: { id }, data });
   }
 
+  deleteById(id: string): Promise<Player> {
+    return this.prisma.player.delete({ where: { id } });
+  }
+
   async getSummary(playerId: string): Promise<{
     completedChallenges: number;
     venuesUnlocked: number;

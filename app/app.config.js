@@ -51,7 +51,12 @@ export default {
       },
       edgeToEdgeEnabled: true,
       package: 'com.pavaozornija.cafesocial.devclient',
-      permissions: ['ACCESS_COARSE_LOCATION', 'ACCESS_FINE_LOCATION', 'CAMERA'],
+      permissions: [
+        'ACCESS_COARSE_LOCATION',
+        'ACCESS_FINE_LOCATION',
+        'ACCESS_BACKGROUND_LOCATION',
+        'CAMERA',
+      ],
     },
     web: {
       bundler: 'metro',
@@ -71,6 +76,7 @@ export default {
           locationAlwaysAndWhenInUsePermission:
             'If you allow “Always”, Cafe Social can notify you when you are near a partner café with an active offer, and record approximate venue enter/exit for visit analytics — without continuous GPS tracking for unrelated ads.',
           isIosBackgroundLocationEnabled: true,
+          isAndroidBackgroundLocationEnabled: true,
         },
       ],
       [

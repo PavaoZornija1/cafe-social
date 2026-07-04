@@ -94,10 +94,70 @@ Owners and managers manage engagement from **Owner → Venues → [venue]** (tab
 
 Platform daily/weekly **quests** (Rewards hub) are separate from venue challenges.
 
+### Legal pages (App Store / Play Store)
+
+Public legal pages are served by the **admin portal** (no sign-in):
+
+| Path | Page |
+|------|------|
+| `/privacy` | Privacy policy |
+| `/terms` | Terms of service |
+
+Configure branding on the admin host (`admin/.env.example`):
+
+```bash
+NEXT_PUBLIC_LEGAL_COMPANY_NAME=Cafe Social
+NEXT_PUBLIC_LEGAL_APP_NAME=Cafe Social
+NEXT_PUBLIC_LEGAL_CONTACT_EMAIL=privacy@yourdomain.com
+NEXT_PUBLIC_LEGAL_EFFECTIVE_DATE=2026-07-01
+```
+
+Point the mobile app at those URLs (`app/.env` / EAS secrets):
+
+```bash
+# Local admin (Next default port)
+EXPO_PUBLIC_PRIVACY_POLICY_URL=http://localhost:3000/privacy
+EXPO_PUBLIC_TERMS_OF_SERVICE_URL=http://localhost:3000/terms
+# Production
+# EXPO_PUBLIC_PRIVACY_POLICY_URL=https://admin.yourdomain.com/privacy
+# EXPO_PUBLIC_TERMS_OF_SERVICE_URL=https://admin.yourdomain.com/terms
+```
+
+Settings → **Legal & data** opens these links. Stores typically require:
+
+| Document | Apple App Store | Google Play | Notes |
+|----------|-----------------|-------------|--------|
+| **Privacy policy** | Required | Required | Location, push, account data, Clerk, analytics |
+| **Terms of service** | Strongly recommended; required for subscriptions | Required for paid/subs | You sell guest subscriptions via RevenueCat |
+| **Account deletion** | Required if accounts exist | Required | Settings → Account → **Delete my account** (`DELETE /players/me` + Clerk user purge) |
+| **Privacy nutrition labels / Data safety** | App Privacy questionnaire | Data safety form | Location, identifiers, purchase history |
+
+Until the URLs are set, Settings shows a missing-link hint (dev-friendly). For production builds, set both URLs in EAS secrets / store listing metadata as well.
+
+### Account deletion
+
+Guests can delete their account in **Settings → Account → Delete my account** (double confirm). The app calls **`DELETE /api/players/me`** (Clerk JWT). The backend:
+
+1. Deletes the **`Player`** row (related progress, tokens, friendships, staff links, etc. cascade or null out per schema).
+2. Deletes the **Clerk** user (`CLERK_SECRET_KEY` required).
+
+Historical **game participants** keep anonymized rows (`playerId` set null). Store subscriptions are **not** cancelled automatically — the UI notes that billing stays in App Store / Play.
+
+### Background geofence / dwell (app killed)
+
+Approximate, OS-dependent (requires **Always** location):
+
+1. While signed in, the app issues a **long-lived background token** (`POST /players/me/background-token`, 30 days) and registers up to 20 nearest **proximity rings**.
+2. OS enter/exit wakes a headless task → `POST /social/me/geofence-event` with that token (Clerk session JWTs expire too fast).
+3. **Enter:** arrival push (if eligible), visit day, start **ring dwell** clock for order nudges — does **not** set play-polygon presence.
+4. **Exit:** clears ring dwell when the player is not polygon-present.
+5. A **5-minute scheduler** sends due dwell order nudges without the app being open.
+
+Play geofence / “people here” still use foreground GPS + presence heartbeat. Expect missed or delayed events on some devices.
+
 ### Not done yet (good next steps)
 
 - **EAS** production builds, App Store / Play Store assets.
-- **Background dwell without foreground app** is platform-limited; today presence relies on **app-open / heartbeat** (and geofence detection when the app runs). A future option is **native geofence callbacks** (Expo task / region monitoring) plus server-side jobs — expect **approximate** dwell unless the OS delivers reliable exit/enter events.
 
 ### Realtime word matches (Socket.IO)
 
@@ -167,7 +227,7 @@ npx expo install i18next react-i18next expo-localization @react-native-async-sto
 
 **Physical device**: `EXPO_PUBLIC_API_URL` must use your machine’s **LAN IP**, not `localhost`.
 
-**Store / privacy (Settings in-app)** — Set **`EXPO_PUBLIC_PRIVACY_POLICY_URL`** and optionally **`EXPO_PUBLIC_TERMS_OF_SERVICE_URL`** to your hosted legal pages. The app also shows a short in-app summary (location + notifications). iOS permission strings are in **`app.config.js`** (`NSLocationWhenInUseUsageDescription`, camera, etc.); keep them aligned with your real policy before review.
+**Store / privacy (Settings in-app)** — Set **`EXPO_PUBLIC_PRIVACY_POLICY_URL`** and optionally **`EXPO_PUBLIC_TERMS_OF_SERVICE_URL`** to your hosted legal pages. The app also shows a short in-app summary (location + notifications) and **Delete my account**. iOS permission strings are in **`app.config.js`** (`NSLocationWhenInUseUsageDescription`, camera, etc.); keep them aligned with your real policy before review.
 
 Development build (with native modules):
 

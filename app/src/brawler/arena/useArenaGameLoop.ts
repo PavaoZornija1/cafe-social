@@ -40,6 +40,7 @@ import {
   MAX_AIR_JUMPS,
   DOUBLE_JUMP_VELOCITY_MUL,
   DROP_THROUGH_CLEARANCE_PX,
+  DROP_THROUGH_HOLD_S,
   DROP_THROUGH_INITIAL_VY,
   DROP_THROUGH_JOY_THRESHOLD,
   MARGIN_SCREEN,
@@ -240,6 +241,8 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
     let cancelled = false;
     let last =
       typeof performance !== 'undefined' ? performance.now() : Date.now();
+    /** Accumulates while stick is held fully down on a float platform. */
+    let dropThroughHoldS = 0;
 
     const step = (now: number) => {
       if (cancelled) return;
@@ -1078,23 +1081,29 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
       const holdingDown = joyRef.current.y >= DROP_THROUGH_JOY_THRESHOLD;
 
       if (holdingDown && onGround.current) {
-        const feetBottom = playerY.current + bodyH;
-        let dropPi = -1;
-        let dropSurfaceY = Infinity;
-        for (let pi = 0; pi < plats.length - 1; pi++) {
-          const p = plats[pi]!;
-          if (!overlapX(feetX, FEET_W, p)) continue;
-          if (Math.abs(feetBottom - p.y - p.feetEmbedPx) < 12 && p.y < dropSurfaceY) {
-            dropSurfaceY = p.y;
-            dropPi = pi;
+        dropThroughHoldS += dt;
+        if (dropThroughHoldS >= DROP_THROUGH_HOLD_S) {
+          const feetBottom = playerY.current + bodyH;
+          let dropPi = -1;
+          let dropSurfaceY = Infinity;
+          for (let pi = 0; pi < plats.length - 1; pi++) {
+            const p = plats[pi]!;
+            if (!overlapX(feetX, FEET_W, p)) continue;
+            if (Math.abs(feetBottom - p.y - p.feetEmbedPx) < 12 && p.y < dropSurfaceY) {
+              dropSurfaceY = p.y;
+              dropPi = pi;
+            }
+          }
+          if (dropPi >= 0) {
+            dropThroughPlatformIndexRef.current = dropPi;
+            onGround.current = false;
+            vy.current = Math.max(vy.current, DROP_THROUGH_INITIAL_VY);
+            playerY.current += 3;
+            dropThroughHoldS = 0;
           }
         }
-        if (dropPi >= 0) {
-          dropThroughPlatformIndexRef.current = dropPi;
-          onGround.current = false;
-          vy.current = Math.max(vy.current, DROP_THROUGH_INITIAL_VY);
-          playerY.current += 3;
-        }
+      } else {
+        dropThroughHoldS = 0;
       }
 
       const dropThroughPassY = (p: PlatformWorld) =>

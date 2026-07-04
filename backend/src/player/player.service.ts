@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import type { Player, Prisma } from '@prisma/client';
@@ -12,6 +13,7 @@ import { PlayerRepository } from './player.repository';
 import { PlayerVenueStatsRepository } from '../stats/player-venue-stats.repository';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlatformAutomatedRewardService } from '../reward/platform-automated-reward.service';
+import { ClerkUserService } from '../auth/clerk-user.service';
 import { utcDayKeyDaysAgo, utcWeekDayKeyRange } from '../lib/engagement-dates';
 import { orderedPlayerPair } from '../common/player-pair';
 import { staffVerificationCodeFromRedemptionId } from '../lib/redemption-staff-code';
@@ -24,11 +26,14 @@ import {
 
 @Injectable()
 export class PlayerService {
+  private readonly log = new Logger(PlayerService.name);
+
   constructor(
     private readonly players: PlayerRepository,
     private readonly venueStats: PlayerVenueStatsRepository,
     private readonly prisma: PrismaService,
     private readonly platformRewards: PlatformAutomatedRewardService,
+    private readonly clerkUsers: ClerkUserService,
   ) {}
 
   async create(dto: CreatePlayerDto): Promise<Player> {
@@ -461,6 +466,23 @@ export class PlayerService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  /**
+   * Store-compliant account deletion: purge player data (FK cascades), then Clerk user.
+   * Player row is removed first so a partial failure still leaves no personal gameplay data.
+   */
+  async deleteMyAccount(
+    email: string,
+    clerkUserId: string,
+  ): Promise<{ ok: true }> {
+    const player = await this.players.findByEmail(email);
+    if (player) {
+      await this.players.deleteById(player.id);
+      this.log.log(`Deleted player ${player.id} for account purge`);
+    }
+    await this.clerkUsers.deleteUser(clerkUserId);
+    return { ok: true as const };
   }
 
 }

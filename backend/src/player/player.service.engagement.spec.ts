@@ -23,11 +23,13 @@ describe('PlayerService.getMeEngagement', () => {
       onPlayerCreated: jest.fn(),
       onVenueVisit: jest.fn(),
     };
+    const clerkUsers = { deleteUser: jest.fn() };
     const service = new PlayerService(
       players as never,
       venueStats as never,
       prisma as never,
       platformRewards as never,
+      clerkUsers as never,
     );
     return { service, prisma };
   }

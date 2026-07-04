@@ -198,11 +198,14 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
           }
         : undefined;
 
-      navigation.navigate('BrawlerArena', {
-        heroId: selectedHeroId,
-        venueId,
-        heroStats,
-        sessionId: created.id,
+      navigation.navigate('GameLaunch', {
+        kind: 'brawler',
+        brawler: {
+          heroId: selectedHeroId,
+          venueId,
+          heroStats,
+          sessionId: created.id,
+        },
       });
     } catch (e) {
       Alert.alert(t('common.error'), (e as Error).message || t('brawlerLobby.startSessionFailed'));
@@ -258,13 +261,16 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
         }
       : undefined;
 
-    navigation.navigate('BrawlerArena', {
-      heroId: selectedHeroId,
-      venueId,
-      heroStats,
-      soloOptions: {
-        opponentCount: soloOpponentCount,
-        difficulty: soloDifficulty,
+    navigation.navigate('GameLaunch', {
+      kind: 'brawler',
+      brawler: {
+        heroId: selectedHeroId,
+        venueId,
+        heroStats,
+        soloOptions: {
+          opponentCount: soloOpponentCount,
+          difficulty: soloDifficulty,
+        },
       },
     });
   };

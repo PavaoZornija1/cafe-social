@@ -17,6 +17,7 @@ import { NotificationNavigationEffect } from '../components/NotificationNavigati
 import { VenuePresenceHeartbeat } from '../components/VenuePresenceHeartbeat';
 import { AlwaysLocationPromptEffect } from '../components/AlwaysLocationPromptEffect';
 import { ProximityGeofenceSyncEffect } from '../components/ProximityGeofenceSyncEffect';
+import { BackgroundTokenSyncEffect } from '../components/BackgroundTokenSyncEffect';
 import { FriendsInboxBadgeProvider } from '../context/FriendsInboxBadgeContext';
 import { useAppTheme } from '../theme/ThemeContext';
 import { navigationRef } from './navigationRef';
@@ -94,6 +95,7 @@ export default function AppNavigation({ linking }: Props) {
       <NotificationNavigationEffect />
       <RevenueCatIdentitySync />
       <VenuePresenceHeartbeat />
+      <BackgroundTokenSyncEffect />
       <AlwaysLocationPromptEffect />
       <ProximityGeofenceSyncEffect />
       <ExpoPushRegistrar />

@@ -112,14 +112,17 @@ export async function navigateWordMatchFromPush(
   }
 
   if (state.status === 'ACTIVE' || state.status === 'FINISHED') {
-    navigationRef.navigate('WordGame', {
-      venueId,
-      difficulty,
-      mode,
-      matchSessionId: sessionId,
-      sessionWordsCount: words,
-      wordCategory,
-      ranked,
+    navigationRef.navigate('GameLaunch', {
+      kind: 'word',
+      word: {
+        venueId,
+        difficulty,
+        mode,
+        matchSessionId: sessionId,
+        sessionWordsCount: words,
+        wordCategory,
+        ranked,
+      },
     });
     return;
   }

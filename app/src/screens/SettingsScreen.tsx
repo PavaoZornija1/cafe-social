@@ -24,7 +24,7 @@ import SettingsNavRow from '../components/settings/SettingsNavRow';
 import ScreenHeader from '../components/ScreenHeader';
 import type { RootStackParamList } from '../navigation/type';
 import { LANGUAGE_OPTIONS, type AppLanguage, setAppLanguage } from '../i18n';
-import { apiGet, apiPatch } from '../lib/api';
+import { apiDelete, apiGet, apiPatch } from '../lib/api';
 import {
   getFeedbackPrefs,
   loadFeedbackPrefs,
@@ -36,7 +36,7 @@ import {
   triggerFeedbackPreview,
 } from '../lib/feedback';
 import { navigationRef } from '../navigation/navigationRef';
-import { setBackgroundApiToken } from '../lib/backgroundApiToken';
+import { revokeBackgroundApiToken } from '../lib/backgroundTokenSync';
 import { unregisterExpoPushTokenFromBackend } from '../lib/expoPush';
 import { createAndShareFriendInviteLink } from '../lib/friendInviteShare';
 import { fetchOwnerVenues } from '../lib/ownerStaffApi';
@@ -45,6 +45,7 @@ import {
   getPreferredPackageOrder,
   isRevenueCatNativeConfigured,
   pickPrimaryPackage,
+  signOutRevenueCat,
 } from '../lib/revenuecat';
 import { getVenuePlayBudgetIapCatalog } from '../lib/venuePlayBudgetCatalog';
 import { promptVenuePlayTimePurchaseDialog } from '../lib/venuePlayBudgetPurchaseUi';
@@ -354,6 +355,35 @@ export default function SettingsScreen({ navigation }: Props) {
     }
   };
 
+  const deleteMyAccount = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const token = await getTokenRef.current();
+      if (!token) {
+        Alert.alert(t('common.error'), t('settings.deleteAccountError'));
+        return;
+      }
+      await unregisterExpoPushTokenFromBackend(() => getTokenRef.current());
+      await revokeBackgroundApiToken(() => Promise.resolve(token));
+      await apiDelete<{ ok: true }>('/players/me', token);
+      await signOutRevenueCat();
+      try {
+        await signOut();
+      } catch {
+        // Clerk session may already be invalid after server-side user delete.
+      }
+      navigation.replace('Login');
+    } catch (e) {
+      Alert.alert(
+        t('common.error'),
+        (e as Error).message?.trim() || t('settings.deleteAccountError'),
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScreenHeader
@@ -581,7 +611,7 @@ export default function SettingsScreen({ navigation }: Props) {
               <Text style={styles.linkText}>{t('settings.privacyPolicyLink')}</Text>
             </Pressable>
           ) : (
-            <Text style={styles.cardTextMuted}>{t('settings.legalUrlMissing')}</Text>
+            <Text style={styles.cardTextMuted}>{t('settings.privacyUrlMissing')}</Text>
           )}
           {TERMS_OF_SERVICE_URL ? (
             <Pressable
@@ -590,7 +620,9 @@ export default function SettingsScreen({ navigation }: Props) {
             >
               <Text style={styles.linkText}>{t('settings.termsLink')}</Text>
             </Pressable>
-          ) : null}
+          ) : (
+            <Text style={styles.cardTextMuted}>{t('settings.termsUrlMissing')}</Text>
+          )}
         </View>
 
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.subscription')}</Text>
@@ -754,6 +786,45 @@ export default function SettingsScreen({ navigation }: Props) {
         <Text style={[styles.sectionLabel, styles.sectionSpacer]}>{t('settings.account')}</Text>
         <View style={styles.card}>
           <Text style={styles.cardText}>{t('settings.accountHint')}</Text>
+          <Text style={[styles.cardTextMuted, styles.bulletFootnote]}>
+            {t('settings.deleteAccountSubscriptionNote')}
+          </Text>
+          <Pressable
+            disabled={busy}
+            style={({ pressed }) => [
+              styles.deleteAccountBtn,
+              pressed && styles.actionRowPressed,
+              busy && styles.actionRowDisabled,
+            ]}
+            onPress={() => {
+              if (busy) return;
+              Alert.alert(t('settings.deleteAccountTitle'), t('settings.deleteAccountBody'), [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                  text: t('settings.deleteAccountContinue'),
+                  style: 'destructive',
+                  onPress: () => {
+                    Alert.alert(
+                      t('settings.deleteAccountConfirmTitle'),
+                      t('settings.deleteAccountConfirmBody'),
+                      [
+                        { text: t('common.cancel'), style: 'cancel' },
+                        {
+                          text: t('settings.deleteAccountConfirmAction'),
+                          style: 'destructive',
+                          onPress: () => void deleteMyAccount(),
+                        },
+                      ],
+                    );
+                  },
+                },
+              ]);
+            }}
+          >
+            <Text style={styles.deleteAccountBtnText}>
+              {busy ? t('settings.deletingAccount') : t('settings.deleteAccount')}
+            </Text>
+          </Pressable>
         </View>
 
         {hasStaffVenues ? (
@@ -809,7 +880,7 @@ export default function SettingsScreen({ navigation }: Props) {
             setBusy(true);
             try {
               await unregisterExpoPushTokenFromBackend(() => getTokenRef.current());
-              await setBackgroundApiToken(null);
+              await revokeBackgroundApiToken(() => getTokenRef.current());
               await signOut();
               navigation.replace('Login');
             } finally {
@@ -977,6 +1048,17 @@ function createStyles(colors: AppColors) {
     linkBtn: { marginTop: spacing.md, paddingVertical: spacing.sm },
     linkBtnText: { color: colors.primary, fontWeight: '700', fontSize: 14 },
     navList: { marginTop: spacing.md, gap: spacing.sm },
+    deleteAccountBtn: {
+      marginTop: spacing.md,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.md,
+      borderRadius: radii.md,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.error,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+    },
+    deleteAccountBtnText: { color: colors.error, fontWeight: '800', fontSize: 14 },
     logoutBtn: {
       marginTop: spacing.xl,
       backgroundColor: colors.surface,

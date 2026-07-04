@@ -24,6 +24,7 @@ import { RegisterExpoPushTokenDto } from './dto/register-expo-push-token.dto';
 import { CreateBanAppealDto } from './dto/create-ban-appeal.dto';
 import { PushService } from '../push/push.service';
 import { VenueModerationService } from '../venue/venue-moderation.service';
+import { BackgroundTokenService } from '../auth/background-token.service';
 
 @Controller('players')
 export class PlayerController {
@@ -31,6 +32,7 @@ export class PlayerController {
     private readonly playerService: PlayerService,
     private readonly pushService: PushService,
     private readonly venueModeration: VenueModerationService,
+    private readonly backgroundTokens: BackgroundTokenService,
   ) {}
 
   private normalizeEmail(user: unknown): string | null {
@@ -202,6 +204,43 @@ export class PlayerController {
     const p = await this.playerService.findOrCreateByEmail(email);
     await this.pushService.removeToken(p.id, token);
     return { ok: true };
+  }
+
+  /**
+   * Long-lived token for OS geofence callbacks while the app is backgrounded/killed.
+   * Replaces any previous background token for this player.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('me/background-token')
+  async issueBackgroundToken(@CurrentUser() user: unknown) {
+    const email = this.normalizeEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    const p = await this.playerService.findOrCreateByEmail(email);
+    return this.backgroundTokens.issueForPlayer(p.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('me/background-token')
+  async revokeBackgroundToken(@CurrentUser() user: unknown) {
+    const email = this.normalizeEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    const p = await this.playerService.findOrCreateByEmail(email);
+    await this.backgroundTokens.revokeForPlayer(p.id);
+    return { ok: true as const };
+  }
+
+  /** Permanently delete the signed-in player profile and Clerk auth user. */
+  @UseGuards(JwtAuthGuard)
+  @Delete('me')
+  async deleteMe(@CurrentUser() user: unknown) {
+    const email = this.normalizeEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    const u = user as { externalId?: string; claims?: { sub?: string } };
+    const clerkUserId = u.externalId ?? u.claims?.sub;
+    if (!clerkUserId || typeof clerkUserId !== 'string') {
+      throw new UnauthorizedException('Missing user id');
+    }
+    return this.playerService.deleteMyAccount(email, clerkUserId);
   }
 
   @Get(':id')

@@ -24,8 +24,6 @@ import { FriendRequestDto } from './dto/friend-request.dto';
 import { FriendRequestByUsernameDto } from './dto/friend-request-by-username.dto';
 import { FriendAcceptDto } from './dto/friend-accept.dto';
 import { UpdatePresenceDto } from '../player/dto/update-presence.dto';
-import { GeofenceEventDto } from './dto/geofence-event.dto';
-import { GeofenceService } from './geofence.service';
 import { utcDayKeyDaysAgo } from '../lib/engagement-dates';
 import { PushService } from '../push/push.service';
 import { SocialInboxService } from './social-inbox.service';
@@ -37,7 +35,6 @@ export class SocialController {
     private readonly players: PlayerService,
     private readonly friendships: FriendshipService,
     private readonly discovery: DiscoveryService,
-    private readonly geofence: GeofenceService,
     private readonly venueFeedService: VenueFeedService,
     private readonly push: PushService,
     private readonly inbox: SocialInboxService,
@@ -101,22 +98,6 @@ export class SocialController {
   ) {
     const p = await this.players.findOrCreateByEmail(this.email(user));
     return this.discovery.friendsAtVenue(p.id, venueId);
-  }
-
-  @Post('me/geofence-event')
-  async recordGeofenceEvent(
-    @CurrentUser() user: unknown,
-    @Body() dto: GeofenceEventDto,
-  ) {
-    const p = await this.players.findOrCreateByEmail(this.email(user));
-    const occurredAt = dto.occurredAt ? new Date(dto.occurredAt) : undefined;
-    return this.geofence.recordEvent({
-      playerId: p.id,
-      venueId: dto.venueId,
-      kind: dto.kind,
-      occurredAt,
-      clientDedupeKey: dto.clientDedupeKey,
-    });
   }
 
   @Get('venues/:venueId/feed')

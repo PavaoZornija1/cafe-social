@@ -522,6 +522,10 @@ model Player {
   venueNudgeSessionStartedAt DateTime?
   venueNudgeLastSentAt       DateTime?
 
+  /// Long-lived token for OS geofence callbacks while the app is backgrounded/killed (Clerk session JWTs expire too fast).
+  backgroundTokenHash      String?   @unique
+  backgroundTokenExpiresAt DateTime?
+
   playerVenues        PlayerVenue[]
   playerVenueStats    PlayerVenueStats[]
   subscriptions       Subscription[]

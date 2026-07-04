@@ -38,7 +38,8 @@ export type RootStackParamList = {
       heroStats?: BrawlerArenaHeroStats;
     };
     BrawlerArena: {
-      heroId: string;
+      /** Required for local/solo; may be omitted when resuming a server session from a push. */
+      heroId?: string;
       venueId?: string;
       heroStats?: BrawlerArenaHeroStats;
       /** Present for server-tracked brawler matches (multiplayer / ranked). */
@@ -116,6 +117,39 @@ export type RootStackParamList = {
       /** From server state for versus ranked. */
       ranked?: boolean;
     };
+    /**
+     * Short intro before WordGame / BrawlerArena: transition stinger + game music,
+     * then auto-advances into the match.
+     */
+    GameLaunch:
+      | {
+          kind: 'word';
+          players?: { username: string; isYou?: boolean }[];
+          word: {
+            venueId?: string;
+            challengeId?: string;
+            difficulty: 'easy' | 'normal' | 'hard';
+            mode: 'solo' | 'coop' | 'versus';
+            matchSessionId?: string;
+            sessionWordsCount?: number;
+            wordCategory?: string;
+            ranked?: boolean;
+          };
+        }
+      | {
+          kind: 'brawler';
+          players?: { username: string; isYou?: boolean }[];
+          brawler: {
+            heroId?: string;
+            venueId?: string;
+            heroStats?: BrawlerArenaHeroStats;
+            sessionId?: string;
+            soloOptions?: {
+              opponentCount: number;
+              difficulty: 'easy' | 'normal' | 'hard';
+            };
+          };
+        };
     StaffVenues: undefined;
     StaffRedemptions: {
       venueId: string;

@@ -123,6 +123,33 @@ export class DiscoveryService {
     }
   }
 
+  /**
+   * Sends a dwell order nudge when the active session is past the venue delay.
+   * Safe to call from presence heartbeats and the background dwell scheduler.
+   */
+  async trySendDueVenueOrderNudge(playerId: string): Promise<void> {
+    const player = await this.prisma.player.findUnique({
+      where: { id: playerId },
+      select: {
+        venueNudgeSessionVenueId: true,
+        venueNudgeSessionStartedAt: true,
+        venueNudgeLastSentAt: true,
+        totalPrivacy: true,
+        partnerMarketingPush: true,
+      },
+    });
+    if (!player?.venueNudgeSessionVenueId || !player.venueNudgeSessionStartedAt) {
+      return;
+    }
+    if (player.totalPrivacy || !player.partnerMarketingPush) return;
+    await this.maybeSendVenueOrderNudge({
+      playerId,
+      venueId: player.venueNudgeSessionVenueId,
+      sessionStartedAt: player.venueNudgeSessionStartedAt,
+      lastSentAt: player.venueNudgeLastSentAt,
+    });
+  }
+
   private async maybeSendVenueOrderNudge(params: {
     playerId: string;
     venueId: string;

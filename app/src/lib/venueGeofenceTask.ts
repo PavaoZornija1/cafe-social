@@ -88,9 +88,10 @@ export const requestProximityGeofencePermissions = requestAlwaysLocationPermissi
 
 /**
  * Registers up to 20 circular arrival zones (nearest partner venues).
- * Enter/exit events POST to `/social/me/geofence-event`, which records visit days
- * and starts dwell-based order nudges even when the app is in the background.
- * Requires foreground location; background ("Always") improves delivery when the app is not open.
+ * Enter/exit events POST to `/social/me/geofence-event` with the long-lived background token.
+ * Server records visit days, starts/clears ring dwell for order nudges, and may send arrival push.
+ * Does not set play-polygon presence (that stays foreground GPS). Approximate when the app is killed.
+ * Requires foreground location; background ("Always") is required for delivery while killed.
  */
 export async function syncProximityGeofenceRegions(
   regions: ProximityGeofenceRegion[],

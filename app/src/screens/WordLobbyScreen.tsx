@@ -115,13 +115,16 @@ export default function WordLobbyScreen({ navigation, route }: Props) {
 
   const onPrimary = () => {
     if (playKind === 'solo') {
-      navigation.navigate('WordGame', {
-        venueId,
-        challengeId,
-        difficulty,
-        mode: 'solo',
-        sessionWordsCount: wordCount,
-        wordCategory: wordCategory ?? undefined,
+      navigation.navigate('GameLaunch', {
+        kind: 'word',
+        word: {
+          venueId,
+          challengeId,
+          difficulty,
+          mode: 'solo',
+          sessionWordsCount: wordCount,
+          wordCategory: wordCategory ?? undefined,
+        },
       });
       return;
     }

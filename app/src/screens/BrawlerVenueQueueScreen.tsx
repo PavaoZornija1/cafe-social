@@ -58,11 +58,17 @@ export default function BrawlerVenueQueueScreen({ navigation, route }: Props) {
     if (s.status === 'matched' && s.sessionId && !navigatedRef.current) {
       navigatedRef.current = true;
       triggerFeedback('lobbyFound');
-      navigation.replace('BrawlerArena', {
-        heroId: brawlerHeroId,
-        venueId,
-        heroStats,
-        sessionId: s.sessionId,
+      navigation.replace('GameLaunch', {
+        kind: 'brawler',
+        players: [
+          { username: heroLabel, isYou: true },
+        ],
+        brawler: {
+          heroId: brawlerHeroId,
+          venueId,
+          heroStats,
+          sessionId: s.sessionId,
+        },
       });
     }
   }, [venueId, brawlerHeroId, heroStats, navigation]);

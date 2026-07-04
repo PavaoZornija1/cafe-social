@@ -69,6 +69,7 @@ export async function navigateBrawlerMatchFromPush(
   const venueId = fromStateVenue ?? fromPushVenue ?? undefined;
 
   if (state.status === 'ACTIVE' || state.status === 'PENDING') {
+    // Resume mid-match — skip intro (hero id may not be on the push payload).
     navigationRef.navigate('BrawlerArena', {
       sessionId,
       venueId,

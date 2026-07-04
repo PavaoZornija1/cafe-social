@@ -488,6 +488,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                 {publicCard ? (
                     <View style={styles.card}>
                         <Text style={styles.cardTitle}>{t('home.partnerOffers', { name: publicCard.name })}</Text>
+                        <View style={styles.listStack}>
                         {(hubOffers.length > 0 ? hubOffers : publicCard.offers ?? []).map((o) => {
                             const isAuto = o.fulfillment === 'AUTO';
                             const statusLabel = isAuto
@@ -525,6 +526,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                                 </View>
                             );
                         })}
+                        </View>
                         {(hubOffers.length === 0 && (publicCard.offers ?? []).length === 0) ? (
                             <Text style={styles.muted}>{t('home.dashboard.noOffersYet')}</Text>
                         ) : null}
@@ -717,6 +719,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                                 <Text style={styles.muted}>{t('venueHub.challengesEmptyShort')}</Text>
                             ) : (
                                 <>
+                                    <View style={styles.listStack}>
                                     {hubChallenges.slice(0, 4).map((c) => (
                                         <View key={c.id} style={styles.hubChallengeRow}>
                                             <Text style={styles.hubChallengeTitle} numberOfLines={2}>
@@ -736,6 +739,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                                             ) : null}
                                         </View>
                                     ))}
+                                    </View>
                                     <Pressable
                                         style={({ pressed }) => [
                                             styles.pillBtn,
@@ -765,6 +769,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                                 <Text style={styles.muted}>{t('venueHub.myRewardsHereEmpty')}</Text>
                             ) : (
                                 <>
+                                    <View style={styles.listStack}>
                                     {myVenueRewards
                                         .filter(
                                           (r) =>
@@ -805,6 +810,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                                                 </Pressable>
                                             </View>
                                         ))}
+                                    </View>
                                     <Pressable
                                         style={({ pressed }) => [styles.link, styles.linkSpaced, pressed && styles.ctaPressed]}
                                         onPress={() => navigation.navigate('PerkWallet')}
@@ -853,7 +859,8 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                     ) : venuePerks.length === 0 ? (
                         <Text style={styles.muted}>{t('home.venuePerksEmpty')}</Text>
                     ) : (
-                        venuePerks.slice(0, 12).map((p) => (
+                        <View style={styles.listStack}>
+                        {venuePerks.slice(0, 12).map((p) => (
                             <View key={p.id} style={styles.perkRow}>
                                 <Text style={styles.perkTitle} numberOfLines={2}>
                                     {p.title}
@@ -864,7 +871,8 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                                     <Text style={styles.mutedSmall}>—</Text>
                                 ) : null}
                             </View>
-                        ))
+                        ))}
+                        </View>
                     )}
                 </View>
 
@@ -1062,6 +1070,8 @@ function createStyles(colors: AppColors) {
         textTransform: 'uppercase',
         letterSpacing: 0.4,
     },
+    /** Spacing between stacked offer / challenge / reward / perk rows. */
+    listStack: { gap: spacing.sm },
     featuredBox: {
         backgroundColor: colors.primaryMuted,
         borderRadius: radii.md,
@@ -1119,7 +1129,6 @@ function createStyles(colors: AppColors) {
     },
     mapBtnText: { color: colors.primary, fontWeight: '800', fontSize: 13 },
     hubChallengeRow: {
-        marginTop: spacing.sm,
         paddingBottom: spacing.sm,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: colors.border,
@@ -1128,11 +1137,11 @@ function createStyles(colors: AppColors) {
     hubChallengeMeta: { color: colors.textMuted, fontSize: 12, marginTop: 4, fontWeight: '600' },
     hubRewardHint: { color: colors.textSecondary, fontSize: 12, marginTop: 6, fontWeight: '600' },
     rewardRow: {
-        marginTop: spacing.sm,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: spacing.sm,
+        paddingVertical: spacing.xs,
     },
     rewardMain: { flex: 1, minWidth: 0 },
     redeemMiniBtn: {
@@ -1187,11 +1196,11 @@ function createStyles(colors: AppColors) {
     },
     badgeText: { color: colors.success, fontSize: 11, fontWeight: '800' },
     perkRow: {
-        marginTop: spacing.sm,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: spacing.sm,
+        paddingVertical: spacing.xs,
     },
     perkTitle: { color: colors.textSecondary, fontSize: 13, fontWeight: '700', flex: 1 },
     perkPill: {

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from '../auth/auth.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { VenueModule } from '../venue/venue.module';
@@ -12,12 +13,23 @@ import { GeofenceService } from './geofence.service';
 import { ProximityArrivalService } from './proximity-arrival.service';
 import { VenuePolygonSessionService } from './venue-polygon-session.service';
 import { SocialController } from './social.controller';
+import { SocialGeofenceController } from './social-geofence.controller';
 import { SocialInboxService } from './social-inbox.service';
 import { PlayerInboxService } from './player-inbox.service';
+import { VenueDwellNudgeScheduler } from './venue-dwell-nudge.scheduler';
 
 @Module({
-  imports: [AuthModule, PrismaModule, VenueModule, PlayerModule, VenueFeedModule, PushModule, PartnerPpvBillingModule],
-  controllers: [SocialController],
+  imports: [
+    AuthModule,
+    PrismaModule,
+    VenueModule,
+    PlayerModule,
+    VenueFeedModule,
+    PushModule,
+    PartnerPpvBillingModule,
+    ScheduleModule,
+  ],
+  controllers: [SocialController, SocialGeofenceController],
   providers: [
     PlayerInboxService,
     FriendshipService,
@@ -26,6 +38,7 @@ import { PlayerInboxService } from './player-inbox.service';
     ProximityArrivalService,
     VenuePolygonSessionService,
     SocialInboxService,
+    VenueDwellNudgeScheduler,
   ],
   exports: [
     FriendshipService,
