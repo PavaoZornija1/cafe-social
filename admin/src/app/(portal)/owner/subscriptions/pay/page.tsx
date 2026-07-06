@@ -9,6 +9,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  PortalAlert,
+  PortalCard,
+  PortalPageHeader,
+  PortalPageLayout,
+  PortalSkeleton,
+  portalButtonPrimaryClass,
+} from "@/components/portal/PortalPageUi";
+import {
   queryKeys,
   useOwnerOrganizationElementsSubscriptionSetupQuery,
 } from "@/lib/queries";
@@ -40,14 +48,14 @@ function PaymentStepForm() {
 
   return (
     <form onSubmit={(ev) => void handleSubmit(ev)} className="space-y-5">
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <PortalCard className="p-4">
         <PaymentElement />
-      </div>
-      {message ? <p className="text-sm text-red-700">{message}</p> : null}
+      </PortalCard>
+      {message ? <PortalAlert tone="error">{message}</PortalAlert> : null}
       <button
         type="submit"
         disabled={!stripe || !elements || busy}
-        className="w-full sm:w-auto rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground shadow-md shadow-brand/25 hover:bg-brand-hover disabled:opacity-50 transition-colors"
+        className={`w-full sm:w-auto ${portalButtonPrimaryClass}`}
       >
         {busy ? t("common.loading") : t("admin.partnerSubscriptionPay.submit")}
       </button>
@@ -91,33 +99,43 @@ function PartnerSubscriptionPayInner() {
 
   if (!organizationId) {
     return (
-      <div className="bg-slate-50 min-h-full px-4 py-6 sm:p-6 max-w-lg mx-auto w-full">
-        <p className="text-slate-800">{t("admin.partnerSubscriptionPay.missingOrg")}</p>
-        <Link href="/owner/subscriptions" className="mt-4 inline-block text-sm font-semibold text-brand hover:underline">
-          {t("admin.partnerSubscriptionPay.back")}
-        </Link>
-      </div>
+      <PortalPageLayout maxWidth="lg">
+        <PortalCard>
+          <p className="text-slate-800">{t("admin.partnerSubscriptionPay.missingOrg")}</p>
+          <Link
+            href="/owner/subscriptions"
+            className="mt-4 inline-block text-sm font-semibold text-brand hover:text-brand-hover"
+          >
+            {t("admin.partnerSubscriptionPay.back")}
+          </Link>
+        </PortalCard>
+      </PortalPageLayout>
     );
   }
 
   if (!isLoaded || setupQ.isPending) {
     return (
-      <div className="bg-slate-50 min-h-full px-4 py-6 sm:p-8">
-        <p className="text-slate-600 text-sm">{t("admin.partnerSubscriptionPay.loading")}</p>
-      </div>
+      <PortalPageLayout maxWidth="lg">
+        <PortalSkeleton rows={2} />
+      </PortalPageLayout>
     );
   }
 
   if (setupQ.isError) {
     return (
-      <div className="bg-slate-50 min-h-full px-4 py-6 sm:p-6 max-w-lg mx-auto w-full space-y-4">
-        <p className="text-red-800 text-sm">
-          {setupQ.error instanceof Error ? setupQ.error.message : t("admin.partnerSubscriptionPay.loadError")}
-        </p>
-        <Link href="/owner/subscriptions" className="inline-block text-sm font-semibold text-brand hover:underline">
+      <PortalPageLayout maxWidth="lg">
+        <PortalAlert tone="error">
+          {setupQ.error instanceof Error
+            ? setupQ.error.message
+            : t("admin.partnerSubscriptionPay.loadError")}
+        </PortalAlert>
+        <Link
+          href="/owner/subscriptions"
+          className="mt-4 inline-block text-sm font-semibold text-brand hover:text-brand-hover"
+        >
           {t("admin.partnerSubscriptionPay.back")}
         </Link>
-      </div>
+      </PortalPageLayout>
     );
   }
 
@@ -129,18 +147,23 @@ function PartnerSubscriptionPayInner() {
   if (!data.clientSecret) {
     if (data.subscriptionStatus === "active" || data.subscriptionStatus === "trialing") {
       return (
-        <div className="bg-slate-50 min-h-full px-4 py-6 sm:p-8">
-          <p className="text-slate-600 text-sm">{t("admin.partnerSubscriptionPay.noPaymentStep")}</p>
-        </div>
+        <PortalPageLayout maxWidth="lg">
+          <p className="text-sm text-slate-600">{t("admin.partnerSubscriptionPay.noPaymentStep")}</p>
+        </PortalPageLayout>
       );
     }
     return (
-      <div className="bg-slate-50 min-h-full px-4 py-6 sm:p-6 max-w-lg mx-auto w-full space-y-4">
-        <p className="text-slate-800 text-sm">{t("admin.partnerSubscriptionPay.unexpectedNoSecret")}</p>
-        <Link href="/owner/subscriptions" className="inline-block text-sm font-semibold text-brand hover:underline">
-          {t("admin.partnerSubscriptionPay.back")}
-        </Link>
-      </div>
+      <PortalPageLayout maxWidth="lg">
+        <PortalCard>
+          <p className="text-sm text-slate-800">{t("admin.partnerSubscriptionPay.unexpectedNoSecret")}</p>
+          <Link
+            href="/owner/subscriptions"
+            className="mt-4 inline-block text-sm font-semibold text-brand hover:text-brand-hover"
+          >
+            {t("admin.partnerSubscriptionPay.back")}
+          </Link>
+        </PortalCard>
+      </PortalPageLayout>
     );
   }
 
@@ -149,43 +172,39 @@ function PartnerSubscriptionPayInner() {
   }
 
   return (
-    <div className="bg-slate-50 text-slate-900 min-h-full">
-      <header className="border-b border-slate-200 px-4 sm:px-6 py-4">
-        <Link href="/owner/subscriptions" className="text-sm text-brand hover:underline">
-          {t("admin.partnerSubscriptionPay.back")}
-        </Link>
-        <h1 className="text-xl font-semibold mt-2">{t("admin.partnerSubscriptionPay.title")}</h1>
-        <p className="text-sm text-slate-600 mt-1 max-w-xl leading-relaxed">{t("admin.partnerSubscriptionPay.lead")}</p>
-      </header>
-      <main className="px-4 py-6 sm:p-6 max-w-lg mx-auto w-full">
-        <Elements
-          stripe={stripePromise}
-          options={{
-            clientSecret: data.clientSecret,
-            appearance: {
-              theme: "stripe",
-              variables: {
-                colorPrimary: "#143368",
-                borderRadius: "12px",
-              },
+    <PortalPageLayout maxWidth="lg">
+      <PortalPageHeader
+        backHref="/owner/subscriptions"
+        backLabel={t("admin.partnerSubscriptionPay.back")}
+        title={t("admin.partnerSubscriptionPay.title")}
+        lead={t("admin.partnerSubscriptionPay.lead")}
+      />
+      <Elements
+        stripe={stripePromise}
+        options={{
+          clientSecret: data.clientSecret,
+          appearance: {
+            theme: "stripe",
+            variables: {
+              colorPrimary: "#143368",
+              borderRadius: "12px",
             },
-          }}
-        >
-          <PaymentStepForm />
-        </Elements>
-      </main>
-    </div>
+          },
+        }}
+      >
+        <PaymentStepForm />
+      </Elements>
+    </PortalPageLayout>
   );
 }
 
 export default function PartnerSubscriptionPayPage() {
-  const { t } = useTranslation();
   return (
     <Suspense
       fallback={
-        <div className="bg-slate-50 min-h-full px-4 py-6 sm:p-8">
-          <p className="text-slate-600 text-sm">{t("common.loading")}</p>
-        </div>
+        <PortalPageLayout maxWidth="lg">
+          <PortalSkeleton />
+        </PortalPageLayout>
       }
     >
       <PartnerSubscriptionPayInner />

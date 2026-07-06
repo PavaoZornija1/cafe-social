@@ -57,3 +57,17 @@ body {
       transparent 50%
     );
 }
+
+.portal-sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.15) transparent;
+}
+
+.portal-sidebar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.portal-sidebar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.15);
+}

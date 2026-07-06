@@ -11,8 +11,7 @@ export default function OwnerVenueDashboardLayout({
 }) {
   return (
     <OwnerVenueDashboardProvider>
-      <OwnerVenueDashboardShell>
-        <OwnerVenueDashboardNav />
+      <OwnerVenueDashboardShell nav={<OwnerVenueDashboardNav />}>
         {children}
       </OwnerVenueDashboardShell>
     </OwnerVenueDashboardProvider>

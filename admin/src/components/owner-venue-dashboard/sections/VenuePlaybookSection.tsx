@@ -3,99 +3,150 @@
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { useOwnerVenueDashboard } from "../OwnerVenueDashboardContext";
+import { VenueDashboardCard } from "../venueDashboardUi";
+
+const STEPS = [
+  { titleKey: "step1Title", bodyKey: "step1Body" },
+  { titleKey: "step2Title", bodyKey: "step2Body", hasDeepLink: true },
+  { titleKey: "step3Title", bodyKey: "step3Body", hasLinks: true },
+  { titleKey: "step4Title", bodyKey: "step4Body" },
+  { titleKey: "step5Title", bodyKey: "step5Body" },
+] as const;
 
 export function VenuePlaybookSection() {
   const { t } = useTranslation();
   const { venueId, metaRow } = useOwnerVenueDashboard();
   if (!metaRow) return null;
+
   return (
-    <section className="border border-emerald-200 rounded-xl p-4 space-y-3 bg-emerald-50/40 scroll-mt-24">
-                <h2 className="text-lg font-medium text-slate-900">
-                  {t("admin.partnerVenueDetail.playbook.title")}
-                </h2>
-                <p className="text-sm text-slate-700">{t("admin.partnerVenueDetail.playbook.lead")}</p>
-                <ol className="list-decimal list-inside text-sm text-slate-700 space-y-1.5">
-                  <li>
-                    <strong>{t("admin.partnerVenueDetail.playbook.step1Title")}</strong> —{" "}
-                    {t("admin.partnerVenueDetail.playbook.step1Body")}
-                  </li>
-                  <li>
-                    <strong>{t("admin.partnerVenueDetail.playbook.step2Title")}</strong> —{" "}
+    <section className="space-y-5 scroll-mt-28">
+      <VenueDashboardCard className="relative overflow-hidden border-emerald-200/70 bg-gradient-to-br from-emerald-50/60 via-white to-white">
+        <div
+          className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-emerald-200/30 blur-2xl"
+          aria-hidden
+        />
+        <div className="relative">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700/80">
+            {t("admin.partnerVenueDetail.sectionNav.playbook")}
+          </p>
+          <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">
+            {t("admin.partnerVenueDetail.playbook.title")}
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-600">
+            {t("admin.partnerVenueDetail.playbook.lead")}
+          </p>
+        </div>
+      </VenueDashboardCard>
+
+      <ol className="grid gap-3 sm:gap-4">
+        {STEPS.map((step, index) => (
+          <li key={step.titleKey}>
+            <VenueDashboardCard className="flex gap-4 sm:gap-5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand text-sm font-bold text-brand-foreground shadow-md shadow-brand/20">
+                {index + 1}
+              </div>
+              <div className="min-w-0 space-y-1.5">
+                <h3 className="font-semibold text-slate-900">
+                  {t(`admin.partnerVenueDetail.playbook.${step.titleKey}`)}
+                </h3>
+                {"hasDeepLink" in step && step.hasDeepLink ? (
+                  <p className="text-sm leading-relaxed text-slate-600">
                     {t("admin.partnerVenueDetail.playbook.step2BeforeDeepLink")}{" "}
-                    <code className="text-xs bg-white/80 px-1 rounded break-all">
+                    <code className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs text-slate-800 break-all">
                       cafesocial://unlock?venueId={venueId}
                     </code>{" "}
                     {t("admin.partnerVenueDetail.playbook.step2AfterDeepLink")}
-                  </li>
-                  <li>
-                    <strong>{t("admin.partnerVenueDetail.playbook.step3Title")}</strong> —{" "}
+                  </p>
+                ) : "hasLinks" in step && step.hasLinks ? (
+                  <p className="text-sm leading-relaxed text-slate-600">
                     {t("admin.partnerVenueDetail.playbook.step3BeforeLinks")}{" "}
                     <Link
                       href={`/owner/venues/${venueId}/perks`}
-                      className="text-brand font-medium hover:underline"
+                      className="font-medium text-brand hover:text-brand-hover"
                     >
                       {t("admin.partnerVenueDetail.playbook.step3PerksLink")}
                     </Link>
                     {" · "}
                     <Link
                       href={`/owner/venues/${venueId}/challenges`}
-                      className="text-brand font-medium hover:underline"
+                      className="font-medium text-brand hover:text-brand-hover"
                     >
                       {t("admin.partnerVenueDetail.playbook.step3ChallengesLink")}
                     </Link>
                     {" · "}
                     <Link
                       href={`/owner/venues/${venueId}/offers`}
-                      className="text-brand font-medium hover:underline"
+                      className="font-medium text-brand hover:text-brand-hover"
                     >
                       {t("admin.partnerVenueDetail.playbook.step3OffersLink")}
                     </Link>
                     {t("admin.partnerVenueDetail.playbook.step3AfterLinks")}
-                  </li>
-                  <li>
-                    <strong>{t("admin.partnerVenueDetail.playbook.step4Title")}</strong> —{" "}
-                    {t("admin.partnerVenueDetail.playbook.step4Body")}
-                  </li>
-                  <li>
-                    <strong>{t("admin.partnerVenueDetail.playbook.step5Title")}</strong> —{" "}
-                    {t("admin.partnerVenueDetail.playbook.step5Body")}
-                  </li>
-                </ol>
-
-                <div className="rounded-lg border border-emerald-200/80 bg-white/80 p-3 space-y-2">
-                  <h3 className="text-sm font-semibold text-slate-900">
-                    {t("admin.partnerVenueDetail.playbook.glossaryTitle")}
-                  </h3>
-                  <ul className="list-disc list-inside text-xs text-slate-700 space-y-1">
-                    <li>{t("admin.partnerVenueDetail.playbook.glossaryChallenges")}</li>
-                    <li>{t("admin.partnerVenueDetail.playbook.glossaryPerks")}</li>
-                    <li>{t("admin.partnerVenueDetail.playbook.glossaryOffers")}</li>
-                    <li>{t("admin.partnerVenueDetail.playbook.glossaryPlatform")}</li>
-                  </ul>
-                </div>
-
-                <div className="rounded-lg border border-emerald-200/80 bg-white/80 p-3 space-y-2">
-                  <h3 className="text-sm font-semibold text-slate-900">
-                    {t("admin.partnerVenueDetail.playbook.staffTitle")}
-                  </h3>
-                  <ul className="list-disc list-inside text-xs text-slate-700 space-y-1">
-                    <li>{t("admin.partnerVenueDetail.playbook.staffPerkCode")}</li>
-                    <li>{t("admin.partnerVenueDetail.playbook.staffMemberCard")}</li>
-                  </ul>
-                </div>
-
-                <div className="rounded-lg border border-amber-200/80 bg-amber-50/50 p-3 space-y-1">
-                  <h3 className="text-sm font-semibold text-slate-900">
-                    {t("admin.partnerVenueDetail.playbook.trialTitle")}
-                  </h3>
-                  <p className="text-xs text-slate-700">
-                    {t("admin.partnerVenueDetail.playbook.trialBody")}
                   </p>
-                </div>
+                ) : (
+                  <p className="text-sm leading-relaxed text-slate-600">
+                    {t(`admin.partnerVenueDetail.playbook.${step.bodyKey}`)}
+                  </p>
+                )}
+              </div>
+            </VenueDashboardCard>
+          </li>
+        ))}
+      </ol>
 
-                <p className="text-xs text-slate-600">
-                  {t("admin.partnerVenueDetail.playbook.orderNudgeHint")}
-                </p>
-              </section>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <VenueDashboardCard>
+          <h3 className="text-sm font-semibold text-slate-900">
+            {t("admin.partnerVenueDetail.playbook.glossaryTitle")}
+          </h3>
+          <ul className="mt-3 space-y-2 text-xs leading-relaxed text-slate-600">
+            <li className="flex gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand/60" />
+              {t("admin.partnerVenueDetail.playbook.glossaryChallenges")}
+            </li>
+            <li className="flex gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand/60" />
+              {t("admin.partnerVenueDetail.playbook.glossaryPerks")}
+            </li>
+            <li className="flex gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand/60" />
+              {t("admin.partnerVenueDetail.playbook.glossaryOffers")}
+            </li>
+            <li className="flex gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand/60" />
+              {t("admin.partnerVenueDetail.playbook.glossaryPlatform")}
+            </li>
+          </ul>
+        </VenueDashboardCard>
+
+        <VenueDashboardCard>
+          <h3 className="text-sm font-semibold text-slate-900">
+            {t("admin.partnerVenueDetail.playbook.staffTitle")}
+          </h3>
+          <ul className="mt-3 space-y-2 text-xs leading-relaxed text-slate-600">
+            <li className="flex gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500/70" />
+              {t("admin.partnerVenueDetail.playbook.staffPerkCode")}
+            </li>
+            <li className="flex gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500/70" />
+              {t("admin.partnerVenueDetail.playbook.staffMemberCard")}
+            </li>
+          </ul>
+        </VenueDashboardCard>
+      </div>
+
+      <VenueDashboardCard className="border-amber-200/70 bg-gradient-to-br from-amber-50/50 to-white">
+        <h3 className="text-sm font-semibold text-slate-900">
+          {t("admin.partnerVenueDetail.playbook.trialTitle")}
+        </h3>
+        <p className="mt-2 text-xs leading-relaxed text-slate-600">
+          {t("admin.partnerVenueDetail.playbook.trialBody")}
+        </p>
+      </VenueDashboardCard>
+
+      <p className="px-1 text-xs text-slate-500">
+        {t("admin.partnerVenueDetail.playbook.orderNudgeHint")}
+      </p>
+    </section>
   );
 }

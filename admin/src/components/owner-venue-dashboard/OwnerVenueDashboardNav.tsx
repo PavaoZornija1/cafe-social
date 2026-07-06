@@ -8,6 +8,7 @@ import { isReceiptSubmissionsEnabled } from "@/lib/receiptSubmissionsFeature";
 import type { VenueDashboardSectionKey } from "./types";
 import { venueDashboardSectionPath } from "./utils";
 import { useOwnerVenueDashboard } from "./OwnerVenueDashboardContext";
+import { VenueSectionIcon } from "./venueDashboardUi";
 
 type NavItem = {
   key: VenueDashboardSectionKey;
@@ -50,32 +51,43 @@ export function OwnerVenueDashboardNav() {
   return (
     <nav
       aria-label="Venue dashboard sections"
-      className="sticky top-0 z-20 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 mb-2 bg-slate-50/95 backdrop-blur border-b border-slate-200/80"
+      className="sticky top-0 z-20 -mx-1 mb-6 pt-1"
     >
-      <ul className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin">
-        {items.map((item) => {
-          const href = venueDashboardSectionPath(venueId, item.key);
-          const isActive =
-            item.key === "playbook"
-              ? pathname === href || pathname === `${href}/`
-              : pathname === href || pathname.startsWith(`${href}/`);
+      <div className="overflow-x-auto pb-1 scrollbar-thin">
+        <ul className="inline-flex min-w-max gap-1 rounded-2xl border border-slate-200/80 bg-white/90 p-1.5 shadow-sm backdrop-blur-md">
+          {items.map((item) => {
+            const href = venueDashboardSectionPath(venueId, item.key);
+            const isActive =
+              item.key === "playbook"
+                ? pathname === href || pathname === `${href}/`
+                : pathname === href || pathname.startsWith(`${href}/`);
 
-          return (
-            <li key={item.key} className="shrink-0">
-              <Link
-                href={href}
-                className={`inline-block rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap ${
-                  isActive
-                    ? "border-brand/50 bg-brand-light/80 text-brand"
-                    : "border-slate-200 bg-white text-slate-700 hover:border-brand/40 hover:text-brand"
-                }`}
-              >
-                {t(item.labelKey)}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+            return (
+              <li key={item.key} className="shrink-0">
+                <Link
+                  href={href}
+                  className={`group relative flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium transition-all duration-200 whitespace-nowrap ${
+                    isActive
+                      ? "bg-brand text-brand-foreground shadow-md shadow-brand/25"
+                      : "text-slate-600 hover:bg-brand-lighter/70 hover:text-brand"
+                  }`}
+                >
+                  <span
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                      isActive
+                        ? "bg-white/20 text-brand-foreground"
+                        : "bg-slate-100 text-slate-500 group-hover:bg-brand-light/80 group-hover:text-brand"
+                    }`}
+                  >
+                    <VenueSectionIcon section={item.key} className="h-3.5 w-3.5" />
+                  </span>
+                  {t(item.labelKey)}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </nav>
   );
 }

@@ -15,6 +15,15 @@ import { OwnerAnalyticsCharts } from "@/components/OwnerAnalyticsCharts";
 import { OwnerAttributionSnapshot } from "@/components/OwnerAttributionSnapshot";
 import { PerkCountCards } from "@/components/TableRowCards";
 import {
+  PortalAlert,
+  PortalCard,
+  PortalSkeleton,
+  PortalStatCard,
+  portalInputClass,
+  portalLabelClass,
+  portalSelectClass,
+} from "@/components/portal/PortalPageUi";
+import {
   type OwnerOrganizationAnalytics,
   type OwnerVenueAnalytics,
   useOwnerOrganizationAnalyticsQuery,
@@ -213,96 +222,101 @@ export function PartnerAnalyticsHub() {
   });
 
   if (!isLoaded || listQ.isPending) {
-    return <p className="text-slate-600 text-sm p-6">{t("common.loading")}</p>;
+    return <PortalSkeleton rows={2} />;
   }
 
   if (!canAny) {
     return (
-      <div className="max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <PortalCard>
         <h2 className="text-lg font-semibold text-slate-900">
           {t("admin.partnerAnalytics.noAccessTitle")}
         </h2>
-        <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">
           {t("admin.partnerAnalytics.noAccessBody")}
         </p>
-      </div>
+      </PortalCard>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4">
-        <label className="block text-sm text-slate-700 min-w-[min(100%,16rem)] w-full sm:w-auto">
-          <span className="font-medium text-slate-800">{t("admin.partnerAnalytics.scopeLabel")}</span>
-          <select
-            className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm"
-            value={scopeIdx}
-            onChange={(e) => setScopeIdx(Number(e.target.value))}
-          >
-            {scopes.map((s, i) => (
-              <option key={`${s.kind}-${s.id}`} value={i}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm text-slate-600 flex flex-col sm:flex-row sm:items-center gap-1.5 w-full sm:w-auto">
-          {t("admin.partnerAnalytics.periodDays")}
-          <select
-            value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-            className="sm:ml-2 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-slate-900 w-full sm:w-auto"
-          >
-            {[7, 14, 30, 60, 90].map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm text-slate-600 flex flex-col sm:flex-row sm:items-center gap-1.5 w-full sm:w-auto">
-          {t("admin.partnerAnalytics.from")}
-          <input
-            type="date"
-            value={fromYmd}
-            onChange={(e) => setFromYmd(e.target.value)}
-            className="sm:ml-2 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-slate-900 w-full sm:w-auto"
-          />
-        </label>
-        <label className="text-sm text-slate-600 flex flex-col sm:flex-row sm:items-center gap-1.5 w-full sm:w-auto">
-          {t("admin.partnerAnalytics.to")}
-          <input
-            type="date"
-            value={toYmd}
-            onChange={(e) => setToYmd(e.target.value)}
-            className="sm:ml-2 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-slate-900 w-full sm:w-auto"
-          />
-        </label>
-        <button
-          type="button"
-          className="text-xs text-slate-500 hover:underline pb-1 self-start"
-          onClick={() => {
-            setFromYmd("");
-            setToYmd("");
-          }}
-        >
-          {t("admin.partnerAnalytics.clearRange")}
-        </button>
-      </div>
-      <p className="text-xs text-slate-500">{t("admin.partnerAnalytics.rangeHint")}</p>
+      <PortalCard className="border-slate-200/70 bg-gradient-to-br from-white via-white to-brand-lighter/30">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="flex min-w-0 flex-col gap-1.5 lg:col-span-2">
+            <span className={portalLabelClass}>{t("admin.partnerAnalytics.scopeLabel")}</span>
+            <select
+              className={portalSelectClass}
+              value={scopeIdx}
+              onChange={(e) => setScopeIdx(Number(e.target.value))}
+            >
+              {scopes.map((s, i) => (
+                <option key={`${s.kind}-${s.id}`} value={i}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex min-w-0 flex-col gap-1.5">
+            <span className={portalLabelClass}>{t("admin.partnerAnalytics.periodDays")}</span>
+            <select
+              value={days}
+              onChange={(e) => setDays(Number(e.target.value))}
+              className={portalSelectClass}
+            >
+              {[7, 14, 30, 60, 90].map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex items-end">
+            <button
+              type="button"
+              className="text-xs font-medium text-brand-muted transition-colors hover:text-brand"
+              onClick={() => {
+                setFromYmd("");
+                setToYmd("");
+              }}
+            >
+              {t("admin.partnerAnalytics.clearRange")}
+            </button>
+          </div>
+          <label className="flex min-w-0 flex-col gap-1.5">
+            <span className={portalLabelClass}>{t("admin.partnerAnalytics.from")}</span>
+            <input
+              type="date"
+              value={fromYmd}
+              onChange={(e) => setFromYmd(e.target.value)}
+              className={portalInputClass}
+            />
+          </label>
+          <label className="flex min-w-0 flex-col gap-1.5">
+            <span className={portalLabelClass}>{t("admin.partnerAnalytics.to")}</span>
+            <input
+              type="date"
+              value={toYmd}
+              onChange={(e) => setToYmd(e.target.value)}
+              className={portalInputClass}
+            />
+          </label>
+        </div>
+        <p className="mt-3 text-xs text-slate-500">{t("admin.partnerAnalytics.rangeHint")}</p>
+      </PortalCard>
 
       {scope?.kind === "venue" ? (
         <p className="text-sm">
-          <Link href={`/owner/venues/${scope.id}/analytics`} className="text-brand font-medium hover:underline">
+          <Link
+            href={`/owner/venues/${scope.id}/analytics`}
+            className="font-medium text-brand hover:text-brand-hover"
+          >
             {t("admin.partnerAnalytics.openVenueDashboard")}
           </Link>
         </p>
       ) : null}
 
       {loadErr ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {loadErr}
-        </div>
+        <PortalAlert tone="error">{loadErr}</PortalAlert>
       ) : null}
 
       {scope?.kind === "org" && orgAnalytics && orgAnalytics.venueCount > 0 ? (
@@ -317,68 +331,58 @@ export function PartnerAnalyticsHub() {
             {t("admin.partnerAnalytics.rollingVenues", { count: orgAnalytics.venueCount })}:{" "}
             {orgAnalytics.venues.map((v) => v.name).join(" · ")}
           </p>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="text-sm font-semibold text-slate-800 mb-3">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-portal-card">
+            <h3 className="mb-4 text-sm font-semibold text-slate-900">
               {t("admin.partnerAnalytics.funnelJourneyTitle")}
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-              <div>
-                <p className="text-xs text-slate-500">{t("admin.partnerAnalytics.detectImp")}</p>
-                <p className="text-lg font-semibold text-slate-900">
-                  {orgAnalytics.funnelJourney.detectImpressions}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">{t("admin.partnerAnalytics.uniqueEntered")}</p>
-                <p className="text-lg font-semibold text-slate-900">
-                  {orgAnalytics.funnelJourney.uniqueEntered}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">{t("admin.partnerAnalytics.uniquePlayed")}</p>
-                <p className="text-lg font-semibold text-slate-900">
-                  {orgAnalytics.funnelJourney.uniquePlayed}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">{t("admin.partnerAnalytics.uniqueRedeemed")}</p>
-                <p className="text-lg font-semibold text-slate-900">
-                  {orgAnalytics.funnelJourney.uniqueRedeemed}
-                </p>
-              </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <PortalStatCard
+                label={t("admin.partnerAnalytics.detectImp")}
+                value={orgAnalytics.funnelJourney.detectImpressions}
+                className="shadow-none"
+              />
+              <PortalStatCard
+                label={t("admin.partnerAnalytics.uniqueEntered")}
+                value={orgAnalytics.funnelJourney.uniqueEntered}
+                className="shadow-none"
+              />
+              <PortalStatCard
+                label={t("admin.partnerAnalytics.uniquePlayed")}
+                value={orgAnalytics.funnelJourney.uniquePlayed}
+                className="shadow-none"
+              />
+              <PortalStatCard
+                label={t("admin.partnerAnalytics.uniqueRedeemed")}
+                value={orgAnalytics.funnelJourney.uniqueRedeemed}
+                className="shadow-none"
+              />
             </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-              <p className="text-xs text-slate-500">{t("admin.partnerAnalytics.uniquePlayersOrg")}</p>
-              <p className="text-xl font-semibold text-slate-900">{orgAnalytics.visits.uniquePlayers}</p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-              <p className="text-xs text-slate-500">{t("admin.partnerAnalytics.redemptionsIssued")}</p>
-              <p className="text-xl font-semibold text-slate-900">{orgAnalytics.redemptions.issued}</p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-              <p className="text-xs text-slate-500">{t("admin.partnerAnalytics.redemptionsFulfilled")}</p>
-              <p className="text-xl font-semibold text-slate-900">{orgAnalytics.redemptions.fulfilled}</p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-              <p className="text-xs text-slate-500">{t("admin.partnerAnalytics.visitRedeemPct")}</p>
-              <p className="text-xl font-semibold text-slate-900">
-                {orgAnalytics.funnel.visitToRedeemPercent}%
-              </p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-              <p className="text-xs text-slate-500">{t("admin.partnerAnalytics.playerDays")}</p>
-              <p className="text-xl font-semibold text-slate-900">
-                {orgAnalytics.visits.uniquePlayerDays}
-              </p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-              <p className="text-xs text-slate-500">{t("admin.partnerAnalytics.repeatVisitors")}</p>
-              <p className="text-xl font-semibold text-slate-900">
-                {orgAnalytics.visits.loyalty.repeatVisitPlayers}
-              </p>
-            </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <PortalStatCard
+              label={t("admin.partnerAnalytics.uniquePlayersOrg")}
+              value={orgAnalytics.visits.uniquePlayers}
+            />
+            <PortalStatCard
+              label={t("admin.partnerAnalytics.redemptionsIssued")}
+              value={orgAnalytics.redemptions.issued}
+            />
+            <PortalStatCard
+              label={t("admin.partnerAnalytics.redemptionsFulfilled")}
+              value={orgAnalytics.redemptions.fulfilled}
+            />
+            <PortalStatCard
+              label={t("admin.partnerAnalytics.visitRedeemPct")}
+              value={`${orgAnalytics.funnel.visitToRedeemPercent}%`}
+            />
+            <PortalStatCard
+              label={t("admin.partnerAnalytics.playerDays")}
+              value={orgAnalytics.visits.uniquePlayerDays}
+            />
+            <PortalStatCard
+              label={t("admin.partnerAnalytics.repeatVisitors")}
+              value={orgAnalytics.visits.loyalty.repeatVisitPlayers}
+            />
           </div>
           <OwnerAttributionSnapshot attribution={orgAnalytics.attribution} />
           <OwnerAnalyticsCharts
@@ -388,7 +392,7 @@ export function PartnerAnalyticsHub() {
             byHour={hourOrg}
           />
           <PerkCountCards rows={orgPerkRows} />
-          <div className="hidden md:block rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+          <div className="hidden md:block overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-portal-card">
             <table className="min-w-full text-sm">
               <thead>
                 {orgPerkTable.getHeaderGroups().map((hg) => (
@@ -432,62 +436,51 @@ export function PartnerAnalyticsHub() {
               ? ` · ${t("admin.partnerAnalytics.venueTz")}: ${venueAnalytics.analyticsTimeZone}`
               : ""}
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-sm text-slate-600">{t("admin.partnerAnalytics.activeRedemptions")}</p>
-              <p className="text-2xl font-semibold mt-1">{venueAnalytics.redemptions.issued}</p>
-              <p className="text-xs text-slate-500 mt-1">
-                {t("admin.partnerAnalytics.voided")}: {venueAnalytics.redemptions.voided}
-              </p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-sm text-slate-600">{t("admin.partnerAnalytics.redemptionsFulfilled")}</p>
-              <p className="text-2xl font-semibold mt-1">{venueAnalytics.redemptions.fulfilled}</p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-sm text-slate-600">{t("admin.partnerAnalytics.uniqueVisitors")}</p>
-              <p className="text-2xl font-semibold mt-1">{venueAnalytics.visits.uniquePlayers}</p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-sm text-slate-600">{t("admin.partnerAnalytics.funnel")}</p>
-              <p className="text-lg font-semibold mt-1">
-                {venueAnalytics.funnel.uniqueRedeemers} / {venueAnalytics.funnel.uniqueVisitors}
-              </p>
-              <p className="text-xs text-slate-500 mt-1">
-                ≈ {venueAnalytics.funnel.visitToRedeemPercent}%{" "}
-                {t("admin.partnerAnalytics.visitorsRedeemed")}
-              </p>
-            </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <PortalStatCard
+              label={t("admin.partnerAnalytics.activeRedemptions")}
+              value={venueAnalytics.redemptions.issued}
+              hint={`${t("admin.partnerAnalytics.voided")}: ${venueAnalytics.redemptions.voided}`}
+            />
+            <PortalStatCard
+              label={t("admin.partnerAnalytics.redemptionsFulfilled")}
+              value={venueAnalytics.redemptions.fulfilled}
+            />
+            <PortalStatCard
+              label={t("admin.partnerAnalytics.uniqueVisitors")}
+              value={venueAnalytics.visits.uniquePlayers}
+            />
+            <PortalStatCard
+              label={t("admin.partnerAnalytics.funnel")}
+              value={`${venueAnalytics.funnel.uniqueRedeemers} / ${venueAnalytics.funnel.uniqueVisitors}`}
+              hint={`≈ ${venueAnalytics.funnel.visitToRedeemPercent}% ${t("admin.partnerAnalytics.visitorsRedeemed")}`}
+            />
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="text-sm font-semibold text-slate-800 mb-3">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-portal-card">
+            <h3 className="mb-4 text-sm font-semibold text-slate-900">
               {t("admin.partnerAnalytics.funnelJourneyTitle")}
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-              <div>
-                <p className="text-xs text-slate-500">{t("admin.partnerAnalytics.detectImp")}</p>
-                <p className="text-lg font-semibold text-slate-900">
-                  {venueAnalytics.funnelJourney.detectImpressions}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">{t("admin.partnerAnalytics.uniqueEntered")}</p>
-                <p className="text-lg font-semibold text-slate-900">
-                  {venueAnalytics.funnelJourney.uniqueEntered}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">{t("admin.partnerAnalytics.uniquePlayed")}</p>
-                <p className="text-lg font-semibold text-slate-900">
-                  {venueAnalytics.funnelJourney.uniquePlayed}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">{t("admin.partnerAnalytics.uniqueRedeemed")}</p>
-                <p className="text-lg font-semibold text-slate-900">
-                  {venueAnalytics.funnelJourney.uniqueRedeemed}
-                </p>
-              </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <PortalStatCard
+                label={t("admin.partnerAnalytics.detectImp")}
+                value={venueAnalytics.funnelJourney.detectImpressions}
+                className="shadow-none"
+              />
+              <PortalStatCard
+                label={t("admin.partnerAnalytics.uniqueEntered")}
+                value={venueAnalytics.funnelJourney.uniqueEntered}
+                className="shadow-none"
+              />
+              <PortalStatCard
+                label={t("admin.partnerAnalytics.uniquePlayed")}
+                value={venueAnalytics.funnelJourney.uniquePlayed}
+                className="shadow-none"
+              />
+              <PortalStatCard
+                label={t("admin.partnerAnalytics.uniqueRedeemed")}
+                value={venueAnalytics.funnelJourney.uniqueRedeemed}
+                className="shadow-none"
+              />
             </div>
           </div>
           <OwnerAttributionSnapshot attribution={venueAnalytics.attribution} />
@@ -498,7 +491,7 @@ export function PartnerAnalyticsHub() {
             byHour={hourVenue}
           />
           <PerkCountCards rows={venuePerkRows} />
-          <div className="hidden md:block rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+          <div className="hidden md:block overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-portal-card">
             <table className="min-w-full text-sm">
               <thead>
                 {venuePerkTable.getHeaderGroups().map((hg) => (

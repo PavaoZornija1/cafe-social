@@ -12,6 +12,16 @@ import {
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import {
+  PortalAlert,
+  PortalCard,
+  PortalPageHeader,
+  PortalPageLayout,
+  PortalSkeleton,
+  portalButtonPrimaryClass,
+  portalInputClass,
+  portalLabelClass,
+} from "@/components/portal/PortalPageUi";
 import { TableRowCards } from "@/components/TableRowCards";
 import { useAddWordMutation, useWordsQuery } from "@/lib/queries";
 
@@ -61,11 +71,11 @@ export default function WordsPage() {
     () => [
       colHelper.accessor("language", {
         header: t("admin.words.colLang"),
-        cell: (c) => <span className="font-mono text-xs">{c.getValue()}</span>,
+        cell: (c) => <span className="font-mono text-xs text-brand">{c.getValue()}</span>,
       }),
       colHelper.accessor("text", {
         header: t("admin.words.colText"),
-        cell: (c) => <span className="font-mono text-sm">{c.getValue()}</span>,
+        cell: (c) => <span className="font-mono text-sm text-slate-900">{c.getValue()}</span>,
       }),
       colHelper.accessor("category", {
         header: t("admin.words.colCategory"),
@@ -86,100 +96,124 @@ export default function WordsPage() {
 
   if (err && !wordsQ.data) {
     return (
-      <div className="bg-slate-50 text-red-700 px-4 py-6 sm:p-8">
-        {err}{" "}
-        <Link href="/dashboard" className="text-brand">
-          {t("admin.words.dashboard")}
-        </Link>
-      </div>
+      <PortalPageLayout maxWidth="3xl">
+        <PortalAlert tone="error">
+          {err}{" "}
+          <Link href="/platform" className="font-medium text-brand hover:text-brand-hover">
+            {t("admin.words.dashboard")}
+          </Link>
+        </PortalAlert>
+      </PortalPageLayout>
     );
   }
 
   return (
-    <div className="bg-slate-50 text-slate-900 px-4 py-6 sm:p-8 max-w-3xl mx-auto w-full">
-      <Link href="/dashboard" className="text-brand text-sm">
-        {t("admin.words.backDashboard")}
-      </Link>
-      <h1 className="text-xl font-bold mt-4 mb-4">{t("admin.words.title")}</h1>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          setAddWordConfirmOpen(true);
-        }}
-        className="border border-slate-200 rounded-lg p-4 mb-6 space-y-2 max-w-lg"
-      >
-        <p className="text-sm text-slate-600">{t("admin.words.addWord")}</p>
-        <addForm.Field name="text">
-          {(f) => (
-            <input
-              className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
-              placeholder={t("admin.words.placeholderText")}
-              value={f.state.value}
-              onChange={(e) => f.handleChange(e.target.value)}
-            />
-          )}
-        </addForm.Field>
-        <addForm.Field name="language">
-          {(f) => (
-            <input
-              className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
-              placeholder={t("admin.words.placeholderLanguage")}
-              value={f.state.value}
-              onChange={(e) => f.handleChange(e.target.value)}
-            />
-          )}
-        </addForm.Field>
-        <addForm.Field name="category">
-          {(f) => (
-            <input
-              className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
-              placeholder={t("admin.words.placeholderCategory")}
-              value={f.state.value}
-              onChange={(e) => f.handleChange(e.target.value)}
-            />
-          )}
-        </addForm.Field>
-        <addForm.Field name="sentenceHint">
-          {(f) => (
-            <input
-              className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
-              placeholder={t("admin.words.placeholderSentenceHint")}
-              value={f.state.value}
-              onChange={(e) => f.handleChange(e.target.value)}
-            />
-          )}
-        </addForm.Field>
-        <addForm.Field name="wordHints">
-          {(f) => (
-            <input
-              className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
-              placeholder={t("admin.words.placeholderWordHints")}
-              value={f.state.value}
-              onChange={(e) => f.handleChange(e.target.value)}
-            />
-          )}
-        </addForm.Field>
-        <addForm.Field name="emojiHints">
-          {(f) => (
-            <input
-              className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm"
-              placeholder={t("admin.words.placeholderEmojiHints")}
-              value={f.state.value}
-              onChange={(e) => f.handleChange(e.target.value)}
-            />
-          )}
-        </addForm.Field>
-        {addMut.isError && addMut.error instanceof Error ? (
-          <p className="text-red-600 text-sm">{addMut.error.message}</p>
-        ) : null}
-        <button
-          type="submit"
-          disabled={addMut.isPending}
-          className="bg-brand border border-brand-active text-white rounded px-3 py-1 text-sm font-medium hover:bg-brand-hover disabled:opacity-50"
+    <PortalPageLayout maxWidth="3xl">
+      <PortalPageHeader
+        backHref="/platform"
+        backLabel={t("admin.words.backDashboard")}
+        title={t("admin.words.title")}
+      />
+
+      <PortalCard className="mb-6 border-brand/15 bg-gradient-to-br from-brand-lighter/30 to-white">
+        <h2 className="text-sm font-semibold text-slate-900">{t("admin.words.addWord")}</h2>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            setAddWordConfirmOpen(true);
+          }}
+          className="mt-4 grid gap-3 sm:grid-cols-2"
         >
-          {t("admin.words.addSubmit")}
-        </button>
-      </form>
+          <label className="flex flex-col gap-1.5 sm:col-span-2">
+            <span className={portalLabelClass}>{t("admin.words.placeholderText")}</span>
+            <addForm.Field name="text">
+              {(f) => (
+                <input
+                  className={portalInputClass}
+                  placeholder={t("admin.words.placeholderText")}
+                  value={f.state.value}
+                  onChange={(e) => f.handleChange(e.target.value)}
+                />
+              )}
+            </addForm.Field>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={portalLabelClass}>{t("admin.words.placeholderLanguage")}</span>
+            <addForm.Field name="language">
+              {(f) => (
+                <input
+                  className={portalInputClass}
+                  placeholder={t("admin.words.placeholderLanguage")}
+                  value={f.state.value}
+                  onChange={(e) => f.handleChange(e.target.value)}
+                />
+              )}
+            </addForm.Field>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={portalLabelClass}>{t("admin.words.placeholderCategory")}</span>
+            <addForm.Field name="category">
+              {(f) => (
+                <input
+                  className={portalInputClass}
+                  placeholder={t("admin.words.placeholderCategory")}
+                  value={f.state.value}
+                  onChange={(e) => f.handleChange(e.target.value)}
+                />
+              )}
+            </addForm.Field>
+          </label>
+          <label className="flex flex-col gap-1.5 sm:col-span-2">
+            <span className={portalLabelClass}>{t("admin.words.placeholderSentenceHint")}</span>
+            <addForm.Field name="sentenceHint">
+              {(f) => (
+                <input
+                  className={portalInputClass}
+                  placeholder={t("admin.words.placeholderSentenceHint")}
+                  value={f.state.value}
+                  onChange={(e) => f.handleChange(e.target.value)}
+                />
+              )}
+            </addForm.Field>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={portalLabelClass}>{t("admin.words.placeholderWordHints")}</span>
+            <addForm.Field name="wordHints">
+              {(f) => (
+                <input
+                  className={portalInputClass}
+                  placeholder={t("admin.words.placeholderWordHints")}
+                  value={f.state.value}
+                  onChange={(e) => f.handleChange(e.target.value)}
+                />
+              )}
+            </addForm.Field>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className={portalLabelClass}>{t("admin.words.placeholderEmojiHints")}</span>
+            <addForm.Field name="emojiHints">
+              {(f) => (
+                <input
+                  className={portalInputClass}
+                  placeholder={t("admin.words.placeholderEmojiHints")}
+                  value={f.state.value}
+                  onChange={(e) => f.handleChange(e.target.value)}
+                />
+              )}
+            </addForm.Field>
+          </label>
+          {addMut.isError && addMut.error instanceof Error ? (
+            <PortalAlert tone="error" className="sm:col-span-2">
+              {addMut.error.message}
+            </PortalAlert>
+          ) : null}
+          <div className="sm:col-span-2">
+            <button type="submit" disabled={addMut.isPending} className={portalButtonPrimaryClass}>
+              {t("admin.words.addSubmit")}
+            </button>
+          </div>
+        </form>
+      </PortalCard>
 
       <ConfirmModal
         open={addWordConfirmOpen}
@@ -197,8 +231,9 @@ export default function WordsPage() {
         confirmLabel={t("admin.words.confirmLabel")}
         onConfirm={() => addForm.handleSubmit()}
       />
+
       {wordsQ.isPending && !wordsQ.data ? (
-        <p>{t("admin.words.loading")}</p>
+        <PortalSkeleton rows={2} />
       ) : (
         <>
           <TableRowCards
@@ -207,34 +242,40 @@ export default function WordsPage() {
             showBodyLabels
             leadStyle="default"
           />
-          <div className="hidden md:block rounded-xl border border-slate-200 bg-white overflow-x-auto max-w-3xl">
+          <div className="mt-4 hidden overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-portal-card md:block">
             <table className="min-w-full text-sm">
-            <thead>
-              {table.getHeaderGroups().map((hg) => (
-                <tr key={hg.id} className="border-b border-slate-200 bg-slate-50">
-                  {hg.headers.map((h) => (
-                    <th key={h.id} className="text-left px-3 py-2 text-xs uppercase text-slate-500">
-                      {flexRender(h.column.columnDef.header, h.getContext())}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="border-b border-slate-100">
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-3 py-2">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              <thead>
+                {table.getHeaderGroups().map((hg) => (
+                  <tr key={hg.id} className="border-b border-slate-200 bg-brand-lighter/40">
+                    {hg.headers.map((h) => (
+                      <th
+                        key={h.id}
+                        className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500"
+                      >
+                        {flexRender(h.column.columnDef.header, h.getContext())}
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody>
+                {table.getRowModel().rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="border-b border-slate-100 transition-colors last:border-0 hover:bg-brand-lighter/30"
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-4 py-3">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </>
       )}
-    </div>
+    </PortalPageLayout>
   );
 }

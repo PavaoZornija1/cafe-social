@@ -20,6 +20,18 @@ import {
   usePortalMeQuery,
 } from "@/lib/queries";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
+import {
+  PortalAlert,
+  PortalCard,
+  PortalPageHeader,
+  PortalPageLayout,
+  PortalSkeleton,
+  portalButtonPrimaryClass,
+  portalButtonSecondaryClass,
+  portalInputClass,
+  portalLabelClass,
+  portalSelectClass,
+} from "@/components/portal/PortalPageUi";
 
 type OrgRow = {
   id: string;
@@ -39,12 +51,8 @@ const colHelper = createColumnHelper<OrgRow>();
 const PAGE_SIZE = 25;
 
 const fieldCol = "flex min-w-0 flex-col gap-1.5";
-const fieldLbl = "text-xs font-semibold uppercase tracking-wide text-slate-500";
-/** Same 42px height as `fieldSelect` (native select ignores vertical padding). */
-const fieldInp =
-  "w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 h-[42px] box-border py-0 leading-none";
-const fieldSelect =
-  "w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 h-[42px] box-border py-0 pr-9 leading-none";
+const fieldInp = `${portalInputClass} h-[42px] box-border py-0 leading-none`;
+const fieldSelect = `${portalSelectClass} h-[42px] box-border py-0 pr-9 leading-none w-full min-w-0`;
 
 function formatShortDate(iso: string | null | undefined) {
   if (!iso) return "—";
@@ -202,77 +210,78 @@ export default function OrganizationsPage() {
 
   if (!isLoaded) {
     return (
-      <div className="bg-slate-50 text-slate-600 px-4 py-6 sm:p-8">
-        <p>{t("admin.organizations.loading")}</p>
-      </div>
+      <PortalPageLayout>
+        <PortalSkeleton />
+      </PortalPageLayout>
     );
   }
 
   if (portalGate === "loading") {
     return (
-      <div className="bg-slate-50 text-slate-600 px-4 py-6 sm:p-8">
-        <p>{t("admin.organizations.loading")}</p>
-      </div>
+      <PortalPageLayout>
+        <PortalSkeleton />
+      </PortalPageLayout>
     );
   }
 
   if (portalGate !== "super_admin") {
     return (
-      <div className="bg-slate-50 text-slate-900 px-4 py-6 sm:p-8 max-w-lg">
-        <h1 className="text-xl font-semibold">{t("admin.organizations.gateTitle")}</h1>
-        <p className="text-sm text-slate-600 mt-3">{t("admin.organizations.gateBody")}</p>
-        <Link
-          href="/owner/venues"
-          className="inline-block mt-6 text-sm text-brand font-medium hover:underline"
-        >
-          {t("admin.organizations.gateBack")}
-        </Link>
-      </div>
+      <PortalPageLayout maxWidth="lg">
+        <PortalCard>
+          <h1 className="text-xl font-semibold text-slate-900">{t("admin.organizations.gateTitle")}</h1>
+          <p className="mt-3 text-sm text-slate-600">{t("admin.organizations.gateBody")}</p>
+          <Link
+            href="/owner/venues"
+            className="mt-6 inline-block text-sm font-medium text-brand hover:text-brand-hover"
+          >
+            {t("admin.organizations.gateBack")}
+          </Link>
+        </PortalCard>
+      </PortalPageLayout>
     );
   }
 
   return (
-    <div className="bg-slate-50 text-slate-900 px-4 py-6 sm:p-6 md:p-8 min-h-full">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex flex-wrap justify-between gap-4 mb-6">
-          <div>
-            <Link href="/platform" className="text-brand text-sm hover:underline">
-              {t("admin.organizations.backPlatform")}
-            </Link>
-            <h1 className="text-xl font-bold mt-2">{t("admin.organizations.title")}</h1>
-            <p className="text-sm text-slate-500 mt-1 max-w-xl">{t("admin.organizations.subtitle")}</p>
-            <p className="text-sm text-slate-500 mt-2">
-              {showInitialLoading
-                ? t("admin.organizations.loading")
-                : t("admin.organizations.pageRange", {
+    <PortalPageLayout>
+      <PortalPageHeader
+        backHref="/platform"
+        backLabel={t("admin.organizations.backPlatform")}
+        title={t("admin.organizations.title")}
+        lead={t("admin.organizations.subtitle")}
+        meta={
+          <p className="text-sm text-slate-500">
+            {showInitialLoading
+              ? t("admin.organizations.loading")
+              : t("admin.organizations.pageRange", {
                   from: total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1,
                   to: Math.min(page * PAGE_SIZE, total),
                   total,
                 })}
-            </p>
-          </div>
-        </div>
+          </p>
+        }
+      />
 
-        {(listErr || formErr) && (
-          <div className="mb-4 text-sm text-red-800 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
-            {listErr ?? formErr}
-          </div>
-        )}
+      {(listErr || formErr) ? (
+        <PortalAlert tone="error" className="mb-5">
+          {listErr ?? formErr}
+        </PortalAlert>
+      ) : null}
 
+      <PortalCard className="mb-6">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             if (!createOrgForm.state.values.name.trim()) return;
             setCreateConfirmOpen(true);
           }}
-          className="border border-slate-200 rounded-xl p-4 mb-8 flex flex-wrap gap-2 items-end bg-white shadow-sm"
+          className="flex flex-wrap items-end gap-3"
         >
           <createOrgForm.Field name="name">
             {(field) => (
-              <label className="block flex-1 min-w-[200px] text-sm text-slate-600">
-                {t("admin.organizations.createLabel")}
+              <label className="block min-w-[200px] flex-1">
+                <span className={portalLabelClass}>{t("admin.organizations.createLabel")}</span>
                 <input
-                  className="mt-1 w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                  className={`${portalInputClass} mt-1.5`}
                   value={field.state.value}
                   onChange={(e) => field.handleChange(e.target.value)}
                   placeholder={t("admin.organizations.createPlaceholder")}
@@ -284,174 +293,174 @@ export default function OrganizationsPage() {
           <button
             type="submit"
             disabled={createMut.isPending}
-            className="bg-brand hover:bg-brand-hover disabled:opacity-50 rounded-lg px-4 py-2 text-sm font-medium h-[38px] text-brand-foreground"
+            className={portalButtonPrimaryClass}
           >
             {t("admin.organizations.createButton")}
           </button>
         </form>
+      </PortalCard>
 
-        <ConfirmModal
-          open={createConfirmOpen}
-          onClose={() => setCreateConfirmOpen(false)}
-          title={t("admin.organizations.createConfirmTitle")}
-          description={
-            <p>
-              {t("admin.organizations.createConfirmBody")}{" "}
-              <span className="font-semibold text-slate-900">
-                {createOrgForm.state.values.name.trim() || "—"}
-              </span>
-              ?
-            </p>
-          }
-          confirmLabel={t("admin.organizations.createButton")}
-          onConfirm={() => createOrgForm.handleSubmit()}
-        />
+      <ConfirmModal
+        open={createConfirmOpen}
+        onClose={() => setCreateConfirmOpen(false)}
+        title={t("admin.organizations.createConfirmTitle")}
+        description={
+          <p>
+            {t("admin.organizations.createConfirmBody")}{" "}
+            <span className="font-semibold text-slate-900">
+              {createOrgForm.state.values.name.trim() || "—"}
+            </span>
+            ?
+          </p>
+        }
+        confirmLabel={t("admin.organizations.createButton")}
+        onConfirm={() => createOrgForm.handleSubmit()}
+      />
 
-        {showInitialLoading ? (
-          <p className="text-slate-500">{t("admin.organizations.loading")}</p>
-        ) : (
-          <>
-            <section className="mb-8 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.04] md:p-6">
-              <div className="space-y-5">
-                <div>
-                  <h2 className="text-sm font-semibold text-slate-900">
-                    {t("admin.organizations.filtersTitle")}
-                  </h2>
-                  <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500">
-                    {t("admin.organizations.filtersHint")}
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
-                  <label className={fieldCol}>
-                    <span className={fieldLbl}>{t("admin.organizations.filterSearchName")}</span>
-                    <input
-                      className={fieldInp}
-                      value={searchInput}
-                      onChange={(e) => setSearchInput(e.target.value)}
-                      placeholder={t("admin.organizations.filterSearchPlaceholder")}
-                      autoComplete="off"
-                    />
-                  </label>
-                  <label className={fieldCol}>
-                    <span className={fieldLbl}>{t("admin.organizations.filterScope")}</span>
-                    <select
-                      className={fieldSelect}
-                      value={locationKind}
-                      onChange={(e) =>
-                        setLocationKind(
-                          e.target.value as "" | "SINGLE_LOCATION" | "MULTI_LOCATION",
-                        )
-                      }
-                    >
-                      <option value="">{t("admin.organizations.filterScopeAny")}</option>
-                      <option value="SINGLE_LOCATION">
-                        {t("admin.organizations.filterScopeSingle")}
-                      </option>
-                      <option value="MULTI_LOCATION">
-                        {t("admin.organizations.filterScopeMulti")}
-                      </option>
-                    </select>
-                  </label>
-                  <label className={`${fieldCol} sm:col-span-2 lg:col-span-1`}>
-                    <span className={fieldLbl}>{t("admin.organizations.filterBilling")}</span>
-                    <input
-                      className={fieldInp}
-                      value={billingInput}
-                      onChange={(e) => setBillingInput(e.target.value)}
-                      placeholder={t("admin.organizations.filterBillingPlaceholder")}
-                      autoComplete="off"
-                    />
-                  </label>
-                </div>
+      {showInitialLoading ? (
+        <PortalSkeleton rows={2} />
+      ) : (
+        <>
+          <PortalCard className="mb-6 border-slate-200/70 bg-gradient-to-br from-white via-white to-brand-lighter/20">
+            <div className="space-y-5">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">
+                  {t("admin.organizations.filtersTitle")}
+                </h2>
+                <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500">
+                  {t("admin.organizations.filtersHint")}
+                </p>
               </div>
-            </section>
-            <TableRowCards
-              rows={table.getRowModel().rows}
-              leadCellId="name"
-              actionCellIds={["actions"]}
-              showBodyLabels
-            />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
+                <label className={fieldCol}>
+                  <span className={portalLabelClass}>{t("admin.organizations.filterSearchName")}</span>
+                  <input
+                    className={fieldInp}
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    placeholder={t("admin.organizations.filterSearchPlaceholder")}
+                    autoComplete="off"
+                  />
+                </label>
+                <label className={fieldCol}>
+                  <span className={portalLabelClass}>{t("admin.organizations.filterScope")}</span>
+                  <select
+                    className={fieldSelect}
+                    value={locationKind}
+                    onChange={(e) =>
+                      setLocationKind(
+                        e.target.value as "" | "SINGLE_LOCATION" | "MULTI_LOCATION",
+                      )
+                    }
+                  >
+                    <option value="">{t("admin.organizations.filterScopeAny")}</option>
+                    <option value="SINGLE_LOCATION">
+                      {t("admin.organizations.filterScopeSingle")}
+                    </option>
+                    <option value="MULTI_LOCATION">
+                      {t("admin.organizations.filterScopeMulti")}
+                    </option>
+                  </select>
+                </label>
+                <label className={`${fieldCol} sm:col-span-2 lg:col-span-1`}>
+                  <span className={portalLabelClass}>{t("admin.organizations.filterBilling")}</span>
+                  <input
+                    className={fieldInp}
+                    value={billingInput}
+                    onChange={(e) => setBillingInput(e.target.value)}
+                    placeholder={t("admin.organizations.filterBillingPlaceholder")}
+                    autoComplete="off"
+                  />
+                </label>
+              </div>
+            </div>
+          </PortalCard>
+          <TableRowCards
+            rows={table.getRowModel().rows}
+            leadCellId="name"
+            actionCellIds={["actions"]}
+            showBodyLabels
+          />
+          {total === 0 && !orgsQ.isFetching ? (
+            <p className="md:hidden rounded-2xl border border-slate-200/80 bg-white px-4 py-8 text-center text-sm text-slate-500 shadow-portal-card">
+              {hasActiveFilters ? t("admin.organizations.noMatch") : t("admin.organizations.empty")}
+            </p>
+          ) : null}
+          <div className="relative hidden overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-portal-card md:block">
+            {orgsQ.isFetching && orgsQ.data ? (
+              <div className="absolute right-3 top-2 z-10 text-xs text-slate-500">
+                {t("admin.organizations.loading")}
+              </div>
+            ) : null}
+            <table className="min-w-full text-sm">
+              <thead>
+                {table.getHeaderGroups().map((hg) => (
+                  <tr key={hg.id} className="border-b border-slate-200 bg-brand-lighter/40">
+                    {hg.headers.map((h) => (
+                      <th
+                        key={h.id}
+                        className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500"
+                      >
+                        {h.isPlaceholder
+                          ? null
+                          : flexRender(h.column.columnDef.header, h.getContext())}
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody>
+                {table.getRowModel().rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="border-b border-slate-100 transition-colors last:border-0 hover:bg-brand-lighter/30"
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-4 py-3 align-top">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
             {total === 0 && !orgsQ.isFetching ? (
-              <p className="md:hidden px-4 py-8 text-center text-slate-500 text-sm rounded-xl border border-slate-200 bg-white">
+              <p className="px-4 py-8 text-center text-sm text-slate-500">
                 {hasActiveFilters ? t("admin.organizations.noMatch") : t("admin.organizations.empty")}
               </p>
             ) : null}
-            <div className="hidden md:block relative overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-900/[0.04]">
-              {orgsQ.isFetching && orgsQ.data ? (
-                <div className="absolute top-2 right-3 text-xs text-slate-500 z-10">
-                  {t("admin.organizations.loading")}
-                </div>
-              ) : null}
-              <table className="min-w-full text-sm">
-                <thead>
-                  {table.getHeaderGroups().map((hg) => (
-                    <tr key={hg.id} className="border-b border-slate-200 bg-slate-50/90">
-                      {hg.headers.map((h) => (
-                        <th
-                          key={h.id}
-                          className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500"
-                        >
-                          {h.isPlaceholder
-                            ? null
-                            : flexRender(h.column.columnDef.header, h.getContext())}
-                        </th>
-                      ))}
-                    </tr>
-                  ))}
-                </thead>
-                <tbody>
-                  {table.getRowModel().rows.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="border-b border-slate-100 hover:bg-brand-light/40 transition-colors"
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} className="px-4 py-3 align-top">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {total === 0 && !orgsQ.isFetching ? (
-                <p className="px-4 py-8 text-center text-slate-500 text-sm">
-                  {hasActiveFilters ? t("admin.organizations.noMatch") : t("admin.organizations.empty")}
-                </p>
-              ) : null}
-            </div>
-            {total > 0 ? (
-              <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
-                <p className="text-sm text-slate-600">
-                  {t("admin.organizations.pageStatus", {
-                    page,
-                    pages: totalPages,
-                    total,
-                  })}
-                </p>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 disabled:opacity-40 hover:bg-slate-50"
-                  >
-                    {t("admin.organizations.pagePrev")}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((p) => p + 1)}
-                    className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 disabled:opacity-40 hover:bg-slate-50"
-                  >
-                    {t("admin.organizations.pageNext")}
-                  </button>
-                </div>
+          </div>
+          {total > 0 ? (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-slate-600">
+                {t("admin.organizations.pageStatus", {
+                  page,
+                  pages: totalPages,
+                  total,
+                })}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className={portalButtonSecondaryClass}
+                >
+                  {t("admin.organizations.pagePrev")}
+                </button>
+                <button
+                  type="button"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                  className={portalButtonSecondaryClass}
+                >
+                  {t("admin.organizations.pageNext")}
+                </button>
               </div>
-            ) : null}
-          </>
-        )}
-      </div>
-    </div>
+            </div>
+          ) : null}
+        </>
+      )}
+    </PortalPageLayout>
   );
 }

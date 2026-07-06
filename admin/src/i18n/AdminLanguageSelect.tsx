@@ -6,7 +6,7 @@ import { setAdminLanguage } from "./adminLanguage";
 
 type AdminLanguageSelectProps = {
   /** Stacked label + select (sidebar). Inline row for top header bars. */
-  variant?: "default" | "compact";
+  variant?: "default" | "compact" | "sidebar";
 };
 
 export function AdminLanguageSelect({ variant = "default" }: AdminLanguageSelectProps) {
@@ -16,7 +16,9 @@ export function AdminLanguageSelect({ variant = "default" }: AdminLanguageSelect
       className={
         variant === "compact"
           ? "h-9 min-w-[6.5rem] rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900"
-          : "mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900"
+          : variant === "sidebar"
+            ? "mt-1 w-full rounded-lg border border-white/15 bg-white/10 px-2 py-1.5 text-xs text-white backdrop-blur-sm"
+            : "mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900"
       }
       value={i18n.language.split("-")[0] as AppLanguage}
       onChange={(e) => {
@@ -38,6 +40,15 @@ export function AdminLanguageSelect({ variant = "default" }: AdminLanguageSelect
         <span className="text-[11px] font-medium text-slate-600 whitespace-nowrap">
           {t("admin.shell.language")}
         </span>
+        {select}
+      </label>
+    );
+  }
+
+  if (variant === "sidebar") {
+    return (
+      <label className="mb-2 block text-[11px] text-white/50">
+        <span className="font-medium text-white/70">{t("admin.shell.language")}</span>
         {select}
       </label>
     );

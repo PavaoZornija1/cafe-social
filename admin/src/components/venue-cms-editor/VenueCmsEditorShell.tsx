@@ -3,43 +3,53 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import {
+  PortalAlert,
+  PortalPageHeader,
+  PortalPageLayout,
+  PortalSkeleton,
+} from "@/components/portal/PortalPageUi";
 import { VenueCmsEditorNav } from "./VenueCmsEditorNav";
 import { useVenueCmsEditor } from "./VenueCmsEditorContext";
 
-export function VenueCmsEditorShell({ children }: { children: ReactNode }) {
+export function VenueCmsEditorShell({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const { t } = useTranslation();
   const { venueId, title, shellLoading, loadError } = useVenueCmsEditor();
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-16">
-      <header className="border-b border-slate-200 px-4 sm:px-6 py-4">
-        <div className="mx-auto max-w-5xl w-full">
-          <Link href="/venues" className="text-brand text-sm">
-            {t("admin.venueCms.editor.backVenues")}
+    <PortalPageLayout maxWidth="5xl">
+      <PortalPageHeader
+        backHref="/venues"
+        backLabel={t("admin.venueCms.editor.backVenues")}
+        title={title}
+        meta={
+          !shellLoading ? (
+            <p className="font-mono text-xs text-slate-500">{venueId}</p>
+          ) : null
+        }
+      />
+
+      {shellLoading ? <PortalSkeleton rows={2} /> : null}
+
+      {loadError ? (
+        <PortalAlert tone="error" className="mb-5">
+          {loadError}{" "}
+          <Link href="/venues" className="font-medium text-brand hover:text-brand-hover">
+            {t("admin.venueCms.editor.back")}
           </Link>
-          <h1 className="text-xl font-bold mt-4 mb-1">{title}</h1>
-          {!shellLoading ? (
-            <p className="text-xs text-slate-500 font-mono">{venueId}</p>
-          ) : null}
-        </div>
-      </header>
+        </PortalAlert>
+      ) : null}
 
-      <VenueCmsEditorNav />
-
-      <main className="mx-auto max-w-5xl w-full px-4 py-5 sm:p-6 md:py-8">
-        {shellLoading ? (
-          <p className="text-slate-600">{t("admin.venueCms.editor.loading")}</p>
-        ) : null}
-        {loadError ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800 text-sm mb-6">
-            {loadError}{" "}
-            <Link href="/venues" className="text-brand font-medium hover:underline">
-              {t("admin.venueCms.editor.back")}
-            </Link>
-          </div>
-        ) : null}
-        {!shellLoading && !loadError ? children : null}
-      </main>
-    </div>
+      {!shellLoading && !loadError ? (
+        <>
+          <VenueCmsEditorNav />
+          <div className="min-w-0 space-y-6 pb-8">{children}</div>
+        </>
+      ) : null}
+    </PortalPageLayout>
   );
 }

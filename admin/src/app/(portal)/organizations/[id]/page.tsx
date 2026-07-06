@@ -13,6 +13,18 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import {
+  PortalAlert,
+  PortalCard,
+  PortalPageHeader,
+  PortalPageLayout,
+  PortalSkeleton,
+  PortalStatCard,
+  portalButtonPrimaryClass,
+  portalButtonSecondaryClass,
+  portalInputClass,
+  portalLabelClass,
+} from '@/components/portal/PortalPageUi';
 import { CitySelect } from '@/components/ui/CitySelect';
 import { CountrySelect } from '@/components/ui/CountrySelect';
 import {
@@ -78,9 +90,7 @@ type VenueListRow = {
 const venueColHelper = createColumnHelper<VenueListRow>();
 
 const fieldCol = 'flex min-w-0 flex-col gap-1.5';
-const fieldLbl = 'text-xs font-semibold uppercase tracking-wide text-slate-500';
-const fieldInp =
-  'w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 h-[42px] box-border py-0 leading-none';
+const fieldInp = `${portalInputClass} h-[42px] box-border py-0 leading-none`;
 
 const emptyCreateVenue = () => ({
   name: '',
@@ -281,16 +291,22 @@ export default function EditOrganizationPage() {
 
   if ((loadErr || err) && !o) {
     return (
-      <div className="bg-slate-50 text-red-700 px-4 py-6 sm:p-8">
-        {(loadErr ?? err ?? 'Error')}{' '}
-        <Link href="/organizations" className="text-brand">
-          {t('admin.organizationDetail.back')}
-        </Link>
-      </div>
+      <PortalPageLayout maxWidth="5xl">
+        <PortalAlert tone="error">
+          {(loadErr ?? err ?? 'Error')}{' '}
+          <Link href="/organizations" className="font-medium text-brand hover:text-brand-hover">
+            {t('admin.organizationDetail.back')}
+          </Link>
+        </PortalAlert>
+      </PortalPageLayout>
     );
   }
   if (!o) {
-    return <div className="bg-slate-50 text-slate-900 px-4 py-6 sm:p-8">{t('admin.organizationDetail.loading')}</div>;
+    return (
+      <PortalPageLayout maxWidth="5xl">
+        <PortalSkeleton rows={3} />
+      </PortalPageLayout>
+    );
   }
 
   const stats: OrgStats = o.stats ?? {
@@ -303,38 +319,28 @@ export default function EditOrganizationPage() {
   const ownerList = o.ownerContacts ?? [];
 
   return (
-    <div className="bg-slate-50 text-slate-900 px-4 py-6 sm:p-6 sm:max-w-5xl w-full mx-auto">
-      <div className="flex flex-wrap gap-3 text-sm">
-        <Link href="/platform" className="text-brand hover:underline">
-          {t('admin.organizationDetail.backPlatform')}
-        </Link>
-        <Link href="/organizations" className="text-brand hover:underline">
-          {t('admin.organizationDetail.allOrganizations')}
-        </Link>
-      </div>
-      <h1 className="text-xl font-bold mt-4 mb-1">{o.name}</h1>
-      <p className="text-xs text-slate-500 font-mono mb-6">{o.id}</p>
+    <PortalPageLayout maxWidth="5xl">
+      <PortalPageHeader
+        backHref="/organizations"
+        backLabel={t('admin.organizationDetail.allOrganizations')}
+        title={o.name}
+        meta={<p className="font-mono text-xs text-slate-500">{o.id}</p>}
+      >
+        <div className="flex flex-wrap gap-3 text-sm">
+          <Link href="/platform" className="font-medium text-brand hover:text-brand-hover">
+            {t('admin.organizationDetail.backPlatform')}
+          </Link>
+        </div>
+      </PortalPageHeader>
 
-      <div className="mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-          <p className="text-xs text-slate-500">{t('admin.organizationDetail.statVenues')}</p>
-          <p className="text-lg font-semibold text-slate-900">{stats.venueCount}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-          <p className="text-xs text-slate-500">{t('admin.organizationDetail.statLockedVenues')}</p>
-          <p className="text-lg font-semibold text-slate-900">{stats.lockedVenueCount}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-          <p className="text-xs text-slate-500">{t('admin.organizationDetail.statPerks')}</p>
-          <p className="text-lg font-semibold text-slate-900">{stats.perksCount}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-          <p className="text-xs text-slate-500">{t('admin.organizationDetail.statRedemptions')}</p>
-          <p className="text-lg font-semibold text-slate-900">{stats.totalRedemptions}</p>
-        </div>
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <PortalStatCard label={t('admin.organizationDetail.statVenues')} value={stats.venueCount} />
+        <PortalStatCard label={t('admin.organizationDetail.statLockedVenues')} value={stats.lockedVenueCount} />
+        <PortalStatCard label={t('admin.organizationDetail.statPerks')} value={stats.perksCount} />
+        <PortalStatCard label={t('admin.organizationDetail.statRedemptions')} value={stats.totalRedemptions} />
       </div>
 
-      <section className="mb-8 space-y-6 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.04] md:p-6">
+      <PortalCard className="mb-8 space-y-6">
         <div className="space-y-5">
           <div>
             <h2 className="text-sm font-semibold text-slate-900">{t('admin.organizationDetail.peopleTitle')}</h2>
@@ -345,7 +351,7 @@ export default function EditOrganizationPage() {
 
           <div className="grid gap-5 sm:grid-cols-2">
             <div className={fieldCol}>
-              <span className={fieldLbl}>{t('admin.organizationDetail.selfServeLabel')}</span>
+              <span className={portalLabelClass}>{t('admin.organizationDetail.selfServeLabel')}</span>
               {o.selfServeCreatedBy ? (
                 <div className="rounded-lg border border-slate-200/90 bg-slate-50/80 px-3 py-2.5 text-sm text-slate-900">
                   <p className="font-medium text-slate-900">{o.selfServeCreatedBy.email}</p>
@@ -359,7 +365,7 @@ export default function EditOrganizationPage() {
             </div>
 
             <div className={fieldCol}>
-              <span className={fieldLbl}>{t('admin.organizationDetail.ownersLabel')}</span>
+              <span className={portalLabelClass}>{t('admin.organizationDetail.ownersLabel')}</span>
               {ownerList.length === 0 ? (
                 <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 px-3 py-2.5 text-xs text-slate-500">
                   {t('admin.organizationDetail.ownersEmpty')}
@@ -388,7 +394,7 @@ export default function EditOrganizationPage() {
 
           <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
             <label className={fieldCol} htmlFor="org-detail-name">
-              <span className={fieldLbl}>{t('admin.organizationDetail.nameLabel')}</span>
+              <span className={portalLabelClass}>{t('admin.organizationDetail.nameLabel')}</span>
               <input
                 id="org-detail-name"
                 className={fieldInp}
@@ -398,7 +404,7 @@ export default function EditOrganizationPage() {
               />
             </label>
             <label className={fieldCol} htmlFor="org-detail-slug">
-              <span className={fieldLbl}>{t('admin.organizationDetail.slugOptional')}</span>
+              <span className={portalLabelClass}>{t('admin.organizationDetail.slugOptional')}</span>
               <input
                 id="org-detail-slug"
                 className={fieldInp}
@@ -411,7 +417,7 @@ export default function EditOrganizationPage() {
           </div>
 
           <label className={`${fieldCol} mt-4 max-w-md`} htmlFor="org-detail-guest-cap">
-            <span className={fieldLbl}>{t('admin.organizationDetail.guestCapOptional')}</span>
+            <span className={portalLabelClass}>{t('admin.organizationDetail.guestCapOptional')}</span>
             <input
               id="org-detail-guest-cap"
               type="number"
@@ -437,9 +443,9 @@ export default function EditOrganizationPage() {
             </p>
           </label>
         </div>
-      </section>
+      </PortalCard>
 
-      <div className="border border-slate-200 rounded-xl bg-white shadow-sm">
+      <PortalCard className="overflow-hidden p-0">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-5 sm:py-4">
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-semibold text-slate-900">{t('admin.organizationDetail.venuesTitle')}</h2>
@@ -460,10 +466,10 @@ export default function EditOrganizationPage() {
                 return next;
               });
             }}
-            className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            className={`shrink-0 rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
               createOpen
-                ? 'border border-slate-300 bg-white text-slate-800 hover:bg-slate-50'
-                : 'border border-brand-active bg-brand text-white hover:bg-brand-hover'
+                ? portalButtonSecondaryClass
+                : portalButtonPrimaryClass
             }`}
           >
             {createOpen ? t('admin.organizationDetail.closeForm') : t('admin.organizationDetail.createVenueButton')}
@@ -659,7 +665,7 @@ export default function EditOrganizationPage() {
           <table className="min-w-full text-sm">
             <thead>
               {venueTable.getHeaderGroups().map((hg) => (
-                <tr key={hg.id} className="border-b border-slate-200 bg-slate-50">
+                <tr key={hg.id} className="border-b border-slate-200 bg-brand-lighter/40">
                   {hg.headers.map((h) => (
                     <th
                       key={h.id}
@@ -673,7 +679,7 @@ export default function EditOrganizationPage() {
             </thead>
             <tbody>
               {venueTable.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50">
+                <tr key={row.id} className="border-b border-slate-100 transition-colors hover:bg-brand-lighter/30">
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="px-3 py-2 align-top">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -690,37 +696,37 @@ export default function EditOrganizationPage() {
             type="button"
             disabled={linkMut.isPending || !linkDirty}
             onClick={() => requestLinkVenuesModal()}
-            className="text-sm font-semibold rounded-lg bg-brand border border-brand-active text-white px-4 py-2.5 hover:bg-brand-hover disabled:opacity-40 disabled:hover:bg-brand"
+            className={portalButtonPrimaryClass}
           >
             {t('admin.organizationDetail.applyLinkChanges')}
           </button>
-          <p className="text-xs text-slate-500 mt-2">
+          <p className="mt-2 text-xs text-slate-500">
             {t('admin.organizationDetail.applyLinkHint')}
           </p>
         </div>
-      </div>
+      </PortalCard>
 
-      {err ? <p className="text-red-600 text-sm mt-3">{err}</p> : null}
+      {err ? <PortalAlert tone="error" className="mt-4">{err}</PortalAlert> : null}
       <button
         type="button"
         disabled={patchMut.isPending}
         onClick={() => setSaveOrgOpen(true)}
-        className="mt-6 w-full bg-brand border border-brand-active text-white hover:bg-brand-hover disabled:opacity-50 rounded-lg py-2 font-semibold"
+        className={`mt-6 w-full ${portalButtonPrimaryClass}`}
       >
         {t('admin.organizationDetail.saveOrganization')}
       </button>
 
-      <div className="mt-10 pt-8 border-t border-slate-200">
-        <h2 className="text-sm font-semibold text-red-700 mb-2">{t('admin.organizationDetail.dangerZone')}</h2>
+      <PortalCard className="mt-10 border-red-200/60 bg-gradient-to-br from-red-50/40 to-white">
+        <h2 className="mb-3 text-sm font-semibold text-red-700">{t('admin.organizationDetail.dangerZone')}</h2>
         <button
           type="button"
           disabled={deleteMut.isPending}
           onClick={() => setDeleteOrgOpen(true)}
-          className="text-sm bg-red-600 border border-red-700 text-white hover:bg-red-700 rounded-lg px-4 py-2 disabled:opacity-50"
+          className="rounded-xl border border-red-700 bg-red-600 px-4 py-2 text-sm text-white transition-colors hover:bg-red-700 disabled:opacity-50"
         >
           {t('admin.organizationDetail.deleteOrganization')}
         </button>
-      </div>
+      </PortalCard>
 
       <ConfirmModal
         open={saveOrgOpen}
@@ -922,6 +928,6 @@ export default function EditOrganizationPage() {
           }
         }}
       />
-    </div>
+    </PortalPageLayout>
   );
 }
