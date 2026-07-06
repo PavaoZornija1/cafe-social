@@ -58,6 +58,55 @@ body {
     );
 }
 
+.portal-auth-brand {
+  border-right: 1px solid rgb(255 255 255 / 0.08);
+}
+
+/* Clerk auth polish — complements appearance.elements in portalClerkTheme.ts */
+.portal-clerk .cl-footer {
+  background: transparent;
+}
+
+.portal-clerk .cl-socialButtonsBlockButton,
+.portal-clerk .cl-socialButtonsIconButton {
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.portal-clerk .cl-socialButtonsBlockButton span,
+.portal-clerk .cl-socialButtonsBlockButton p,
+.portal-clerk .cl-socialButtonsIconButton span,
+.portal-clerk .cl-socialButtonsIconButton p {
+  color: #0f172a !important;
+  font-weight: 600;
+}
+
+.portal-clerk .cl-formFieldInput {
+  border: 2px solid #cbd5e1 !important;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+}
+
+.portal-clerk .cl-formFieldInput:focus {
+  border-color: #143368 !important;
+  box-shadow: 0 0 0 2px rgb(20 51 104 / 0.15);
+}
+
+.portal-clerk .cl-otpCodeFieldInput {
+  border: 2px solid #cbd5e1 !important;
+}
+
+.portal-clerk .cl-alert.cl-alert-danger {
+  border-color: rgb(254 202 202 / 0.9);
+  background: linear-gradient(to bottom right, rgb(254 242 242), rgb(254 242 242 / 0.5));
+  color: rgb(127 29 29);
+}
+
+.portal-clerk .cl-alert.cl-alert-success {
+  border-color: rgb(167 243 208 / 0.9);
+  background: linear-gradient(to bottom right, rgb(236 253 245), rgb(236 253 245 / 0.5));
+  color: rgb(6 95 70);
+}
+
 .portal-sidebar {
   scrollbar-width: thin;
   scrollbar-color: rgb(255 255 255 / 0.15) transparent;
