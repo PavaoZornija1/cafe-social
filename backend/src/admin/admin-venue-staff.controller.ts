@@ -47,6 +47,7 @@ export class AdminVenueStaffController {
   ) {
     const scope = getAdminCmsScope(req);
     this.cmsAccess.assertVenueInScope(scope, venueId);
+    await this.cmsAccess.assertVenueMutable(scope, venueId);
     const player = await this.players.findOrCreateByEmail(dto.email.trim());
     const existing = await this.venueStaff.findMembership(player.id, venueId);
     if (
@@ -70,6 +71,7 @@ export class AdminVenueStaffController {
   ) {
     const scope = getAdminCmsScope(req);
     this.cmsAccess.assertVenueInScope(scope, venueId);
+    await this.cmsAccess.assertVenueMutable(scope, venueId);
     await this.venueStaff.assertCanRemoveOrDemoteOwner(venueId, playerId);
     await this.venueStaff.removeMember(venueId, playerId);
     return { ok: true };

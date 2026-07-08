@@ -372,7 +372,7 @@ export function VenuePerksSection({
       {!embedded ? null : (
         <p className="text-xs text-slate-500 mt-3">
           {t("admin.venueCms.common.standalonePage")}{" "}
-          <Link href={`/perks/${venueId}`} className="text-brand hover:underline font-medium">
+          <Link href={`/venues/${venueId}/perks`} className="text-brand hover:underline font-medium">
             {t("admin.venueCms.perks.openFullWidth")}
           </Link>
         </p>

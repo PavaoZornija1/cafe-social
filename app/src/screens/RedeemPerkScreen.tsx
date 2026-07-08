@@ -426,7 +426,9 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
 
         {!showInitialSpinner && teasers.length > 0 ? (
           <>
-            <Text style={styles.sectionTitle}>{t('perk.availableAtVenue')}</Text>
+            <Text style={[styles.sectionTitle, styles.listSectionTitle]}>
+              {t('perk.availableAtVenue')}
+            </Text>
             {teasers.map((p) => (
               <View key={p.id} style={styles.teaserCard}>
                 <View style={styles.cardHeader}>
@@ -460,7 +462,13 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
 
         {!showInitialSpinner && myRewards.length > 0 ? (
           <>
-            <Text style={[styles.sectionTitle, teasers.length > 0 && styles.sectionTitleSpaced]}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                styles.listSectionTitle,
+                teasers.length > 0 && styles.sectionTitleSpaced,
+              ]}
+            >
               {t('perk.myRewards')}
             </Text>
             {myRewards.map((r) => {
@@ -636,6 +644,7 @@ function createStyles(colors: AppColors) {
       letterSpacing: 0.5,
     },
     sectionTitleSpaced: { marginTop: spacing.lg },
+    listSectionTitle: { marginBottom: spacing.md },
     inputRow: {
       flexDirection: 'row',
       alignItems: 'center',

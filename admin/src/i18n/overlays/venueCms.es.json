@@ -1,5 +1,6 @@
 {
   "sectionNav": {
+    "ariaLabel": "Secciones del CMS de la ubicación",
     "settings": "Ajustes",
     "nudges": "Nudges",
     "offers": "Ofertas",
@@ -146,6 +147,7 @@
     "badgeNone": "Ninguno asignado",
     "badgeCount": "{{count}} asignados",
     "autoExplainer": "Automático: mientras un cliente está en el local, tras el tiempo de permanencia (gana el sort order más bajo), enviamos un push por visita con el texto de esa fila. Sin asignaciones sigue aplicando el emparejamiento legacy por categorías del local.",
+    "partnerManagedEmpty": "Las plantillas de avisos se gestionan con Cafe Social. Cuando haya un aviso disponible para tu local aparecerá aquí y podrás adjuntarlo y ajustar el título, el mensaje y el tiempo.",
     "triggerExplainer": "Disparar ahora (super admin): envía el texto de la asignación elegida de inmediato a jugadores con presencia reciente en el local (~10 min), respetando privacidad/marketing. Limitado por local (120s por defecto).",
     "libraryTitle": "Biblioteca global de nudges",
     "libraryLead": "Plantillas reutilizables. Asígnalas a este local abajo.",

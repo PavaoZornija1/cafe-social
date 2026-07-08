@@ -269,6 +269,7 @@
     "enterVoidReasonError": "Enter a void reason (manager/owner)."
   },
   "sectionNav": {
+    "ariaLabel": "Venue dashboard sections",
     "playbook": "Playbook",
     "analytics": "Analytics",
     "moderation": "Moderation",

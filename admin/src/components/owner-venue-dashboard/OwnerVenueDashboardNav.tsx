@@ -50,7 +50,7 @@ export function OwnerVenueDashboardNav() {
 
   return (
     <nav
-      aria-label="Venue dashboard sections"
+      aria-label={t("admin.partnerVenueDetail.sectionNav.ariaLabel")}
       className="sticky top-0 z-20 -mx-1 mb-6 pt-1"
     >
       <div className="overflow-x-auto pb-1 scrollbar-thin">

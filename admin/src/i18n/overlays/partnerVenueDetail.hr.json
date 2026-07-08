@@ -265,6 +265,7 @@
     "enterVoidReasonError": "Unesite razlog poništenja (menadžer/vlasnik)."
   },
   "sectionNav": {
+    "ariaLabel": "Odjeljci nadzorne ploče lokacije",
     "playbook": "Playbook",
     "analytics": "Analitika",
     "moderation": "Moderacija",

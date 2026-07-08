@@ -265,6 +265,7 @@
     "enterVoidReasonError": "Introduce un motivo de anulación (gerente/propietario)."
   },
   "sectionNav": {
+    "ariaLabel": "Secciones del panel de la ubicación",
     "playbook": "Playbook",
     "analytics": "Analítica",
     "moderation": "Moderación",

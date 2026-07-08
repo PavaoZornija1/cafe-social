@@ -1,19 +1,18 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
-import { useParams } from "next/navigation";
-import { VenuePerksSection } from "@/components/venue-cms/VenuePerksSection";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-export default function PerksAdminPage() {
+/** Legacy route — superseded by the venue CMS editor. Redirect to the canonical path. */
+export default function LegacyPerksAdminPage() {
   const { venueId } = useParams<{ venueId: string }>();
-  const { isLoaded, getToken } = useAuth();
-  if (!venueId) return null;
-  return (
-    <VenuePerksSection
-      venueId={venueId}
-      getToken={getToken}
-      enabled={isLoaded}
-      variant="page"
-    />
-  );
+  const router = useRouter();
+
+  useEffect(() => {
+    if (venueId) {
+      router.replace(`/venues/${venueId}/perks`);
+    }
+  }, [router, venueId]);
+
+  return null;
 }

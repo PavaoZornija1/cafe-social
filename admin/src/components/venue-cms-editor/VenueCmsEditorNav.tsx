@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { VenueSectionIcon } from "@/components/owner-venue-dashboard/venueDashboardUi";
 import type { VenueDashboardSectionKey } from "@/components/owner-venue-dashboard/types";
@@ -13,6 +14,8 @@ type NavItem = {
   key: VenueCmsSectionKey;
   labelKey: string;
   icon: VenueDashboardSectionKey | "settings";
+  /** Direct staff upsert is a super-admin tool; partners manage staff via the Team invite flow. */
+  superAdminOnly?: boolean;
 };
 
 const NAV_ITEMS: NavItem[] = [
@@ -21,7 +24,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: "offers", labelKey: "admin.venueCms.sectionNav.offers", icon: "offers" },
   { key: "perks", labelKey: "admin.venueCms.sectionNav.perks", icon: "perks" },
   { key: "challenges", labelKey: "admin.venueCms.sectionNav.challenges", icon: "challenges" },
-  { key: "staff", labelKey: "admin.venueCms.sectionNav.staff", icon: "team" },
+  { key: "staff", labelKey: "admin.venueCms.sectionNav.staff", icon: "team", superAdminOnly: true },
 ];
 
 function CmsNavIcon({ section }: { section: NavItem["icon"] }) {
@@ -48,15 +51,20 @@ function CmsNavIcon({ section }: { section: NavItem["icon"] }) {
 export function VenueCmsEditorNav() {
   const { t } = useTranslation();
   const pathname = usePathname();
-  const { venueId, shellLoading } = useVenueCmsEditor();
+  const { venueId, shellLoading, isSuperAdmin } = useVenueCmsEditor();
+
+  const items = useMemo(
+    () => NAV_ITEMS.filter((item) => !item.superAdminOnly || isSuperAdmin),
+    [isSuperAdmin],
+  );
 
   if (shellLoading) return null;
 
   return (
-    <nav aria-label="Venue CMS sections" className="sticky top-0 z-20 -mx-1 mb-6 pt-1">
+    <nav aria-label={t("admin.venueCms.sectionNav.ariaLabel")} className="sticky top-0 z-20 -mx-1 mb-6 pt-1">
       <div className="overflow-x-auto pb-1 scrollbar-thin">
         <ul className="inline-flex min-w-max gap-1 rounded-2xl border border-slate-200/80 bg-white/90 p-1.5 shadow-sm backdrop-blur-md">
-          {NAV_ITEMS.map((item) => {
+          {items.map((item) => {
             const href = venueCmsSectionPath(venueId, item.key);
             const isActive =
               item.key === "settings"

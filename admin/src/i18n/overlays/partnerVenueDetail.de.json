@@ -265,6 +265,7 @@
     "enterVoidReasonError": "Bitte einen Stornogrund eingeben (Manager/Inhaber)."
   },
   "sectionNav": {
+    "ariaLabel": "Standort-Dashboard-Bereiche",
     "playbook": "Playbook",
     "analytics": "Analytics",
     "moderation": "Moderation",

@@ -59,6 +59,7 @@ export class AdminVenueNudgeController {
   ) {
     const scope = getAdminCmsScope(req);
     this.cmsAccess.assertVenueInScope(scope, venueId);
+    await this.cmsAccess.assertVenueMutable(scope, venueId);
     const tpl = await this.prisma.venueOrderNudgeTemplate.findUnique({
       where: { id: body.templateId },
     });
@@ -94,6 +95,7 @@ export class AdminVenueNudgeController {
   ) {
     const scope = getAdminCmsScope(req);
     this.cmsAccess.assertVenueInScope(scope, venueId);
+    await this.cmsAccess.assertVenueMutable(scope, venueId);
     const row = await this.prisma.venueNudgeAssignment.findFirst({
       where: { id: assignmentId, venueId },
     });
@@ -125,6 +127,7 @@ export class AdminVenueNudgeController {
   ) {
     const scope = getAdminCmsScope(req);
     this.cmsAccess.assertVenueInScope(scope, venueId);
+    await this.cmsAccess.assertVenueMutable(scope, venueId);
     const row = await this.prisma.venueNudgeAssignment.findFirst({
       where: { id: assignmentId, venueId },
     });

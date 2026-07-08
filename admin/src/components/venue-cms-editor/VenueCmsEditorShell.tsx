@@ -9,6 +9,7 @@ import {
   PortalPageLayout,
   PortalSkeleton,
 } from "@/components/portal/PortalPageUi";
+import { PartnerReadOnlyBanner } from "@/components/PartnerReadOnlyBanner";
 import { VenueCmsEditorNav } from "./VenueCmsEditorNav";
 import { useVenueCmsEditor } from "./VenueCmsEditorContext";
 
@@ -18,7 +19,8 @@ export function VenueCmsEditorShell({
   children: ReactNode;
 }) {
   const { t } = useTranslation();
-  const { venueId, title, shellLoading, loadError } = useVenueCmsEditor();
+  const { venueId, title, shellLoading, loadError, readOnlyNotice } =
+    useVenueCmsEditor();
 
   return (
     <PortalPageLayout maxWidth="5xl">
@@ -47,6 +49,11 @@ export function VenueCmsEditorShell({
       {!shellLoading && !loadError ? (
         <>
           <VenueCmsEditorNav />
+          {readOnlyNotice ? (
+            <div className="mb-4">
+              <PartnerReadOnlyBanner notice={readOnlyNotice} />
+            </div>
+          ) : null}
           <div className="min-w-0 space-y-6 pb-8">{children}</div>
         </>
       ) : null}

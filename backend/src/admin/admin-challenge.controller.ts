@@ -99,6 +99,7 @@ export class AdminChallengeController {
   ) {
     const scope = getAdminCmsScope(req);
     this.cmsAccess.assertVenueInScope(scope, venueId);
+    await this.cmsAccess.assertVenueMutable(scope, venueId);
 
     const title = dto.title?.trim();
     if (!title) throw new BadRequestException('title is required');
@@ -146,6 +147,7 @@ export class AdminChallengeController {
     });
     if (!row) throw new NotFoundException('Challenge not found');
     this.cmsAccess.assertVenueInScope(scope, row.venueId);
+    await this.cmsAccess.assertVenueMutable(scope, row.venueId);
 
     validateSchedule({
       scheduleType: dto.scheduleType ?? row.scheduleType,
@@ -198,6 +200,7 @@ export class AdminChallengeController {
     });
     if (!row) throw new NotFoundException('Challenge not found');
     this.cmsAccess.assertVenueInScope(scope, row.venueId);
+    await this.cmsAccess.assertVenueMutable(scope, row.venueId);
     await this.prisma.challengeProgress.deleteMany({ where: { challengeId: id } });
     return this.prisma.challenge.delete({ where: { id } });
   }

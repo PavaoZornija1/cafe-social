@@ -1,11 +1,16 @@
 import {
   ForbiddenException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { PlatformRole, VenueStaffRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { normalizeUserEmail } from '../auth/user-email.util';
+import {
+  PARTNER_TRIAL_LOCK_REASON,
+  isPayingPartnerOrg,
+} from '../owner/partner-access.constants';
 
 export type AdminCmsScope =
   | { kind: 'super_admin' }
@@ -58,6 +63,49 @@ export class AdminCmsAccessService {
     if (scope.kind === 'super_admin') return;
     if (!scope.managedVenueIds.includes(venueId)) {
       throw new ForbiddenException('Not allowed for this venue');
+    }
+  }
+
+  /**
+   * Blocks partner CMS mutations when the venue is locked or the org trial ended
+   * without payment. Super admins bypass. Mirrors {@link PartnerVenueWriteGuard}
+   * on `/owner/*` so partner content editing respects the same trial/read-only state.
+   * Call after {@link assertVenueInScope} on every partner-reachable write endpoint.
+   */
+  async assertVenueMutable(
+    scope: AdminCmsScope,
+    venueId: string,
+  ): Promise<void> {
+    if (scope.kind === 'super_admin') return;
+    const venue = await this.prisma.venue.findUnique({
+      where: { id: venueId },
+      select: {
+        locked: true,
+        lockReason: true,
+        organization: {
+          select: { platformBillingStatus: true, trialEndsAt: true },
+        },
+      },
+    });
+    if (!venue) {
+      throw new NotFoundException('Venue not found');
+    }
+    if (venue.locked) {
+      const msg =
+        venue.lockReason === PARTNER_TRIAL_LOCK_REASON
+          ? 'This location is not active on Cafe Social (trial ended or billing required). Renew to make changes.'
+          : venue.lockReason?.trim() ||
+            'This venue is locked — editing is disabled.';
+      throw new ForbiddenException(msg);
+    }
+    const org = venue.organization;
+    if (org?.trialEndsAt) {
+      const paying = isPayingPartnerOrg(org.platformBillingStatus);
+      if (!paying && org.trialEndsAt.getTime() <= Date.now()) {
+        throw new ForbiddenException(
+          'Your trial has ended. Subscribe to make changes.',
+        );
+      }
     }
   }
 }

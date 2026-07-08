@@ -14,6 +14,10 @@ import {
   useAdminVenueDetailQuery,
   usePortalMeQuery,
 } from "@/lib/queries";
+import {
+  partnerVenueMutationsBlockedNotice,
+  type PartnerReadOnlyNotice,
+} from "@/lib/partnerReadOnlyMessages";
 
 type VenueCmsEditorContextValue = {
   venueId: string;
@@ -21,6 +25,8 @@ type VenueCmsEditorContextValue = {
   isLoaded: boolean;
   venue: AdminVenueDetail | null;
   isSuperAdmin: boolean;
+  readOnlyNotice: PartnerReadOnlyNotice | null;
+  readOnlyDisabled: boolean;
   shellLoading: boolean;
   loadError: string | null;
   title: string;
@@ -50,6 +56,16 @@ export function VenueCmsEditorProvider({ children }: { children: ReactNode }) {
   const shellLoading = venueQ.isPending;
   const title = venue?.name ?? t("admin.venueCms.editor.loading");
 
+  const readOnlyNotice = useMemo((): PartnerReadOnlyNotice | null => {
+    if (isSuperAdmin || !venue) return null;
+    return partnerVenueMutationsBlockedNotice({
+      locked: venue.locked,
+      lockReason: venue.lockReason,
+      organization: null,
+    });
+  }, [isSuperAdmin, venue]);
+  const readOnlyDisabled = Boolean(readOnlyNotice);
+
   const value = useMemo(
     (): VenueCmsEditorContextValue => ({
       venueId,
@@ -57,11 +73,24 @@ export function VenueCmsEditorProvider({ children }: { children: ReactNode }) {
       isLoaded,
       venue,
       isSuperAdmin,
+      readOnlyNotice,
+      readOnlyDisabled,
       shellLoading,
       loadError,
       title,
     }),
-    [venueId, getToken, isLoaded, venue, isSuperAdmin, shellLoading, loadError, title],
+    [
+      venueId,
+      getToken,
+      isLoaded,
+      venue,
+      isSuperAdmin,
+      readOnlyNotice,
+      readOnlyDisabled,
+      shellLoading,
+      loadError,
+      title,
+    ],
   );
 
   return (

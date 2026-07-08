@@ -1,19 +1,18 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
-import { useParams } from "next/navigation";
-import { VenueChallengesSection } from "@/components/venue-cms/VenueChallengesSection";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-export default function ChallengesAdminPage() {
+/** Legacy route — superseded by the venue CMS editor. Redirect to the canonical path. */
+export default function LegacyChallengesAdminPage() {
   const { venueId } = useParams<{ venueId: string }>();
-  const { isLoaded, getToken } = useAuth();
-  if (!venueId) return null;
-  return (
-    <VenueChallengesSection
-      venueId={venueId}
-      getToken={getToken}
-      enabled={isLoaded}
-      variant="page"
-    />
-  );
+  const router = useRouter();
+
+  useEffect(() => {
+    if (venueId) {
+      router.replace(`/venues/${venueId}/challenges`);
+    }
+  }, [router, venueId]);
+
+  return null;
 }

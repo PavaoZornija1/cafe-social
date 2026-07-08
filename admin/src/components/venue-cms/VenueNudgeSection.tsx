@@ -96,6 +96,10 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
     return tpl.filter((t) => t.active && !used.has(t.id));
   }, [templatesQ.data, assignmentsQ.data]);
 
+  // Partners can attach/customize nudges but cannot author templates (super-admin only).
+  // When nothing is attachable, show a managed-by note instead of an empty picker.
+  const partnerNoAttachable = !isSuperAdmin && unassignedTemplates.length === 0;
+
   const startEditTpl = (t: AdminNudgeTemplateRow) => {
     setEditTplId(t.id);
     setEditTplDraft({
@@ -577,6 +581,11 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
               </div>
             ) : null}
 
+            {partnerNoAttachable ? (
+              <div className="rounded-xl border border-slate-200/80 bg-white/90 px-4 py-4 text-xs leading-relaxed text-slate-600 shadow-sm">
+                {t("admin.venueCms.nudges.partnerManagedEmpty")}
+              </div>
+            ) : (
             <div className="rounded-xl border border-slate-200/80 bg-white/90 p-4 shadow-sm">
               <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_5.5rem] sm:items-end">
@@ -639,6 +648,7 @@ export function VenueNudgeSection({ venueId, getToken, enabled, isSuperAdmin }: 
                 </button>
               </div>
             </div>
+            )}
 
             <ul className="md:hidden space-y-3">
               {assignments.map((a) => (

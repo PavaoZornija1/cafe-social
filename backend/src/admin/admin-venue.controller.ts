@@ -101,9 +101,10 @@ export class AdminVenueController {
   }
 
   @Patch(':id')
-  update(@Req() req: ReqWithScope, @Param('id') id: string, @Body() dto: AdminPatchVenueDto) {
+  async update(@Req() req: ReqWithScope, @Param('id') id: string, @Body() dto: AdminPatchVenueDto) {
     const scope = getAdminCmsScope(req);
     this.cmsAccess.assertVenueInScope(scope, id);
+    await this.cmsAccess.assertVenueMutable(scope, id);
     if (scope.kind === 'partner') {
       const {
         organizationId: _o,

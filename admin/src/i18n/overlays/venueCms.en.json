@@ -1,5 +1,6 @@
 {
   "sectionNav": {
+    "ariaLabel": "Venue CMS sections",
     "settings": "Settings",
     "nudges": "Nudges",
     "offers": "Offers",
@@ -145,6 +146,7 @@
     "badgeNone": "None attached",
     "badgeCount": "{{count}} attached",
     "autoExplainer": "Automatic: while a guest is on site, after their dwell time (lowest sort order assignment wins — use per-assignment or template default minutes, else global VENUE_ORDER_NUDGE_AFTER_MINUTES), we send one push per visit using that row's copy (assignment overrides → venue-wide fallback fields below → template → env). If this venue has no assignments, legacy matching by venue categories still applies.",
+    "partnerManagedEmpty": "Order nudge templates are curated with Cafe Social. Once a nudge is available for your location it will appear here, and you can attach it and tailor the title, message, and timing.",
     "triggerExplainer": "Trigger now (super admin): sends the selected assignment's copy immediately to players with fresh presence at this venue (last ~10 minutes), respecting privacy/marketing prefs. Throttled per venue (default 120s, VENUE_NUDGE_ADMIN_TRIGGER_MIN_SECONDS).",
     "libraryTitle": "Global nudge library",
     "libraryLead": "Reusable templates. Attach them to this venue below; optional VenueType links in the DB still drive defaults when a venue has no assignments.",

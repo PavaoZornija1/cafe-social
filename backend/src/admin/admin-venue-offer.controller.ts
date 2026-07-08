@@ -82,6 +82,7 @@ export class AdminVenueOfferController {
   ) {
     const scope = getAdminCmsScope(req);
     this.cmsAccess.assertVenueInScope(scope, venueId);
+    await this.cmsAccess.assertVenueMutable(scope, venueId);
     const title = dto.title?.trim() ?? '';
     if (!title) throw new BadRequestException('title is required');
 
@@ -132,6 +133,7 @@ export class AdminVenueOfferController {
   ) {
     const scope = getAdminCmsScope(req);
     this.cmsAccess.assertVenueInScope(scope, venueId);
+    await this.cmsAccess.assertVenueMutable(scope, venueId);
     const existing = await this.prisma.venueOffer.findFirst({
       where: { id: offerId, venueId },
     });
@@ -196,6 +198,7 @@ export class AdminVenueOfferController {
   ) {
     const scope = getAdminCmsScope(req);
     this.cmsAccess.assertVenueInScope(scope, venueId);
+    await this.cmsAccess.assertVenueMutable(scope, venueId);
     const existing = await this.prisma.venueOffer.findFirst({
       where: { id: offerId, venueId },
     });

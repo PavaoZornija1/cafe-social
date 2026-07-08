@@ -1,5 +1,6 @@
 {
   "sectionNav": {
+    "ariaLabel": "Odjeljci CMS-a lokacije",
     "settings": "Postavke",
     "nudges": "Nudges",
     "offers": "Ponude",
@@ -146,6 +147,7 @@
     "badgeNone": "Ništa dodijeljeno",
     "badgeCount": "{{count}} dodijeljeno",
     "autoExplainer": "Automatski: dok je gost na lokaciji, nakon vremena boravka (najniži sort order pobjeđuje), šaljemo jedan push po posjetu s tekstom tog reda. Bez dodjela i dalje vrijedi legacy podudaranje po kategorijama lokacije.",
+    "partnerManagedEmpty": "Predlošci obavijesti za narudžbu uređuju se s Cafe Socialom. Kada obavijest postane dostupna za tvoju lokaciju, pojavit će se ovdje, a moći ćeš je dodati i prilagoditi naslov, poruku i vrijeme.",
     "triggerExplainer": "Pokreni sada (super admin): odmah šalje tekst odabrane dodjele igračima s nedavnom prisutnošću na lokaciji (~10 min), uz postavke privatnosti/marketinga. Ograničeno po lokaciji (default 120s).",
     "libraryTitle": "Globalna biblioteka nudges",
     "libraryLead": "Predlošci za ponovnu upotrebu. Dodijelite ih lokaciji ispod.",

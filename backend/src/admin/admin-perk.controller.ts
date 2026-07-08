@@ -65,13 +65,14 @@ export class AdminPerkController {
   }
 
   @Post('venues/:venueId/perks')
-  create(
+  async create(
     @Req() req: ReqWithScope,
     @Param('venueId', new ParseUUIDPipe()) venueId: string,
     @Body() dto: AdminCreatePerkDto,
   ) {
     const scope = getAdminCmsScope(req);
     this.cmsAccess.assertVenueInScope(scope, venueId);
+    await this.cmsAccess.assertVenueMutable(scope, venueId);
     const code = dto.code.trim().toUpperCase().replace(/\s+/g, '');
     return this.prisma.venuePerk.create({
       data: {
@@ -102,6 +103,7 @@ export class AdminPerkController {
     });
     if (!perk) throw new NotFoundException('Perk not found');
     this.cmsAccess.assertVenueInScope(scope, perk.venueId);
+    await this.cmsAccess.assertVenueMutable(scope, perk.venueId);
     return this.prisma.venuePerk.update({
       where: { id },
       data: {
@@ -130,6 +132,7 @@ export class AdminPerkController {
     });
     if (!perk) throw new NotFoundException('Perk not found');
     this.cmsAccess.assertVenueInScope(scope, perk.venueId);
+    await this.cmsAccess.assertVenueMutable(scope, perk.venueId);
     return this.prisma.venuePerk.delete({ where: { id } });
   }
 }

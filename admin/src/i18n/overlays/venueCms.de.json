@@ -1,5 +1,6 @@
 {
   "sectionNav": {
+    "ariaLabel": "Venue-CMS-Bereiche",
     "settings": "Einstellungen",
     "nudges": "Nudges",
     "offers": "Angebote",
@@ -146,6 +147,7 @@
     "badgeNone": "Keine zugewiesen",
     "badgeCount": "{{count}} zugewiesen",
     "autoExplainer": "Automatisch: Während ein Gast vor Ort ist, nach der Verweildauer (niedrigste Sortierreihenfolge gewinnt — Minuten pro Zuweisung oder Vorlagen-Default, sonst global VENUE_ORDER_NUDGE_AFTER_MINUTES) senden wir einen Push pro Besuch mit dem Text dieser Zeile. Ohne Zuweisungen gilt weiterhin die Legacy-Zuordnung über Standort-Kategorien.",
+    "partnerManagedEmpty": "Vorlagen für Bestell-Nudges werden mit Cafe Social gepflegt. Sobald ein Nudge für deinen Standort verfügbar ist, erscheint er hier, und du kannst ihn anhängen sowie Titel, Nachricht und Timing anpassen.",
     "triggerExplainer": "Jetzt auslösen (Super-Admin): sendet den Text der gewählten Zuweisung sofort an Spieler mit frischer Anwesenheit an diesem Standort (letzte ~10 Minuten), unter Beachtung von Datenschutz/Marketing-Einstellungen. Gedrosselt pro Standort (Standard 120s, VENUE_NUDGE_ADMIN_TRIGGER_MIN_SECONDS).",
     "libraryTitle": "Globale Nudge-Bibliothek",
     "libraryLead": "Wiederverwendbare Vorlagen. Unten an diesen Standort anhängen; optionale VenueType-Links in der DB steuern Defaults ohne Zuweisungen.",
