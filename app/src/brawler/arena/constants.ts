@@ -1,7 +1,34 @@
 import type { BrawlerArenaHeroStats } from '../../navigation/type';
 
-/** Mossy tile — one stretched strip per platform hitbox. */
+/** Mossy tile — legacy stretch strip (unused while testing fixed ledges). */
 export const ARENA_MAP_BG = require('../../../assets/Mossy - FloatingPlatforms.webp');
+/** Small floating ledge — native 160×48. */
+export const ARENA_LEDGE_S = require('../../../assets/maps/brawlerHeroes/ledge_s.webp');
+export const ARENA_LEDGE_S_W = 160;
+export const ARENA_LEDGE_S_H = 48;
+/** Medium floating ledge — native 224×48. */
+export const ARENA_LEDGE_M = require('../../../assets/maps/brawlerHeroes/ledge_m.webp');
+export const ARENA_LEDGE_M_W = 224;
+export const ARENA_LEDGE_M_H = 48;
+/** Full ground strip — native 1920×64 (one Image, centered on floor). */
+export const ARENA_GROUND = require('../../../assets/maps/brawlerHeroes/ground.webp');
+export const ARENA_GROUND_W = 1920;
+export const ARENA_GROUND_H = 64;
+
+export type ArenaLedgeSize = 's' | 'm';
+
+export const ARENA_LEDGE_BY_SIZE = {
+  s: {
+    source: ARENA_LEDGE_S,
+    w: ARENA_LEDGE_S_W,
+    h: ARENA_LEDGE_S_H,
+  },
+  m: {
+    source: ARENA_LEDGE_M,
+    w: ARENA_LEDGE_M_W,
+    h: ARENA_LEDGE_M_H,
+  },
+} as const;
 /** Distant sky behind platforms and hero. */
 export const ARENA_SKY_LOTTIE = require('../../../assets/lottie/Underwater Ocean Fish and Turtle.json');
 

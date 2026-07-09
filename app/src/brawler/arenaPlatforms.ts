@@ -45,22 +45,24 @@ const stairs = (opts: {
 
 export const ARENA_FLOATING_PLATFORM_NORMALIZED: PlatformNorm[] = [
   // Top center platform
-  bridge(0.37, 0.52, 0.26, 0.028),
+  bridge(0.001, 0.52, 0.26, 0.028),
   // Side platforms (same height)
-  ledge(0.16, 0.70, 0.42, 0.03),
-  ledge(0.62, 0.70, 0.22, 0.03),
+  ledge(0.001, 0.70, 0.42, 0.03),
+  ledge(0.001, 0.70, 0.22, 0.03),
 
   //Top left platform
-  ledge(0.06, 0.30, 0.42, 0.03),
+  ledge(0.001, 0.30, 0.42, 0.03),
 
   //Top right platform
-  ledge(0.55, 0.30, 0.42, 0.03),
+  ledge(0.001, 0.30, 0.42, 0.03),
 ];
 
 /** Largest platform: width as fraction of arena width (centered). */
 const BOTTOM_PLATFORM_NW = 1.0;
 /** Minimum slab thickness (px); also scales slightly with arena height. */
 const BOTTOM_PLATFORM_NH_FRAC = 1.0;
+
+export type PlatformLedgeSize = 's' | 'm';
 
 export type PlatformWorld = {
   x: number;
@@ -69,6 +71,8 @@ export type PlatformWorld = {
   h: number;
   /** Feet sit this many px below `y` when standing on this slab (thin floaters need less than thick ground). */
   feetEmbedPx: number;
+  /** Floating art size; omit on ground. */
+  ledgeSize?: PlatformLedgeSize;
 };
 
 /**
@@ -82,8 +86,20 @@ export const HERO_FEET_EMBED_FLOATING_PLATFORM_PX = 4;
  */
 export const HERO_FEET_EMBED_GROUND_PLATFORM_PX = 15;
 
+const LEDGE_NATIVE_W: Record<PlatformLedgeSize, number> = {
+  s: 160,
+  m: 224,
+};
+
 /**
- * Full platform list: two normalized floaters + bottom slab on the ground line.
+ * Per floating index: which fixed ledge art to use (matches original short/wide intent).
+ * 0 top center → m, 1 mid left → m, 2 mid right → s, 3 top left → m, 4 top right → m
+ */
+const FLOATING_LEDGE_SIZES: PlatformLedgeSize[] = ['m', 'm', 's', 'm', 'm'];
+
+/**
+ * Full platform list: floating ledges locked to art width + full-width ground slab.
+ * Ground art is `ground.webp` (1920×64), centered on the floor hitbox.
  */
 export function buildArenaPlatforms(
   worldW: number,
@@ -91,13 +107,21 @@ export function buildArenaPlatforms(
   groundStripH: number,
   floorPad: number = 4,
 ): PlatformWorld[] {
-  const topMid = ARENA_FLOATING_PLATFORM_NORMALIZED.map((n) => ({
-    x: n.nx * worldW,
-    y: n.ny * worldH,
-    w: n.nw * worldW,
-    h: n.nh * worldH,
-    feetEmbedPx: HERO_FEET_EMBED_FLOATING_PLATFORM_PX,
-  }));
+  const topMid = ARENA_FLOATING_PLATFORM_NORMALIZED.map((n, i) => {
+    const ledgeSize = FLOATING_LEDGE_SIZES[i] ?? 'm';
+    const artW = LEDGE_NATIVE_W[ledgeSize];
+    const y = n.ny * worldH;
+    const h = n.nh * worldH;
+    const cx = n.nx * worldW + (n.nw * worldW) / 2;
+    return {
+      x: cx - artW / 2,
+      y,
+      w: artW,
+      h,
+      feetEmbedPx: HERO_FEET_EMBED_FLOATING_PLATFORM_PX,
+      ledgeSize,
+    };
+  });
 
   const wBot = BOTTOM_PLATFORM_NW * worldW;
   const xBot = (worldW - wBot) / 2;
