@@ -1471,6 +1471,8 @@ enum BrawlerPowerupEffectType {
   DASH_SPEED_MULT
   /// Multiply dash cooldown by `magnitude` (e.g. 0.75 = faster cooldown).
   DASH_COOLDOWN_MULT
+  /// Instant heal: add `magnitude` × max HP (e.g. 0.2 = +20%).
+  HEAL_MAX_HP_PCT
 }
 
 /// Server-authoritative power-up definitions (tunable without redeploy).

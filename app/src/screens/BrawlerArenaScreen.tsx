@@ -35,6 +35,12 @@ import {
   type MatchPhaseKey,
 } from '../brawler/arena/combat';
 import {
+  announceForPhase,
+  countAliveArenaParticipants,
+  DEATH_DUEL_ANNOUNCE,
+  type ArenaAnnounce,
+} from '../brawler/arena/arenaAnnounces';
+import {
   ArenaActivePowerupsHud,
   buildActivePowerupHudRows,
 } from '../brawler/arena/components/ArenaActivePowerupsHud';
@@ -333,12 +339,11 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const matchEndedRef = useRef(false);
   const [gameOverOpen, setGameOverOpen] = useState(false);
   const lastAnnouncedPhaseKeyRef = useRef<MatchPhaseKey | null>(null);
-  const [phaseAnnounce, setPhaseAnnounce] = useState<{
-    key: MatchPhaseKey;
-    label: string;
-  } | null>(null);
+  const deathDuelAnnouncedRef = useRef(false);
+  const eliminatedParticipantIdsRef = useRef<Set<string>>(new Set());
+  const [arenaAnnounce, setArenaAnnounce] = useState<ArenaAnnounce | null>(null);
 
-  const clearPhaseAnnounce = useCallback(() => setPhaseAnnounce(null), []);
+  const clearArenaAnnounce = useCallback(() => setArenaAnnounce(null), []);
 
   const bump = useCallback(() => {
     setRenderTick((t) => (t + 1) % 1_000_000);
@@ -499,7 +504,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         powerupPickupFlashRef.current = null;
         arenaServerTickAccumRef.current = 0;
         lastAnnouncedPhaseKeyRef.current = null;
-        setPhaseAnnounce(null);
+        deathDuelAnnouncedRef.current = false;
+        eliminatedParticipantIdsRef.current = new Set();
+        setArenaAnnounce(null);
         bump();
         void refreshArenaState();
       } catch (e) {
@@ -784,15 +791,56 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     if (lastAnnouncedPhaseKeyRef.current === key) return;
 
     lastAnnouncedPhaseKeyRef.current = key;
-    setPhaseAnnounce({
-      key,
-      label: matchPhaseLabelDyn(
-        elapsed,
-        matchChaosEndSRef.current,
-        matchEndgameEndSRef.current,
-      ),
-    });
+    setArenaAnnounce(announceForPhase(key));
   }, [
+    arenaInnerH,
+    arenaW,
+    deathChoiceOpen,
+    devMatchTimerEnabled,
+    gameOverOpen,
+    renderTick,
+    sessionId,
+    trackedSessionReady,
+    venueTwoHumanHold,
+  ]);
+
+  useEffect(() => {
+    if (!devMatchTimerEnabled) return;
+    if (arenaW < 32 || arenaInnerH < 32) return;
+    if (preMatchLeftRef.current > 0) return;
+    if (gameOverOpen || deathChoiceOpen || venueTwoHumanHold) return;
+    if (sessionId && !trackedSessionReady) return;
+    if (arenaAnnounce) return;
+    if (deathDuelAnnouncedRef.current) return;
+
+    const elapsed = matchElapsedFromRemaining(
+      matchClockRef.current,
+      matchMaxSRef.current,
+    );
+    const phase = matchPhaseKey(
+      elapsed,
+      matchChaosEndSRef.current,
+      matchEndgameEndSRef.current,
+    );
+    if (phase !== 'sudden_death') return;
+
+    if (heroHpRef.current <= 0 && localParticipantIdRef.current) {
+      eliminatedParticipantIdsRef.current.add(localParticipantIdRef.current);
+    }
+
+    const alive = countAliveArenaParticipants({
+      participants: participantsRef.current,
+      localParticipantId: localParticipantIdRef.current,
+      heroHp: heroHpRef.current,
+      eliminatedParticipantIds: eliminatedParticipantIdsRef.current,
+    });
+
+    if (participantsRef.current.length < 2 || alive !== 2) return;
+
+    deathDuelAnnouncedRef.current = true;
+    setArenaAnnounce(DEATH_DUEL_ANNOUNCE);
+  }, [
+    arenaAnnounce,
     arenaInnerH,
     arenaW,
     deathChoiceOpen,
@@ -875,7 +923,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     activeBuffsRef.current = [];
     powerupPickupFlashRef.current = null;
     lastAnnouncedPhaseKeyRef.current = null;
-    setPhaseAnnounce(null);
+    deathDuelAnnouncedRef.current = false;
+    eliminatedParticipantIdsRef.current = new Set();
+    setArenaAnnounce(null);
     setGameOverOpen(false);
     bump();
   }, [
@@ -1256,8 +1306,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           isSpectating={isSpectating}
           spectatingLabel={t('brawlerMatch.spectating')}
           spectatingPanHint={t('brawlerMatch.spectatingPanHint')}
-          phaseAnnounce={phaseAnnounce}
-          onPhaseAnnounceDone={clearPhaseAnnounce}
+          arenaAnnounce={arenaAnnounce}
+          onArenaAnnounceDone={clearArenaAnnounce}
           showHeroStatsHud={showHeroStatsHud}
           heroStatRows={heroStatRows}
           onReplay={resetArenaRound}

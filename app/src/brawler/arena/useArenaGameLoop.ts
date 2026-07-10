@@ -519,23 +519,29 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
               (p) => p.spawnId !== pu.spawnId,
             );
             if (def) {
-              const ends = nowMs + def.durationMs;
-              const buffs = activeBuffsRef.current;
-              const idx = buffs.findIndex((b) => b.powerupId === pu.powerupId);
-              const next: ActiveBuff = {
-                powerupId: pu.powerupId,
-                effectType: def.effectType,
-                magnitude: def.magnitude,
-                startedAtMs: nowMs,
-                endsAtMs: ends,
-              };
-              activeBuffsRef.current =
-                idx >= 0 ? buffs.map((b, i) => (i === idx ? next : b)) : [...buffs, next];
               powerupPickupFlashRef.current = {
                 displayName: def.displayName,
                 effectType: def.effectType,
                 endsAtMs: nowMs + 2200,
               };
+              if (def.effectType === 'HEAL_MAX_HP_PCT') {
+                const maxHp = heroCombat.baseHp;
+                const gain = Math.round(maxHp * def.magnitude);
+                heroHpRef.current = Math.min(maxHp, heroHpRef.current + gain);
+              } else {
+                const ends = nowMs + def.durationMs;
+                const buffs = activeBuffsRef.current;
+                const idx = buffs.findIndex((b) => b.powerupId === pu.powerupId);
+                const next: ActiveBuff = {
+                  powerupId: pu.powerupId,
+                  effectType: def.effectType,
+                  magnitude: def.magnitude,
+                  startedAtMs: nowMs,
+                  endsAtMs: ends,
+                };
+                activeBuffsRef.current =
+                  idx >= 0 ? buffs.map((b, i) => (i === idx ? next : b)) : [...buffs, next];
+              }
             }
             triggerFeedback('brawlerPowerup');
             bump();
@@ -572,20 +578,29 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
                   typeof res.magnitude === 'number' &&
                   def
                 ) {
-                  const started =
-                    typeof res.startedAtMs === 'number' ? res.startedAtMs : nowMs;
-                  const ends = typeof res.endsAtMs === 'number' ? res.endsAtMs : nowMs + 5000;
-                  const buffs = activeBuffsRef.current;
-                  const idx = buffs.findIndex((b) => b.powerupId === pu.powerupId);
-                  const next: ActiveBuff = {
-                    powerupId: pu.powerupId,
-                    effectType: res.effectType,
-                    magnitude: res.magnitude,
-                    startedAtMs: started,
-                    endsAtMs: ends,
-                  };
-                  activeBuffsRef.current =
-                    idx >= 0 ? buffs.map((b, i) => (i === idx ? next : b)) : [...buffs, next];
+                  if (res.effectType === 'HEAL_MAX_HP_PCT') {
+                    const maxHp = heroCombat.baseHp;
+                    const gain = Math.round(maxHp * res.magnitude);
+                    heroHpRef.current = Math.min(maxHp, heroHpRef.current + gain);
+                  } else {
+                    const started =
+                      typeof res.startedAtMs === 'number' ? res.startedAtMs : nowMs;
+                    const ends =
+                      typeof res.endsAtMs === 'number' ? res.endsAtMs : nowMs + 5000;
+                    const buffs = activeBuffsRef.current;
+                    const idx = buffs.findIndex((b) => b.powerupId === pu.powerupId);
+                    const next: ActiveBuff = {
+                      powerupId: pu.powerupId,
+                      effectType: res.effectType,
+                      magnitude: res.magnitude,
+                      startedAtMs: started,
+                      endsAtMs: ends,
+                    };
+                    activeBuffsRef.current =
+                      idx >= 0
+                        ? buffs.map((b, i) => (i === idx ? next : b))
+                        : [...buffs, next];
+                  }
                 }
               } catch {
                 // allow retry; optimistic state stays until socket/refresh reconciles

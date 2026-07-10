@@ -9,6 +9,7 @@ const EFFECT_COLORS: Record<BrawlerPowerupDef['effectType'], string> = {
   JUMP_MULT: '#22c55e',
   DASH_SPEED_MULT: '#eab308',
   DASH_COOLDOWN_MULT: '#a78bfa',
+  HEAL_MAX_HP_PCT: '#4ade80',
 };
 
 const EFFECT_ICONS: Record<
@@ -20,6 +21,7 @@ const EFFECT_ICONS: Record<
   JUMP_MULT: 'arrow-up',
   DASH_SPEED_MULT: 'rocket',
   DASH_COOLDOWN_MULT: 'timer',
+  HEAL_MAX_HP_PCT: 'medkit',
 };
 
 type Props = {

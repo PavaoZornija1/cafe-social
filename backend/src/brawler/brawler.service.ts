@@ -910,6 +910,7 @@ export class BrawlerService {
     const durationMs = Number(def.durationMs);
     const magnitude = Number(def.magnitude);
     const effectType = String(def.effectType);
+    const isInstantHeal = effectType === 'HEAL_MAX_HP_PCT';
     if (!Number.isFinite(durationMs) || durationMs <= 0) {
       throw new BadRequestException('invalid powerup definition duration');
     }
@@ -931,12 +932,14 @@ export class BrawlerService {
       ...state,
       spawns: state.spawns.filter((s) => s.spawnId !== dto.spawnId),
       pickedSpawnIds: [...state.pickedSpawnIds, dto.spawnId],
-      buffsByParticipant: {
-        ...state.buffsByParticipant,
-        [dto.actorParticipantId]: existing
-          ? buffs.map((b) => (b.powerupId === dto.powerupId ? nextBuff : b))
-          : [...buffs, nextBuff],
-      },
+      buffsByParticipant: isInstantHeal
+        ? state.buffsByParticipant
+        : {
+            ...state.buffsByParticipant,
+            [dto.actorParticipantId]: existing
+              ? buffs.map((b) => (b.powerupId === dto.powerupId ? nextBuff : b))
+              : [...buffs, nextBuff],
+          },
     };
     state = await this.brawlerArena.writeState(state);
 

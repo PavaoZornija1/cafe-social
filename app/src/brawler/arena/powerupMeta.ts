@@ -6,6 +6,7 @@ export const POWERUP_EFFECT_COLORS: Record<BrawlerPowerupDef['effectType'], stri
   JUMP_MULT: '#22c55e',
   DASH_SPEED_MULT: '#eab308',
   DASH_COOLDOWN_MULT: '#a78bfa',
+  HEAL_MAX_HP_PCT: '#4ade80',
 };
 
 export const POWERUP_EFFECT_LABELS: Record<BrawlerPowerupDef['effectType'], string> = {
@@ -14,4 +15,5 @@ export const POWERUP_EFFECT_LABELS: Record<BrawlerPowerupDef['effectType'], stri
   JUMP_MULT: 'Jump height',
   DASH_SPEED_MULT: 'Dash speed',
   DASH_COOLDOWN_MULT: 'Dash cooldown',
+  HEAL_MAX_HP_PCT: 'Health restore',
 };

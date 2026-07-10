@@ -23,6 +23,7 @@ const EFFECT_COLORS: Record<ActiveBuff['effectType'], string> = {
   JUMP_MULT: '#22c55e',
   DASH_SPEED_MULT: '#eab308',
   DASH_COOLDOWN_MULT: '#a78bfa',
+  HEAL_MAX_HP_PCT: '#4ade80',
 };
 
 export function buildActivePowerupHudRows(
@@ -31,7 +32,7 @@ export function buildActivePowerupHudRows(
   nowMs: number,
 ): ActivePowerupHudRow[] {
   return buffs
-    .filter((b) => b.endsAtMs > nowMs)
+    .filter((b) => b.endsAtMs > nowMs && b.effectType !== 'HEAL_MAX_HP_PCT')
     .map((b) => {
       const def = defs.find((d) => d.id === b.powerupId);
       const totalMs = Math.max(1, b.endsAtMs - b.startedAtMs);

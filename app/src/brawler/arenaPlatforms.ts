@@ -43,18 +43,26 @@ const stairs = (opts: {
   { nx: 0.19, ny: 0.51, nw: 0.10, nh: 0.03 },
 ]; */
 
+/** Floating ledge anchors — nx/ny position the center; nw is nominal (art width is fixed s/m). */
 export const ARENA_FLOATING_PLATFORM_NORMALIZED: PlatformNorm[] = [
-  // Top center platform
-  bridge(0.001, 0.52, 0.26, 0.028),
-  // Side platforms (same height)
-  ledge(0.001, 0.70, 0.42, 0.03),
-  ledge(0.001, 0.70, 0.22, 0.03),
-
-  //Top left platform
-  ledge(0.001, 0.30, 0.42, 0.03),
-
-  //Top right platform
-  ledge(0.001, 0.30, 0.42, 0.03),
+  // Mid tier — center bridge (m)
+  bridge(0.37, 0.62, 0.26, 0.028),
+  bridge(0.65, 0.52, 0.26, 0.028),
+  bridge(0.1, 0.52, 0.26, 0.028),
+  bridge(0.3, 0.22, 0.4, 0.028),
+  // Low tier — left (m) and right (s)
+  ledge(0.11, 0.68, 0.42, 0.03),
+  ledge(-0.1, 0.4, 0.42, 0.03),
+  ledge(0.57, 0.68, 0.22, 0.03),
+  // High tier — left (m) and right (m)
+  ledge(0.04, 0.28, 0.42, 0.03),
+  ledge(0.59, 0.28, 0.42, 0.03),
+  // Far low wings (s)
+  ledge(0.01, 0.75, 0.22, 0.03),
+  ledge(0.75, 0.75, 0.22, 0.03),
+  // Mid flank — between high and center (s)
+  ledge(0.29, 0.40, 0.22, 0.03),
+  ledge(0.49, 0.40, 0.22, 0.03),
 ];
 
 /** Largest platform: width as fraction of arena width (centered). */
@@ -92,10 +100,21 @@ const LEDGE_NATIVE_W: Record<PlatformLedgeSize, number> = {
 };
 
 /**
- * Per floating index: which fixed ledge art to use (matches original short/wide intent).
- * 0 top center → m, 1 mid left → m, 2 mid right → s, 3 top left → m, 4 top right → m
+ * Fixed art per index (same order as ARENA_FLOATING_PLATFORM_NORMALIZED):
+ * 0 mid center → m, 1 low left → m, 2 low right → s, 3 high left → m, 4 high right → m,
+ * 5 far low left → s, 6 far low right → s, 7 mid flank left → s, 8 mid flank right → s
  */
-const FLOATING_LEDGE_SIZES: PlatformLedgeSize[] = ['m', 'm', 's', 'm', 'm'];
+const FLOATING_LEDGE_SIZES: PlatformLedgeSize[] = [
+  'm',
+  'm',
+  's',
+  'm',
+  'm',
+  's',
+  's',
+  's',
+  's',
+];
 
 /**
  * Full platform list: floating ledges locked to art width + full-width ground slab.

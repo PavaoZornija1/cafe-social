@@ -17,6 +17,7 @@ const POWERUP_EFFECT_ICONS: Record<
   JUMP_MULT: 'arrow-up',
   DASH_SPEED_MULT: 'rocket',
   DASH_COOLDOWN_MULT: 'timer',
+  HEAL_MAX_HP_PCT: 'medkit',
 };
 
 type Props = {

@@ -42,7 +42,8 @@ export type BrawlerPowerupDef = {
     | 'ATTACK_DMG_MULT'
     | 'JUMP_MULT'
     | 'DASH_SPEED_MULT'
-    | 'DASH_COOLDOWN_MULT';
+    | 'DASH_COOLDOWN_MULT'
+    | 'HEAL_MAX_HP_PCT';
   magnitude: number;
   durationMs: number;
   spawnWeight: number;

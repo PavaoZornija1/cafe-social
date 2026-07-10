@@ -23,7 +23,7 @@ import {
 import { ArenaControlTouchLayer } from './ArenaControlTouchLayer';
 import { ArenaWorldHealthBar } from './ArenaWorldHealthBar';
 import { ArenaPlatformArt } from './ArenaPlatformArt';
-import type { MatchPhaseKey } from '../combat';
+import type { ArenaAnnounce } from '../arenaAnnounces';
 import {
   ArenaGameOverOverlay,
   ArenaHeroDeadOverlay,
@@ -107,8 +107,8 @@ type Props = {
   isSpectating: boolean;
   spectatingLabel: string;
   spectatingPanHint: string;
-  phaseAnnounce: { key: MatchPhaseKey; label: string } | null;
-  onPhaseAnnounceDone: () => void;
+  arenaAnnounce: ArenaAnnounce | null;
+  onArenaAnnounceDone: () => void;
   showHeroStatsHud: boolean;
   heroStatRows: HeroStatRow[];
   onReplay: () => void;
@@ -188,8 +188,8 @@ export function ArenaWorldView({
   isSpectating,
   spectatingLabel,
   spectatingPanHint,
-  phaseAnnounce,
-  onPhaseAnnounceDone,
+  arenaAnnounce,
+  onArenaAnnounceDone,
   showHeroStatsHud,
   heroStatRows,
   onReplay,
@@ -502,12 +502,11 @@ export function ArenaWorldView({
         <ArenaPreMatchOverlay styles={styles} label={preMatchLabel} countdown={preMatchCeil} />
       ) : null}
 
-      {arenaReadyHud && phaseAnnounce && !showPreMatchOverlay ? (
+      {arenaReadyHud && arenaAnnounce && !showPreMatchOverlay ? (
         <ArenaPhaseAnnounceOverlay
           styles={styles}
-          phaseKey={phaseAnnounce.key}
-          label={phaseAnnounce.label}
-          onDone={onPhaseAnnounceDone}
+          announce={arenaAnnounce}
+          onDone={onArenaAnnounceDone}
         />
       ) : null}
 

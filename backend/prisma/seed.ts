@@ -150,7 +150,8 @@ async function seedBrawlerPowerups(client: PrismaClient) {
       | 'ATTACK_DMG_MULT'
       | 'JUMP_MULT'
       | 'DASH_SPEED_MULT'
-      | 'DASH_COOLDOWN_MULT';
+      | 'DASH_COOLDOWN_MULT'
+      | 'HEAL_MAX_HP_PCT';
     magnitude: number;
     durationMs: number;
     spawnWeight: number;
@@ -209,6 +210,17 @@ async function seedBrawlerPowerups(client: PrismaClient) {
       magnitude: 0.75,
       durationMs: 9000,
       spawnWeight: 70,
+      enabled: true,
+      version: 1,
+    },
+    {
+      id: 'health_potion',
+      displayName: 'Health Potion',
+      description: 'Restore 20% of your max health instantly.',
+      effectType: 'HEAL_MAX_HP_PCT',
+      magnitude: 0.2,
+      durationMs: 1,
+      spawnWeight: 85,
       enabled: true,
       version: 1,
     },
