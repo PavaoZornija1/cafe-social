@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { PlayerModule } from '../player/player.module';
@@ -8,7 +8,7 @@ import { VenueStaffInviteService } from './venue-staff-invite.service';
 import { OrganizationStaffGuard } from './organization-staff.guard';
 
 @Module({
-  imports: [PrismaModule, AuthModule, PlayerModule],
+  imports: [PrismaModule, AuthModule, forwardRef(() => PlayerModule)],
   providers: [
     VenueStaffService,
     VenueStaffGuard,

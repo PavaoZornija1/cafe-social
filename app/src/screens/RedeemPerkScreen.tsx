@@ -29,10 +29,11 @@ import {
   type VenueRedeemableReward,
 } from '../lib/venuePerksApi';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
-import { useDetectedVenueQuery, useVenueSession } from '../query';
+import { useDetectedVenueQuery, useStaffContext, useVenueSession } from '../query';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
+import StaffAtVenueBanner from '../components/staff/StaffAtVenueBanner';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RedeemPerk'>;
 
@@ -102,6 +103,7 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
   const detectQuery = useDetectedVenueQuery({ refetchOnScreenFocus: false });
   const routeVenueId = route.params?.venueId ?? null;
   const session = useVenueSession({ routeVenueId });
+  const staff = useStaffContext({ venueId: routeVenueId });
   const detectRef = useRef(detectQuery);
   detectRef.current = detectQuery;
 
@@ -195,6 +197,10 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
   }, [loadPerks]);
 
   const redeem = async () => {
+    if (!staff.canClaimGuestRewards) {
+      Alert.alert(t('common.error'), t('perk.staffGuestRewardsBlocked'));
+      return;
+    }
     if (!session.canDoVenueActions) {
       Alert.alert(t('common.error'), t('home.playLockedHint'));
       return;
@@ -352,6 +358,34 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
           <Text style={styles.heroSub}>{t('perk.subtitle')}</Text>
         </View>
 
+        {staff.isStaffAtVenue && resolvedVenueId && staff.roleAtVenue ? (
+          <StaffAtVenueBanner
+            colors={colors}
+            venueName={
+              staff.staffVenues?.find((row) => row.venue.id === resolvedVenueId)?.venue.name ??
+              t('perk.title')
+            }
+            role={staff.roleAtVenue}
+            canClaimGuestRewards={staff.canClaimGuestRewards}
+            onOpenStaffTools={() =>
+              navigation.navigate('StaffRedemptions', {
+                venueId: resolvedVenueId,
+                venueName:
+                  staff.staffVenues?.find((row) => row.venue.id === resolvedVenueId)?.venue.name ??
+                  '',
+              })
+            }
+            onOpenScan={() =>
+              navigation.navigate('StaffQrScan', {
+                venueId: resolvedVenueId,
+                venueName:
+                  staff.staffVenues?.find((row) => row.venue.id === resolvedVenueId)?.venue.name ??
+                  '',
+              })
+            }
+          />
+        ) : null}
+
         {lastOk ? (
           <View style={styles.successCard}>
             <View style={styles.successHeader}>
@@ -369,40 +403,47 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
           </View>
         ) : null}
 
-        <View style={styles.codeSection}>
-          <Text style={styles.sectionTitle}>{t('perk.enterCodeTitle')}</Text>
-          <View style={styles.inputRow}>
-            <Ionicons name="keypad-outline" size={20} color={colors.textMuted} />
-            <TextInput
-              style={styles.input}
-              placeholder={t('perk.codePlaceholder')}
-              placeholderTextColor={colors.textMuted}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              value={code}
-              onChangeText={setCode}
-              editable={!busy}
-            />
+        {staff.canClaimGuestRewards ? (
+          <View style={styles.codeSection}>
+            <Text style={styles.sectionTitle}>{t('perk.enterCodeTitle')}</Text>
+            <View style={styles.inputRow}>
+              <Ionicons name="keypad-outline" size={20} color={colors.textMuted} />
+              <TextInput
+                style={styles.input}
+                placeholder={t('perk.codePlaceholder')}
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                value={code}
+                onChangeText={setCode}
+                editable={!busy}
+              />
+            </View>
+            <Pressable
+              onPress={() => void redeem()}
+              style={({ pressed }) => [
+                styles.primaryBtn,
+                pressed && styles.pressed,
+                busy && styles.disabled,
+              ]}
+              disabled={busy}
+            >
+              {busy ? (
+                <ActivityIndicator color={colors.textInverse} />
+              ) : (
+                <>
+                  <Ionicons name="sparkles-outline" size={18} color={colors.textInverse} />
+                  <Text style={styles.primaryBtnText}>{t('perk.redeem')}</Text>
+                </>
+              )}
+            </Pressable>
           </View>
-          <Pressable
-            onPress={() => void redeem()}
-            style={({ pressed }) => [
-              styles.primaryBtn,
-              pressed && styles.pressed,
-              busy && styles.disabled,
-            ]}
-            disabled={busy}
-          >
-            {busy ? (
-              <ActivityIndicator color={colors.textInverse} />
-            ) : (
-              <>
-                <Ionicons name="sparkles-outline" size={18} color={colors.textInverse} />
-                <Text style={styles.primaryBtnText}>{t('perk.redeem')}</Text>
-              </>
-            )}
-          </Pressable>
-        </View>
+        ) : staff.isStaffAtVenue ? (
+          <View style={styles.staffBlockedCard}>
+            <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
+            <Text style={styles.staffBlockedText}>{t('perk.staffGuestRewardsBlocked')}</Text>
+          </View>
+        ) : null}
 
         {showInitialSpinner ? (
           <View style={styles.centerBlock}>
@@ -614,6 +655,24 @@ function createStyles(colors: AppColors) {
       padding: spacing.lg,
       marginBottom: spacing.lg,
       gap: spacing.md,
+    },
+    staffBlockedCard: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+      backgroundColor: colors.primaryMuted,
+      borderRadius: radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.primary,
+      padding: spacing.lg,
+      marginBottom: spacing.lg,
+    },
+    staffBlockedText: {
+      flex: 1,
+      color: colors.textSecondary,
+      fontSize: 13,
+      lineHeight: 19,
+      fontWeight: '600',
     },
     centerBlock: {
       paddingVertical: spacing.xl,

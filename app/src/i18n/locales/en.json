@@ -414,7 +414,16 @@
     "scanSuccessBody": "QR verified and reward marked as redeemed.",
     "refreshA11y": "Refresh redemptions",
     "prevDayA11y": "Previous day",
-    "nextDayA11y": "Next day"
+    "nextDayA11y": "Next day",
+    "atVenue": {
+      "kicker": "Staff shift",
+      "bodyCanPlay": "You can still play games here. Guest perk and offer claims are handled through staff tools.",
+      "bodyEmployeeNoGuestRewards": "While you're on staff here, guest perks and offers are disabled — use staff tools to verify guests instead.",
+      "bodyManagerNoGuestRewards": "Guest rewards are disabled for your account at this venue. Use staff tools below, or manage offers in the partner portal.",
+      "openRedemptions": "Today's redemptions",
+      "scanQr": "Scan guest QR",
+      "managerPortalHint": "Managers and owners can edit venue content in the partner portal on the web."
+    }
   },
   "home": {
     "appTitle": "Cafe Social",
@@ -1169,6 +1178,7 @@
     "redeemedByYou": "You already redeemed this offer.",
     "fullyRedeemedLabel": "Fully redeemed — ask staff for new codes.",
     "myRewards": "My redeemable rewards",
+    "staffGuestRewardsBlocked": "Guest perks and offers are disabled while you're on staff at this venue. Use staff tools to verify guests.",
     "emptyAtVenue": "No perks or rewards here yet — finish a challenge or ask staff for a code when offers go live.",
     "rewardStatus": "Status",
     "rewardExpires": "Expires"

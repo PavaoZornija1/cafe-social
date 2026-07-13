@@ -140,6 +140,11 @@ export class PlayerService {
     subscriptionActive: boolean;
     onboardingPlayerCompletedAt: string | null;
     onboardingStaffCompletedAt: string | null;
+    staffVenues: {
+      venueId: string;
+      role: 'EMPLOYEE' | 'MANAGER' | 'OWNER';
+      venueName: string;
+    }[];
   }> {
     const player = await this.findOrCreateByEmail(email);
     const { completedChallenges, venuesUnlocked } =
@@ -154,6 +159,13 @@ export class PlayerService {
       where: { playerId: player.id },
     });
     const subscriptionActive = this.computeSubscriptionRowActive(subscription);
+
+    const staffRows = await this.prisma.venueStaff.findMany({
+      where: { playerId: player.id },
+      include: { venue: { select: { id: true, name: true } } },
+      orderBy: { updatedAt: 'desc' },
+      take: 50,
+    });
 
     return {
       playerId: player.id,
@@ -174,6 +186,11 @@ export class PlayerService {
       subscriptionActive,
       onboardingPlayerCompletedAt: player.onboardingPlayerCompletedAt?.toISOString() ?? null,
       onboardingStaffCompletedAt: player.onboardingStaffCompletedAt?.toISOString() ?? null,
+      staffVenues: staffRows.map((row) => ({
+        venueId: row.venue.id,
+        role: row.role,
+        venueName: row.venue.name,
+      })),
     };
   }
 

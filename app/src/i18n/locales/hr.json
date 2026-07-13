@@ -407,7 +407,16 @@
     "lockRewardTitle": "Zaključati nagradu?",
     "lockRewardHint": "Kod je skriven dok se ne otključa.",
     "lockReasonPlaceholder": "Razlog (opcionalno)",
-    "lockReasonRequired": "Unesi razlog zaključavanja."
+    "lockReasonRequired": "Unesi razlog zaključavanja.",
+    "atVenue": {
+      "kicker": "Smjena osoblja",
+      "bodyCanPlay": "I dalje možeš igrati ovdje. Pogodnosti i ponude za goste upravljaju se alatima osoblja.",
+      "bodyEmployeeNoGuestRewards": "Dok si ovdje na smjeni, pogodnosti i ponude za goste su isključene — koristi alate osoblja za provjeru gostiju.",
+      "bodyManagerNoGuestRewards": "Nagrade za goste su isključene za tvoj račun u ovom lokalu. Koristi alate osoblja ili upravljaj ponudama u partnerskom portalu.",
+      "openRedemptions": "Današnji otkupi",
+      "scanQr": "Skeniraj QR gosta",
+      "managerPortalHint": "Menadžeri i vlasnici mogu uređivati sadržaj lokala u web partnerskom portalu."
+    }
   },
   "home": {
     "appTitle": "Cafe Social",
@@ -1093,6 +1102,7 @@
     "showToStaff": "Po potrebi pokaži ovaj ekran osoblju.",
     "staffVerificationCode": "Kôd za osoblje",
     "myRewards": "Moje iskoristive nagrade",
+    "staffGuestRewardsBlocked": "Pogodnosti i ponude za goste su isključene dok radiš u ovom lokalu. Koristi alate osoblja za provjeru gostiju.",
     "emptyAtVenue": "Još nema pogodnosti — završi izazov ili pitaj osoblje za kod kad ponude budu aktivne.",
     "rewardStatus": "Status",
     "rewardExpires": "Istječe",

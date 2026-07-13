@@ -16,6 +16,8 @@ import { VenueModerationService } from './venue-moderation.service';
 import { PlayerVenueCheckInRepository } from './player-venue-check-in.repository';
 import { ChallengeService } from '../challenge/challenge.service';
 import { ChallengeAutoProgressSource } from '@prisma/client';
+import { VenueStaffService } from '../venue-staff/venue-staff.service';
+import type { VenueStaffRole } from '@prisma/client';
 
 export type VenueAccessResult = {
   venueId: string;
@@ -40,6 +42,12 @@ export type VenueAccessResult = {
   isPhysicallyAtVenue: boolean;
   /** Recent `POST …/register` with GPS at this venue (default validity: 24h). */
   hasExplicitCheckIn: boolean;
+  /** Player's staff role at this venue, if any. */
+  staffRole: VenueStaffRole | null;
+  /** False when the player is venue staff here — guest perk/offer claims are blocked. */
+  canClaimGuestRewards: boolean;
+  /** True when the player can open in-app staff tools for this venue. */
+  canUseStaffTools: boolean;
 };
 
 @Injectable()
@@ -55,6 +63,7 @@ export class VenueAccessService {
     private readonly moderation: VenueModerationService,
     private readonly explicitCheckIns: PlayerVenueCheckInRepository,
     private readonly challenges: ChallengeService,
+    private readonly venueStaff: VenueStaffService,
   ) {}
 
   /**
@@ -187,6 +196,10 @@ export class VenueAccessService {
       this.funnel.safeLog({ venueId, playerId: player.id, kind: 'enter' });
     }
 
+    const staffRole = await this.venueStaff.getRoleAtVenue(player.id, venueId);
+    const canUseStaffTools = staffRole != null;
+    const canClaimGuestRewards = !canUseStaffTools;
+
     return {
       venueId: venue.id,
       isPremium: venue.isPremium,
@@ -199,6 +212,9 @@ export class VenueAccessService {
       requiresExplicitCheckIn,
       isPhysicallyAtVenue,
       hasExplicitCheckIn,
+      staffRole,
+      canClaimGuestRewards,
+      canUseStaffTools,
     };
   }
 }

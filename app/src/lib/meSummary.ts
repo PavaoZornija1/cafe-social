@@ -22,4 +22,9 @@ export type MeSummaryDto = {
   subscriptionActive?: boolean;
   onboardingPlayerCompletedAt?: string | null;
   onboardingStaffCompletedAt?: string | null;
+  staffVenues?: {
+    venueId: string;
+    role: 'EMPLOYEE' | 'MANAGER' | 'OWNER';
+    venueName: string;
+  }[];
 };

@@ -8,9 +8,10 @@ import { ReceiptSubmissionsEnabledGuard } from './receipt-submissions-enabled.gu
 import { VenueModule } from '../venue/venue.module';
 import { NotificationModule } from '../notification/notification.module';
 import { StaffModule } from '../staff/staff.module';
+import { VenueStaffModule } from '../venue-staff/venue-staff.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, PlayerModule, VenueModule, NotificationModule, StaffModule],
+  imports: [PrismaModule, AuthModule, PlayerModule, VenueModule, NotificationModule, StaffModule, VenueStaffModule],
   controllers: [VenueReceiptController],
   providers: [VenueReceiptService, ReceiptSubmissionsEnabledGuard],
   exports: [VenueReceiptService, ReceiptSubmissionsEnabledGuard],

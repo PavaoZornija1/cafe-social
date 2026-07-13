@@ -16,6 +16,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import LinearGradientFill from '../components/ui/LinearGradientFill';
 import ExplicitCheckInBanner from '../components/home/ExplicitCheckInBanner';
+import StaffAtVenueBanner from '../components/staff/StaffAtVenueBanner';
 import type { RootStackParamList } from '../navigation/type';
 import { venueInitial } from '../lib/geo';
 import { needsExplicitCheckInBanner } from '../lib/explicitCheckIn';
@@ -27,7 +28,7 @@ import type {
 } from '../lib/venuePerksApi';
 import { isReceiptSubmissionsEnabled } from '../lib/receiptSubmissionsFeature';
 import { isLikelyNetworkFailure } from '../lib/isNetworkError';
-import { useVenueHubQuery, useVenuePublicCardQuery, useVenueSession } from '../query';
+import { useVenueHubQuery, useVenuePublicCardQuery, useStaffContext, useVenueSession } from '../query';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
@@ -165,6 +166,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
     const cardQuery = useVenuePublicCardQuery(venueId);
     const hubQuery = useVenueHubQuery(isSignedIn ? venueId : null);
     const session = useVenueSession({ routeVenueId: venueId });
+    const staff = useStaffContext({ venueId });
     const canDoVenueActions = session.canDoVenueActions;
 
     const publicCard = (cardQuery.data as VenuePublicCard | undefined) ?? null;
@@ -335,6 +337,27 @@ export default function VenueHubScreen({ navigation, route }: Props) {
 
                 {showCheckInBanner ? (
                     <ExplicitCheckInBanner colors={colors} onScan={openQrCheckIn} />
+                ) : null}
+
+                {staff.isStaffAtVenue && staff.roleAtVenue ? (
+                    <StaffAtVenueBanner
+                        colors={colors}
+                        venueName={title}
+                        role={staff.roleAtVenue}
+                        canClaimGuestRewards={staff.canClaimGuestRewards}
+                        onOpenStaffTools={() =>
+                            navigation.navigate('StaffRedemptions', {
+                                venueId,
+                                venueName: title,
+                            })
+                        }
+                        onOpenScan={() =>
+                            navigation.navigate('StaffQrScan', {
+                                venueId,
+                                venueName: title,
+                            })
+                        }
+                    />
                 ) : null}
 
                 {venueLocked && venueLockKey ? (

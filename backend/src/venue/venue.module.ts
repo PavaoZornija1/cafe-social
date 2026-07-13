@@ -24,6 +24,7 @@ import { VenuePlayerReportController } from './venue-player-report.controller';
 import { PushModule } from '../push/push.module';
 import { NotificationModule } from '../notification/notification.module';
 import { ChallengeModule } from '../challenge/challenge.module';
+import { VenueStaffModule } from '../venue-staff/venue-staff.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { ChallengeModule } from '../challenge/challenge.module';
     PushModule,
     NotificationModule,
     forwardRef(() => ChallengeModule),
+    forwardRef(() => VenueStaffModule),
   ],
   controllers: [
     VenueController,

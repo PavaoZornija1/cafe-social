@@ -8,6 +8,7 @@ import { VenuePerkController } from './venue-perk.controller';
 import { VenuePerkService } from './venue-perk.service';
 import { PerkExpiryReminderScheduler } from './perk-expiry-reminder.scheduler';
 import { VenueModule } from '../venue/venue.module';
+import { VenueStaffModule } from '../venue-staff/venue-staff.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { VenueModule } from '../venue/venue.module';
     PlayerModule,
     AuthModule,
     VenueModule,
+    VenueStaffModule,
     PushModule,
   ],
   controllers: [VenuePerkController],

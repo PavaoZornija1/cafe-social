@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -18,6 +19,27 @@ export class VenueStaffService {
 
   static roleAtLeast(subject: VenueStaffRole, min: VenueStaffRole): boolean {
     return ROLE_RANK[subject] >= ROLE_RANK[min];
+  }
+
+  async getRoleAtVenue(
+    playerId: string,
+    venueId: string,
+  ): Promise<VenueStaffRole | null> {
+    const row = await this.findMembership(playerId, venueId);
+    return row?.role ?? null;
+  }
+
+  async isStaffAtVenue(playerId: string, venueId: string): Promise<boolean> {
+    return (await this.findMembership(playerId, venueId)) != null;
+  }
+
+  /** Staff cannot claim guest perks, offers, or challenge rewards at venues they work at. */
+  async assertCanClaimGuestRewards(playerId: string, venueId: string): Promise<void> {
+    if (await this.isStaffAtVenue(playerId, venueId)) {
+      throw new ForbiddenException(
+        'Venue staff cannot claim guest rewards at their own venue',
+      );
+    }
   }
 
   async findMembership(

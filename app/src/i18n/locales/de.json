@@ -407,7 +407,16 @@
     "lockRewardTitle": "Belohnung sperren?",
     "lockRewardHint": "Der Code ist bis zur Freigabe verborgen.",
     "lockReasonPlaceholder": "Grund (optional)",
-    "lockReasonRequired": "Gib einen Sperrgrund ein."
+    "lockReasonRequired": "Gib einen Sperrgrund ein.",
+    "atVenue": {
+      "kicker": "Schicht",
+      "bodyCanPlay": "Du kannst hier weiter spielen. Gäste-Vorteile und Angebote werden über die Personal-Tools abgewickelt.",
+      "bodyEmployeeNoGuestRewards": "Während du hier im Personal bist, sind Gäste-Vorteile und Angebote deaktiviert — nutze die Personal-Tools zur Gäste-Verifizierung.",
+      "bodyManagerNoGuestRewards": "Gäste-Belohnungen sind für dein Konto in diesem Lokal deaktiviert. Nutze die Personal-Tools oder verwalte Angebote im Partner-Portal.",
+      "openRedemptions": "Heutige Einlösungen",
+      "scanQr": "Gast-QR scannen",
+      "managerPortalHint": "Manager und Inhaber können Lokal-Inhalte im Web-Partner-Portal bearbeiten."
+    }
   },
   "home": {
     "appTitle": "Cafe Social",
@@ -1093,6 +1102,7 @@
     "showToStaff": "Diesen Bildschirm ggf. dem Personal zeigen.",
     "staffVerificationCode": "Code für Personal",
     "myRewards": "Meine einlösbaren Belohnungen",
+    "staffGuestRewardsBlocked": "Gäste-Vorteile und Angebote sind deaktiviert, solange du in diesem Lokal im Personal bist. Nutze die Personal-Tools zur Gäste-Verifizierung.",
     "emptyAtVenue": "Noch keine Perks — schließe eine Challenge ab oder frag das Team nach einem Code.",
     "rewardStatus": "Status",
     "rewardExpires": "Läuft ab",

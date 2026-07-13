@@ -18,6 +18,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import type { RootStackParamList } from '../navigation/type';
+import { staffRoleLabelKey } from '../lib/staffContext';
 import {
   addUtcDaysYmd,
   acknowledgeStaffRedemption,
@@ -248,9 +249,14 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
           >
             <Ionicons name="arrow-back" size={22} color={colors.text} />
           </Pressable>
-          <Text style={styles.title} numberOfLines={2}>
-            {title}
-          </Text>
+          <View style={styles.titleCenter}>
+            <Text style={styles.title} numberOfLines={2}>
+              {title}
+            </Text>
+            {venueRole ? (
+              <Text style={styles.roleSubtitle}>{t(staffRoleLabelKey(venueRole))}</Text>
+            ) : null}
+          </View>
           <Pressable
             onPress={handleRefresh}
             disabled={refreshing}
@@ -364,6 +370,7 @@ export default function StaffRedemptionsScreen({ navigation, route }: Props) {
       t,
       title,
       venueId,
+      venueRole,
     ],
   );
 
@@ -591,11 +598,21 @@ function createStyles(colors: AppColors) {
       flexShrink: 0,
     },
     title: {
-      flex: 1,
       color: colors.text,
       fontSize: 24,
       fontWeight: '900',
       letterSpacing: -0.4,
+    },
+    titleCenter: {
+      flex: 1,
+      gap: 2,
+    },
+    roleSubtitle: {
+      color: colors.primary,
+      fontSize: 12,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
     },
     dateRow: {
       flexDirection: 'row',

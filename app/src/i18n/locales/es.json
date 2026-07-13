@@ -407,7 +407,16 @@
     "lockRewardTitle": "¿Bloquear recompensa?",
     "lockRewardHint": "El código queda oculto hasta desbloquear.",
     "lockReasonPlaceholder": "Motivo (opcional)",
-    "lockReasonRequired": "Introduce un motivo de bloqueo."
+    "lockReasonRequired": "Introduce un motivo de bloqueo.",
+    "atVenue": {
+      "kicker": "Turno de personal",
+      "bodyCanPlay": "Aún puedes jugar aquí. Las ventajas y ofertas de invitados se gestionan con las herramientas de personal.",
+      "bodyEmployeeNoGuestRewards": "Mientras trabajas aquí, las ventajas y ofertas de invitados están desactivadas — usa las herramientas de personal para verificar a los clientes.",
+      "bodyManagerNoGuestRewards": "Las recompensas de invitados están desactivadas para tu cuenta en este local. Usa las herramientas de personal o gestiona ofertas en el portal de socios.",
+      "openRedemptions": "Canjes de hoy",
+      "scanQr": "Escanear QR de cliente",
+      "managerPortalHint": "Gerentes y propietarios pueden editar el contenido del local en el portal web de socios."
+    }
   },
   "home": {
     "appTitle": "Cafe Social",
@@ -1093,6 +1102,7 @@
     "showToStaff": "Muestra esta pantalla al personal si hace falta.",
     "staffVerificationCode": "Código para el personal",
     "myRewards": "Mis recompensas canjeables",
+    "staffGuestRewardsBlocked": "Las ventajas y ofertas de invitados están desactivadas mientras trabajas en este local. Usa las herramientas de personal para verificar a los clientes.",
     "emptyAtVenue": "Aún no hay perks — completa un reto o pide un código al personal.",
     "rewardStatus": "Estado",
     "rewardExpires": "Expira",

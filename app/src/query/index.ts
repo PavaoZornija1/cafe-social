@@ -12,3 +12,4 @@ export { useVenueHubQuery } from './hooks/useVenueHubQuery';
 export { useSocialFriendsQuery } from './hooks/useSocialFriendsQuery';
 export { usePlatformQuestHubQuery } from './hooks/usePlatformQuestHubQuery';
 export { useStaffVenuesQuery } from './hooks/useStaffVenuesQuery';
+export { useStaffContext } from './hooks/useStaffContext';

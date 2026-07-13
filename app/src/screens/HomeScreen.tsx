@@ -10,11 +10,12 @@ import HomeHeroCard from '../components/home/HomeHeroCard';
 import HomeRewardsSection from '../components/home/HomeRewardsSection';
 import HomeVenueDailyWordChip from '../components/home/HomeVenueDailyWordChip';
 import HomeVenueStrip from '../components/home/HomeVenueStrip';
+import StaffAtVenueBanner from '../components/staff/StaffAtVenueBanner';
 import type { FriendAtVenueRow, HomePublicOffer } from '../components/home/types';
 import { apiGet, apiPost } from '../lib/api';
 import { emitPlatformQuestProgressChanged } from '../lib/platformQuestEvents';
 import { isLikelyNetworkFailure } from '../lib/isNetworkError';
-import { useMeSummaryQuery, useVenueOffersQuery, useVenueSession } from '../query';
+import { useMeSummaryQuery, useStaffContext, useVenueOffersQuery, useVenueSession } from '../query';
 import type { TabScreenProps } from '../navigation/screenProps';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
@@ -84,6 +85,7 @@ export default function HomeScreen({ navigation }: Props) {
         )?.trim() ?? t('home.guestName');
 
     const session = useVenueSession();
+    const staff = useStaffContext();
     const meQuery = useMeSummaryQuery();
     const meSummary = meQuery.data ?? null;
     const loadingSummary = meQuery.isLoading;
@@ -331,6 +333,11 @@ export default function HomeScreen({ navigation }: Props) {
                 return;
             }
 
+            if (!staff.canClaimGuestRewards) {
+                Alert.alert(t('common.error'), t('perk.staffGuestRewardsBlocked'));
+                return;
+            }
+
             if (!canDoVenueActions) {
                 Alert.alert(t('home.playLockedHint'));
                 return;
@@ -364,7 +371,7 @@ export default function HomeScreen({ navigation }: Props) {
                 setClaimingOfferId(null);
             }
         },
-        [canDoVenueActions, detectedVenue, detectCoords, offersQuery, navigation, t],
+        [canDoVenueActions, detectedVenue, detectCoords, offersQuery, navigation, staff.canClaimGuestRewards, t],
     );
 
     return (
@@ -399,6 +406,27 @@ export default function HomeScreen({ navigation }: Props) {
 
                 {showCheckInBanner ? (
                     <ExplicitCheckInBanner colors={colors} onScan={openQrCheckIn} />
+                ) : null}
+
+                {staff.isStaffAtVenue && detectedVenue && staff.roleAtVenue ? (
+                    <StaffAtVenueBanner
+                        colors={colors}
+                        venueName={detectedVenue.name}
+                        role={staff.roleAtVenue}
+                        canClaimGuestRewards={staff.canClaimGuestRewards}
+                        onOpenStaffTools={() =>
+                            navigation.navigate('StaffRedemptions', {
+                                venueId: detectedVenue.id,
+                                venueName: detectedVenue.name,
+                            })
+                        }
+                        onOpenScan={() =>
+                            navigation.navigate('StaffQrScan', {
+                                venueId: detectedVenue.id,
+                                venueName: detectedVenue.name,
+                            })
+                        }
+                    />
                 ) : null}
 
                 {venueDailyWord && detectedVenue ? (

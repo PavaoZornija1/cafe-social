@@ -7,6 +7,7 @@ import {
 import { VenueOfferFulfillment } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { VenueService } from './venue.service';
+import { VenueStaffService } from '../venue-staff/venue-staff.service';
 import {
   isGloballyExhausted,
   isOfferLiveForPublic,
@@ -29,6 +30,7 @@ export class VenueOfferService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly venues: VenueService,
+    private readonly venueStaff: VenueStaffService,
   ) {}
 
   async listPublicForVenue(venueId: string): Promise<{
@@ -79,6 +81,7 @@ export class VenueOfferService {
       params.latitude!,
       params.longitude!,
     );
+    await this.venueStaff.assertCanClaimGuestRewards(params.playerId, params.venueId);
 
     const now = new Date();
 
@@ -221,6 +224,9 @@ export class VenueOfferService {
         title: row.offer.title,
         alreadyFulfilled: true,
       };
+    }
+    if (row.playerId === params.staffPlayerId) {
+      throw new BadRequestException('You cannot fulfil your own offer claim');
     }
 
     const updated = await this.prisma.venueOfferRedemption.update({

@@ -27,7 +27,7 @@ import { LANGUAGE_OPTIONS, type AppLanguage, setAppLanguage } from '../i18n';
 import { useQueryClient } from '@tanstack/react-query';
 import { apiDelete, apiGet, apiPatch } from '../lib/api';
 import type { MeSummaryDto } from '../lib/meSummary';
-import { invalidateMeSummary, useMeSummaryQuery } from '../query';
+import { invalidateMeSummary, useMeSummaryQuery, useStaffVenuesQuery } from '../query';
 import {
   getFeedbackPrefs,
   loadFeedbackPrefs,
@@ -42,7 +42,6 @@ import { getActiveRouteName } from '../navigation/getActiveRouteName';
 import { revokeBackgroundApiToken } from '../lib/backgroundTokenSync';
 import { unregisterExpoPushTokenFromBackend } from '../lib/expoPush';
 import { createAndShareFriendInviteLink } from '../lib/friendInviteShare';
-import { fetchOwnerVenues } from '../lib/ownerStaffApi';
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../lib/legalUrls';
 import {
   getPreferredPackageOrder,
@@ -85,6 +84,8 @@ export default function SettingsScreen({ navigation }: Props) {
   getTokenRef.current = getToken;
   const queryClient = useQueryClient();
   const meQuery = useMeSummaryQuery({ refetchOnScreenFocus: false });
+  const staffVenuesQuery = useStaffVenuesQuery();
+  const hasStaffVenues = (staffVenuesQuery.data?.length ?? 0) > 0;
   const [busy, setBusy] = useState(false);
   const privacyPending = !meQuery.data && meQuery.isPending;
   const [discoverable, setDiscoverable] = useState(true);
@@ -110,7 +111,6 @@ export default function SettingsScreen({ navigation }: Props) {
   const [backgroundMusicEnabled, setBackgroundMusicEnabled] = useState(
     () => getFeedbackPrefs().backgroundMusicEnabled,
   );
-  const [hasStaffVenues, setHasStaffVenues] = useState(false);
   const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '—';
   const rcNative = isRevenueCatNativeConfigured();
   const packageOrder = getPreferredPackageOrder();
@@ -221,21 +221,8 @@ export default function SettingsScreen({ navigation }: Props) {
     useCallback(() => {
       void meQuery.refetch();
       void refreshLocationPerms();
-      void (async () => {
-        if (!isLoaded) return;
-        try {
-          const token = await getTokenRef.current();
-          if (!token) {
-            setHasStaffVenues(false);
-            return;
-          }
-          const data = await fetchOwnerVenues(token);
-          setHasStaffVenues(data.venues.length > 0);
-        } catch {
-          setHasStaffVenues(false);
-        }
-      })();
-    }, [isLoaded, meQuery, refreshLocationPerms]),
+      void staffVenuesQuery.refetch();
+    }, [meQuery, refreshLocationPerms, staffVenuesQuery]),
   );
 
   const locationStatusKey = (() => {

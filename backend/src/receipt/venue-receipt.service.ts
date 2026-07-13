@@ -9,6 +9,8 @@ import { VenueService } from '../venue/venue.service';
 import { PlayerNotificationService } from '../notification/player-notification.service';
 import { VenueStaffNotificationService } from '../notification/venue-staff-notification.service';
 import { OwnerRedemptionActionsService } from '../owner/owner-redemption-actions.service';
+import { VenueStaffService } from '../venue-staff/venue-staff.service';
+import { VenueStaffService } from '../venue-staff/venue-staff.service';
 
 const MAX_IMAGE_BYTES = 2_500_000;
 
@@ -24,6 +26,7 @@ export class VenueReceiptService {
     private readonly playerNotify: PlayerNotificationService,
     private readonly staffNotify: VenueStaffNotificationService,
     private readonly redemptionActions: OwnerRedemptionActionsService,
+    private readonly venueStaff: VenueStaffService,
   ) {}
 
   async submit(params: {
@@ -49,6 +52,7 @@ export class VenueReceiptService {
       params.latitude!,
       params.longitude!,
     );
+    await this.venueStaff.assertCanClaimGuestRewards(params.playerId, params.venueId);
 
     const raw = params.imageData.trim();
     if (!raw) throw new BadRequestException('imageData is required');

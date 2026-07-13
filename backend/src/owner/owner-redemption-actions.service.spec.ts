@@ -30,6 +30,24 @@ describe('OwnerRedemptionActionsService', () => {
     service = moduleRef.get(OwnerRedemptionActionsService);
   });
 
+  it('blocks self-acknowledge', async () => {
+    prisma.venuePerkRedemption.findFirst.mockResolvedValue({
+      id: 'r1',
+      playerId: 'guest-1',
+      status: 'REDEEMABLE',
+      voidedAt: null,
+      expiresAt: new Date(Date.now() + 60_000),
+      redeemedAt: null,
+    });
+    await expect(
+      service.acknowledge({
+        venueId: 'v1',
+        redemptionId: 'r1',
+        staffPlayerId: 'guest-1',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it('blocks acknowledge when status is LOCKED', async () => {
     prisma.venuePerkRedemption.findFirst.mockResolvedValue({
       id: 'r1',

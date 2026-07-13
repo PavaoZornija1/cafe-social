@@ -39,6 +39,9 @@ export class OwnerRedemptionActionsService {
     if (row.status === 'REDEEMED' || row.redeemedAt) {
       throw new BadRequestException('Already redeemed');
     }
+    if (row.playerId === params.staffPlayerId) {
+      throw new BadRequestException('You cannot verify your own reward');
+    }
     return this.prisma.venuePerkRedemption.update({
       where: { id: row.id },
       data: {

@@ -3,12 +3,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { VenueModerationService } from '../venue/venue-moderation.service';
 import { VenueFunnelService } from '../venue/venue-funnel.service';
 import { PlayerNotificationService } from '../notification/player-notification.service';
+import { VenueStaffService } from '../venue-staff/venue-staff.service';
 
 export type ChallengePerkGrantResult =
   | { ok: true; redemptionId: string; grantId: string }
   | {
       ok: false;
-      reason: 'already_issued' | 'not_found' | 'perk_inactive' | 'sold_out' | 'requires_membership';
+      reason: 'already_issued' | 'not_found' | 'perk_inactive' | 'sold_out' | 'requires_membership' | 'staff_at_venue';
     };
 
 export type AutomatedPerkGrantSource = 'CHALLENGE' | 'PLATFORM_QUEST' | 'TIER';
@@ -20,6 +21,7 @@ export class PlayerRewardGrantService {
     private readonly moderation: VenueModerationService,
     private readonly funnel: VenueFunnelService,
     private readonly playerNotify: PlayerNotificationService,
+    private readonly venueStaff: VenueStaffService,
   ) {}
 
   challengePerkIdempotencyKey(params: {
@@ -68,6 +70,9 @@ export class PlayerRewardGrantService {
     }
 
     await this.moderation.assertNotBanned(venueId, playerId);
+    if (await this.venueStaff.isStaffAtVenue(playerId, venueId)) {
+      return { ok: false, reason: 'staff_at_venue' };
+    }
 
     const perk = await this.prisma.venuePerk.findFirst({
       where: { id: perkId, venueId },
@@ -204,6 +209,9 @@ export class PlayerRewardGrantService {
 
     const venueId = perk.venueId;
     await this.moderation.assertNotBanned(venueId, playerId);
+    if (await this.venueStaff.isStaffAtVenue(playerId, venueId)) {
+      return { ok: false, reason: 'staff_at_venue' };
+    }
 
     const now = new Date();
     if (perk.activeFrom && now < perk.activeFrom) return { ok: false, reason: 'perk_inactive' };

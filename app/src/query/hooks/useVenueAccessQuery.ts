@@ -15,6 +15,9 @@ export type VenueAccessDto = ExplicitCheckInAccess & {
   subscriptionActive?: boolean;
   locked?: boolean;
   lockReason?: string | null;
+  staffRole?: 'EMPLOYEE' | 'MANAGER' | 'OWNER' | null;
+  canClaimGuestRewards?: boolean;
+  canUseStaffTools?: boolean;
 };
 
 export function useVenueAccessQuery(

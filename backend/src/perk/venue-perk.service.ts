@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { VenueService } from '../venue/venue.service';
 import { VenueModerationService } from '../venue/venue-moderation.service';
 import { VenueFunnelService } from '../venue/venue-funnel.service';
+import { VenueStaffService } from '../venue-staff/venue-staff.service';
 import { staffVerificationCodeFromRedemptionId } from '../lib/redemption-staff-code';
 import { buildStaffRewardQrPayload } from '../lib/reward-claim-qr';
 
@@ -42,6 +43,7 @@ export class VenuePerkService {
     private readonly venues: VenueService,
     private readonly moderation: VenueModerationService,
     private readonly funnel: VenueFunnelService,
+    private readonly venueStaff: VenueStaffService,
   ) {}
 
   /** Active perks for a venue (no secret codes). Used by the guest app. */
@@ -157,6 +159,7 @@ export class VenuePerkService {
     );
 
     await this.moderation.assertNotBanned(params.venueId, params.playerId);
+    await this.venueStaff.assertCanClaimGuestRewards(params.playerId, params.venueId);
 
     const perk = await this.prisma.venuePerk.findFirst({
       where: { code, venueId: params.venueId },
