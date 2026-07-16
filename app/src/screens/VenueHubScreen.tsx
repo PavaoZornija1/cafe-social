@@ -339,7 +339,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                     <ExplicitCheckInBanner colors={colors} onScan={openQrCheckIn} />
                 ) : null}
 
-                {staff.isStaffAtVenue && staff.roleAtVenue ? (
+                {staff.canUseStaffTools && staff.roleAtVenue ? (
                     <StaffAtVenueBanner
                         colors={colors}
                         venueName={title}
@@ -645,6 +645,9 @@ export default function VenueHubScreen({ navigation, route }: Props) {
 
                         <View style={styles.card}>
                             <Text style={styles.cardTitle}>{t('venueHub.myRewardsHereTitle')}</Text>
+                            {!staff.canClaimGuestRewards ? (
+                                <Text style={styles.muted}>{t('perk.staffGuestRewardsBlocked')}</Text>
+                            ) : null}
                             {refreshingSocial && myVenueRewards.length === 0 ? (
                                 <ActivityIndicator color={colors.honey} style={{ marginTop: 8 }} />
                             ) : myVenueRewards.filter(
@@ -660,7 +663,12 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                                             r.status === 'REDEEMABLE' || r.status === 'LOCKED',
                                         )
                                         .slice(0, 4)
-                                        .map((r) => (
+                                        .map((r) => {
+                                            const canSubmitReceipt =
+                                                staff.canClaimGuestRewards &&
+                                                receiptsEnabled &&
+                                                r.status === 'REDEEMABLE';
+                                            return (
                                             <View key={r.redemptionId} style={styles.rewardRow}>
                                                 <View style={styles.rewardMain}>
                                                     <Text style={styles.hubChallengeTitle} numberOfLines={2}>
@@ -678,7 +686,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                                                         pressed && styles.ctaPressed,
                                                     ]}
                                                     onPress={() =>
-                                                        receiptsEnabled && r.status === 'REDEEMABLE'
+                                                        canSubmitReceipt
                                                           ? navigation.navigate('SubmitReceipt', {
                                                                 venueId,
                                                                 redemptionId: r.redemptionId,
@@ -687,13 +695,14 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                                                     }
                                                 >
                                                     <Text style={styles.redeemMiniBtnText}>
-                                                        {receiptsEnabled && r.status === 'REDEEMABLE'
+                                                        {canSubmitReceipt
                                                           ? t('perkWallet.submitReceiptToUnlock')
                                                           : t('venueHub.perkWalletCta')}
                                                     </Text>
                                                 </Pressable>
                                             </View>
-                                        ))}
+                                            );
+                                        })}
                                     </View>
                                     <Pressable
                                         style={({ pressed }) => [styles.link, styles.linkSpaced, pressed && styles.ctaPressed]}
@@ -703,7 +712,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                                             {t('venueHub.myRewardsSeeCrossVenue')}
                                         </Text>
                                     </Pressable>
-                                    {receiptsEnabled ? (
+                                    {receiptsEnabled && staff.canClaimGuestRewards ? (
                                     <Pressable
                                         style={({ pressed }) => [styles.link, styles.linkSpaced, pressed && styles.ctaPressed]}
                                         onPress={() => navigation.navigate('SubmitReceipt', { venueId })}

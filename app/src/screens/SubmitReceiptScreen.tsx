@@ -19,6 +19,7 @@ import type { RootStackParamList } from '../navigation/type';
 import { apiPost } from '../lib/api';
 import { isReceiptSubmissionsEnabled } from '../lib/receiptSubmissionsFeature';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
+import { useStaffContext } from '../query';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 
@@ -30,6 +31,7 @@ export default function SubmitReceiptScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const receiptsEnabled = isReceiptSubmissionsEnabled();
   const { venueId, redemptionId: routeRedemptionId } = route.params;
+  const staff = useStaffContext({ venueId });
   const { getToken, isLoaded } = useAuth();
   const [note, setNote] = useState('');
   const [previewUri, setPreviewUri] = useState<string | null>(null);
@@ -38,10 +40,22 @@ export default function SubmitReceiptScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (!receiptsEnabled) {
       navigation.goBack();
+      return;
     }
-  }, [navigation, receiptsEnabled]);
+    if (!staff.isLoading && !staff.canClaimGuestRewards) {
+      Alert.alert(t('common.error'), t('perk.staffGuestRewardsBlocked'), [
+        { text: t('common.ok'), onPress: () => navigation.goBack() },
+      ]);
+    }
+  }, [
+    navigation,
+    receiptsEnabled,
+    staff.canClaimGuestRewards,
+    staff.isLoading,
+    t,
+  ]);
 
-  if (!receiptsEnabled) {
+  if (!receiptsEnabled || (!staff.isLoading && !staff.canClaimGuestRewards)) {
     return null;
   }
 

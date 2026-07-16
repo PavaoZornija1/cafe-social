@@ -197,6 +197,7 @@
     "staffTitle": "Venue-Personal",
     "staffHint": "Codes prüfen, wenn du im Partner-CMS als EMPLOYEE, MANAGER oder OWNER eingetragen bist.",
     "staffOpen": "Personalmodus — Einlösungen & QR",
+    "staffPartnerPortal": "Partnerportal öffnen (Web)",
     "subscription": "Abo",
     "subscriptionHint": "Mitglieder schalten Heimspiel und Extras bei ausgewählten Premium-Partnern frei. Der Status hier ist das, was nach Store- und RevenueCat-Sync auf unseren Servern liegt.",
     "subscriptionBenefitsTitle": "Was Mitglieder bekommen",
@@ -367,6 +368,7 @@
     "emptyTitle": "Noch keine Venues",
     "infoRedemptions": "Perk-Einlösungen für den gewählten UTC-Tag ansehen und verifizieren.",
     "infoScan": "Mitglieder-QR und Personal-Verifizierungscodes vor Ort scannen.",
+    "openPartnerPortal": "Partnerportal öffnen",
     "roleOwner": "Inhaber",
     "roleManager": "Manager",
     "roleEmployee": "Personal",
@@ -556,6 +558,7 @@
       "pickOfDay": "Tipp des Tages",
       "rewardAtPartner": "In jedem Partner-Café",
       "availableNow": "Jetzt verfügbar",
+      "offerStaffMode": "Personalmodus",
       "redeemCta": "Einlösen →"
     }
   },
@@ -735,6 +738,8 @@
     "soon": "bald",
     "requiresWin": "Nur Siege zählen für diese Challenge.",
     "completedCta": "Abgeschlossen",
+    "staffRewardsBlocked": "Du bist hier im Personal — Fortschritt zählt weiter fürs Spielen, aber Gäste-Belohnungen werden Personal-Konten hier nicht gewährt.",
+    "staffRewardNote": "Für Personal in diesem Lokal nicht verfügbar",
     "updating": "Aktualisiere…",
     "loadError": "Challenges konnten nicht geladen werden",
     "weekly": "Wöchentliche Challenge — Fortschritt setzt sich jede ISO-Woche (UTC) zurück.",

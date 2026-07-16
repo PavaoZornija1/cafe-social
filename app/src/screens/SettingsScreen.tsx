@@ -28,6 +28,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { apiDelete, apiGet, apiPatch } from '../lib/api';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { invalidateMeSummary, useMeSummaryQuery, useStaffVenuesQuery } from '../query';
+import { getPartnerPortalUrl } from '../lib/partnerPortalUrl';
+import { isManagerPlusRole } from '../lib/staffContext';
 import {
   getFeedbackPrefs,
   loadFeedbackPrefs,
@@ -86,6 +88,10 @@ export default function SettingsScreen({ navigation }: Props) {
   const meQuery = useMeSummaryQuery({ refetchOnScreenFocus: false });
   const staffVenuesQuery = useStaffVenuesQuery();
   const hasStaffVenues = (staffVenuesQuery.data?.length ?? 0) > 0;
+  const hasManagerPlusRole = (staffVenuesQuery.data ?? []).some((row) =>
+    isManagerPlusRole(row.role),
+  );
+  const partnerPortalUrl = getPartnerPortalUrl('/owner');
   const [busy, setBusy] = useState(false);
   const privacyPending = !meQuery.data && meQuery.isPending;
   const [discoverable, setDiscoverable] = useState(true);
@@ -844,6 +850,13 @@ export default function SettingsScreen({ navigation }: Props) {
                 label={t('settings.staffOpen')}
                 onPress={() => navigation.navigate('StaffVenues')}
               />
+              {hasManagerPlusRole && partnerPortalUrl ? (
+                <SettingsNavRow
+                  colors={colors}
+                  label={t('settings.staffPartnerPortal')}
+                  onPress={() => void Linking.openURL(partnerPortalUrl)}
+                />
+              ) : null}
             </View>
           </>
         ) : null}

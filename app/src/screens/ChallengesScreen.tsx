@@ -23,7 +23,7 @@ import {
   venueLockMessageKey,
   type VenueLockFields,
 } from '../lib/venueLock';
-import { useVenueSession } from '../query';
+import { useStaffContext, useVenueSession } from '../query';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
@@ -100,6 +100,7 @@ export default function ChallengesScreen({ navigation, route }: Props) {
   const routeVenueId = route.params?.venueId;
   const routeVenueName = route.params?.venueName;
   const session = useVenueSession({ routeVenueId });
+  const staff = useStaffContext({ venueId: routeVenueId });
   const sessionRef = useRef(session);
   sessionRef.current = session;
 
@@ -317,6 +318,13 @@ export default function ChallengesScreen({ navigation, route }: Props) {
           <Text style={styles.heroSub}>{heroSubtitle}</Text>
         </View>
 
+        {!staff.canClaimGuestRewards ? (
+          <View style={styles.staffNotice}>
+            <Ionicons name="information-circle-outline" size={18} color={colors.primary} />
+            <Text style={styles.staffNoticeText}>{t('challenges.staffRewardsBlocked')}</Text>
+          </View>
+        ) : null}
+
         {error ? <Text style={styles.errorBanner}>{error}</Text> : null}
 
         {showInitialSpinner ? (
@@ -462,6 +470,9 @@ export default function ChallengesScreen({ navigation, route }: Props) {
                     <Ionicons name="gift-outline" size={14} color={colors.xp} />
                     <Text style={styles.cardReward}>
                       {t('challenges.rewardLine', { title: c.rewardTitle })}
+                      {!staff.canClaimGuestRewards
+                        ? ` · ${t('challenges.staffRewardNote')}`
+                        : ''}
                     </Text>
                   </View>
                 ) : null}
@@ -507,7 +518,8 @@ export default function ChallengesScreen({ navigation, route }: Props) {
                   </Pressable>
                 ) : c.isCompleted &&
                   c.rewardRedemptionStatus === 'REDEEMABLE' &&
-                  session.canDoVenueActions ? (
+                  session.canDoVenueActions &&
+                  staff.canClaimGuestRewards ? (
                   <Pressable
                     onPress={() => navigation.navigate('PerkWallet')}
                     style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
@@ -519,7 +531,9 @@ export default function ChallengesScreen({ navigation, route }: Props) {
                     <Text style={[styles.actionText, styles.actionTextDone]}>
                       {c.rewardRedemptionStatus === 'REDEEMED'
                         ? t('challenges.rewardRedeemed')
-                        : t('challenges.completedCta')}
+                        : !staff.canClaimGuestRewards && c.rewardPerkId
+                          ? t('challenges.staffRewardNote')
+                          : t('challenges.completedCta')}
                     </Text>
                   </View>
                 ) : null}
@@ -592,6 +606,24 @@ function createStyles(colors: AppColors) {
       fontSize: 14,
       fontWeight: '600',
       lineHeight: 20,
+    },
+    staffNotice: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+      backgroundColor: colors.primaryMuted,
+      borderRadius: radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.primary,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+    },
+    staffNoticeText: {
+      flex: 1,
+      color: colors.textSecondary,
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: '600',
     },
     errorBanner: {
       color: colors.error,

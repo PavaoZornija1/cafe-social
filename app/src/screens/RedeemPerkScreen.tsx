@@ -358,7 +358,7 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
           <Text style={styles.heroSub}>{t('perk.subtitle')}</Text>
         </View>
 
-        {staff.isStaffAtVenue && resolvedVenueId && staff.roleAtVenue ? (
+        {staff.canUseStaffTools && resolvedVenueId && staff.roleAtVenue ? (
           <StaffAtVenueBanner
             colors={colors}
             venueName={

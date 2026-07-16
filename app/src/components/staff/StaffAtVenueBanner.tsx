@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import type { VenueStaffRole } from '../../lib/staffContext';
 import { isManagerPlusRole, staffRoleLabelKey } from '../../lib/staffContext';
+import { getPartnerPortalUrl } from '../../lib/partnerPortalUrl';
 import type { AppColors } from '../../theme/colors';
 import { radii, spacing } from '../../theme/tokens';
 
@@ -28,6 +29,7 @@ export default function StaffAtVenueBanner({
   const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const managerPlus = isManagerPlusRole(role);
+  const portalUrl = managerPlus ? getPartnerPortalUrl('/owner') : '';
 
   return (
     <View style={styles.card}>
@@ -77,9 +79,19 @@ export default function StaffAtVenueBanner({
             <Text style={styles.secondaryBtnText}>{t('staff.atVenue.scanQr')}</Text>
           </Pressable>
         ) : null}
+        {portalUrl ? (
+          <Pressable
+            onPress={() => void Linking.openURL(portalUrl)}
+            style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
+            accessibilityRole="link"
+          >
+            <Ionicons name="open-outline" size={16} color={colors.primary} />
+            <Text style={styles.secondaryBtnText}>{t('staff.openPartnerPortal')}</Text>
+          </Pressable>
+        ) : null}
       </View>
 
-      {managerPlus ? (
+      {managerPlus && !portalUrl ? (
         <Text style={styles.managerHint}>{t('staff.atVenue.managerPortalHint')}</Text>
       ) : null}
     </View>

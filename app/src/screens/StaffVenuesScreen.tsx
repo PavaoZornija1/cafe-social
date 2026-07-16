@@ -4,6 +4,7 @@ import { useAuth } from '@clerk/expo';
 import React, { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -16,7 +17,10 @@ import type { TFunction } from 'i18next';
 
 import ScreenHeader from '../components/ScreenHeader';
 import LinearGradientFill from '../components/ui/LinearGradientFill';
+import { StaffAccessGate } from '../components/staff/StaffAccessGate';
 import type { OwnerVenueRow } from '../lib/ownerStaffApi';
+import { getPartnerPortalUrl } from '../lib/partnerPortalUrl';
+import { isManagerPlusRole } from '../lib/staffContext';
 import type { RootStackParamList } from '../navigation/type';
 import { useStaffVenuesQuery } from '../query';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -73,6 +77,18 @@ function roleChipStyle(role: OwnerVenueRow['role'], colors: AppColors) {
 }
 
 export default function StaffVenuesScreen({ navigation }: Props) {
+  return (
+    <StaffAccessGate>
+      <StaffVenuesBody navigation={navigation} />
+    </StaffAccessGate>
+  );
+}
+
+function StaffVenuesBody({
+  navigation,
+}: {
+  navigation: Props['navigation'];
+}) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
@@ -87,6 +103,9 @@ export default function StaffVenuesScreen({ navigation }: Props) {
       : !staffQuery.isLoading && !staffQuery.isFetching && !staffQuery.data
         ? t('staff.signInFirst')
         : null;
+
+  const hasManagerPlus = rows.some((row) => isManagerPlusRole(row.role));
+  const portalUrl = getPartnerPortalUrl('/owner');
 
   const load = useCallback(async () => {
     await staffQuery.refetch();
@@ -143,6 +162,17 @@ export default function StaffVenuesScreen({ navigation }: Props) {
             <Text style={styles.infoText}>{t('staff.infoScan')}</Text>
           </View>
         </View>
+
+        {hasManagerPlus && portalUrl ? (
+          <Pressable
+            style={({ pressed }) => [styles.portalBtn, pressed && styles.pressed]}
+            onPress={() => void Linking.openURL(portalUrl)}
+            accessibilityRole="link"
+          >
+            <Ionicons name="open-outline" size={16} color={colors.primary} />
+            <Text style={styles.portalBtnText}>{t('staff.openPartnerPortal')}</Text>
+          </Pressable>
+        ) : null}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t('staff.yourVenues')}</Text>
@@ -279,6 +309,23 @@ function createStyles(colors: AppColors) {
       backgroundColor: colors.surface,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
+    },
+    portalBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      marginBottom: spacing.lg,
+      paddingVertical: spacing.md,
+      borderRadius: radii.lg,
+      backgroundColor: colors.primaryMuted,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.primary,
+    },
+    portalBtnText: {
+      color: colors.primary,
+      fontWeight: '800',
+      fontSize: 14,
     },
     infoRow: {
       flexDirection: 'row',

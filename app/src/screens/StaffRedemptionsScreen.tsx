@@ -17,11 +17,12 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { StaffAccessGate } from '../components/staff/StaffAccessGate';
 import type { RootStackParamList } from '../navigation/type';
 import { staffRoleLabelKey } from '../lib/staffContext';
 import {
-  addUtcDaysYmd,
   acknowledgeStaffRedemption,
+  addUtcDaysYmd,
   fetchOwnerVenues,
   fetchStaffModerationSummary,
   fetchStaffRedemptions,
@@ -40,7 +41,15 @@ import { radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'StaffRedemptions'>;
 
-export default function StaffRedemptionsScreen({ navigation, route }: Props) {
+export default function StaffRedemptionsScreen(props: Props) {
+  return (
+    <StaffAccessGate>
+      <StaffRedemptionsBody {...props} />
+    </StaffAccessGate>
+  );
+}
+
+function StaffRedemptionsBody({ navigation, route }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();

@@ -20,6 +20,8 @@ type Props = {
   lifetimeXp: number | null;
   offers: HomePublicOffer[];
   claimingOfferId?: string | null;
+  /** When false, guest claim CTAs are muted (staff at own venue). */
+  guestClaimsEnabled?: boolean;
   onSeeAll: () => void;
   onOfferPress: (offer: HomePublicOffer) => void;
   onBrowseVenues?: () => void;
@@ -30,6 +32,7 @@ const PLACEHOLDER_EMOJI = ['☕', '🥐', '🧁', '🍵'];
 function offerCtaLabel(
   offer: HomePublicOffer,
   t: (k: string, o?: Record<string, unknown>) => string,
+  guestClaimsEnabled: boolean,
 ): string {
   if (offer.fulfillment === 'AUTO') {
     return offer.autoXpMultiplier && offer.autoXpMultiplier > 1
@@ -39,6 +42,7 @@ function offerCtaLabel(
   if (offer.claimStatus === 'FULFILLED') return t('home.dashboard.offerFulfilled');
   if (offer.claimStatus === 'PENDING') return t('home.dashboard.offerShowMemberCard');
   if (offer.globallyExhausted) return t('home.dashboard.offerExhausted');
+  if (!guestClaimsEnabled) return t('home.dashboard.offerStaffMode');
   return t('home.dashboard.offerClaimCta');
 }
 
@@ -47,6 +51,7 @@ export default function HomeRewardsSection({
   lifetimeXp,
   offers,
   claimingOfferId,
+  guestClaimsEnabled = true,
   onSeeAll,
   onOfferPress,
   onBrowseVenues,
@@ -99,10 +104,16 @@ export default function HomeRewardsSection({
           {offers.map((offer, index) => {
             const isAuto = offer.fulfillment === 'AUTO';
             const busy = claimingOfferId === offer.id;
+            const claimBlocked =
+              !guestClaimsEnabled &&
+              !isAuto &&
+              offer.claimStatus !== 'PENDING' &&
+              offer.claimStatus !== 'FULFILLED';
             const disabled =
               busy ||
               offer.globallyExhausted ||
               offer.claimStatus === 'FULFILLED' ||
+              claimBlocked ||
               (isAuto && !offer.body);
 
             return (
@@ -113,7 +124,9 @@ export default function HomeRewardsSection({
                 style={({ pressed }) => [
                   styles.rewardCard,
                   pressed && !disabled && styles.pressed,
-                  (offer.claimStatus === 'FULFILLED' || offer.globallyExhausted) &&
+                  (offer.claimStatus === 'FULFILLED' ||
+                    offer.globallyExhausted ||
+                    claimBlocked) &&
                     styles.rewardCardMuted,
                 ]}
                 accessibilityRole="button"
@@ -160,11 +173,13 @@ export default function HomeRewardsSection({
                     <Text
                       style={[
                         styles.redeemText,
-                        (offer.claimStatus === 'FULFILLED' || offer.globallyExhausted) &&
+                        (offer.claimStatus === 'FULFILLED' ||
+                          offer.globallyExhausted ||
+                          claimBlocked) &&
                           styles.redeemTextMuted,
                       ]}
                     >
-                      {offerCtaLabel(offer, t)}
+                      {offerCtaLabel(offer, t, guestClaimsEnabled)}
                     </Text>
                   )}
                 </View>

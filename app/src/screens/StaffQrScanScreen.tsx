@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { StaffAccessGate } from '../components/staff/StaffAccessGate';
 import { parseMemberTokenFromQr } from '../lib/parseMemberCardQr';
 import {
   fulfillMemberCardOffer,
@@ -31,7 +32,15 @@ import { radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'StaffQrScan'>;
 
-export default function StaffQrScanScreen({ navigation, route }: Props) {
+export default function StaffQrScanScreen(props: Props) {
+  return (
+    <StaffAccessGate>
+      <StaffQrScanBody {...props} />
+    </StaffAccessGate>
+  );
+}
+
+function StaffQrScanBody({ navigation, route }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();

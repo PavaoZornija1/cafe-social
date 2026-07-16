@@ -408,7 +408,7 @@ export default function HomeScreen({ navigation }: Props) {
                     <ExplicitCheckInBanner colors={colors} onScan={openQrCheckIn} />
                 ) : null}
 
-                {staff.isStaffAtVenue && detectedVenue && staff.roleAtVenue ? (
+                {staff.canUseStaffTools && detectedVenue && staff.roleAtVenue ? (
                     <StaffAtVenueBanner
                         colors={colors}
                         venueName={detectedVenue.name}
@@ -486,6 +486,7 @@ export default function HomeScreen({ navigation }: Props) {
                     lifetimeXp={meSummary?.xp ?? null}
                     offers={rewardOffers}
                     claimingOfferId={claimingOfferId}
+                    guestClaimsEnabled={staff.canClaimGuestRewards}
                     onSeeAll={() => {
                         if (detectedVenue) {
                             openVenueHub();

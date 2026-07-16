@@ -197,6 +197,7 @@
     "staffTitle": "Personal del local",
     "staffHint": "Verifica códigos si tu local te añadió como EMPLOYEE, MANAGER u OWNER en el CMS.",
     "staffOpen": "Modo personal — canjes y QR",
+    "staffPartnerPortal": "Abrir portal de socios (web)",
     "subscription": "Suscripción",
     "subscriptionHint": "Los miembros desbloquean juego en casa y ventajas en locales premium seleccionados. El estado aquí es el que tienen nuestros servidores tras sincronizar tienda y RevenueCat.",
     "subscriptionBenefitsTitle": "Qué incluye la suscripción",
@@ -367,6 +368,7 @@
     "emptyTitle": "Aún no hay locales",
     "infoRedemptions": "Consulta y verifica canjes de perks para el día UTC seleccionado.",
     "infoScan": "Escanea códigos QR de miembros y códigos de verificación en el local.",
+    "openPartnerPortal": "Abrir portal de socios",
     "roleOwner": "Propietario",
     "roleManager": "Gestor",
     "roleEmployee": "Personal",
@@ -556,6 +558,7 @@
       "pickOfDay": "Elección del día",
       "rewardAtPartner": "En cualquier café asociado",
       "availableNow": "Disponible ahora",
+      "offerStaffMode": "Modo personal",
       "redeemCta": "Canjear →"
     }
   },
@@ -735,6 +738,8 @@
     "soon": "pronto",
     "requiresWin": "Solo las victorias cuentan para este reto.",
     "completedCta": "Completado",
+    "staffRewardsBlocked": "Estás en el personal de este local — el progreso del reto cuenta para jugar, pero las recompensas de invitados no se otorgan a cuentas de personal aquí.",
+    "staffRewardNote": "No disponible para personal en este local",
     "updating": "Actualizando…",
     "loadError": "No se pudieron cargar los retos",
     "weekly": "Reto semanal — el progreso se reinicia cada semana ISO (UTC).",

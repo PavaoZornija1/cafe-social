@@ -197,6 +197,7 @@
     "staffTitle": "Osoblje lokala",
     "staffHint": "Provjera kodova ako te je partner u CMS-u dodao kao EMPLOYEE, MANAGER ili OWNER.",
     "staffOpen": "Način osoblja — otkupi i QR",
+    "staffPartnerPortal": "Otvori partnerski portal (web)",
     "subscription": "Pretplata",
     "subscriptionHint": "Članstvo otključava igru od kuće i dodatke u odabranim premium lokacijama. Status ovdje je ono što naš poslužitelj ima nakon sinkronizacije trgovine i RevenueCata.",
     "subscriptionBenefitsTitle": "Što članstvo donosi",
@@ -367,6 +368,7 @@
     "emptyTitle": "Još nema lokala",
     "infoRedemptions": "Pregledaj i potvrdi otkupe perkova za odabrani UTC dan.",
     "infoScan": "Skeniraj QR kodove članova i kodove za verifikaciju na licu mjesta.",
+    "openPartnerPortal": "Otvori partnerski portal",
     "roleOwner": "Vlasnik",
     "roleManager": "Manager",
     "roleEmployee": "Osoblje",
@@ -556,6 +558,7 @@
       "pickOfDay": "Izbor dana",
       "rewardAtPartner": "U bilo kojem partnerskom kafiću",
       "availableNow": "Dostupno sada",
+      "offerStaffMode": "Način osoblja",
       "redeemCta": "Iskoristi →"
     }
   },
@@ -735,6 +738,8 @@
     "soon": "uskoro",
     "requiresWin": "Samo pobjede računaju za ovaj izazov.",
     "completedCta": "Dovršeno",
+    "staffRewardsBlocked": "Ti si osoblje u ovom lokalu — napredak izazova i dalje broji za igru, ali nagrade za goste se ne dodjeljuju računima osoblja ovdje.",
+    "staffRewardNote": "Nije dostupno osoblju u ovom lokalu",
     "updating": "Ažuriranje…",
     "loadError": "Izazovi se nisu mogli učitati",
     "weekly": "Tjedni izazov — napredak se resetira svaki ISO tjedan (UTC).",
