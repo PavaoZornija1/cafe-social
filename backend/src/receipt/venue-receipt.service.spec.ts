@@ -1,12 +1,13 @@
 jest.mock('../venue/venue.service', () => ({ VenueService: class VenueService {} }));
 
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
 import { VenueService } from '../venue/venue.service';
 import { PlayerNotificationService } from '../notification/player-notification.service';
 import { VenueStaffNotificationService } from '../notification/venue-staff-notification.service';
 import { OwnerRedemptionActionsService } from '../owner/owner-redemption-actions.service';
+import { VenueStaffService } from '../venue-staff/venue-staff.service';
 import { VenueReceiptService } from './venue-receipt.service';
 
 describe('VenueReceiptService.submit', () => {
@@ -16,6 +17,7 @@ describe('VenueReceiptService.submit', () => {
     venueReceiptSubmission: { create: jest.Mock };
   };
   let redemptionActions: { lockRedemption: jest.Mock };
+  let venueStaff: { assertCanClaimGuestRewards: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
@@ -26,6 +28,9 @@ describe('VenueReceiptService.submit', () => {
       assertCoordinatesAllowedForGuestVenue: jest.fn().mockResolvedValue(undefined),
     };
     redemptionActions = { lockRedemption: jest.fn().mockResolvedValue(undefined) };
+    venueStaff = {
+      assertCanClaimGuestRewards: jest.fn().mockResolvedValue(undefined),
+    };
     const playerNotify = { notifyReceiptReviewed: jest.fn() };
     const staffNotify = { notifyReceiptSubmitted: jest.fn() };
 
@@ -37,6 +42,7 @@ describe('VenueReceiptService.submit', () => {
         { provide: PlayerNotificationService, useValue: playerNotify },
         { provide: VenueStaffNotificationService, useValue: staffNotify },
         { provide: OwnerRedemptionActionsService, useValue: redemptionActions },
+        { provide: VenueStaffService, useValue: venueStaff },
       ],
     }).compile();
     service = moduleRef.get(VenueReceiptService);
@@ -49,6 +55,17 @@ describe('VenueReceiptService.submit', () => {
     latitude: 45,
     longitude: 16,
   };
+
+  it('rejects submission when the guest is staff at the venue', async () => {
+    venueStaff.assertCanClaimGuestRewards.mockRejectedValue(
+      new ForbiddenException('Venue staff cannot claim guest rewards at their own venue'),
+    );
+
+    await expect(service.submit(baseParams)).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(venueStaff.assertCanClaimGuestRewards).toHaveBeenCalledWith('p1', 'v1');
+    expect(prisma.venueReceiptSubmission.create).not.toHaveBeenCalled();
+  });
 
   it('rejects linked redemption that is not REDEEMABLE', async () => {
     prisma.venuePerkRedemption.findFirst.mockResolvedValue({

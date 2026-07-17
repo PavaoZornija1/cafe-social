@@ -196,6 +196,22 @@ export class BrawlerRepository {
     return this.prisma.$transaction(async (tx) => {
       const now = new Date();
 
+      // Claim ACTIVE → FINISHED so concurrent finalize submissions cannot race-overwrite.
+      const claimed = await tx.gameSession.updateMany({
+        where: {
+          id: params.sessionId,
+          status: GameSessionStatus.ACTIVE,
+        },
+        data: {
+          status: GameSessionStatus.FINISHED,
+          endedAt: now,
+          winnerParticipantId: params.winnerParticipantId,
+        },
+      });
+      if (claimed.count !== 1) {
+        return null;
+      }
+
       for (const p of params.participants) {
         await tx.gameParticipant.update({
           where: { id: p.participantId },
@@ -209,13 +225,8 @@ export class BrawlerRepository {
         });
       }
 
-      const session = await tx.gameSession.update({
+      const session = await tx.gameSession.findUniqueOrThrow({
         where: { id: params.sessionId },
-        data: {
-          status: GameSessionStatus.FINISHED,
-          endedAt: now,
-          winnerParticipantId: params.winnerParticipantId,
-        },
         include: {
           participants: true,
         },

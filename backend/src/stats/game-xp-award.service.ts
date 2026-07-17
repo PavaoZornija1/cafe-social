@@ -50,6 +50,52 @@ function eloPair(
   return { newA, newB };
 }
 
+/** Lower is better for XP ranking. WIN before DRAW before LOSS; null last. */
+function participantResultRank(result: GameParticipantResult | null): number {
+  switch (result) {
+    case GameParticipantResult.WIN:
+      return 0;
+    case GameParticipantResult.DRAW:
+      return 1;
+    case GameParticipantResult.LOSS:
+      return 2;
+    case null:
+      return 3;
+    default: {
+      const _exhaustive: never = result;
+      return _exhaustive;
+    }
+  }
+}
+
+function compareVersusParticipants(
+  a: { result: GameParticipantResult | null; score: number | null },
+  b: { result: GameParticipantResult | null; score: number | null },
+): number {
+  const byResult = participantResultRank(a.result) - participantResultRank(b.result);
+  if (byResult !== 0) return byResult;
+  return (b.score ?? 0) - (a.score ?? 0);
+}
+
+function eloScoresFromResults(
+  resultA: GameParticipantResult | null,
+  resultB: GameParticipantResult | null,
+): { sa: number; sb: number } | null {
+  if (resultA === GameParticipantResult.WIN && resultB === GameParticipantResult.LOSS) {
+    return { sa: 1, sb: 0 };
+  }
+  if (resultA === GameParticipantResult.LOSS && resultB === GameParticipantResult.WIN) {
+    return { sa: 0, sb: 1 };
+  }
+  if (
+    resultA === GameParticipantResult.DRAW ||
+    resultB === GameParticipantResult.DRAW
+  ) {
+    return { sa: 0.5, sb: 0.5 };
+  }
+  return null;
+}
+
 @Injectable()
 export class GameXpAwardService {
   constructor(
@@ -128,9 +174,11 @@ export class GameXpAwardService {
           awarded[p.playerId] = d;
         }
       } else if (mode === 'versus') {
+        // Rank by match result (WIN > DRAW > LOSS), score only as tiebreak — prevents
+        // forfeit-while-ahead from awarding 1st XP/Elo to a LOSS with a higher raw score.
         const humans = session.participants
           .filter((p) => p.playerId)
-          .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+          .sort(compareVersusParticipants);
         for (let i = 0; i < humans.length; i++) {
           const pid = humans[i]!.playerId!;
           const venueId = venueForPlayer(pid);
@@ -152,57 +200,50 @@ export class GameXpAwardService {
           humans[0]!.playerId &&
           humans[1]!.playerId
         ) {
-          const claimRank = await this.prisma.gameSession.updateMany({
-            where: { id: sessionId, rankAwardedAt: null },
-            data: { rankAwardedAt: new Date() },
-          });
-          if (claimRank.count > 0) {
-            const aId = humans[0]!.playerId!;
-            const bId = humans[1]!.playerId!;
-            const s0 = humans[0]!.score ?? 0;
-            const s1 = humans[1]!.score ?? 0;
-            let sa: number;
-            let sb: number;
-            if (s0 > s1) {
-              sa = 1;
-              sb = 0;
-            } else if (s1 > s0) {
-              sa = 0;
-              sb = 1;
-            } else {
-              sa = 0.5;
-              sb = 0.5;
-            }
-            const [pa, pb] = await Promise.all([
-              this.prisma.player.findUnique({
+          const h0 = humans[0]!;
+          const h1 = humans[1]!;
+          const [aId, bId] = [h0.playerId!, h1.playerId!].sort() as [string, string];
+          const ha = humans.find((h) => h.playerId === aId)!;
+          const hb = humans.find((h) => h.playerId === bId)!;
+          const eloScores = eloScoresFromResults(ha.result, hb.result);
+          if (eloScores) {
+            const claimRank = await this.prisma.gameSession.updateMany({
+              where: { id: sessionId, rankAwardedAt: null },
+              data: { rankAwardedAt: new Date() },
+            });
+            if (claimRank.count > 0) {
+              const { sa, sb } = eloScores;
+              const [pa, pb] = await Promise.all([
+                this.prisma.player.findUnique({
+                  where: { id: aId },
+                  select: { competitiveRankRating: true, wordRankRating: true },
+                }),
+                this.prisma.player.findUnique({
+                  where: { id: bId },
+                  select: { competitiveRankRating: true, wordRankRating: true },
+                }),
+              ]);
+              const rgA = pa?.competitiveRankRating ?? 1500;
+              const rgB = pb?.competitiveRankRating ?? 1500;
+              const rwA = pa?.wordRankRating ?? 1500;
+              const rwB = pb?.wordRankRating ?? 1500;
+              const global = eloPair(rgA, rgB, sa, sb);
+              const word = eloPair(rwA, rwB, sa, sb);
+              await this.prisma.player.update({
                 where: { id: aId },
-                select: { competitiveRankRating: true, wordRankRating: true },
-              }),
-              this.prisma.player.findUnique({
+                data: {
+                  competitiveRankRating: global.newA,
+                  wordRankRating: word.newA,
+                },
+              });
+              await this.prisma.player.update({
                 where: { id: bId },
-                select: { competitiveRankRating: true, wordRankRating: true },
-              }),
-            ]);
-            const rgA = pa?.competitiveRankRating ?? 1500;
-            const rgB = pb?.competitiveRankRating ?? 1500;
-            const rwA = pa?.wordRankRating ?? 1500;
-            const rwB = pb?.wordRankRating ?? 1500;
-            const global = eloPair(rgA, rgB, sa, sb);
-            const word = eloPair(rwA, rwB, sa, sb);
-            await this.prisma.player.update({
-              where: { id: aId },
-              data: {
-                competitiveRankRating: global.newA,
-                wordRankRating: word.newA,
-              },
-            });
-            await this.prisma.player.update({
-              where: { id: bId },
-              data: {
-                competitiveRankRating: global.newB,
-                wordRankRating: word.newB,
-              },
-            });
+                data: {
+                  competitiveRankRating: global.newB,
+                  wordRankRating: word.newB,
+                },
+              });
+            }
           }
         }
       }

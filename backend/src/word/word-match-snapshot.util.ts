@@ -29,6 +29,8 @@ export type WordMatchLiveSnapshotV1 = {
     playerId: string | null;
     username: string;
     score: number;
+    /** Versus deck cursor (assists); omitted in older Redis snapshots. */
+    wordIndex?: number;
     result: string | null;
     /** Omitted in older Redis snapshots — treat as false. */
     isBot?: boolean;
@@ -100,6 +102,7 @@ export async function loadWordMatchSnapshotFromDb(
       playerId: p.playerId,
       username: p.displayNameSnapshot ?? p.player?.username ?? 'Player',
       score: p.score,
+      wordIndex: Math.max(p.assists ?? 0, p.score),
       result: p.result,
       isBot: p.isBot,
     })),

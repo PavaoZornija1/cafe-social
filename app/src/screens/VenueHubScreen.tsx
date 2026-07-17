@@ -27,6 +27,7 @@ import type {
     VenueRedeemableReward,
 } from '../lib/venuePerksApi';
 import { isReceiptSubmissionsEnabled } from '../lib/receiptSubmissionsFeature';
+import { resolveOfferCta } from '../lib/staffRewardPolicy';
 import { isLikelyNetworkFailure } from '../lib/isNetworkError';
 import { useVenueHubQuery, useVenuePublicCardQuery, useStaffContext, useVenueSession } from '../query';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -168,6 +169,14 @@ export default function VenueHubScreen({ navigation, route }: Props) {
     const session = useVenueSession({ routeVenueId: venueId });
     const staff = useStaffContext({ venueId });
     const canDoVenueActions = session.canDoVenueActions;
+    // Resolved own-venue staff: drives staff-unavailable copy. Guest action
+    // gating additionally uses canClaimGuestRewards (loading-safe false).
+    const staffBlocked = staff.isStaffAtVenue && !staff.canClaimGuestRewards;
+    // Until staff state resolves, offer rows show a neutral loading status
+    // instead of claim / member-card encouragement.
+    const claimsResolved =
+        staff.membershipsResolved ||
+        typeof session.access?.canClaimGuestRewards === 'boolean';
 
     const publicCard = (cardQuery.data as VenuePublicCard | undefined) ?? null;
     const loadError = cardQuery.isError
@@ -373,17 +382,29 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                         <View style={styles.listStack}>
                         {(hubOffers.length > 0 ? hubOffers : publicCard.offers ?? []).map((o) => {
                             const isAuto = o.fulfillment === 'AUTO';
-                            const statusLabel = isAuto
-                                ? o.autoXpMultiplier && o.autoXpMultiplier > 1
-                                    ? t('home.dashboard.offerAutoXp', { mult: o.autoXpMultiplier })
-                                    : t('home.dashboard.offerAutoActive')
-                                : o.claimStatus === 'FULFILLED'
-                                  ? t('home.dashboard.offerFulfilled')
-                                  : o.claimStatus === 'PENDING'
-                                    ? t('home.dashboard.offerShowMemberCard')
-                                    : o.globallyExhausted
-                                      ? t('home.dashboard.offerExhausted')
-                                      : t('home.dashboard.offerClaimCta');
+                            // While unresolved: guest labels for MEMBER_CARD
+                            // (masked below), no AUTO boost implied.
+                            const cta = resolveOfferCta(
+                                o,
+                                claimsResolved ? !staffBlocked : !isAuto,
+                            );
+                            const statusLabel =
+                                !claimsResolved &&
+                                (cta.kind === 'claim' || cta.kind === 'showMemberCard')
+                                    ? t('common.loading')
+                                    : cta.kind === 'autoInfo'
+                                    ? cta.boosted
+                                        ? t('home.dashboard.offerAutoXp', { mult: o.autoXpMultiplier })
+                                        : t('home.dashboard.offerAutoActive')
+                                    : cta.kind === 'fulfilled'
+                                      ? t('home.dashboard.offerFulfilled')
+                                      : cta.kind === 'showMemberCard'
+                                        ? t('home.dashboard.offerShowMemberCard')
+                                        : cta.kind === 'exhausted'
+                                          ? t('home.dashboard.offerExhausted')
+                                          : cta.kind === 'staffUnavailable'
+                                            ? t('home.dashboard.offerStaffUnavailable')
+                                            : t('home.dashboard.offerClaimCta');
                             return (
                                 <View key={o.id} style={styles.offerRow}>
                                     <Text style={styles.offerTitle}>{o.title}</Text>
@@ -391,11 +412,13 @@ export default function VenueHubScreen({ navigation, route }: Props) {
                                     <Text style={styles.linkText}>
                                         {isAuto
                                             ? t('home.dashboard.offerKindAuto')
-                                            : t('home.dashboard.offerKindMemberCard')}
+                                            : cta.kind === 'staffUnavailable'
+                                              ? t('home.dashboard.offerKindMemberCardStaff')
+                                              : t('home.dashboard.offerKindMemberCard')}
                                         {' · '}
                                         {statusLabel}
                                     </Text>
-                                    {!isAuto && o.claimStatus === 'PENDING' ? (
+                                    {cta.kind === 'showMemberCard' && staff.canClaimGuestRewards ? (
                                         <Pressable
                                             onPress={() => navigation.navigate('MemberCard')}
                                             style={({ pressed }) => [styles.link, pressed && styles.ctaPressed]}
@@ -645,7 +668,7 @@ export default function VenueHubScreen({ navigation, route }: Props) {
 
                         <View style={styles.card}>
                             <Text style={styles.cardTitle}>{t('venueHub.myRewardsHereTitle')}</Text>
-                            {!staff.canClaimGuestRewards ? (
+                            {staffBlocked ? (
                                 <Text style={styles.muted}>{t('perk.staffGuestRewardsBlocked')}</Text>
                             ) : null}
                             {refreshingSocial && myVenueRewards.length === 0 ? (

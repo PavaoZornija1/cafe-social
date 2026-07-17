@@ -29,7 +29,10 @@ export type FeedbackEvent =
   | 'brawlerKo'
   | 'brawlerPowerup'
   | 'perkRedeemed'
-  | 'checkIn';
+  | 'checkIn'
+  | 'uiTap'
+  | 'uiSuccess'
+  | 'uiError';
 
 type HapticKind = 'success' | 'error' | 'warning' | 'light' | 'medium';
 
@@ -52,6 +55,9 @@ const EVENT_SOUND: Record<FeedbackEvent, FeedbackSoundId> = {
   brawlerPowerup: 'brawlerPowerup',
   perkRedeemed: 'perkRedeemed',
   checkIn: 'checkIn',
+  uiTap: 'uiTap',
+  uiSuccess: 'uiSuccess',
+  uiError: 'uiError',
 };
 
 const EVENT_HAPTIC: Record<FeedbackEvent, HapticKind> = {
@@ -73,6 +79,9 @@ const EVENT_HAPTIC: Record<FeedbackEvent, HapticKind> = {
   brawlerPowerup: 'success',
   perkRedeemed: 'success',
   checkIn: 'success',
+  uiTap: 'light',
+  uiSuccess: 'success',
+  uiError: 'error',
 };
 
 /** Min ms between the same event firing haptics (avoids brawler hit buzz). */

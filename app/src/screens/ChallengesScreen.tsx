@@ -251,12 +251,33 @@ export default function ChallengesScreen({ navigation, route }: Props) {
           if (venueId) navigation.navigate('QrScan', { venueId });
           break;
         case 'MANUAL':
+          // Handler defense: own-venue staff must not be routed to the
+          // member card for manual stamping at their workplace. While staff
+          // state is unresolved the action is silently blocked.
+          if (!staff.canClaimGuestRewards) {
+            if (staff.isStaffAtVenue) {
+              Alert.alert(t('common.error'), t('challenges.staffManualUnavailable'));
+            }
+            return;
+          }
           navigation.navigate('MemberCard');
           break;
       }
     },
-    [navigation, session.canDoVenueActions, session.venueScopedId, t, venue?.id],
+    [
+      navigation,
+      session.canDoVenueActions,
+      session.venueScopedId,
+      staff.canClaimGuestRewards,
+      staff.isStaffAtVenue,
+      t,
+      venue?.id,
+    ],
   );
+
+  // Resolved own-venue staff: drives staff copy. Guest reward actions are
+  // additionally gated on canClaimGuestRewards (loading-safe false).
+  const staffBlocked = staff.isStaffAtVenue && !staff.canClaimGuestRewards;
 
   const venueLocked = isVenuePartnerLocked(venueLock);
   const venueLockKey = venueLockMessageKey(venueLock);
@@ -318,7 +339,7 @@ export default function ChallengesScreen({ navigation, route }: Props) {
           <Text style={styles.heroSub}>{heroSubtitle}</Text>
         </View>
 
-        {!staff.canClaimGuestRewards ? (
+        {staffBlocked ? (
           <View style={styles.staffNotice}>
             <Ionicons name="information-circle-outline" size={18} color={colors.primary} />
             <Text style={styles.staffNoticeText}>{t('challenges.staffRewardsBlocked')}</Text>
@@ -470,7 +491,7 @@ export default function ChallengesScreen({ navigation, route }: Props) {
                     <Ionicons name="gift-outline" size={14} color={colors.xp} />
                     <Text style={styles.cardReward}>
                       {t('challenges.rewardLine', { title: c.rewardTitle })}
-                      {!staff.canClaimGuestRewards
+                      {staffBlocked
                         ? ` · ${t('challenges.staffRewardNote')}`
                         : ''}
                     </Text>
@@ -480,17 +501,31 @@ export default function ChallengesScreen({ navigation, route }: Props) {
                 {c.isCompleted &&
                 c.rewardRedemptionStatus === 'REDEEMABLE' &&
                 c.rewardStaffCode ? (
-                  <View style={styles.redeemBox}>
-                    <Text style={styles.redeemBoxTitle}>
-                      {t('challenges.redeemRewardTitle', {
-                        title: c.rewardTitle ?? t('challenges.rewardFallback'),
-                      })}
-                    </Text>
-                    <Text style={styles.redeemBoxHint}>
-                      {t('challenges.redeemRewardHint')}
-                    </Text>
-                    <Text style={styles.redeemCode}>{c.rewardStaffCode}</Text>
-                  </View>
+                  staff.canClaimGuestRewards ? (
+                    // Code only renders once staff state resolved as guest.
+                    <View style={styles.redeemBox}>
+                      <Text style={styles.redeemBoxTitle}>
+                        {t('challenges.redeemRewardTitle', {
+                          title: c.rewardTitle ?? t('challenges.rewardFallback'),
+                        })}
+                      </Text>
+                      <Text style={styles.redeemBoxHint}>
+                        {t('challenges.redeemRewardHint')}
+                      </Text>
+                      <Text style={styles.redeemCode}>{c.rewardStaffCode}</Text>
+                    </View>
+                  ) : staffBlocked ? (
+                    <View style={styles.metaRow}>
+                      <Ionicons
+                        name="lock-closed-outline"
+                        size={14}
+                        color={colors.textMuted}
+                      />
+                      <Text style={styles.cardHint}>
+                        {t('challenges.staffRewardNote')}
+                      </Text>
+                    </View>
+                  ) : null
                 ) : null}
 
                 {c.isCompleted && c.rewardRedemptionStatus === 'REDEEMED' ? (
@@ -504,12 +539,25 @@ export default function ChallengesScreen({ navigation, route }: Props) {
                   <View style={styles.metaRow}>
                     <Ionicons name="sync-outline" size={14} color={colors.primary} />
                     <Text style={styles.autoProgressHint}>
-                      {t(autoProgressHintKey(progressSource))}
+                      {progressSource === 'MANUAL' && staffBlocked
+                        ? t('challenges.staffManualUnavailable')
+                        : t(autoProgressHintKey(progressSource))}
                     </Text>
                   </View>
                 ) : null}
 
-                {playLabel && !c.isCompleted && isActive && session.canDoVenueActions ? (
+                {playLabel &&
+                !c.isCompleted &&
+                isActive &&
+                session.canDoVenueActions &&
+                progressSource === 'MANUAL' &&
+                staffBlocked ? (
+                  <View style={[styles.actionBtn, styles.actionBtnDone, styles.actionBtnDisabled]}>
+                    <Text style={[styles.actionText, styles.actionTextDone]}>
+                      {t('challenges.staffRewardNote')}
+                    </Text>
+                  </View>
+                ) : playLabel && !c.isCompleted && isActive && session.canDoVenueActions ? (
                   <Pressable
                     onPress={() => openPlayForChallenge(progressSource)}
                     style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
@@ -531,7 +579,7 @@ export default function ChallengesScreen({ navigation, route }: Props) {
                     <Text style={[styles.actionText, styles.actionTextDone]}>
                       {c.rewardRedemptionStatus === 'REDEEMED'
                         ? t('challenges.rewardRedeemed')
-                        : !staff.canClaimGuestRewards && c.rewardPerkId
+                        : staffBlocked && c.rewardPerkId
                           ? t('challenges.staffRewardNote')
                           : t('challenges.completedCta')}
                     </Text>

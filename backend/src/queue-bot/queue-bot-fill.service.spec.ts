@@ -25,7 +25,10 @@ describe('QueueBotFillService', () => {
         .mockResolvedValueOnce('sess-a')
         .mockResolvedValueOnce(null),
     };
-    const brawler = { tryFillBrawlerQueueWithBot: jest.fn() };
+    const brawler = {
+      tryFillBrawlerQueueWithBot: jest.fn(),
+      expireStaleBrawlerQueueEntries: jest.fn().mockResolvedValue(0),
+    };
     const wordBotDriver = { register: jest.fn() };
 
     prisma.$queryRawUnsafe.mockResolvedValue([{ ok: true }]);

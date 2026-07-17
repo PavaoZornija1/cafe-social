@@ -46,7 +46,7 @@ Last updated: June 2026
 
 | Tool | Purpose | When to add |
 |------|---------|-------------|
-| **Upstash Redis** | Socket.IO multi-instance | Second API instance |
+| **Upstash Redis** | Socket.IO multi-instance + game runtime (arena/combat) | Second API instance / any multi-pod game traffic. Set `REDIS_URL`; use `GAME_RUNTIME_REQUIRE_REDIS=1` on staging. Local solo-only may use `GAME_RUNTIME_ALLOW_MEMORY=1` without Redis. |
 | **Resend** | Transactional email | Friend/party invite emails |
 | **Stripe** | Partner billing | SaaS checkout in admin |
 | **RevenueCat** | Mobile subscriptions | In-app premium |

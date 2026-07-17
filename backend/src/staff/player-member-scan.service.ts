@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { DiscoveryService } from '../social/discovery.service';
 import { utcDayKey } from '../lib/day-key';
 import { parseMemberTokenFromQr } from '../lib/member-card-qr';
@@ -10,6 +14,7 @@ import { PlayerVenueRepository } from '../venue/player-venue.repository';
 import { ChallengeService } from '../challenge/challenge.service';
 import { ChallengeAutoProgressSource } from '@prisma/client';
 import { VenueOfferService } from '../venue/venue-offer.service';
+import { VenueStaffService } from '../venue-staff/venue-staff.service';
 
 @Injectable()
 export class PlayerMemberScanService {
@@ -22,6 +27,7 @@ export class PlayerMemberScanService {
     private readonly discovery: DiscoveryService,
     private readonly challenges: ChallengeService,
     private readonly offers: VenueOfferService,
+    private readonly venueStaff: VenueStaffService,
   ) {}
 
   /**
@@ -65,6 +71,14 @@ export class PlayerMemberScanService {
     }
 
     await this.moderation.assertNotBanned(params.venueId, player.id);
+
+    // Staff are guests elsewhere, but at their own venue a member scan would
+    // record visits/check-ins and progress challenges — guest rewards they may not receive.
+    if (await this.venueStaff.isStaffAtVenue(player.id, params.venueId)) {
+      throw new ForbiddenException(
+        'Venue staff cannot be scanned as guests at their own venue',
+      );
+    }
 
     const now = new Date();
     const dayKey = utcDayKey(now);

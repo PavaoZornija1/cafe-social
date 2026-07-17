@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import type { BrawlerArenaSocketPayload } from '../brawler/arena/arenaRealtime';
+import type { BrawlerCombatSocketPayload } from '../brawler/arena/combatRealtime';
 import { getRealtimeBaseUrl } from './realtimeUrl';
 
 export type BrawlerSocketStatus =
@@ -10,8 +11,16 @@ export type BrawlerSocketStatus =
   | 'reconnecting'
   | 'disconnected';
 
+export type BrawlerCombatInputEmit = {
+  seq: number;
+  moveX: number;
+  moveY: number;
+  fire?: boolean;
+  pickup?: boolean;
+};
+
 /**
- * Subscribes to brawler arena realtime events for a session room.
+ * Subscribes to brawler arena + combat realtime events for a session room.
  * Falls back to slow polling when the socket stays disconnected.
  */
 export function useBrawlerSocket(options: {
@@ -19,23 +28,45 @@ export function useBrawlerSocket(options: {
   enabled: boolean;
   getToken: () => Promise<string | null | undefined>;
   onArenaEvent: (payload: BrawlerArenaSocketPayload) => void;
+  onCombatEvent?: (payload: BrawlerCombatSocketPayload) => void;
   onRefresh: () => void | Promise<void>;
   fallbackPollMs?: number;
-}): { socketStatus: BrawlerSocketStatus } {
+}): {
+  socketStatus: BrawlerSocketStatus;
+  emitCombatInput: (input: BrawlerCombatInputEmit) => void;
+} {
   const onArenaRef = useRef(options.onArenaEvent);
   onArenaRef.current = options.onArenaEvent;
+  const onCombatRef = useRef(options.onCombatEvent);
+  onCombatRef.current = options.onCombatEvent;
   const onRefreshRef = useRef(options.onRefresh);
   onRefreshRef.current = options.onRefresh;
   const getTokenRef = useRef(options.getToken);
   getTokenRef.current = options.getToken;
+  const socketRef = useRef<Socket | null>(null);
 
   const fallbackMs = options.fallbackPollMs ?? 8000;
   const [socketStatus, setSocketStatus] = useState<BrawlerSocketStatus>('idle');
+
+  const emitCombatInput = useCallback((input: BrawlerCombatInputEmit) => {
+    const socket = socketRef.current;
+    const sid = options.sessionId;
+    if (!socket?.connected || !sid) return;
+    socket.emit('input', {
+      sessionId: sid,
+      seq: input.seq,
+      moveX: input.moveX,
+      moveY: input.moveY,
+      fire: input.fire,
+      pickup: input.pickup,
+    });
+  }, [options.sessionId]);
 
   useEffect(() => {
     const sid = options.sessionId;
     if (!sid || !options.enabled) {
       setSocketStatus('idle');
+      socketRef.current = null;
       return;
     }
 
@@ -64,6 +95,7 @@ export function useBrawlerSocket(options: {
         reconnectionAttempts: 12,
         reconnectionDelay: 1500,
       });
+      socketRef.current = socket;
 
       socket.on('connect', () => {
         if (cancelled) return;
@@ -93,6 +125,11 @@ export function useBrawlerSocket(options: {
         onArenaRef.current(payload);
       });
 
+      socket.on('combat', (payload: BrawlerCombatSocketPayload) => {
+        if (!payload || payload.sessionId !== sid) return;
+        onCombatRef.current?.(payload);
+      });
+
       if (fallbackMs > 0) {
         slowPoll = setInterval(() => {
           if (cancelled) return;
@@ -117,9 +154,10 @@ export function useBrawlerSocket(options: {
         }
         socket.disconnect();
       }
+      socketRef.current = null;
       socket = null;
     };
   }, [options.sessionId, options.enabled, fallbackMs]);
 
-  return { socketStatus };
+  return { socketStatus, emitCombatInput };
 }

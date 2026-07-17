@@ -119,16 +119,45 @@ function buildService(opts: {
   const brawlerArena = {
     readState: jest.fn().mockResolvedValue(null),
     writeState: jest.fn().mockImplementation(async (s: { rev: number }) => ({ ...s, rev: s.rev + 1 })),
+    mutateState: jest.fn().mockImplementation(async (_id: string, mutator: (s: Record<string, unknown>) => Record<string, unknown> | null) => {
+      const base = {
+        v: 2,
+        sessionId: 'session-1',
+        rev: 1,
+        spawns: [],
+        pickedSpawnIds: [],
+        buffsByParticipant: {},
+        lastSpawnAtMs: 0,
+      };
+      const next = mutator({ ...base });
+      return next ? { ...next, rev: (base.rev as number) + 1 } : base;
+    }),
     initState: jest.fn().mockResolvedValue({
-      v: 1,
+      v: 2,
       sessionId: 'session-1',
-      rev: 0,
+      rev: 1,
       spawns: [],
       pickedSpawnIds: [],
       buffsByParticipant: {},
       lastSpawnAtMs: 0,
     }),
     removeState: jest.fn().mockResolvedValue(undefined),
+  };
+  const brawlerCombat = {
+    initState: jest.fn().mockResolvedValue({
+      v: 1,
+      sessionId: 'session-1',
+      rev: 1,
+      status: 'ACTIVE',
+      tick: 0,
+    }),
+    removeState: jest.fn().mockResolvedValue(undefined),
+    readState: jest.fn().mockResolvedValue(null),
+  };
+  const brawlerCombatSim = {
+    registerSession: jest.fn(),
+    unregisterSession: jest.fn(),
+    enqueueInput: jest.fn().mockReturnValue(true),
   };
   const subscriptions = {
     isActiveSubscriber: jest.fn().mockResolvedValue(opts.isSubscriber ?? false),
@@ -152,6 +181,8 @@ function buildService(opts: {
     postGame as never,
     brawlerLive as never,
     brawlerArena as never,
+    brawlerCombat as never,
+    brawlerCombatSim as never,
     subscriptions as never,
     events as never,
     pushNotifications as never,
@@ -399,5 +430,90 @@ describe('BrawlerService.tryFillBrawlerQueueWithBot (casual-only)', () => {
 
     expect(result).toBeNull();
     expect(prisma.gameSession.delete).toHaveBeenCalledWith({ where: { id: 'session-bot' } });
+  });
+});
+
+describe('BrawlerService ranked / membership gates', () => {
+  it('allows ranked enqueue when matchmaking gates pass', async () => {
+    const prisma = buildPrismaDouble();
+    prisma.brawlerMatchQueueEntry.findFirst = jest.fn().mockResolvedValue(null);
+    prisma.brawlerMatchQueueEntry.create = jest.fn().mockResolvedValue({ id: 'q-ranked' });
+    prisma.brawlerMatchQueueEntry.findMany = jest.fn().mockResolvedValue([]);
+    const { svc } = buildService({ prisma, isSubscriber: true });
+
+    await svc.enqueueVenueBrawlerMatch('alice@x', {
+      venueId: 'venue-1',
+      latitude: 45,
+      longitude: 16,
+      brawlerHeroId: 'hero-1',
+      ranked: true,
+    });
+
+    expect(prisma.brawlerMatchQueueEntry.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          playerId: 'player-a',
+          ranked: true,
+          brawlerHeroId: 'hero-1',
+        }),
+      }),
+    );
+  });
+
+  it('forbids getSession for non-participants', async () => {
+    const findSessionById = jest.fn().mockResolvedValue({
+      id: 'session-1',
+      gameType: GameType.BRAWLER,
+      status: GameSessionStatus.ACTIVE,
+      participants: [{ playerId: 'other-player', isBot: false, leftAt: null }],
+    });
+    const { svc } = buildService({
+      player: { id: 'player-a', username: 'Alice' },
+      findSessionById,
+    });
+
+    await expect(svc.getSession('session-1', 'alice@x')).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('allows getSession for a participant', async () => {
+    const session = {
+      id: 'session-1',
+      gameType: GameType.BRAWLER,
+      status: GameSessionStatus.ACTIVE,
+      participants: [{ playerId: 'player-a', isBot: false, leftAt: null }],
+    };
+    const findSessionById = jest.fn().mockResolvedValue(session);
+    const { svc, brawlerLive } = buildService({
+      player: { id: 'player-a', username: 'Alice' },
+      findSessionById,
+      readSession: jest.fn().mockResolvedValue({ session, rev: 3 }),
+    });
+
+    const out = await svc.getSession('session-1', 'alice@x');
+    expect(out.snapshotRev).toBe(3);
+    expect(brawlerLive.readSession).toHaveBeenCalled();
+  });
+
+  it('forbids pickPowerup for non-participants', async () => {
+    const findSessionById = jest.fn().mockResolvedValue({
+      id: 'session-1',
+      gameType: GameType.BRAWLER,
+      status: GameSessionStatus.ACTIVE,
+      participants: [{ id: 'p1', playerId: 'other', isBot: false, leftAt: null }],
+      config: { brawler: { powerups: [] } },
+    });
+    const { svc } = buildService({
+      player: { id: 'player-a', username: 'Alice' },
+      findSessionById,
+    });
+
+    await expect(
+      svc.pickPowerup('session-1', 'alice@x', {
+        atMs: 1000,
+        actorParticipantId: 'p1',
+        spawnId: 'spawn-1',
+        powerupId: 'speed_boost',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

@@ -6,7 +6,7 @@ jest.mock('../challenge/challenge.service', () => ({
   ChallengeService: class ChallengeService {},
 }));
 
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { buildMemberCardQrPayload } from '../lib/member-card-qr';
 import { PrismaService } from '../prisma/prisma.service';
@@ -17,6 +17,7 @@ import { PlayerVenueCheckInRepository } from '../venue/player-venue-check-in.rep
 import { PlayerVenueRepository } from '../venue/player-venue.repository';
 import { ChallengeService } from '../challenge/challenge.service';
 import { VenueOfferService } from '../venue/venue-offer.service';
+import { VenueStaffService } from '../venue-staff/venue-staff.service';
 import { PlayerMemberScanService } from './player-member-scan.service';
 
 const memberToken = 'abcdefghijklmnopqrstuv';
@@ -33,6 +34,8 @@ describe('PlayerMemberScanService', () => {
   let explicitCheckIns: { upsertCheckIn: jest.Mock };
   let funnel: { safeLog: jest.Mock };
   let discovery: { setPresence: jest.Mock };
+  let challenges: { bumpActiveChallengesForPlayerAtVenue: jest.Mock };
+  let venueStaff: { isStaffAtVenue: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
@@ -48,6 +51,8 @@ describe('PlayerMemberScanService', () => {
     explicitCheckIns = { upsertCheckIn: jest.fn() };
     funnel = { safeLog: jest.fn() };
     discovery = { setPresence: jest.fn().mockResolvedValue(undefined) };
+    challenges = { bumpActiveChallengesForPlayerAtVenue: jest.fn() };
+    venueStaff = { isStaffAtVenue: jest.fn().mockResolvedValue(false) };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -58,10 +63,7 @@ describe('PlayerMemberScanService', () => {
         { provide: PlayerVenueCheckInRepository, useValue: explicitCheckIns },
         { provide: VenueFunnelService, useValue: funnel },
         { provide: DiscoveryService, useValue: discovery },
-        {
-          provide: ChallengeService,
-          useValue: { bumpActiveChallengesForPlayerAtVenue: jest.fn() },
-        },
+        { provide: ChallengeService, useValue: challenges },
         {
           provide: VenueOfferService,
           useValue: {
@@ -69,6 +71,7 @@ describe('PlayerMemberScanService', () => {
             fulfillMemberCardOffer: jest.fn(),
           },
         },
+        { provide: VenueStaffService, useValue: venueStaff },
       ],
     }).compile();
 
@@ -126,6 +129,54 @@ describe('PlayerMemberScanService', () => {
     expect(out.playerId).toBe('p1');
     expect(out.username).toBe('guest1');
     expect(out.visitDayKey).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('rejects scanning a player who is staff at that venue before any mutation', async () => {
+    prisma.venue.findUnique.mockResolvedValue({
+      id: 'v1',
+      locked: false,
+      requiresExplicitCheckIn: true,
+    });
+    prisma.player.findUnique.mockResolvedValue({ id: 'p1', username: 'barista' });
+    venueStaff.isStaffAtVenue.mockResolvedValue(true);
+
+    await expect(
+      service.scanMemberCardAtVenue({
+        venueId: 'v1',
+        qrPayload: buildMemberCardQrPayload(memberToken),
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(venueStaff.isStaffAtVenue).toHaveBeenCalledWith('p1', 'v1');
+    expect(prisma.playerVenueVisitDay.upsert).not.toHaveBeenCalled();
+    expect(playerVenues.create).not.toHaveBeenCalled();
+    expect(explicitCheckIns.upsertCheckIn).not.toHaveBeenCalled();
+    expect(discovery.setPresence).not.toHaveBeenCalled();
+    expect(funnel.safeLog).not.toHaveBeenCalled();
+    expect(challenges.bumpActiveChallengesForPlayerAtVenue).not.toHaveBeenCalled();
+  });
+
+  it('allows scanning a player who is staff only at a different venue', async () => {
+    prisma.venue.findUnique.mockResolvedValue({
+      id: 'v1',
+      locked: false,
+      requiresExplicitCheckIn: false,
+    });
+    prisma.player.findUnique.mockResolvedValue({ id: 'p1', username: 'guest1' });
+    playerVenues.findByPlayerAndVenue.mockResolvedValue({ id: 'pv1' });
+    prisma.playerVenueVisitDay.upsert.mockResolvedValue({});
+    // Staff membership check is venue-scoped: p1 works elsewhere, not at v1.
+    venueStaff.isStaffAtVenue.mockResolvedValue(false);
+
+    const out = await service.scanMemberCardAtVenue({
+      venueId: 'v1',
+      qrPayload: buildMemberCardQrPayload(memberToken),
+    });
+
+    expect(venueStaff.isStaffAtVenue).toHaveBeenCalledWith('p1', 'v1');
+    expect(out.playerId).toBe('p1');
+    expect(prisma.playerVenueVisitDay.upsert).toHaveBeenCalled();
+    expect(discovery.setPresence).toHaveBeenCalledWith('p1', 'v1');
   });
 
   it('skips playerVenue create when link already exists', async () => {

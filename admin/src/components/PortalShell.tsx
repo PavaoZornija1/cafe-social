@@ -10,6 +10,7 @@ import { useInvalidatePartnerContext, usePortalMeQuery } from "@/lib/queries";
 import type { PortalMeOrg, PortalMeResponse } from "../lib/portalApi";
 import {
   partnerHasManagementAccess,
+  partnerHasOwnerAccess,
   partnerNavVenuesActive,
 } from "@/lib/partnerRoles";
 import { SuperAdminVenuePicker } from "./SuperAdminVenuePicker";
@@ -209,6 +210,7 @@ type PortalNavProps = {
   isSa: boolean;
   staffOnly: boolean;
   showManagementNav: boolean;
+  showOwnerBillingNav: boolean;
   showPartnerCmsLink: boolean;
   getToken: () => Promise<string | null>;
   actingVenueId: string | null;
@@ -222,6 +224,7 @@ function PortalNavLinks({
   isSa,
   staffOnly,
   showManagementNav,
+  showOwnerBillingNav,
   showPartnerCmsLink,
   getToken,
   actingVenueId,
@@ -313,7 +316,7 @@ function PortalNavLinks({
           {t("admin.shell.statistics")}
         </NavLink>
       ) : null}
-      {showManagementNav ? (
+      {showOwnerBillingNav ? (
         <NavLink
           href="/owner/subscriptions"
           active={Boolean(pathname?.startsWith("/owner/subscriptions"))}
@@ -344,11 +347,17 @@ function PartnerMobileBottomNav({
   pathname,
   staffOnly,
   showManagementNav,
+  showOwnerBillingNav,
   showPartnerCmsLink,
   t,
 }: Pick<
   PortalNavProps,
-  "pathname" | "staffOnly" | "showManagementNav" | "showPartnerCmsLink" | "t"
+  | "pathname"
+  | "staffOnly"
+  | "showManagementNav"
+  | "showOwnerBillingNav"
+  | "showPartnerCmsLink"
+  | "t"
 >) {
   const items: { href: string; label: string; icon: NavIconName; active: boolean }[] = [
     {
@@ -360,20 +369,21 @@ function PartnerMobileBottomNav({
   ];
 
   if (showManagementNav) {
-    items.push(
-      {
-        href: "/owner/analytics",
-        label: t("admin.shell.statisticsShort"),
-        icon: "analytics",
-        active: Boolean(pathname?.startsWith("/owner/analytics")),
-      },
-      {
-        href: "/owner/subscriptions",
-        label: t("admin.shell.subscriptionsShort"),
-        icon: "subscriptions",
-        active: Boolean(pathname?.startsWith("/owner/subscriptions")),
-      },
-    );
+    items.push({
+      href: "/owner/analytics",
+      label: t("admin.shell.statisticsShort"),
+      icon: "analytics",
+      active: Boolean(pathname?.startsWith("/owner/analytics")),
+    });
+  }
+
+  if (showOwnerBillingNav) {
+    items.push({
+      href: "/owner/subscriptions",
+      label: t("admin.shell.subscriptionsShort"),
+      icon: "subscriptions",
+      active: Boolean(pathname?.startsWith("/owner/subscriptions")),
+    });
   }
 
   if (showPartnerCmsLink) {
@@ -503,6 +513,7 @@ export default function PortalShell({
   const isSa = me?.platformRole === "SUPER_ADMIN";
   const staffOnly = !isSa && Boolean(me?.venues?.length) && !partnerHasManagementAccess(me?.venues);
   const showManagementNav = !isSa && !staffOnly;
+  const showOwnerBillingNav = !isSa && partnerHasOwnerAccess(me?.venues);
   const showPartnerCmsLink = !isSa && partnerHasCmsAccess(me);
   const showPartnerBottomNav = !isSa;
 
@@ -514,6 +525,7 @@ export default function PortalShell({
     isSa,
     staffOnly,
     showManagementNav,
+    showOwnerBillingNav,
     showPartnerCmsLink,
     getToken,
     actingVenueId: me?.actingPartnerVenueId ?? null,
@@ -720,6 +732,7 @@ export default function PortalShell({
           pathname={pathname}
           staffOnly={staffOnly}
           showManagementNav={showManagementNav}
+          showOwnerBillingNav={showOwnerBillingNav}
           showPartnerCmsLink={showPartnerCmsLink}
           t={t}
         />

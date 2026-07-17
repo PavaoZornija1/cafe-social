@@ -23,7 +23,8 @@ import {
   type GlobalRewardClaimsPayload,
 } from '../lib/venuePerksApi';
 import { isReceiptSubmissionsEnabled } from '../lib/receiptSubmissionsFeature';
-import { useVenueSession } from '../query';
+import { canUseGuestRewardActionsAtVenue } from '../lib/staffRewardPolicy';
+import { useStaffContext, useVenueSession } from '../query';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
@@ -83,6 +84,10 @@ type RewardClaimCardProps = {
   colors: AppColors;
   navigation: Props['navigation'];
   showQr: boolean;
+  /** Per reward venue: false when the viewer is staff at that venue. */
+  guestActionsAllowed: boolean;
+  /** True only when the viewer is confirmed staff at this reward's venue. */
+  staffOwnVenue: boolean;
 };
 
 const RewardClaimCard = React.memo(function RewardClaimCard({
@@ -91,6 +96,8 @@ const RewardClaimCard = React.memo(function RewardClaimCard({
   colors,
   navigation,
   showQr,
+  guestActionsAllowed,
+  staffOwnVenue,
 }: RewardClaimCardProps) {
   const { t } = useTranslation();
   const receiptsEnabled = isReceiptSubmissionsEnabled();
@@ -137,7 +144,11 @@ const RewardClaimCard = React.memo(function RewardClaimCard({
         <Text style={styles.lockedHint}>{t('perkWallet.lockedHint')}</Text>
       ) : null}
 
-      {showQr && r.status === 'REDEEMABLE' ? (
+      {staffOwnVenue ? (
+        <Text style={styles.lockedHint}>{t('perkWallet.staffOwnVenueHint')}</Text>
+      ) : null}
+
+      {showQr && guestActionsAllowed && r.status === 'REDEEMABLE' ? (
         <View style={styles.qrWrap}>
           <PerkRewardQr
             payload={r.qrPayload}
@@ -150,12 +161,14 @@ const RewardClaimCard = React.memo(function RewardClaimCard({
       <View style={styles.codeBox}>
         <Text style={styles.codeLabel}>{t('perk.staffVerificationCode')}</Text>
         <Text style={styles.codeValue}>
-          {r.status === 'LOCKED' ? t('perkWallet.codeHidden') : r.staffVerificationCode}
+          {r.status === 'LOCKED' || !guestActionsAllowed
+            ? t('perkWallet.codeHidden')
+            : r.staffVerificationCode}
         </Text>
       </View>
 
       <View style={styles.cardActions}>
-        {r.status === 'REDEEMABLE' ? (
+        {r.status === 'REDEEMABLE' && guestActionsAllowed ? (
           <>
             <Pressable
               style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
@@ -202,7 +215,23 @@ export default function PerkWalletScreen({ navigation }: Props) {
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
   const session = useVenueSession();
+  const staff = useStaffContext();
   const showStaffQr = session.canDoVenueActions;
+
+  const guestActionsAllowedFor = useCallback(
+    (venueId: string) =>
+      canUseGuestRewardActionsAtVenue({
+        staffVenueIds: staff.staffVenueIds,
+        membershipsResolved: staff.membershipsResolved,
+        rewardVenueId: venueId,
+      }),
+    [staff.staffVenueIds, staff.membershipsResolved],
+  );
+  const staffOwnVenueFor = useCallback(
+    (venueId: string) =>
+      staff.membershipsResolved && staff.staffVenueIds.includes(venueId),
+    [staff.staffVenueIds, staff.membershipsResolved],
+  );
 
   const [initializing, setInitializing] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -357,6 +386,8 @@ export default function PerkWalletScreen({ navigation }: Props) {
                 colors={colors}
                 navigation={navigation}
                 showQr={showStaffQr}
+                guestActionsAllowed={guestActionsAllowedFor(r.venueId)}
+                staffOwnVenue={staffOwnVenueFor(r.venueId)}
               />
             ))}
           </>
@@ -375,6 +406,8 @@ export default function PerkWalletScreen({ navigation }: Props) {
                 colors={colors}
                 navigation={navigation}
                 showQr={false}
+                guestActionsAllowed={guestActionsAllowedFor(r.venueId)}
+                staffOwnVenue={staffOwnVenueFor(r.venueId)}
               />
             ))}
           </>

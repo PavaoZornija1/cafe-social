@@ -47,10 +47,11 @@ export class FinalizeBrawlerSessionDto {
   @IsUUID()
   winnerParticipantId?: string;
 
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => FinalizeBrawlerParticipantDto)
-  participants!: FinalizeBrawlerParticipantDto[];
+  participants?: FinalizeBrawlerParticipantDto[];
 
   @IsOptional()
   @IsInt()

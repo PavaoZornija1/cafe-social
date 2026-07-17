@@ -18,6 +18,8 @@ import LinearGradientFill from '../components/ui/LinearGradientFill';
 import type { RootStackParamList } from '../navigation/type';
 import { fetchMyMemberCard, type MemberCardDto } from '../lib/memberCardApi';
 import { cacheMemberCard, loadCachedMemberCard } from '../lib/memberCardCache';
+import { memberCardQrVisibility, memberCardVenueMode } from '../lib/staffRewardPolicy';
+import { useStaffContext, useVenueSession } from '../query';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
@@ -51,6 +53,28 @@ export default function MemberCardScreen({ navigation }: Props) {
   const { isLoaded, getToken } = useAuth();
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
+
+  const session = useVenueSession();
+  const staff = useStaffContext();
+  // Own-venue staff mode for the currently detected venue: the card stays
+  // accessible (valid elsewhere) but must not be presented as usable here.
+  const atOwnVenue =
+    memberCardVenueMode({
+      activeVenueId: session.playVenueId,
+      isStaffAtVenue: staff.isStaffAtVenue,
+    }) === 'staffOwnVenue';
+  // Fail-safe QR rendering: with an active venue, the QR stays hidden until
+  // staff membership state resolves (brief spinner for guests). While venue
+  // detection is still pending, only known staff members are held back.
+  // Off-venue and offline use keep the QR available.
+  const qrVisibility = memberCardQrVisibility({
+    activeVenueId: session.playVenueId,
+    isStaffAtVenue: staff.isStaffAtVenue,
+    staffStateResolved: staff.membershipsResolved,
+    venueDetectionPending: session.isLoading,
+    hasStaffVenues: staff.hasStaffVenues,
+  });
+  const ownVenueName = session.detectedVenue?.name ?? '';
 
   const [card, setCard] = useState<MemberCardDto | null>(null);
   const [initializing, setInitializing] = useState(true);
@@ -167,6 +191,17 @@ export default function MemberCardScreen({ navigation }: Props) {
 
         <Text style={styles.subtitle}>{t('memberCard.lead')}</Text>
 
+        {atOwnVenue ? (
+          <View style={styles.staffBanner}>
+            <Ionicons name="alert-circle" size={20} color={colors.warning} />
+            <Text style={styles.staffBannerText}>
+              {ownVenueName
+                ? t('memberCard.staffOwnVenueNotice', { venue: ownVenueName })
+                : t('memberCard.staffOwnVenueNoticeNoName')}
+            </Text>
+          </View>
+        ) : null}
+
         {offline ? (
           <View style={styles.offlineBanner}>
             <Ionicons name="cloud-offline-outline" size={18} color={colors.warning} />
@@ -187,7 +222,11 @@ export default function MemberCardScreen({ navigation }: Props) {
                 <View style={styles.cardHeaderIcon}>
                   <Ionicons name="qr-code" size={22} color={colors.textInverse} />
                 </View>
-                <Text style={styles.cardHeaderTitle}>{t('memberCard.showAtTill')}</Text>
+                <Text style={styles.cardHeaderTitle}>
+                  {atOwnVenue
+                    ? t('memberCard.staffOwnVenueHeader')
+                    : t('memberCard.showAtTill')}
+                </Text>
               </View>
             </View>
 
@@ -205,7 +244,18 @@ export default function MemberCardScreen({ navigation }: Props) {
               </View>
 
               <View style={styles.qrWrap}>
-                {card.qrPayload ? (
+                {qrVisibility === 'hiddenStaffVenue' ? (
+                  <View style={styles.qrHiddenWrap}>
+                    <Ionicons name="eye-off-outline" size={40} color={colors.textMuted} />
+                    <Text style={styles.qrHiddenText}>
+                      {t('memberCard.staffOwnVenueQrHidden')}
+                    </Text>
+                  </View>
+                ) : qrVisibility === 'hiddenResolving' ? (
+                  <View style={styles.qrHiddenWrap}>
+                    <ActivityIndicator color={colors.primary} />
+                  </View>
+                ) : card.qrPayload ? (
                   <MemberQrCode
                     payload={card.qrPayload}
                     foreground={colors.primaryDark}
@@ -214,7 +264,11 @@ export default function MemberCardScreen({ navigation }: Props) {
                 ) : null}
               </View>
 
-              <Text style={styles.scanHint}>{t('memberCard.scanHint')}</Text>
+              <Text style={styles.scanHint}>
+                {atOwnVenue
+                  ? t('memberCard.staffOwnVenueScanHint')
+                  : t('memberCard.scanHint')}
+              </Text>
             </View>
           </View>
         ) : (
@@ -307,6 +361,37 @@ function createStyles(colors: AppColors) {
       fontSize: 13,
       fontWeight: '700',
       lineHeight: 18,
+    },
+    staffBanner: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+      backgroundColor: colors.warningBg,
+      borderRadius: radii.lg,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.warningBorder,
+      padding: spacing.lg,
+      marginBottom: spacing.lg,
+    },
+    staffBannerText: {
+      flex: 1,
+      color: colors.warning,
+      fontSize: 14,
+      fontWeight: '700',
+      lineHeight: 20,
+    },
+    qrHiddenWrap: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      padding: spacing.md,
+    },
+    qrHiddenText: {
+      color: colors.textMuted,
+      fontSize: 12,
+      fontWeight: '600',
+      textAlign: 'center',
+      lineHeight: 17,
     },
     centerBlock: {
       alignItems: 'center',

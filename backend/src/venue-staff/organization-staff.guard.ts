@@ -7,19 +7,28 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { PlatformRole, VenueStaffRole } from '@prisma/client';
 import { normalizeUserEmail } from '../auth/user-email.util';
 import { PrismaService } from '../prisma/prisma.service';
+import { MIN_ORG_ROLE_KEY } from './min-org-role.decorator';
 import { VenueStaffService } from './venue-staff.service';
 
 @Injectable()
 export class OrganizationStaffGuard implements CanActivate {
   constructor(
+    private readonly reflector: Reflector,
     private readonly prisma: PrismaService,
     private readonly venueStaff: VenueStaffService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const minRole =
+      this.reflector.getAllAndOverride<VenueStaffRole | undefined>(MIN_ORG_ROLE_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]) ?? VenueStaffRole.MANAGER;
+
     const req = context.switchToHttp().getRequest<{
       user?: unknown;
       params: Record<string, string | undefined>;
@@ -63,10 +72,7 @@ export class OrganizationStaffGuard implements CanActivate {
 
     for (const v of venues) {
       const m = await this.venueStaff.findMembership(player.id, v.id);
-      if (
-        m &&
-        VenueStaffService.roleAtLeast(m.role, VenueStaffRole.MANAGER)
-      ) {
+      if (m && VenueStaffService.roleAtLeast(m.role, minRole)) {
         return true;
       }
     }

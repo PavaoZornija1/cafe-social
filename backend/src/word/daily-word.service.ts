@@ -5,7 +5,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ChallengeAutoProgressSource } from '@prisma/client';
+import { ChallengeAutoProgressSource, type Prisma } from '@prisma/client';
 import { PlayerService } from '../player/player.service';
 import { SubscriptionRepository } from '../venue/subscription.repository';
 import { WordRepository } from './word.repository';
@@ -167,7 +167,8 @@ export class DailyWordService {
 
     const attempts = row?.attempts ?? 0;
     const solved = !!row?.solvedAt;
-    const hints = this.progressiveDailyHints(attempts, solved, w);
+    const exhausted = !solved && attempts >= MAX_ATTEMPTS;
+    const hints = this.progressiveDailyHints(attempts, solved || exhausted, w);
 
     return {
       dayKey,
@@ -180,7 +181,7 @@ export class DailyWordService {
       answerLength: hints.answerLength,
       streak: streakRow?.currentStreak ?? 0,
       lastSolvedDayKey: streakRow?.lastSolvedDayKey ?? null,
-      word: solved && w ? w.text : undefined,
+      word: (solved || exhausted) && w ? w.text : undefined,
       hints,
     };
   }
@@ -219,38 +220,24 @@ export class DailyWordService {
     });
     if (!word) throw new NotFoundException('Word not found');
 
-    const existing = await this.prisma.playerDailyWord.findUnique({
-      where: {
-        playerId_dayKey_scopeKey: { playerId: player.id, dayKey, scopeKey: sk },
-      },
-    });
-
-    if (existing?.solvedAt) {
-      const hints = this.progressiveDailyHints(existing.attempts, true, word);
-      return {
-        correct: true,
-        solved: true,
-        attempts: existing.attempts,
-        maxAttempts: MAX_ATTEMPTS,
-        answerLength: hints.answerLength,
-        word: word.text,
-        streak: (await this.streakSnapshot(player.id, sk)).currentStreak,
-        hints,
-      };
-    }
-
-    if (existing && existing.attempts >= MAX_ATTEMPTS) {
-      throw new BadRequestException('No attempts left today');
-    }
-
     const guessNorm = normalizeGuess(dto.guess);
     const targetNorm = normalizeGuess(word.text);
     const correct = guessNorm.length > 0 && guessNorm === targetNorm;
 
-    const nextAttempts = (existing?.attempts ?? 0) + 1;
+    type GuessOutcome = {
+      correct: boolean;
+      solved: boolean;
+      attempts: number;
+      word?: string;
+      streak: number;
+      exhausted: boolean;
+      /** True only when this request newly set solvedAt (triggers XP / feed). */
+      freshSolve: boolean;
+    };
 
-    if (!correct && nextAttempts >= MAX_ATTEMPTS) {
-      await this.prisma.playerDailyWord.upsert({
+    const outcome = await this.prisma.$transaction(async (tx) => {
+      // Ensure a row exists so concurrent guessers share one counter.
+      await tx.playerDailyWord.upsert({
         where: {
           playerId_dayKey_scopeKey: { playerId: player.id, dayKey, scopeKey: sk },
         },
@@ -258,40 +245,115 @@ export class DailyWordService {
           playerId: player.id,
           dayKey,
           scopeKey: sk,
-          attempts: nextAttempts,
+          attempts: 0,
         },
-        update: { attempts: nextAttempts },
+        update: {},
       });
-      const hints = this.progressiveDailyHints(nextAttempts, false, word);
+
+      const existing = await tx.playerDailyWord.findUnique({
+        where: {
+          playerId_dayKey_scopeKey: { playerId: player.id, dayKey, scopeKey: sk },
+        },
+      });
+      if (!existing) throw new BadRequestException('daily word row missing');
+
+      if (existing.solvedAt) {
+        return {
+          correct: true,
+          solved: true,
+          attempts: existing.attempts,
+          word: word.text,
+          streak: (await this.streakSnapshot(player.id, sk)).currentStreak,
+          exhausted: false,
+          freshSolve: false,
+        } satisfies GuessOutcome;
+      }
+
+      if (existing.attempts >= MAX_ATTEMPTS) {
+        return {
+          correct: false,
+          solved: false,
+          attempts: existing.attempts,
+          word: word.text,
+          streak: (await this.streakSnapshot(player.id, sk)).currentStreak,
+          exhausted: true,
+          freshSolve: false,
+        } satisfies GuessOutcome;
+      }
+
+      if (correct) {
+        const nextAttempts = existing.attempts + 1;
+        const solvedAt = new Date();
+        const bumped = await tx.playerDailyWord.updateMany({
+          where: {
+            playerId: player.id,
+            dayKey,
+            scopeKey: sk,
+            solvedAt: null,
+            attempts: existing.attempts,
+          },
+          data: { attempts: nextAttempts, solvedAt },
+        });
+        if (bumped.count === 0) {
+          const again = await tx.playerDailyWord.findUnique({
+            where: {
+              playerId_dayKey_scopeKey: { playerId: player.id, dayKey, scopeKey: sk },
+            },
+          });
+          if (again?.solvedAt) {
+            return {
+              correct: true,
+              solved: true,
+              attempts: again.attempts,
+              word: word.text,
+              streak: (await this.streakSnapshot(player.id, sk)).currentStreak,
+              exhausted: false,
+              freshSolve: false,
+            } satisfies GuessOutcome;
+          }
+          throw new BadRequestException('Could not record guess; try again');
+        }
+
+        const streak = await this.bumpStreakTx(tx, player.id, sk, dayKey);
+        return {
+          correct: true,
+          solved: true,
+          attempts: nextAttempts,
+          word: word.text,
+          streak: streak.currentStreak,
+          exhausted: false,
+          freshSolve: true,
+        } satisfies GuessOutcome;
+      }
+
+      const bumped = await tx.playerDailyWord.updateMany({
+        where: {
+          playerId: player.id,
+          dayKey,
+          scopeKey: sk,
+          solvedAt: null,
+          attempts: existing.attempts,
+        },
+        data: { attempts: { increment: 1 } },
+      });
+      if (bumped.count === 0) {
+        throw new BadRequestException('Could not record guess; try again');
+      }
+
+      const nextAttempts = existing.attempts + 1;
+      const exhausted = nextAttempts >= MAX_ATTEMPTS;
       return {
         correct: false,
         solved: false,
         attempts: nextAttempts,
-        maxAttempts: MAX_ATTEMPTS,
-        answerLength: hints.answerLength,
+        word: exhausted ? word.text : undefined,
         streak: (await this.streakSnapshot(player.id, sk)).currentStreak,
-        hints,
-      };
-    }
+        exhausted,
+        freshSolve: false,
+      } satisfies GuessOutcome;
+    });
 
-    if (correct) {
-      const solvedAt = new Date();
-      await this.prisma.playerDailyWord.upsert({
-        where: {
-          playerId_dayKey_scopeKey: { playerId: player.id, dayKey, scopeKey: sk },
-        },
-        create: {
-          playerId: player.id,
-          dayKey,
-          scopeKey: sk,
-          attempts: nextAttempts,
-          solvedAt,
-        },
-        update: { attempts: nextAttempts, solvedAt },
-      });
-
-      const streak = await this.bumpStreak(player.id, sk, dayKey);
-
+    if (outcome.freshSolve) {
       void this.gameXp.tryAwardDailyWordFirstSolve({
         playerId: player.id,
         dayKey,
@@ -310,54 +372,32 @@ export class DailyWordService {
           source: ChallengeAutoProgressSource.DAILY_WORD,
         });
       }
-
-      const hintsSolved = this.progressiveDailyHints(nextAttempts, true, word);
-      return {
-        correct: true,
-        solved: true,
-        attempts: nextAttempts,
-        maxAttempts: MAX_ATTEMPTS,
-        answerLength: hintsSolved.answerLength,
-        word: word.text,
-        streak: streak.currentStreak,
-        hints: hintsSolved,
-      };
     }
 
-    await this.prisma.playerDailyWord.upsert({
-      where: {
-        playerId_dayKey_scopeKey: { playerId: player.id, dayKey, scopeKey: sk },
-      },
-      create: {
-        playerId: player.id,
-        dayKey,
-        scopeKey: sk,
-        attempts: nextAttempts,
-      },
-      update: { attempts: nextAttempts },
-    });
-
-    const hintsWrong = this.progressiveDailyHints(nextAttempts, false, word);
+    const hints = this.progressiveDailyHints(
+      outcome.attempts,
+      outcome.solved || outcome.exhausted,
+      word,
+    );
     return {
-      correct: false,
-      solved: false,
-      attempts: nextAttempts,
+      correct: outcome.correct,
+      solved: outcome.solved,
+      attempts: outcome.attempts,
       maxAttempts: MAX_ATTEMPTS,
-      answerLength: hintsWrong.answerLength,
-      streak: (await this.streakSnapshot(player.id, sk)).currentStreak,
-      hints: hintsWrong,
+      answerLength: hints.answerLength,
+      word: outcome.word,
+      streak: outcome.streak,
+      hints,
     };
   }
 
-  private async streakSnapshot(playerId: string, scopeKey: string) {
-    const row = await this.prisma.playerDailyStreak.findUnique({
-      where: { playerId_scopeKey: { playerId, scopeKey } },
-    });
-    return { currentStreak: row?.currentStreak ?? 0 };
-  }
-
-  private async bumpStreak(playerId: string, scopeKey: string, dayKey: string) {
-    const row = await this.prisma.playerDailyStreak.findUnique({
+  private async bumpStreakTx(
+    tx: Prisma.TransactionClient,
+    playerId: string,
+    scopeKey: string,
+    dayKey: string,
+  ) {
+    const row = await tx.playerDailyStreak.findUnique({
       where: { playerId_scopeKey: { playerId, scopeKey } },
     });
 
@@ -371,7 +411,7 @@ export class DailyWordService {
       next = 1;
     }
 
-    return this.prisma.playerDailyStreak.upsert({
+    return tx.playerDailyStreak.upsert({
       where: { playerId_scopeKey: { playerId, scopeKey } },
       create: {
         playerId,
@@ -384,5 +424,12 @@ export class DailyWordService {
         lastSolvedDayKey: dayKey,
       },
     });
+  }
+
+  private async streakSnapshot(playerId: string, scopeKey: string) {
+    const row = await this.prisma.playerDailyStreak.findUnique({
+      where: { playerId_scopeKey: { playerId, scopeKey } },
+    });
+    return { currentStreak: row?.currentStreak ?? 0 };
   }
 }

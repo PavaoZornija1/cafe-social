@@ -226,9 +226,7 @@ export default function WordVenueQueueScreen({ navigation, route }: Props) {
             </Text>
             <Text style={styles.statusBody}>{statusText}</Text>
             {!enrolling && !error && !ranked ? (
-              <Text style={styles.botHint}>
-                {t('wordMatch.queueBotFillHint', { seconds: 10 })}
-              </Text>
+              <Text style={styles.botHint}>{t('wordMatch.queueBotFillHint')}</Text>
             ) : null}
           </View>
         )}

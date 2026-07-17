@@ -19,8 +19,16 @@ import {
   BRAWLER_ARENA_EVENT,
   type BrawlerArenaSocketPayload,
 } from './brawler-arena.events';
+import {
+  BRAWLER_COMBAT_EVENT,
+  type BrawlerCombatSocketPayload,
+} from './brawler-combat.events';
 
 export { BRAWLER_ARENA_EVENT, type BrawlerArenaSocketPayload } from './brawler-arena.events';
+export {
+  BRAWLER_COMBAT_EVENT,
+  type BrawlerCombatSocketPayload,
+} from './brawler-combat.events';
 
 @WebSocketGateway({
   namespace: '/brawler',
@@ -85,8 +93,16 @@ export class BrawlerGateway implements OnGatewayConnection {
         return { ok: false, error: 'forbidden' };
       }
       await client.join(`match:${body.sessionId}`);
-      const snapshot = await this.brawler.getArenaState(body.sessionId);
+      const snapshot = await this.brawler.getArenaState(body.sessionId, email);
       client.emit('arena', snapshot);
+      const combat = await this.brawler.getCombatState(body.sessionId, email);
+      if (combat) {
+        client.emit('combat', {
+          sessionId: body.sessionId,
+          type: 'snapshot',
+          state: combat,
+        } satisfies BrawlerCombatSocketPayload);
+      }
       return { ok: true };
     } catch (e) {
       this.logger.warn(`subscribe failed: ${(e as Error).message}`);
@@ -105,9 +121,49 @@ export class BrawlerGateway implements OnGatewayConnection {
     return { ok: true };
   }
 
+  @SubscribeMessage('input')
+  async input(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    body: {
+      sessionId?: string;
+      seq?: number;
+      moveX?: number;
+      moveY?: number;
+      fire?: boolean;
+      pickup?: boolean;
+      participantId?: string;
+    },
+  ): Promise<{ ok: boolean; error?: string }> {
+    const email = client.data.email as string | undefined;
+    if (!email || !body?.sessionId || typeof body.seq !== 'number') {
+      return { ok: false, error: 'bad_request' };
+    }
+    try {
+      const result = await this.brawler.submitCombatInput(body.sessionId, email, {
+        participantId: body.participantId,
+        seq: body.seq,
+        moveX: typeof body.moveX === 'number' ? body.moveX : 0,
+        moveY: typeof body.moveY === 'number' ? body.moveY : 0,
+        fire: body.fire,
+        pickup: body.pickup,
+      });
+      return result;
+    } catch (e) {
+      this.logger.debug(`input failed: ${(e as Error).message}`);
+      return { ok: false, error: 'server' };
+    }
+  }
+
   @OnEvent(BRAWLER_ARENA_EVENT)
   handleArenaEvent(payload: BrawlerArenaSocketPayload) {
     if (!this.server || !payload?.sessionId) return;
     this.server.to(`match:${payload.sessionId}`).emit('arena', payload);
+  }
+
+  @OnEvent(BRAWLER_COMBAT_EVENT)
+  handleCombatEvent(payload: BrawlerCombatSocketPayload) {
+    if (!this.server || !payload?.sessionId) return;
+    this.server.to(`match:${payload.sessionId}`).emit('combat', payload);
   }
 }

@@ -10,7 +10,6 @@ import { PlayerNotificationService } from '../notification/player-notification.s
 import { VenueStaffNotificationService } from '../notification/venue-staff-notification.service';
 import { OwnerRedemptionActionsService } from '../owner/owner-redemption-actions.service';
 import { VenueStaffService } from '../venue-staff/venue-staff.service';
-import { VenueStaffService } from '../venue-staff/venue-staff.service';
 
 const MAX_IMAGE_BYTES = 2_500_000;
 

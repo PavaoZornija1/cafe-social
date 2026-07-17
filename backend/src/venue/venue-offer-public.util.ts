@@ -63,6 +63,8 @@ export async function loadPublicVenueOffersForVenue(
       where: {
         playerId,
         offerId: { in: rows.map((r) => r.id) },
+        // CANCELLED claims are retired and must not surface as active state.
+        status: { in: ['PENDING', 'FULFILLED'] },
       },
       select: { offerId: true, status: true, createdAt: true },
       orderBy: { createdAt: 'desc' },

@@ -18,7 +18,10 @@ export type FeedbackSoundId =
   | 'brawlerKo'
   | 'brawlerPowerup'
   | 'perkRedeemed'
-  | 'checkIn';
+  | 'checkIn'
+  | 'uiTap'
+  | 'uiSuccess'
+  | 'uiError';
 
 export const FEEDBACK_SOUND_SOURCES: Record<FeedbackSoundId, AVPlaybackSource> = {
   correct: require('../../../assets/sounds/correct.wav'),
@@ -39,4 +42,7 @@ export const FEEDBACK_SOUND_SOURCES: Record<FeedbackSoundId, AVPlaybackSource> =
   brawlerPowerup: require('../../../assets/sounds/brawler_powerup.wav'),
   perkRedeemed: require('../../../assets/sounds/perk_redeemed.wav'),
   checkIn: require('../../../assets/sounds/check_in.wav'),
+  uiTap: require('../../../assets/sounds/ui_tap.wav'),
+  uiSuccess: require('../../../assets/sounds/ui_success.wav'),
+  uiError: require('../../../assets/sounds/ui_error.wav'),
 };

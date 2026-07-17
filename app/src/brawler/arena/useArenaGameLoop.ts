@@ -69,6 +69,13 @@ import type {
 } from './types';
 import type { arenaHeroCombat } from './combat';
 import { pickRandomPowerupSpawnPosition } from './powerupSpawn';
+import { denormalizePowerupCoords } from './powerupCoords';
+import { rollbackOptimisticPowerupPick } from './powerupPickupRollback';
+import {
+  arenaHudSpriteKey,
+  shouldBumpArenaHud,
+  type ArenaHudBumpSignals,
+} from './arenaHudBumpPolicy';
 
 export type ArenaGameLoopConfig = {
   arenaW: number;
@@ -88,7 +95,10 @@ export type ArenaGameLoopConfig = {
   arenaPaused: boolean;
   controlsLive: boolean;
   difficultyTuning: { enemySpeedMul: number; contactDmg: number };
-  bump: () => void;
+  /** Discrete HUD / sprite-sheet React updates only. */
+  bumpHud: () => void;
+  /** Imperative world motion paint each RAF (camera, bodies). */
+  paintWorld: () => void;
   spawnEnemyOnRandomPlatform: () => Enemy;
   setGameOverOpen: (open: boolean) => void;
   setHeroDeadOpen: (open: boolean) => void;
@@ -141,6 +151,7 @@ export type ArenaGameLoopConfig = {
     endsAtMs: number;
   } | null>;
   participantsRef: MutableRefObject<TrackedParticipant[]>;
+  localParticipantIdRef: MutableRefObject<string | null>;
   getTokenRef: MutableRefObject<() => Promise<string | null>>;
   dashCooldownLeft: MutableRefObject<number>;
   dashTimeLeft: MutableRefObject<number>;
@@ -177,7 +188,8 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
     arenaPaused,
     controlsLive,
     difficultyTuning,
-    bump,
+    bumpHud,
+    paintWorld,
     spawnEnemyOnRandomPlatform,
     setGameOverOpen,
     setHeroDeadOpen,
@@ -226,6 +238,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
     activeBuffsRef,
     powerupPickupFlashRef,
     participantsRef,
+    localParticipantIdRef,
     getTokenRef,
     dashCooldownLeft,
     dashTimeLeft,
@@ -250,6 +263,9 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
       typeof performance !== 'undefined' ? performance.now() : Date.now();
     /** Accumulates while stick is held fully down on a float platform. */
     let dropThroughHoldS = 0;
+    const prevHudSignalsRef: { current: ArenaHudBumpSignals | null } = {
+      current: null,
+    };
 
     const step = (now: number) => {
       if (cancelled) return;
@@ -279,7 +295,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
           ceilBefore !== ceilAfter ||
           (preMatchLeftRef.current <= 0 && t0 > 0)
         ) {
-          bump();
+          bumpHud();
         }
         joyRef.current.x = 0;
         joyRef.current.y = 0;
@@ -378,13 +394,13 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
       if (activeBuffsRef.current.length > 0) {
         const before = activeBuffsRef.current.length;
         activeBuffsRef.current = activeBuffsRef.current.filter((b) => b.endsAtMs > nowMs);
-        if (activeBuffsRef.current.length !== before) bump();
+        if (activeBuffsRef.current.length !== before) bumpHud();
       }
 
       const pickupFlash = powerupPickupFlashRef.current;
       if (pickupFlash && pickupFlash.endsAtMs <= nowMs) {
         powerupPickupFlashRef.current = null;
-        bump();
+        bumpHud();
       }
 
       const useServerArena = Boolean(sessionIdLiveRef.current);
@@ -414,8 +430,8 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
                   spawn?: {
                     spawnId: string;
                     powerupId: string;
-                    x: number;
-                    y: number;
+                    nx: number;
+                    ny: number;
                     r?: number;
                   };
                 }>(
@@ -432,17 +448,23 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
                   res.spawn &&
                   !powerupsOnMapRef.current.some((p) => p.spawnId === res.spawn!.spawnId)
                 ) {
+                  const { x, y } = denormalizePowerupCoords(
+                    res.spawn.nx,
+                    res.spawn.ny,
+                    tickWorldW,
+                    tickWorldH,
+                  );
                   powerupsOnMapRef.current = [
                     ...powerupsOnMapRef.current,
                     {
                       spawnId: res.spawn.spawnId,
                       powerupId: res.spawn.powerupId,
-                      x: res.spawn.x,
-                      y: res.spawn.y,
+                      x,
+                      y,
                       r: res.spawn.r ?? POWERUP_PICKUP_RADIUS_PX,
                     },
                   ];
-                  bump();
+                  bumpHud();
                 }
               } catch {
                 /* socket / next tick will reconcile */
@@ -487,7 +509,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
                 r: POWERUP_PICKUP_RADIUS_PX,
               },
             ];
-            bump();
+            bumpHud();
           }
         }
       }
@@ -499,7 +521,11 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
         powerupsOnMapRef.current.length > 0 &&
         participantsRef.current.length > 0
       ) {
-        const human = participantsRef.current.find((p) => !p.isBot);
+        const localId = localParticipantIdRef.current;
+        const human =
+          (localId
+            ? participantsRef.current.find((p) => p.id === localId)
+            : undefined) ?? participantsRef.current.find((p) => !p.isBot);
         if (human) {
           const { hx, hy } = getPickupCenter(
             heroSpriteLiveRef.current,
@@ -518,12 +544,15 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
             powerupsOnMapRef.current = powerupsOnMapRef.current.filter(
               (p) => p.spawnId !== pu.spawnId,
             );
+            const hpBeforeHeal = heroHpRef.current;
             if (def) {
               powerupPickupFlashRef.current = {
                 displayName: def.displayName,
                 effectType: def.effectType,
                 endsAtMs: nowMs + 2200,
               };
+              // Optimistic apply once here. Confirm path only syncs non-heal buff timings —
+              // HEAL must not be applied again on server confirm (double-heal bug).
               if (def.effectType === 'HEAL_MAX_HP_PCT') {
                 const maxHp = heroCombat.baseHp;
                 const gain = Math.round(maxHp * def.magnitude);
@@ -544,7 +573,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
               }
             }
             triggerFeedback('brawlerPowerup');
-            bump();
+            bumpHud();
 
             void (async () => {
               try {
@@ -572,41 +601,62 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
                   token,
                 );
 
+                if (!res.applied || res.reason === 'ALREADY_PICKED') {
+                  if (def) {
+                    const rolled = rollbackOptimisticPowerupPick({
+                      def,
+                      powerupId: pu.powerupId,
+                      heroHp: heroHpRef.current,
+                      maxHp: heroCombat.baseHp,
+                      activeBuffs: activeBuffsRef.current,
+                      hpBeforeHeal,
+                    });
+                    heroHpRef.current = rolled.heroHp;
+                    activeBuffsRef.current = rolled.activeBuffs;
+                  }
+                  return;
+                }
+
                 if (
-                  res.applied &&
                   res.effectType &&
                   typeof res.magnitude === 'number' &&
-                  def
+                  def &&
+                  res.effectType !== 'HEAL_MAX_HP_PCT'
                 ) {
-                  if (res.effectType === 'HEAL_MAX_HP_PCT') {
-                    const maxHp = heroCombat.baseHp;
-                    const gain = Math.round(maxHp * res.magnitude);
-                    heroHpRef.current = Math.min(maxHp, heroHpRef.current + gain);
-                  } else {
-                    const started =
-                      typeof res.startedAtMs === 'number' ? res.startedAtMs : nowMs;
-                    const ends =
-                      typeof res.endsAtMs === 'number' ? res.endsAtMs : nowMs + 5000;
-                    const buffs = activeBuffsRef.current;
-                    const idx = buffs.findIndex((b) => b.powerupId === pu.powerupId);
-                    const next: ActiveBuff = {
-                      powerupId: pu.powerupId,
-                      effectType: res.effectType,
-                      magnitude: res.magnitude,
-                      startedAtMs: started,
-                      endsAtMs: ends,
-                    };
-                    activeBuffsRef.current =
-                      idx >= 0
-                        ? buffs.map((b, i) => (i === idx ? next : b))
-                        : [...buffs, next];
-                  }
+                  const started =
+                    typeof res.startedAtMs === 'number' ? res.startedAtMs : nowMs;
+                  const ends =
+                    typeof res.endsAtMs === 'number' ? res.endsAtMs : nowMs + 5000;
+                  const buffs = activeBuffsRef.current;
+                  const idx = buffs.findIndex((b) => b.powerupId === pu.powerupId);
+                  const next: ActiveBuff = {
+                    powerupId: pu.powerupId,
+                    effectType: res.effectType,
+                    magnitude: res.magnitude,
+                    startedAtMs: started,
+                    endsAtMs: ends,
+                  };
+                  activeBuffsRef.current =
+                    idx >= 0
+                      ? buffs.map((b, i) => (i === idx ? next : b))
+                      : [...buffs, next];
                 }
               } catch {
-                // allow retry; optimistic state stays until socket/refresh reconciles
+                if (def) {
+                  const rolled = rollbackOptimisticPowerupPick({
+                    def,
+                    powerupId: pu.powerupId,
+                    heroHp: heroHpRef.current,
+                    maxHp: heroCombat.baseHp,
+                    activeBuffs: activeBuffsRef.current,
+                    hpBeforeHeal,
+                  });
+                  heroHpRef.current = rolled.heroHp;
+                  activeBuffsRef.current = rolled.activeBuffs;
+                }
               } finally {
                 powerupPickedPendingRef.current.delete(pu.spawnId);
-                bump();
+                bumpHud();
               }
             })();
             break;
@@ -731,14 +781,14 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
           }
         }
       }
-      if (dummiesChanged) bump();
+      if (dummiesChanged) bumpHud();
 
       // Floating damage numbers tick
       const floats = dmgFloatsRef.current;
       if (floats.length > 0) {
         for (const f of floats) f.age += dt;
         dmgFloatsRef.current = floats.filter((f) => f.age < DMG_FLOAT_LIFETIME_S);
-        bump();
+        bumpHud();
       }
 
       // Hero invulnerability frames (contact damage cooldown).
@@ -839,7 +889,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
           }
           if (changed) {
             enemiesRef.current = enemies;
-            bump();
+            bumpHud();
           }
         }
       }
@@ -958,7 +1008,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
           } else {
             triggerFeedback('brawlerHit');
           }
-          bump();
+          bumpHud();
         } else {
           const hitDummy = dummiesRef.current.find(
             (d) => d.hp > 0 && aabbOverlap(dashX, dashY, dashW, dashH, d.x, d.y, d.w, d.h),
@@ -986,7 +1036,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
 
             dashHitAppliedRef.current = true;
             triggerFeedback('brawlerHit');
-            bump();
+            bumpHud();
           }
         }
       }
@@ -1047,7 +1097,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
             } else {
               triggerFeedback('brawlerHit');
             }
-            bump();
+            bumpHud();
           } else {
             const hitAny = dummiesRef.current.find(
               (d) =>
@@ -1075,7 +1125,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
               triggerFeedback('brawlerHit');
               const dir = facing.current === 'right' ? 1 : -1;
               hitAny.knockVx = dir * heroCombat.attackKnockbackDummySpeed;
-              bump(); // force re-render to show HP drop
+              bumpHud(); // force re-render to show HP drop
             }
           }
         }
@@ -1273,7 +1323,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
           }
           triggerFeedback('brawlerKo');
           setHeroDeadOpen(true);
-          bump();
+          bumpHud();
         }
       }
 
@@ -1319,7 +1369,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
               triggerFeedback('brawlerKo');
               setHeroDeadOpen(true);
             }
-            bump();
+            bumpHud();
           }
         }
       }
@@ -1410,7 +1460,39 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
         }
       }
 
-      bump();
+      paintWorld();
+
+      const enemyAliveKey = enemiesRef.current
+        .map((e) => (e.hp > 0 && e.respawnLeft <= 0 ? '1' : '0'))
+        .join('');
+      const powerupKey = powerupsOnMapRef.current.map((p) => p.spawnId).join(',');
+      const buffKey = activeBuffsRef.current
+        .map((b) => `${b.powerupId}:${b.endsAtMs}`)
+        .join(',');
+      const hudSignals: ArenaHudBumpSignals = {
+        matchClockCeil: Math.ceil(matchClockRef.current),
+        preMatchCeil: Math.ceil(preMatchLeftRef.current),
+        heroHp: Math.round(heroHpRef.current),
+        kills: playerKillsRef.current,
+        deaths: playerDeathsRef.current,
+        spriteKey: arenaHudSpriteKey({
+          anim: spriteAnimRef.current,
+          walk: walkFrameRef.current,
+          idle: idleFrameRef.current,
+          hit: hitFrameRef.current,
+          jump: jumpFrameRef.current,
+          dash: dashFrameRef.current,
+          facing: facing.current,
+        }),
+        enemyAliveKey,
+        powerupKey,
+        buffKey,
+        dashReady: dashCooldownLeft.current <= 0,
+      };
+      if (shouldBumpArenaHud(prevHudSignalsRef.current, hudSignals)) {
+        prevHudSignalsRef.current = hudSignals;
+        bumpHud();
+      }
       rafRef.current = requestAnimationFrame(step);
     };
 
@@ -1424,7 +1506,8 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
     arenaInnerH,
     worldW,
     worldH,
-    bump,
+    bumpHud,
+    paintWorld,
     bodyW,
     bodyH,
     floorY,

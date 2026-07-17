@@ -39,6 +39,7 @@ export class AdminVenueStaffController {
     return this.venueStaff.listStaffForVenue(venueId);
   }
 
+  /** Direct CMS staff mutation: super admin only. Partners manage staff via Team invites. */
   @Post(':venueId/staff')
   async upsert(
     @Req() req: ReqWithScope,
@@ -46,8 +47,7 @@ export class AdminVenueStaffController {
     @Body() dto: AdminUpsertVenueStaffDto,
   ) {
     const scope = getAdminCmsScope(req);
-    this.cmsAccess.assertVenueInScope(scope, venueId);
-    await this.cmsAccess.assertVenueMutable(scope, venueId);
+    this.cmsAccess.assertSuperAdmin(scope);
     const player = await this.players.findOrCreateByEmail(dto.email.trim());
     const existing = await this.venueStaff.findMembership(player.id, venueId);
     if (
@@ -63,6 +63,7 @@ export class AdminVenueStaffController {
     });
   }
 
+  /** Direct CMS staff mutation: super admin only. Partners manage staff via Team invites. */
   @Delete(':venueId/staff/:playerId')
   async remove(
     @Req() req: ReqWithScope,
@@ -70,8 +71,7 @@ export class AdminVenueStaffController {
     @Param('playerId', new ParseUUIDPipe()) playerId: string,
   ) {
     const scope = getAdminCmsScope(req);
-    this.cmsAccess.assertVenueInScope(scope, venueId);
-    await this.cmsAccess.assertVenueMutable(scope, venueId);
+    this.cmsAccess.assertSuperAdmin(scope);
     await this.venueStaff.assertCanRemoveOrDemoteOwner(venueId, playerId);
     await this.venueStaff.removeMember(venueId, playerId);
     return { ok: true };

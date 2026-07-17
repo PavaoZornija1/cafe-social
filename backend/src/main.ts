@@ -6,6 +6,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { AppModule } from './app.module';
 import { RedisIoAdapter } from './redis-io.adapter';
+import { requireRedisGameRuntime } from './redis/game-runtime-policy';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -13,6 +14,16 @@ async function bootstrap() {
   });
   const configService = app.get(ConfigService);
   const redisUrl = configService.get<string>('REDIS_URL')?.trim();
+  const runtimeEnv = {
+    NODE_ENV: configService.get<string>('NODE_ENV'),
+    REDIS_URL: redisUrl,
+    GAME_RUNTIME_REQUIRE_REDIS: configService.get<string>(
+      'GAME_RUNTIME_REQUIRE_REDIS',
+    ),
+    GAME_RUNTIME_ALLOW_MEMORY: configService.get<string>(
+      'GAME_RUNTIME_ALLOW_MEMORY',
+    ),
+  };
   if (redisUrl) {
     const redisAdapter = new RedisIoAdapter(app, redisUrl);
     await redisAdapter.connectToRedis();
@@ -20,7 +31,16 @@ async function bootstrap() {
     // eslint-disable-next-line no-console
     console.log('Socket.IO using Redis adapter');
   } else {
+    if (requireRedisGameRuntime(runtimeEnv)) {
+      throw new Error(
+        'REDIS_URL is required for Socket.IO / game runtime (production or GAME_RUNTIME_REQUIRE_REDIS=1)',
+      );
+    }
     app.useWebSocketAdapter(new IoAdapter(app));
+    // eslint-disable-next-line no-console
+    console.warn(
+      'Socket.IO using in-memory adapter — process-local only; set REDIS_URL for multi-pod fan-out',
+    );
   }
   const port = Number(configService.get<string>('PORT') ?? '3005') || 3005;
   /** Listen on all interfaces so phones on the LAN can reach dev (not only 127.0.0.1). */

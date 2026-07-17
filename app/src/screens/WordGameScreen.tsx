@@ -623,31 +623,54 @@ export default function WordGameScreen({ navigation, route }: Props) {
 
       if (matchMode === 'versus' && matchSessionId) {
         const token = await getTokenRef.current();
-        if (token) {
-          await apiPost(
-            `/words/matches/${encodeURIComponent(matchSessionId)}/leave`,
+        if (!token) {
+          timeUpFiredRef.current = false;
+          return;
+        }
+        let res: {
+          skipped?: boolean;
+          finished?: boolean;
+          yourScore?: number;
+          currentWord: WordRow | null;
+        };
+        try {
+          res = await apiPost(
+            `/words/matches/${encodeURIComponent(matchSessionId)}/versus-pass`,
             {
+              latitude: presenceCoordsRef.current?.lat,
+              longitude: presenceCoordsRef.current?.lng,
               ...(typeof matchSnapshotRevRef.current === 'number'
                 ? { ifSnapshotRev: matchSnapshotRevRef.current }
                 : {}),
             },
             token,
           );
+        } catch (e) {
+          if ((e as Error & { status?: number }).status === 409) {
+            await fetchMatchState();
+            setWrongFeedback(t('wordGame.snapshotStaleRetry'));
+            return;
+          }
+          throw e;
         }
         setGuess('');
-        setWrongFeedback(t('wordGame.timeExpiredVersus'));
+        setExtraHintRevealed(false);
+        if (res.currentWord) setDeck([res.currentWord]);
+        else setDeck([]);
         try {
-          const auth = await getTokenRef.current();
-          if (auth) {
-            const s = await apiGet<MatchState>(
-              `/words/matches/${encodeURIComponent(matchSessionId)}/state`,
-              auth,
-            );
-            setMatchState(s);
-          }
+          const s = await apiGet<MatchState>(
+            `/words/matches/${encodeURIComponent(matchSessionId)}/state`,
+            token,
+          );
+          setMatchState(s);
         } catch {
           /* non-fatal */
         }
+        setWrongFeedback(
+          res.finished
+            ? t('wordGame.timeExpiredVersusDone')
+            : t('wordGame.timeExpiredVersusSkip'),
+        );
         return;
       }
 

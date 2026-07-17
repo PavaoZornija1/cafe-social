@@ -3,14 +3,16 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
   BrawlerMatchQueueStatus,
   GameSessionStatus,
   GameType,
   type GameEventType,
+  type GameParticipantResult,
   type Prisma,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -30,11 +32,20 @@ import { PickBrawlerPowerupDto } from './dto/pick-brawler-powerup.dto';
 import type { EnqueueBrawlerMatchQueueDto } from './dto/enqueue-brawler-match-queue.dto';
 import { BrawlerLiveRedisService } from './brawler-live-redis.service';
 import { BrawlerArenaRedisService } from './brawler-arena-redis.service';
+import { BrawlerCombatRedisService } from './brawler-combat-redis.service';
+import { BrawlerCombatSimService } from './brawler-combat-sim.service';
 import {
   arenaSpawnsForClient,
   maybeSpawnArenaPowerup,
 } from './brawler-arena.util';
 import type { BrawlerPowerupConfigRow } from './brawler-arena.types';
+import type { BrawlerCombatFighterV1 } from './brawler-combat.types';
+import type { BrawlerCombatInputV1 } from './brawler-combat-step';
+import { buildFinalizeFromCombat } from './brawler-combat-finalize';
+import {
+  BRAWLER_COMBAT_ENDED_EVENT,
+  type BrawlerCombatEndedPayload,
+} from './brawler-combat.events';
 import {
   BRAWLER_ARENA_EVENT,
   type BrawlerArenaSocketPayload,
@@ -44,12 +55,19 @@ import { resolveIfSnapshotRev } from '../game-runtime/snapshot-rev.util';
 import { PostGameService } from '../post-game/post-game.service';
 import { PushService } from '../push/push.service';
 
+/** Party-of-one / unmatched casual wait ceiling before "no opponents" timeout. */
+const BRAWLER_QUEUE_WAIT_TTL_MS = 90_000;
+/** Stale ACTIVE rooms (clients crashed / abandoned without abandon()). */
+const BRAWLER_ACTIVE_SESSION_MAX_AGE_MS = 45 * 60 * 1000;
+
 type BrawlerSessionView = NonNullable<Awaited<ReturnType<BrawlerRepository['findSessionById']>>>;
 
 export type BrawlerSessionPayload = BrawlerSessionView & { snapshotRev: number | null };
 
 @Injectable()
 export class BrawlerService {
+  private readonly log = new Logger(BrawlerService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly brawlerRepo: BrawlerRepository,
@@ -60,6 +78,8 @@ export class BrawlerService {
     private readonly postGame: PostGameService,
     private readonly brawlerLive: BrawlerLiveRedisService,
     private readonly brawlerArena: BrawlerArenaRedisService,
+    private readonly brawlerCombat: BrawlerCombatRedisService,
+    private readonly brawlerCombatSim: BrawlerCombatSimService,
     private readonly subscriptions: SubscriptionRepository,
     private readonly events: EventEmitter2,
     private readonly pushNotifications: PushService,
@@ -67,6 +87,103 @@ export class BrawlerService {
 
   private emitArena(payload: BrawlerArenaSocketPayload) {
     this.events.emit(BRAWLER_ARENA_EVENT, payload);
+  }
+
+  private fighterMaxHp(heroSnapshot: unknown): number {
+    const snap = heroSnapshot as { baseHp?: number } | null;
+    if (typeof snap?.baseHp === 'number' && Number.isFinite(snap.baseHp) && snap.baseHp > 0) {
+      return Math.floor(snap.baseHp);
+    }
+    return 100;
+  }
+
+  private buildCombatFighters(
+    participants: BrawlerSessionView['participants'],
+  ): BrawlerCombatFighterV1[] {
+    const active = participants.filter((p) => !p.leftAt);
+    return active.map((p, i) => {
+      const maxHp = this.fighterMaxHp(p.heroSnapshot);
+      return {
+        participantId: p.id,
+        playerId: p.playerId,
+        isBot: p.isBot,
+        x: (i + 1) / (active.length + 1),
+        y: 0.82,
+        vx: 0,
+        vy: 0,
+        facing: i % 2 === 0 ? 1 : -1,
+        hp: maxHp,
+        maxHp,
+        alive: true,
+        kills: 0,
+        deaths: 0,
+        cooldowns: {},
+        buffs: [],
+      };
+    });
+  }
+
+  private async initCombatForSession(session: BrawlerSessionView): Promise<void> {
+    const startedAtMs = Date.now();
+    const b = session.brawlerSession;
+    const totalMs =
+      (b?.chaosDurationMs ?? 45_000) +
+      (b?.endgameDurationMs ?? 15_000) +
+      (b?.suddenDeathMaxMs ?? 15_000);
+    await this.brawlerCombat.initState({
+      sessionId: session.id,
+      startedAtMs,
+      endsAtMs: startedAtMs + totalMs,
+      fighters: this.buildCombatFighters(session.participants),
+    });
+    this.brawlerCombatSim.registerSession(session.id);
+  }
+
+  private async clearLiveMatchState(sessionId: string): Promise<void> {
+    this.brawlerCombatSim.unregisterSession(sessionId);
+    await this.brawlerArena.removeState(sessionId);
+    await this.brawlerCombat.removeState(sessionId);
+  }
+
+  async getCombatState(sessionId: string, email: string) {
+    await this.assertSessionParticipant(sessionId, email);
+    return this.brawlerCombat.readState(sessionId);
+  }
+
+  async submitCombatInput(
+    sessionId: string,
+    email: string,
+    input: Omit<BrawlerCombatInputV1, 'participantId'> & {
+      participantId?: string;
+    },
+  ): Promise<{ ok: true } | { ok: false; error: string }> {
+    const { session, playerId } = await this.assertSessionParticipant(
+      sessionId,
+      email,
+    );
+    if (session.status !== GameSessionStatus.ACTIVE) {
+      return { ok: false, error: 'not_active' };
+    }
+    const participant = session.participants.find(
+      (p) => p.playerId === playerId && !p.leftAt,
+    );
+    if (!participant) return { ok: false, error: 'forbidden' };
+    if (
+      input.participantId &&
+      input.participantId !== participant.id
+    ) {
+      return { ok: false, error: 'forbidden' };
+    }
+    const accepted = this.brawlerCombatSim.enqueueInput(sessionId, {
+      participantId: participant.id,
+      seq: input.seq,
+      moveX: input.moveX,
+      moveY: input.moveY,
+      fire: input.fire,
+      pickup: input.pickup,
+    });
+    if (!accepted) return { ok: false, error: 'rate_limited' };
+    return { ok: true };
   }
 
   private powerupDefsFromSession(session: { config?: unknown }): BrawlerPowerupConfigRow[] {
@@ -102,10 +219,28 @@ export class BrawlerService {
     return this.powerupConfigRows();
   }
 
-  async getArenaState(sessionId: string): Promise<BrawlerArenaSocketPayload> {
+  private async assertSessionParticipant(
+    sessionId: string,
+    email: string,
+  ): Promise<{ playerId: string; session: NonNullable<Awaited<ReturnType<BrawlerRepository['findSessionById']>>> }> {
     const session = await this.brawlerRepo.findSessionById(sessionId);
     if (!session) throw new NotFoundException('session not found');
-    const state = (await this.brawlerArena.readState(sessionId)) ?? (await this.brawlerArena.initState(sessionId));
+    if (session.gameType !== GameType.BRAWLER) {
+      throw new BadRequestException('not a brawler session');
+    }
+    const player = await this.players.findOrCreateByEmail(email);
+    const isParticipant = session.participants.some(
+      (p) => p.playerId === player.id && !p.leftAt,
+    );
+    if (!isParticipant) throw new ForbiddenException('not in this session');
+    return { playerId: player.id, session };
+  }
+
+  async getArenaState(sessionId: string, email: string): Promise<BrawlerArenaSocketPayload> {
+    await this.assertSessionParticipant(sessionId, email);
+    const state =
+      (await this.brawlerArena.readState(sessionId)) ??
+      (await this.brawlerArena.initState(sessionId));
     return {
       sessionId,
       type: 'state',
@@ -114,31 +249,35 @@ export class BrawlerService {
     };
   }
 
-  async tickArena(sessionId: string, dto: TickBrawlerArenaDto) {
-    const session = await this.brawlerRepo.findSessionById(sessionId);
-    if (!session) throw new NotFoundException('session not found');
+  async tickArena(sessionId: string, email: string, dto: TickBrawlerArenaDto) {
+    const { session } = await this.assertSessionParticipant(sessionId, email);
     if (session.status !== GameSessionStatus.ACTIVE) {
       throw new BadRequestException('session is not active');
     }
 
     const powerupDefs = this.powerupDefsFromSession(session);
-    let state = (await this.brawlerArena.readState(sessionId)) ?? (await this.brawlerArena.initState(sessionId));
-    const spawned = maybeSpawnArenaPowerup({
-      state,
-      atMs: dto.atMs,
-      worldW: dto.worldW,
-      worldH: dto.worldH,
-      powerupDefs,
+    let spawnedId: string | null = null;
+    const state = await this.brawlerArena.mutateState(sessionId, (draft) => {
+      const spawned = maybeSpawnArenaPowerup({
+        state: draft,
+        atMs: dto.atMs,
+        worldW: dto.worldW,
+        worldH: dto.worldH,
+        powerupDefs,
+      });
+      if (!spawned) return null;
+      spawnedId = spawned.spawnId;
+      return draft;
     });
-    if (!spawned) {
+
+    if (!spawnedId) {
       return { spawned: false as const, rev: state.rev };
     }
 
-    state = await this.brawlerArena.writeState(state);
-    const spawn = {
-      ...spawned,
-      r: arenaSpawnsForClient(state).find((s) => s.spawnId === spawned.spawnId)!.r,
-    };
+    const spawn = arenaSpawnsForClient(state).find((s) => s.spawnId === spawnedId);
+    if (!spawn) {
+      return { spawned: false as const, rev: state.rev };
+    }
     this.emitArena({
       sessionId,
       type: 'spawned',
@@ -241,22 +380,6 @@ export class BrawlerService {
     const humanCount = participants.filter((p) => !p.isBot && p.playerId).length;
     const hasBot = participants.some((p) => p.isBot);
 
-    if (rankedReq) {
-      if (hasBot) {
-        throw new BadRequestException('ranked brawler cannot include bots');
-      }
-      if (participants.length !== 2 || humanCount !== 2) {
-        throw new BadRequestException('ranked brawler requires exactly two human participants');
-      }
-      if (!dto.venueId) {
-        throw new BadRequestException('ranked brawler requires a venue');
-      }
-      if (!participants.every((p) => p.brawlerHeroId)) {
-        throw new BadRequestException('ranked brawler requires each participant to pick a hero');
-      }
-      await this.assertAtVenueIfNeeded(dto.venueId, dto.latitude, dto.longitude);
-    }
-
     const playerIds = [...new Set(participants.map((p) => p.playerId).filter(Boolean))] as string[];
     const foundPlayers = await this.brawlerRepo.findPlayersByIds(playerIds);
     if (foundPlayers.length !== playerIds.length) {
@@ -310,7 +433,8 @@ export class BrawlerService {
     };
   }
 
-  async getSession(sessionId: string): Promise<BrawlerSessionPayload> {
+  async getSession(sessionId: string, email: string): Promise<BrawlerSessionPayload> {
+    await this.assertSessionParticipant(sessionId, email);
     const env = await this.brawlerLive.readSession(sessionId);
     if (env?.session) {
       return { ...(env.session as BrawlerSessionView), snapshotRev: env.rev };
@@ -332,41 +456,40 @@ export class BrawlerService {
     longitude?: number,
   ) {
     await this.assertBrawlerIfSnapshotRev(sessionId, ifSnapshotRev);
+    const { session: full } = await this.assertSessionParticipant(sessionId, email);
     const session = await this.brawlerRepo.startSession(sessionId);
     if (!session) throw new NotFoundException('session not found');
     if (session.status !== GameSessionStatus.ACTIVE) {
       throw new BadRequestException('session is not pending');
     }
     if (session.venueId) {
-      const full = await this.brawlerRepo.findSessionById(sessionId);
-      if (full) {
-        const player = await this.players.findOrCreateByEmail(email);
-        const human = full.participants.find((p) => p.playerId === player.id && !p.isBot);
-        if (human) {
-          const sub = await this.subscriptions.isActiveSubscriber(player.id);
-          if (!sub) {
-            const hasCoords =
-              typeof latitude === 'number' &&
-              typeof longitude === 'number' &&
-              Number.isFinite(latitude) &&
-              Number.isFinite(longitude);
-            if (!hasCoords) {
-              throw new ForbiddenException(
-                'Brawler at a venue requires your current location (lat/lng) for play-time tracking.',
-              );
-            }
-            await this.venuePlayBudget.assertCanStartVenuePlayAtVenueWithCoords(
-              player.id,
-              session.venueId,
-              latitude,
-              longitude,
+      const player = await this.players.findOrCreateByEmail(email);
+      const human = full.participants.find((p) => p.playerId === player.id && !p.isBot);
+      if (human) {
+        const sub = await this.subscriptions.isActiveSubscriber(player.id);
+        if (!sub) {
+          const hasCoords =
+            typeof latitude === 'number' &&
+            typeof longitude === 'number' &&
+            Number.isFinite(latitude) &&
+            Number.isFinite(longitude);
+          if (!hasCoords) {
+            throw new ForbiddenException(
+              'Brawler at a venue requires your current location (lat/lng) for play-time tracking.',
             );
           }
-          await this.venuePlayLimit.beginBrawler(player.id, session.venueId, sessionId);
+          await this.venuePlayBudget.assertCanStartVenuePlayAtVenueWithCoords(
+            player.id,
+            session.venueId,
+            latitude,
+            longitude,
+          );
         }
+        await this.venuePlayLimit.beginBrawler(player.id, session.venueId, sessionId);
       }
     }
     await this.brawlerArena.initState(sessionId);
+    await this.initCombatForSession(full);
     await this.syncBrawlerSnapshot(sessionId);
     return {
       ...session,
@@ -400,7 +523,7 @@ export class BrawlerService {
         endedAt: new Date(),
       },
     });
-    await this.brawlerArena.removeState(sessionId);
+    await this.clearLiveMatchState(sessionId);
     await this.syncBrawlerSnapshot(sessionId);
     return {
       ok: true as const,
@@ -408,13 +531,17 @@ export class BrawlerService {
     };
   }
 
-  async recordEvents(sessionId: string, dto: RecordBrawlerEventsDto, ifMatchHeader?: string) {
+  async recordEvents(
+    sessionId: string,
+    email: string,
+    dto: RecordBrawlerEventsDto,
+    ifMatchHeader?: string,
+  ) {
     await this.assertBrawlerIfSnapshotRev(
       sessionId,
       resolveIfSnapshotRev(ifMatchHeader, dto.ifSnapshotRev),
     );
-    const session = await this.brawlerRepo.findSessionById(sessionId);
-    if (!session) throw new NotFoundException('session not found');
+    const { session } = await this.assertSessionParticipant(sessionId, email);
     if (session.status !== GameSessionStatus.ACTIVE) {
       throw new BadRequestException('session is not active');
     }
@@ -457,11 +584,13 @@ export class BrawlerService {
       sessionId,
       resolveIfSnapshotRev(ifMatchHeader, dto.ifSnapshotRev),
     );
-    const existingSession = await this.brawlerRepo.findSessionById(sessionId);
-    if (!existingSession) throw new NotFoundException('session not found');
+    const { playerId, session: existingSession } = await this.assertSessionParticipant(
+      sessionId,
+      email,
+    );
     if (existingSession.status === GameSessionStatus.FINISHED) {
-      const player = await this.players.findOrCreateByEmail(email);
-      const postGame = await this.postGame.getForGameSession(sessionId, player.id);
+      // Idempotent: never overwrite a finished winner with a contradictory client claim.
+      const postGame = await this.postGame.getForGameSession(sessionId, playerId);
       return {
         ...existingSession,
         snapshotRev: await this.readBrawlerSnapshotRev(sessionId),
@@ -471,30 +600,144 @@ export class BrawlerService {
     if (existingSession.status === GameSessionStatus.CANCELLED) {
       throw new BadRequestException('session was cancelled');
     }
+    if (existingSession.status !== GameSessionStatus.ACTIVE) {
+      throw new BadRequestException('session is not active');
+    }
 
-    const participantIds = new Set(existingSession.participants.map((p) => p.id));
-    for (const p of dto.participants) {
-      if (!participantIds.has(p.participantId)) {
-        throw new BadRequestException('participantId is not in this session');
+    const combat = await this.brawlerCombat.readState(sessionId);
+    const humans = existingSession.participants.filter((p) => !p.isBot);
+
+    let winnerParticipantId = dto.winnerParticipantId;
+    let participants = dto.participants ?? [];
+
+    if (combat?.status === 'ENDED') {
+      const fromCombat = buildFinalizeFromCombat(combat);
+      winnerParticipantId = fromCombat.winnerParticipantId;
+      participants = fromCombat.participants;
+    } else if (humans.length >= 2) {
+      // Multi-human requires authoritative combat end — refuse client-claimed results.
+      throw new BadRequestException(
+        'multi-human brawler finalize waits for authoritative combat end',
+      );
+    } else {
+      // Solo / human+bot fallback while combat is still ACTIVE (legacy local end).
+      if (!dto.participants?.length) {
+        throw new BadRequestException('participants are required when combat is still active');
       }
-    }
-    if (dto.winnerParticipantId && !participantIds.has(dto.winnerParticipantId)) {
-      throw new BadRequestException('winnerParticipantId is not in this session');
+      const participantIds = new Set(existingSession.participants.map((p) => p.id));
+      for (const p of dto.participants) {
+        if (!participantIds.has(p.participantId)) {
+          throw new BadRequestException('participantId is not in this session');
+        }
+      }
+      if (dto.winnerParticipantId && !participantIds.has(dto.winnerParticipantId)) {
+        throw new BadRequestException('winnerParticipantId is not in this session');
+      }
+      participants = dto.participants;
     }
 
+    return this.commitFinalize({
+      sessionId,
+      playerId,
+      winnerParticipantId,
+      participants: participants.map((p) => ({
+        participantId: p.participantId,
+        placement: p.placement,
+        score: p.score,
+        result:
+          p.result === 'WIN' || p.result === 'LOSS' || p.result === 'DRAW'
+            ? p.result
+            : undefined,
+        kills: p.kills,
+        deaths: p.deaths,
+      })),
+    });
+  }
+
+  /**
+   * System finalize when the combat tick owner marks the match ENDED.
+   * Idempotent if Postgres already FINISHED.
+   */
+  @OnEvent(BRAWLER_COMBAT_ENDED_EVENT)
+  async onCombatEnded(payload: BrawlerCombatEndedPayload): Promise<void> {
+    if (!payload?.sessionId || payload.state?.status !== 'ENDED') return;
+    try {
+      await this.finalizeFromCombatDocument(payload.sessionId);
+    } catch (e) {
+      this.log.warn(
+        `onCombatEnded ${payload.sessionId}: ${(e as Error).message}`,
+      );
+    }
+  }
+
+  async finalizeFromCombatDocument(sessionId: string): Promise<void> {
+    const existing = await this.brawlerRepo.findSessionById(sessionId);
+    if (!existing || existing.gameType !== GameType.BRAWLER) return;
+    if (existing.status === GameSessionStatus.FINISHED) {
+      await this.clearLiveMatchState(sessionId);
+      return;
+    }
+    if (existing.status !== GameSessionStatus.ACTIVE) return;
+
+    const combat = await this.brawlerCombat.readState(sessionId);
+    if (!combat || combat.status !== 'ENDED') return;
+
+    const fromCombat = buildFinalizeFromCombat(combat);
     const session = await this.brawlerRepo.finalizeSession({
       sessionId,
-      winnerParticipantId: dto.winnerParticipantId,
-      participants: dto.participants,
+      winnerParticipantId: fromCombat.winnerParticipantId,
+      participants: fromCombat.participants,
     });
-    const player = await this.players.findOrCreateByEmail(email);
+    if (!session) return;
     await this.postGame.onGameSessionFinished(sessionId);
-    const postGame = await this.postGame.getForGameSession(sessionId, player.id);
-    await this.brawlerArena.removeState(sessionId);
+    await this.clearLiveMatchState(sessionId);
     await this.syncBrawlerSnapshot(sessionId);
+  }
+
+  private async commitFinalize(params: {
+    sessionId: string;
+    playerId: string;
+    winnerParticipantId?: string;
+    participants: Array<{
+      participantId: string;
+      placement?: number;
+      score?: number;
+      result?: GameParticipantResult;
+      kills?: number;
+      deaths?: number;
+    }>;
+  }) {
+    const session = await this.brawlerRepo.finalizeSession({
+      sessionId: params.sessionId,
+      winnerParticipantId: params.winnerParticipantId,
+      participants: params.participants,
+    });
+    if (!session) {
+      // Lost the ACTIVE→FINISHED claim race — return the winner's finished session.
+      const again = await this.brawlerRepo.findSessionById(params.sessionId);
+      if (again?.status === GameSessionStatus.FINISHED) {
+        const postGame = await this.postGame.getForGameSession(
+          params.sessionId,
+          params.playerId,
+        );
+        return {
+          ...again,
+          snapshotRev: await this.readBrawlerSnapshotRev(params.sessionId),
+          postGame,
+        };
+      }
+      throw new ConflictException('session finalize race');
+    }
+    await this.postGame.onGameSessionFinished(params.sessionId);
+    const postGame = await this.postGame.getForGameSession(
+      params.sessionId,
+      params.playerId,
+    );
+    await this.clearLiveMatchState(params.sessionId);
+    await this.syncBrawlerSnapshot(params.sessionId);
     return {
       ...session,
-      snapshotRev: await this.readBrawlerSnapshotRev(sessionId),
+      snapshotRev: await this.readBrawlerSnapshotRev(params.sessionId),
       postGame,
     };
   }
@@ -570,6 +813,8 @@ export class BrawlerService {
   }
 
   private async getVenueBrawlerQueueStatusForPlayer(playerId: string, _venueId: string | null) {
+    await this.expireStaleBrawlerQueueEntriesForPlayer(playerId);
+
     const row = await this.prisma.brawlerMatchQueueEntry.findFirst({
       where: {
         playerId,
@@ -592,6 +837,16 @@ export class BrawlerService {
       }
       return { status: 'matched' as const, sessionId: row.matchedSessionId };
     }
+
+    const waitedMs = Date.now() - row.createdAt.getTime();
+    if (waitedMs >= BRAWLER_QUEUE_WAIT_TTL_MS) {
+      await this.prisma.brawlerMatchQueueEntry.updateMany({
+        where: { id: row.id, status: BrawlerMatchQueueStatus.WAITING },
+        data: { status: BrawlerMatchQueueStatus.CANCELLED },
+      });
+      return { status: 'timed_out' as const };
+    }
+
     // Position is global across all venues — players can be paired with anyone in the same rules bucket.
     const waitingAhead = await this.prisma.brawlerMatchQueueEntry.count({
       where: {
@@ -601,7 +856,71 @@ export class BrawlerService {
         createdAt: { lt: row.createdAt },
       },
     });
-    return { status: 'waiting' as const, position: waitingAhead + 1 };
+    return {
+      status: 'waiting' as const,
+      position: waitingAhead + 1,
+      waitedMs,
+      waitTtlMs: BRAWLER_QUEUE_WAIT_TTL_MS,
+    };
+  }
+
+  private async expireStaleBrawlerQueueEntriesForPlayer(playerId: string): Promise<void> {
+    const cutoff = new Date(Date.now() - BRAWLER_QUEUE_WAIT_TTL_MS);
+    await this.prisma.brawlerMatchQueueEntry.updateMany({
+      where: {
+        playerId,
+        status: BrawlerMatchQueueStatus.WAITING,
+        createdAt: { lt: cutoff },
+      },
+      data: { status: BrawlerMatchQueueStatus.CANCELLED },
+    });
+  }
+
+  /** Cancels WAITING brawler queue rows older than the wait TTL (party-of-one / unmatched). */
+  async expireStaleBrawlerQueueEntries(): Promise<number> {
+    const cutoff = new Date(Date.now() - BRAWLER_QUEUE_WAIT_TTL_MS);
+    const res = await this.prisma.brawlerMatchQueueEntry.updateMany({
+      where: {
+        status: BrawlerMatchQueueStatus.WAITING,
+        createdAt: { lt: cutoff },
+      },
+      data: { status: BrawlerMatchQueueStatus.CANCELLED },
+    });
+    return res.count;
+  }
+
+  /**
+   * Reap abandoned ACTIVE brawler sessions with no recent activity / started long ago.
+   */
+  async reapStaleActiveBrawlerSessions(): Promise<number> {
+    const cutoff = new Date(Date.now() - BRAWLER_ACTIVE_SESSION_MAX_AGE_MS);
+    const stale = await this.prisma.gameSession.findMany({
+      where: {
+        gameType: GameType.BRAWLER,
+        status: GameSessionStatus.ACTIVE,
+        OR: [{ startedAt: { lt: cutoff } }, { startedAt: null, createdAt: { lt: cutoff } }],
+      },
+      select: { id: true },
+      take: 50,
+    });
+    if (stale.length === 0) return 0;
+
+    const res = await this.prisma.gameSession.updateMany({
+      where: {
+        id: { in: stale.map((s) => s.id) },
+        gameType: GameType.BRAWLER,
+        status: GameSessionStatus.ACTIVE,
+      },
+      data: {
+        status: GameSessionStatus.CANCELLED,
+        endedAt: new Date(),
+      },
+    });
+    for (const s of stale) {
+      await this.clearLiveMatchState(s.id);
+      await this.syncBrawlerSnapshot(s.id);
+    }
+    return res.count;
   }
 
   /** Casual-only queue bot-fill: pair one WAITING row with Chaos Bot (same hero as human). */
@@ -709,25 +1028,47 @@ export class BrawlerService {
     let createdSessionId: string | null = null;
     const powerups = await this.powerupConfigRows();
     await this.prisma.$transaction(async (tx) => {
-      const anchor = await tx.brawlerMatchQueueEntry.findFirst({
-        where: {
-          ranked,
-          status: BrawlerMatchQueueStatus.WAITING,
-        },
-        orderBy: { createdAt: 'asc' },
-        select: { partyId: true },
-      });
-      if (!anchor) return;
+      // Ranked: pair any two WAITING ranked entries.
+      // Casual: only party queues may pair two humans; open casual uses bot-fill.
+      let pair: Array<{
+        id: string;
+        playerId: string;
+        venueId: string | null;
+        partyId: string | null;
+        brawlerHeroId: string | null;
+      }> = [];
 
-      const pair = await tx.brawlerMatchQueueEntry.findMany({
-        where: {
-          ranked,
-          partyId: anchor.partyId,
-          status: BrawlerMatchQueueStatus.WAITING,
-        },
-        orderBy: { createdAt: 'asc' },
-        take: 2,
-      });
+      if (ranked) {
+        pair = await tx.brawlerMatchQueueEntry.findMany({
+          where: {
+            ranked: true,
+            status: BrawlerMatchQueueStatus.WAITING,
+          },
+          orderBy: { createdAt: 'asc' },
+          take: 2,
+        });
+      } else {
+        const anchor = await tx.brawlerMatchQueueEntry.findFirst({
+          where: {
+            ranked: false,
+            partyId: { not: null },
+            status: BrawlerMatchQueueStatus.WAITING,
+          },
+          orderBy: { createdAt: 'asc' },
+          select: { partyId: true },
+        });
+        if (!anchor?.partyId) return;
+
+        pair = await tx.brawlerMatchQueueEntry.findMany({
+          where: {
+            ranked: false,
+            partyId: anchor.partyId,
+            status: BrawlerMatchQueueStatus.WAITING,
+          },
+          orderBy: { createdAt: 'asc' },
+          take: 2,
+        });
+      }
       if (pair.length < 2) return;
 
       const [a, b] = pair;
@@ -855,12 +1196,14 @@ export class BrawlerService {
       await this.venuePlayLimit.beginBrawler(p.playerId, venueId, sessionId);
     }
     await this.brawlerArena.initState(sessionId);
+    await this.initCombatForSession(session);
     await this.syncBrawlerSnapshot(sessionId);
 
     const participantIds = session.participants
       .filter((p) => p.playerId && !p.isBot)
       .map((p) => p.playerId as string);
     if (participantIds.length > 0) {
+      // Soft English: no per-player locale pipeline for match pushes yet.
       void this.pushNotifications.sendToPlayers(
         participantIds,
         undefined,
@@ -879,9 +1222,8 @@ export class BrawlerService {
     }
   }
 
-  async pickPowerup(sessionId: string, dto: PickBrawlerPowerupDto) {
-    const session = await this.brawlerRepo.findSessionById(sessionId);
-    if (!session) throw new NotFoundException('session not found');
+  async pickPowerup(sessionId: string, email: string, dto: PickBrawlerPowerupDto) {
+    const { session } = await this.assertSessionParticipant(sessionId, email);
     if (session.status !== GameSessionStatus.ACTIVE) {
       throw new BadRequestException('session is not active');
     }
@@ -891,20 +1233,10 @@ export class BrawlerService {
       throw new BadRequestException('actorParticipantId is not in this session');
     }
 
-    let state = (await this.brawlerArena.readState(sessionId)) ?? (await this.brawlerArena.initState(sessionId));
-    if (state.pickedSpawnIds.includes(dto.spawnId)) {
-      return { applied: false, reason: 'ALREADY_PICKED' as const };
-    }
-
     const powerups = this.powerupDefsFromSession(session);
     const def = powerups.find((p) => p?.id === dto.powerupId);
     if (!def) {
       throw new BadRequestException('powerupId is not allowed in this session');
-    }
-
-    const spawnOnMap = state.spawns.find((s) => s.spawnId === dto.spawnId);
-    if (!spawnOnMap || spawnOnMap.powerupId !== dto.powerupId) {
-      throw new BadRequestException('spawnId is not on the map');
     }
 
     const durationMs = Number(def.durationMs);
@@ -918,30 +1250,51 @@ export class BrawlerService {
       throw new BadRequestException('invalid powerup definition magnitude');
     }
 
+    const pickOutcome: { kind: 'applied' | 'already' | 'missing' } = { kind: 'missing' };
     const endsAtMs = dto.atMs + durationMs;
-    const buffs = state.buffsByParticipant[dto.actorParticipantId] ?? [];
-    const existing = buffs.find((b) => b.powerupId === dto.powerupId);
-    const nextBuff = {
-      powerupId: dto.powerupId,
-      effectType,
-      magnitude,
-      startedAtMs: dto.atMs,
-      endsAtMs,
-    };
-    state = {
-      ...state,
-      spawns: state.spawns.filter((s) => s.spawnId !== dto.spawnId),
-      pickedSpawnIds: [...state.pickedSpawnIds, dto.spawnId],
-      buffsByParticipant: isInstantHeal
-        ? state.buffsByParticipant
-        : {
-            ...state.buffsByParticipant,
-            [dto.actorParticipantId]: existing
-              ? buffs.map((b) => (b.powerupId === dto.powerupId ? nextBuff : b))
-              : [...buffs, nextBuff],
-          },
-    };
-    state = await this.brawlerArena.writeState(state);
+
+    const state = await this.brawlerArena.mutateState(sessionId, (draft) => {
+      if (draft.pickedSpawnIds.includes(dto.spawnId)) {
+        pickOutcome.kind = 'already';
+        return null;
+      }
+      const spawnOnMap = draft.spawns.find((s) => s.spawnId === dto.spawnId);
+      if (!spawnOnMap || spawnOnMap.powerupId !== dto.powerupId) {
+        pickOutcome.kind = 'missing';
+        return null;
+      }
+
+      const buffs = draft.buffsByParticipant[dto.actorParticipantId] ?? [];
+      const existing = buffs.find((b) => b.powerupId === dto.powerupId);
+      const nextBuff = {
+        powerupId: dto.powerupId,
+        effectType,
+        magnitude,
+        startedAtMs: dto.atMs,
+        endsAtMs,
+      };
+      pickOutcome.kind = 'applied';
+      return {
+        ...draft,
+        spawns: draft.spawns.filter((s) => s.spawnId !== dto.spawnId),
+        pickedSpawnIds: [...draft.pickedSpawnIds, dto.spawnId],
+        buffsByParticipant: isInstantHeal
+          ? draft.buffsByParticipant
+          : {
+              ...draft.buffsByParticipant,
+              [dto.actorParticipantId]: existing
+                ? buffs.map((b) => (b.powerupId === dto.powerupId ? nextBuff : b))
+                : [...buffs, nextBuff],
+            },
+      };
+    });
+
+    if (pickOutcome.kind === 'already') {
+      return { applied: false, reason: 'ALREADY_PICKED' as const, spawnId: dto.spawnId };
+    }
+    if (pickOutcome.kind !== 'applied') {
+      throw new BadRequestException('spawnId is not on the map');
+    }
 
     await this.brawlerRepo.createEvents(sessionId, [
       {

@@ -8,6 +8,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { isPartnerOrgBillingActive } from "@/lib/partnerBillingStatus";
 import { partnerBillingStatusLabel } from "@/lib/partnerBillingLabels";
+import { partnerHasOwnerAccess } from "@/lib/partnerRoles";
 import {
   queryKeys,
   useOwnerOrganizationBillingPortalMutation,
@@ -91,6 +92,14 @@ function PartnerSubscriptionsInner() {
   const billingFlash = searchParams.get("billing");
 
   useEffect(() => {
+    if (venuesQ.isLoading || venuesQ.isError) return;
+    const venues = (venuesQ.data?.venues ?? []) as VenueRow[];
+    if (!partnerHasOwnerAccess(venues)) {
+      router.replace("/owner/venues");
+    }
+  }, [venuesQ.data, venuesQ.isError, venuesQ.isLoading, router]);
+
+  useEffect(() => {
     if (billingFlash === "success") {
       void qc.invalidateQueries({ queryKey: queryKeys.owner.venuesList });
       void qc.invalidateQueries({ queryKey: queryKeys.portal.me });
@@ -104,7 +113,8 @@ function PartnerSubscriptionsInner() {
       const o = r.venue.organization;
       if (!o) continue;
       const existing = m.get(o.id);
-      const can = r.role === "OWNER" || r.role === "MANAGER";
+      // Stripe billing mutations are OWNER-only on the API.
+      const can = r.role === "OWNER";
       if (!existing) {
         m.set(o.id, {
           id: o.id,

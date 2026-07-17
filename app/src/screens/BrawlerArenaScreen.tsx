@@ -14,11 +14,16 @@ import {
 import {
   ACTION_CONTROLS_RIGHT_GUTTER,
   ACTION_CONTROLS_SAFE_RIGHT_NUDGE_PX,
+  ATTACK_HIT_FORWARD,
+  ATTACK_HIT_H,
+  ATTACK_HIT_W,
   DEFAULT_MATCH_PHASE_CHAOS_END_S,
   DEFAULT_MATCH_PHASE_ENDGAME_END_S,
   DEFAULT_MATCH_MAX_S,
   DEFAULT_MATCH_TIMER_ENABLED,
   DEFAULT_SHOW_ATTACK_HITBOX_DEBUG,
+  DMG_FLOAT_LIFETIME_S,
+  DMG_FLOAT_RISE_PX,
   GROUND_STRIP_H,
   MARGIN_SCREEN,
   MAX_AIR_JUMPS,
@@ -52,6 +57,7 @@ import {
   ArenaVenuePvpHoldOverlay,
 } from '../brawler/arena/components/ArenaOverlays';
 import { ArenaWorldView } from '../brawler/arena/components/ArenaWorldView';
+import type { ArenaWorldPaintHandle } from '../brawler/arena/arenaWorldPaint';
 import {
   spawnDummiesRandomOnPlatforms as spawnDummiesImpl,
   spawnEnemyOnRandomPlatform as spawnEnemyImpl,
@@ -68,11 +74,6 @@ import type {
   TrackedParticipant,
 } from '../brawler/arena/types';
 import { useArenaGameLoop } from '../brawler/arena/useArenaGameLoop';
-import {
-  ATTACK_HIT_FORWARD,
-  ATTACK_HIT_H,
-  ATTACK_HIT_W,
-} from '../brawler/arena/constants';
 import { getHeroSpriteConfig, isArenaSpriteHero } from '../brawler/heroSpritesheets';
 import {
   getAttackHitFromTopPx,
@@ -80,7 +81,12 @@ import {
   getSpriteDrawOffsetY,
 } from '../brawler/heroSpriteUtils';
 import type { RootStackParamList } from '../navigation/type';
-import { applyArenaSocketEvent } from '../brawler/arena/arenaRealtime';
+import { applyArenaSocketEvent, denormalizeSocketSpawns } from '../brawler/arena/arenaRealtime';
+import {
+  reconcileCombatSnapshot,
+  type BrawlerCombatSocketPayload,
+} from '../brawler/arena/combatRealtime';
+import { shouldHoldTwoHumanPvp, resolveLocalFinalizeWinner } from '../brawler/arena/brawlerPvpHold';
 import { apiGet, apiPost } from '../lib/api';
 import { triggerFeedback } from '../lib/feedback';
 import { useQueryClient } from '@tanstack/react-query';
@@ -259,6 +265,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const playerKillsRef = useRef(0);
   /** Solo + ranked: hero HP reaches 0 from contact damage (finalize sends to DB only when `sessionId`). */
   const playerDeathsRef = useRef(0);
+  /** Authoritative combat snapshot winner (preferred over local resolve). */
+  const combatWinnerRef = useRef<string | null>(null);
+  const combatEndedRef = useRef(false);
+  const combatInputSeqRef = useRef(0);
 
   const enemiesRef = useRef<Enemy[]>([]);
 
@@ -319,6 +329,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const dashHitAppliedRef = useRef(false);
 
   const [renderTick, setRenderTick] = useState(0);
+  const worldPaintRef = useRef<ArenaWorldPaintHandle>(null);
   const spriteAnimRef = useRef<HeroSpriteAnim>('idle');
   const walkFrameRef = useRef(0);
   const walkAccum = useRef(0);
@@ -345,13 +356,119 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
 
   const clearArenaAnnounce = useCallback(() => setArenaAnnounce(null), []);
 
-  const bump = useCallback(() => {
+  const bumpHud = useCallback(() => {
     setRenderTick((t) => (t + 1) % 1_000_000);
   }, []);
 
+  const paintWorld = useCallback(() => {
+    const pxNow = Math.round(playerX.current);
+    const pyNow = Math.round(playerY.current);
+    const spectating = isSpectatingRef.current;
+    const follow = heroFollowCamera(
+      pxNow,
+      pyNow,
+      bodyW,
+      bodyH,
+      worldWLiveRef.current || worldW,
+      worldHLiveRef.current || worldH,
+      arenaWLiveRef.current || arenaW,
+      arenaInnerHLiveRef.current || arenaInnerH,
+    );
+    const camXNow = spectating ? spectateCamXRef.current : follow.x;
+    const camYNow = spectating ? spectateCamYRef.current : follow.y;
+    const attacking = spriteAnimRef.current === 'hit';
+    const hitFine =
+      attacking
+        ? (heroSprite?.hitFineOffsetSheetPx[facing.current] ?? 0)
+        : 0;
+    const hitOff =
+      ((heroSprite?.hitAnchorOffsetX ?? 0) + hitFine) * spriteScale;
+    const elapsed = matchElapsedFromRemaining(
+      matchClockRef.current,
+      matchMaxSRef.current,
+    );
+    const lavaY = computeLavaSurfaceY(
+      elapsed,
+      matchEndgameEndSRef.current,
+      matchMaxSRef.current,
+      worldHLiveRef.current || worldH,
+    );
+    const debugHitH = ATTACK_HIT_H;
+    const debugHitW = ATTACK_HIT_W;
+    const debugHitY = pyNow + getAttackHitFromTopPx(heroSprite);
+    const debugHitX =
+      facing.current === 'right'
+        ? pxNow + bodyW + ATTACK_HIT_FORWARD
+        : pxNow - debugHitW - ATTACK_HIT_FORWARD;
+
+    worldPaintRef.current?.paint({
+      camX: camXNow,
+      camY: camYNow,
+      px: pxNow,
+      py: pyNow,
+      spriteDrawOffsetY,
+      hitDrawOffsetX: hitOff,
+      bodyW,
+      heroHp: heroHpRef.current,
+      heroHpMax: heroCombat.baseHp,
+      heroIFrames: heroIFramesLeftRef.current > 0,
+      facing: facing.current,
+      enemies: enemiesRef.current.map((e) => ({
+        x: e.x,
+        y: e.y,
+        w: e.w,
+        h: e.h,
+        hp: e.hp,
+        visible: e.hp > 0 && e.respawnLeft <= 0,
+        flash: e.flashLeft > 0,
+        iFrames: e.iFramesLeft > 0,
+      })),
+      dummies: dummiesRef.current.map((d) => ({
+        id: d.id,
+        x: d.x,
+        y: d.y,
+        w: d.w,
+        h: d.h,
+        hp: d.hp,
+        visible: d.hp > 0,
+        flash: d.flashLeft > 0,
+      })),
+      lavaSurfaceY: lavaY,
+      worldH: worldHLiveRef.current || worldH,
+      worldW: worldWLiveRef.current || worldW,
+      debugHit:
+        DEFAULT_SHOW_ATTACK_HITBOX_DEBUG && attacking
+          ? { x: debugHitX, y: debugHitY, w: debugHitW, h: debugHitH }
+          : null,
+      dmgFloats: dmgFloatsRef.current.map((f) => {
+        const t = Math.min(1, f.age / DMG_FLOAT_LIFETIME_S);
+        return {
+          id: f.id,
+          x: f.x,
+          y: f.y - t * DMG_FLOAT_RISE_PX,
+          text: f.text,
+          opacity: 1 - t,
+        };
+      }),
+    });
+  }, [
+    arenaInnerH,
+    arenaW,
+    bodyH,
+    bodyW,
+    heroCombat.baseHp,
+    heroSprite,
+    spriteDrawOffsetY,
+    spriteScale,
+    worldH,
+    worldW,
+  ]);
+
   const handleSpectateCameraChange = useCallback(() => {
-    bump();
-  }, [bump]);
+    paintWorld();
+  }, [paintWorld]);
+
+  const bump = bumpHud;
 
   const refreshArenaState = useCallback(async () => {
     if (!sessionId) return;
@@ -360,10 +477,20 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       if (!token) return;
       const state = await apiGet<{
         type: 'state';
-        spawns?: SpawnedPowerup[];
+        spawns?: Array<{
+          spawnId: string;
+          powerupId: string;
+          nx: number;
+          ny: number;
+          r: number;
+        }>;
       }>(`/brawler/sessions/${encodeURIComponent(sessionId)}/arena/state`, token);
       if (state.type === 'state' && state.spawns) {
-        powerupsOnMapRef.current = state.spawns;
+        powerupsOnMapRef.current = denormalizeSocketSpawns(
+          state.spawns,
+          worldWLiveRef.current || 1,
+          worldHLiveRef.current || 1,
+        );
         bump();
       }
     } catch {
@@ -376,6 +503,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       const result = applyArenaSocketEvent({
         payload,
         powerupsOnMap: powerupsOnMapRef.current,
+        worldW: worldWLiveRef.current || 1,
+        worldH: worldHLiveRef.current || 1,
       });
       if (result.changed) {
         powerupsOnMapRef.current = result.powerupsOnMap;
@@ -385,13 +514,85 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     [bump],
   );
 
-  useBrawlerSocket({
+  const handleCombatSocketEvent = useCallback(
+    (payload: BrawlerCombatSocketPayload) => {
+      if (!payload?.state) return;
+      const reconciled = reconcileCombatSnapshot({
+        state: payload.state,
+        localParticipantId: localParticipantIdRef.current,
+        worldW: worldWLiveRef.current || worldW || 1,
+        worldH: worldHLiveRef.current || worldH || 1,
+        bodyH,
+      });
+
+      if (reconciled.localHp != null) {
+        heroHpRef.current = reconciled.localHp;
+      }
+      if (reconciled.localKills != null) {
+        playerKillsRef.current = reconciled.localKills;
+      }
+      if (reconciled.localDeaths != null) {
+        playerDeathsRef.current = reconciled.localDeaths;
+      }
+      if (reconciled.localAlive === false && !isSpectatingRef.current) {
+        setHeroDeadOpen(true);
+      }
+
+      // Soft sync bot HP from authority; leave local physics for prediction until Phase 3.
+      const botPixels = reconciled.fighterPixels.filter((f) => f.isBot);
+      if (botPixels.length > 0 && enemiesRef.current.length > 0) {
+        enemiesRef.current = enemiesRef.current.map((enemy, idx) => {
+          const bot = botPixels[idx] ?? botPixels[0];
+          if (!bot) return enemy;
+          return {
+            ...enemy,
+            hp: bot.hp,
+            respawnLeft: bot.alive ? 0 : Math.max(enemy.respawnLeft, 0.01),
+          };
+        });
+      }
+
+      if (reconciled.ended) {
+        combatEndedRef.current = true;
+        combatWinnerRef.current = reconciled.winnerParticipantId;
+        matchEndedRef.current = true;
+        setGameOverOpen(true);
+      }
+      bump();
+    },
+    [bump],
+  );
+
+  const { emitCombatInput } = useBrawlerSocket({
     sessionId,
     enabled: Boolean(sessionId && trackedSessionReady && !venueTwoHumanHold && !matchComplete),
     getToken: () => getTokenRef.current(),
     onArenaEvent: handleArenaSocketEvent,
+    onCombatEvent: handleCombatSocketEvent,
     onRefresh: refreshArenaState,
   });
+
+  useEffect(() => {
+    if (!sessionId || venueTwoHumanHold || matchComplete || !trackedSessionReady) {
+      return;
+    }
+    const id = setInterval(() => {
+      combatInputSeqRef.current += 1;
+      emitCombatInput({
+        seq: combatInputSeqRef.current,
+        moveX: joyRef.current.x,
+        moveY: joyRef.current.y,
+        fire: hitQueued.current || attackTimeLeft.current > 0,
+      });
+    }, 50);
+    return () => clearInterval(id);
+  }, [
+    emitCombatInput,
+    matchComplete,
+    sessionId,
+    trackedSessionReady,
+    venueTwoHumanHold,
+  ]);
 
   const queryClient = useQueryClient();
   const [postGamePayload, setPostGamePayload] = useState<PostGamePayload | null>(null);
@@ -464,8 +665,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
             ? parts.find((p) => p.playerId === mePid && !p.isBot)
             : parts.find((p) => !p.isBot);
         localParticipantIdRef.current = localPart?.id ?? null;
-        venueTwoHumanHoldRef.current = false;
-        setVenueTwoHumanHold(false);
+        // Authoritative combat is live — 2-human matches play normally (no hold overlay).
+        const hold = shouldHoldTwoHumanPvp(parts);
+        venueTwoHumanHoldRef.current = hold;
+        setVenueTwoHumanHold(hold);
         const bs = session.brawlerSession;
         if (bs) {
           const chaosS = bs.chaosDurationMs / 1000;
@@ -497,6 +700,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         setTrackedSessionReady(true);
         playerKillsRef.current = 0;
         playerDeathsRef.current = 0;
+        combatWinnerRef.current = null;
+        combatEndedRef.current = false;
+        combatInputSeqRef.current = 0;
         powerupsOnMapRef.current = [];
         powerupSpawnAccumRef.current = 0;
         powerupPickedPendingRef.current = new Set();
@@ -511,7 +717,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         void refreshArenaState();
       } catch (e) {
         if (!cancelled) {
-          Alert.alert('Session', (e as Error).message || 'Failed to load brawler session');
+          Alert.alert(
+            t('brawlerMatch.sessionLoadFailedTitle'),
+            (e as Error).message || t('brawlerMatch.sessionLoadFailedBody'),
+          );
           navigationRef.current.goBack();
         }
       }
@@ -580,22 +789,22 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       try {
         const token = await getTokenRef.current();
         if (!token) throw new Error('Not authenticated');
-        const human = participantsRef.current.find((p) => !p.isBot);
         const bot = participantsRef.current.find((p) => p.isBot);
         const humanAlive = heroHpRef.current > 0;
-        let winnerId: string | undefined;
-        if (heroDeadOpen || !humanAlive) {
-          winnerId = bot?.id ?? human?.id;
-        } else {
-          winnerId = human?.id ?? bot?.id;
-        }
+        const winnerId =
+          combatWinnerRef.current ??
+          resolveLocalFinalizeWinner({
+            localParticipantId: localParticipantIdRef.current,
+            localAlive: humanAlive && !heroDeadOpen,
+            botParticipantId: bot?.id,
+          });
         const participantsPayload = participantsRef.current.map((p) => ({
           participantId: p.id,
           placement: p.id === winnerId ? 1 : 2,
           score: 0,
           result: (p.id === winnerId ? 'WIN' : 'LOSS') as 'WIN' | 'LOSS',
-          kills: p.isBot ? 0 : playerKillsRef.current,
-          deaths: p.isBot ? 0 : playerDeathsRef.current,
+          kills: p.id === localParticipantIdRef.current ? playerKillsRef.current : 0,
+          deaths: p.id === localParticipantIdRef.current ? playerDeathsRef.current : 0,
         }));
         try {
           const latest = await apiGet<{ snapshotRev?: number | null }>(
@@ -609,18 +818,23 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           /* best-effort rev refresh */
         }
 
-        const finalizeBody = {
-          winnerParticipantId: winnerId,
-          participants: participantsPayload,
-          ...(typeof brawlerSnapshotRevRef.current === 'number'
-            ? { ifSnapshotRev: brawlerSnapshotRevRef.current }
-            : {}),
-        };
+        const finalizeBody = combatEndedRef.current
+          ? {
+              ...(typeof brawlerSnapshotRevRef.current === 'number'
+                ? { ifSnapshotRev: brawlerSnapshotRevRef.current }
+                : {}),
+            }
+          : {
+              winnerParticipantId: winnerId,
+              participants: participantsPayload,
+              ...(typeof brawlerSnapshotRevRef.current === 'number'
+                ? { ifSnapshotRev: brawlerSnapshotRevRef.current }
+                : {}),
+            };
         const finalizeRes = await postBrawlerFinalize(token, finalizeBody);
         if (!opts.showResults) return;
         if (!mountedRef.current) return;
-        const humanParticipant = participantsRef.current.find((p) => !p.isBot);
-        const won = humanParticipant?.id === winnerId;
+        const won = localParticipantIdRef.current === winnerId;
         if (finalizeRes.postGame) {
           presentBrawlerPostGame(finalizeRes.postGame, won);
         } else {
@@ -1005,7 +1219,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     arenaPaused,
     controlsLive,
     difficultyTuning,
-    bump,
+    bumpHud,
+    paintWorld,
     spawnEnemyOnRandomPlatform,
     setGameOverOpen,
     setHeroDeadOpen,
@@ -1054,6 +1269,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     activeBuffsRef,
     powerupPickupFlashRef,
     participantsRef,
+    localParticipantIdRef,
     getTokenRef,
     dashCooldownLeft,
     dashTimeLeft,
@@ -1228,6 +1444,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         ) : null}
 
         <ArenaWorldView
+          ref={worldPaintRef}
           styles={styles}
           onArenaLayout={onArenaLayout}
           worldW={worldW}

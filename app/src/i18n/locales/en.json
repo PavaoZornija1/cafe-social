@@ -96,7 +96,12 @@
     "offlineHint": "Showing your saved card — connect to refresh if you recently registered.",
     "offlineNoCache": "Connect once to load your personal QR, then it works offline.",
     "tipVisit": "Staff scan this at partner cafés to log your visit and loyalty.",
-    "tipOffline": "Your QR is saved on this device and works without a connection once loaded."
+    "tipOffline": "Your QR is saved on this device and works without a connection once loaded.",
+    "staffOwnVenueNotice": "You're on staff at {{venue}}. Your member card can't be used for guest rewards here — it stays valid at every other partner venue.",
+    "staffOwnVenueNoticeNoName": "You're on staff at this venue. Your member card can't be used for guest rewards here — it stays valid at every other partner venue.",
+    "staffOwnVenueHeader": "Not valid at your venue",
+    "staffOwnVenueQrHidden": "QR hidden while you're at your own venue. It reappears at other venues.",
+    "staffOwnVenueScanHint": "Staff accounts can't collect guest rewards at their own venue. Visit another partner café to use your card."
   },
   "friendCard": {
     "title": "Friend QR",
@@ -155,9 +160,9 @@
     "emailSocialActivity": "Friend & party emails",
     "pushPartnerFootnote": "Venue order nudges and perk alerts still respect “Total privacy” on the server.",
     "feedbackTitle": "Game feel",
-    "feedbackHint": "Short sounds and light vibration for guesses, matches, and lobby updates. Does not change notification sounds — use your device Settings for those.",
+    "feedbackHint": "Short sounds and light vibration for navigation, rewards, guesses, matches, and lobby updates. Does not change notification sounds — use your device Settings for those.",
     "soundEffects": "Sound effects",
-    "soundEffectsHint": "Correct and wrong guesses, timers, match results, and lobby events.",
+    "soundEffectsHint": "Navigation, rewards, scans, guesses, timers, match results, and lobby events.",
     "haptics": "Haptics",
     "hapticsHint": "Light vibration on the same moments when your device supports it.",
     "backgroundMusic": "Background music",
@@ -282,6 +287,8 @@
     "queueCasual": "Casual",
     "queueRanked": "Ranked",
     "queueRankedHint": "Ranked 1v1 can change your brawler and global ratings when a match is completed on both devices.",
+    "queueCasualHint": "Casual 1v1: solo queue may pair you with a bot; party queue can match a friend. Ratings do not change.",
+    "queueCasualOnlyHint": "Casual matchmaking only for now — ranked is paused until realtime PvP combat is ready. Solo queue may pair you with a bot; party queue can match a friend (hold screen until PvP ships).",
     "findMatch": "Find a match",
     "queueGlobalHint": "One global queue — players at any partner café and subscribers at home can be paired together.",
     "venueRequiredQueue": "Check in at a venue or subscribe to join matchmaking.",
@@ -316,12 +323,16 @@
     "queueSearching": "Looking for another player…",
     "queuePosition": "You’re #{{n}} in line.",
     "queueLeave": "Leave queue",
-    "queueBotFillHint": "If no one is available after {{seconds}} seconds, you may be paired with a bot (casual only).",
+    "queueBotFillHint": "If no one is available shortly, you may be paired with a bot (casual only).",
+    "queuePartyWaitHint": "Waiting for a party member. If no one joins within {{seconds}} seconds, the search ends.",
+    "queueNoOpponents": "No opponents found. Try again, practice vs bot, or invite a party member.",
     "queueEnqueueFailed": "Could not join the queue.",
     "rankedBadge": "Ranked",
     "pvpPlaceholderTitle": "Match found",
     "pvpPlaceholderBody": "You’re paired for a venue brawl. Real-time combat between two phones is not in this build yet — go back to free the room, or play solo / vs bot from the lobby.",
     "backToLobby": "Back to lobby",
+    "sessionLoadFailedTitle": "Session",
+    "sessionLoadFailedBody": "Failed to load brawler session",
     "heroDeadTitle": "You died",
     "heroDeadBody": "You're out for this match. Leave to the lobby or stay and watch until the timer ends.",
     "heroDeadLeave": "Leave to lobby",
@@ -580,7 +591,9 @@
       "pickOfDay": "Pick of the day",
       "rewardAtPartner": "At any partner café",
       "availableNow": "Available now",
-      "redeemCta": "Redeem →"
+      "redeemCta": "Redeem →",
+      "offerStaffUnavailable": "Not available for staff here",
+      "offerKindMemberCardStaff": "Member-card offer"
     }
   },
   "discoverHub": {
@@ -717,6 +730,7 @@
     "submit": "Guess",
     "solved": "Solved: {{word}}",
     "outOfAttempts": "Come back tomorrow for a new word.",
+    "outOfAttemptsReveal": "The word was {{word}}. Come back tomorrow for a new one.",
     "loadError": "Could not load daily word.",
     "guessError": "Guess failed.",
     "needVenue": "Detect a venue to play the venue daily.",
@@ -771,7 +785,8 @@
     "updating": "Updating…",
     "loadError": "Failed to load challenges",
     "weekly": "Weekly challenge — progress resets each ISO week (UTC).",
-    "rewardLine": "Reward when completed: {{title}}"
+    "rewardLine": "Reward when completed: {{title}}",
+    "staffManualUnavailable": "Member-card stamping isn't available while you're on staff at this venue."
   },
   "gameLaunch": {
     "getReady": "Get ready",
@@ -869,7 +884,7 @@
     "queueSearching": "Looking for another player…",
     "queuePosition": "You’re #{{n}} in line for this setup.",
     "queueLeave": "Leave queue",
-    "queueBotFillHint": "If no one is available after {{seconds}} seconds, you may be paired with a bot (casual only).",
+    "queueBotFillHint": "If no one is available shortly, you may be paired with a bot (casual only).",
     "queueEnqueueFailed": "Could not join the queue."
   },
   "wordGame": {
@@ -911,7 +926,9 @@
     "timeExpiredSoloDone": "Time’s up — that word was skipped. Run finished.",
     "timeExpiredCoopSkip": "Time’s up — your team skipped this word.",
     "timeExpiredCoopDone": "Time’s up — skipped the last word. Match ended (no perfect clear).",
-    "timeExpiredVersus": "Time’s up — you left the match.",
+    "timeExpiredVersus": "Time’s up — word skipped.",
+    "timeExpiredVersusSkip": "Time’s up — skipped to the next word.",
+    "timeExpiredVersusDone": "Time’s up — you finished your deck.",
     "timerPassError": "Could not apply time-up. Try again or exit.",
     "playTimeExhaustedTitle": "Play time used up",
     "playTimeExhaustedBody": "You’ve used your free active play time at this venue for today (UTC). You can buy more time in the app or come back tomorrow.",
@@ -1159,7 +1176,8 @@
     "redeemAtVenue": "Redeem at café",
     "refreshA11y": "Refresh perk codes",
     "submitReceiptToUnlock": "Submit receipt",
-    "codeHidden": "Hidden"
+    "codeHidden": "Hidden",
+    "staffOwnVenueHint": "You're on staff at this venue — redeeming, codes, and receipts are disabled here for your account. Rewards at other venues still work as usual."
   },
   "perk": {
     "title": "Redeem perk",
@@ -1186,7 +1204,8 @@
     "staffGuestRewardsBlocked": "Guest perks and offers are disabled while you're on staff at this venue. Use staff tools to verify guests.",
     "emptyAtVenue": "No perks or rewards here yet — finish a challenge or ask staff for a code when offers go live.",
     "rewardStatus": "Status",
-    "rewardExpires": "Expires"
+    "rewardExpires": "Expires",
+    "staffRewardActionsHidden": "You're on staff at this venue, so this reward can't be redeemed here on your account. It stays valid at venues where you're not staff."
   },
   "redeem": {
     "title": "Redeem invite",

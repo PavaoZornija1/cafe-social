@@ -75,7 +75,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
   const [soloSetupOpen, setSoloSetupOpen] = useState(false);
   const [soloOpponentCount, setSoloOpponentCount] = useState(1);
   const [soloDifficulty, setSoloDifficulty] = useState<'easy' | 'normal' | 'hard'>('normal');
-  /** Venue queue: casual (false) vs ranked (true). */
+  /** Casual vs ranked queue mode for online matchmaking. */
   const [queueRanked, setQueueRanked] = useState(false);
   const [powerups, setPowerups] = useState<BrawlerPowerupDef[]>([]);
 
@@ -397,7 +397,12 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
                   pressed && styles.pressed,
                 ]}
               >
-                <Text style={[styles.rankPillText, !queueRanked && styles.rankPillTextOn]}>
+                <Text
+                  style={[
+                    styles.rankPillText,
+                    !queueRanked && styles.rankPillTextOn,
+                  ]}
+                >
                   {t('brawlerLobby.queueCasual')}
                 </Text>
               </Pressable>
@@ -409,12 +414,21 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
                   pressed && styles.pressed,
                 ]}
               >
-                <Text style={[styles.rankPillText, queueRanked && styles.rankPillTextOn]}>
+                <Text
+                  style={[
+                    styles.rankPillText,
+                    queueRanked && styles.rankPillTextOn,
+                  ]}
+                >
                   {t('brawlerLobby.queueRanked')}
                 </Text>
               </Pressable>
             </View>
-            <Text style={styles.rankHint}>{t('brawlerLobby.queueRankedHint')}</Text>
+            <Text style={styles.rankHint}>
+              {queueRanked
+                ? t('brawlerLobby.queueRankedHint')
+                : t('brawlerLobby.queueCasualHint')}
+            </Text>
             <Text style={styles.rankHint}>{t('brawlerLobby.queueGlobalHint')}</Text>
             <Pressable
               onPress={onFindMatch}

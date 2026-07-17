@@ -57,8 +57,11 @@ export class BrawlerController {
   }
 
   @Get('sessions/:sessionId')
-  getSession(@Param('sessionId', new ParseUUIDPipe()) sessionId: string) {
-    return this.brawler.getSession(sessionId);
+  getSession(
+    @CurrentUser() user: unknown,
+    @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+  ) {
+    return this.brawler.getSession(sessionId, this.email(user));
   }
 
   @Post('sessions/:sessionId/start')
@@ -79,32 +82,38 @@ export class BrawlerController {
 
   @Post('sessions/:sessionId/events')
   recordEvents(
+    @CurrentUser() user: unknown,
     @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
     @Headers('if-match') ifMatch: string | undefined,
     @Body() dto: RecordBrawlerEventsDto,
   ) {
-    return this.brawler.recordEvents(sessionId, dto, ifMatch);
+    return this.brawler.recordEvents(sessionId, this.email(user), dto, ifMatch);
   }
 
   @Get('sessions/:sessionId/arena/state')
-  getArenaState(@Param('sessionId', new ParseUUIDPipe()) sessionId: string) {
-    return this.brawler.getArenaState(sessionId);
+  getArenaState(
+    @CurrentUser() user: unknown,
+    @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+  ) {
+    return this.brawler.getArenaState(sessionId, this.email(user));
   }
 
   @Post('sessions/:sessionId/arena/tick')
   tickArena(
+    @CurrentUser() user: unknown,
     @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
     @Body() dto: TickBrawlerArenaDto,
   ) {
-    return this.brawler.tickArena(sessionId, dto);
+    return this.brawler.tickArena(sessionId, this.email(user), dto);
   }
 
   @Post('sessions/:sessionId/powerups/pick')
   pickPowerup(
+    @CurrentUser() user: unknown,
     @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
     @Body() dto: PickBrawlerPowerupDto,
   ) {
-    return this.brawler.pickPowerup(sessionId, dto);
+    return this.brawler.pickPowerup(sessionId, this.email(user), dto);
   }
 
   @Post('sessions/:sessionId/finalize')
@@ -150,4 +159,3 @@ export class BrawlerController {
     return this.brawler.leaveVenueBrawlerQueue(this.email(user), dto.venueId);
   }
 }
-

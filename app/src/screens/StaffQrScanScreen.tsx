@@ -18,6 +18,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { StaffAccessGate } from '../components/staff/StaffAccessGate';
+import { triggerFeedback } from '../lib/feedback';
 import { parseMemberTokenFromQr } from '../lib/parseMemberCardQr';
 import {
   fulfillMemberCardOffer,
@@ -34,7 +35,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'StaffQrScan'>;
 
 export default function StaffQrScanScreen(props: Props) {
   return (
-    <StaffAccessGate>
+    <StaffAccessGate venueId={props.route.params.venueId}>
       <StaffQrScanBody {...props} />
     </StaffAccessGate>
   );
@@ -80,6 +81,7 @@ function StaffQrScanBody({ navigation, route }: Props) {
           return;
         }
         const res = await scanMemberCardAtVenue(token, venueId, qrPayload);
+        triggerFeedback('uiSuccess');
         const pending = res.pendingOffers ?? [];
         if (pending.length === 0) {
           Alert.alert(
@@ -112,12 +114,14 @@ function StaffQrScanBody({ navigation, route }: Props) {
                     for (const offer of pending) {
                       await fulfillMemberCardOffer(tok, venueId, offer.redemptionId);
                     }
+                    triggerFeedback('uiSuccess');
                     Alert.alert(
                       t('staff.memberScanFulfilledTitle'),
                       t('staff.memberScanFulfilledBody', { count: pending.length }),
                       [{ text: t('common.continue'), onPress: () => navigation.goBack() }],
                     );
                   } catch (err) {
+                    triggerFeedback('uiError');
                     setError((err as Error).message ?? t('staff.loadFailed'));
                     setScanEnabled(true);
                   }
@@ -128,6 +132,7 @@ function StaffQrScanBody({ navigation, route }: Props) {
           ],
         );
       } catch (e) {
+        triggerFeedback('uiError');
         setError((e as Error).message ?? t('staff.loadFailed'));
         setScanEnabled(true);
       } finally {
@@ -149,10 +154,12 @@ function StaffQrScanBody({ navigation, route }: Props) {
           return;
         }
         await scanAndRedeemStaffReward(token, venueId, code);
+        triggerFeedback('uiSuccess');
         Alert.alert(t('staff.scanSuccessTitle'), t('staff.scanSuccessBody'), [
           { text: t('common.continue'), onPress: () => goMatch(code) },
         ]);
       } catch (e) {
+        triggerFeedback('uiError');
         setError((e as Error).message ?? t('staff.loadFailed'));
         setScanEnabled(true);
       } finally {
@@ -177,6 +184,7 @@ function StaffQrScanBody({ navigation, route }: Props) {
         setError(null);
         void scanRedeem(code);
       } else {
+        triggerFeedback('uiError');
         setError(t('staff.qrUnrecognized'));
       }
     },
@@ -192,6 +200,7 @@ function StaffQrScanBody({ navigation, route }: Props) {
     }
     const code = parseStaffVerificationFromQr(manual);
     if (!code) {
+      triggerFeedback('uiError');
       setError(t('staff.codeInvalid'));
       return;
     }

@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { normalizePowerupCoords } from './brawler-arena-coords.util';
 import { pickRandomPowerupSpawnPosition } from './brawler-arena-platforms.util';
 import {
   BRAWLER_ARENA_MAX_ON_MAP,
@@ -54,20 +55,25 @@ export function maybeSpawnArenaPowerup(params: {
   const pos = pickRandomPowerupSpawnPosition(worldW, worldH);
   if (!pos) return null;
 
+  const { nx, ny } = normalizePowerupCoords(pos.x, pos.y, worldW, worldH);
   const spawn: BrawlerArenaSpawn = {
     spawnId: `${state.sessionId}-${atMs}-${randomUUID().slice(0, 8)}`,
     powerupId: pick.id,
-    x: pos.x,
-    y: pos.y,
+    nx,
+    ny,
   };
   state.lastSpawnAtMs = atMs;
   state.spawns = [...state.spawns, spawn];
   return spawn;
 }
 
+/** Client-facing spawn list — still normalized; clients denormalize with local world size. */
 export function arenaSpawnsForClient(state: BrawlerArenaLiveStateV1) {
   return state.spawns.map((s) => ({
-    ...s,
+    spawnId: s.spawnId,
+    powerupId: s.powerupId,
+    nx: s.nx,
+    ny: s.ny,
     r: BRAWLER_ARENA_PICKUP_RADIUS_PX,
   }));
 }

@@ -28,6 +28,24 @@ export class WordRepository {
         ? Prisma.sql`AND category = ${params.category}::"WordCategory"`
         : Prisma.empty;
 
+    // Prefer a TABLESAMPLE-assisted pick when enough rows come back; fall back to
+    // ORDER BY random() so empty/small buckets still work (TABLESAMPLE can return 0).
+    try {
+      const sampled = await this.prisma.$queryRaw<{ id: string }[]>`
+        SELECT id FROM "Word" TABLESAMPLE SYSTEM (15)
+        WHERE language = ${params.language}
+        ${catClause}
+        ${lenClause}
+        ORDER BY random()
+        LIMIT ${limit}
+      `;
+      if (sampled.length >= limit) {
+        return sampled.map((r) => r.id);
+      }
+    } catch {
+      // TABLESAMPLE unsupported / unexpected — fall through to full random order.
+    }
+
     const rows = await this.prisma.$queryRaw<{ id: string }[]>`
       SELECT id FROM "Word"
       WHERE language = ${params.language}

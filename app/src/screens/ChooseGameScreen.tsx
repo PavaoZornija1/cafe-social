@@ -12,9 +12,11 @@ import { useTranslation } from 'react-i18next';
 
 import ExplicitCheckInBanner from '../components/home/ExplicitCheckInBanner';
 import VenuePlayTimeBar from '../components/VenuePlayTimeBar';
+import { displayedAutoXpMultiplier } from '../lib/staffRewardPolicy';
 import type { AppNavigationProps } from '../navigation/screenProps';
 import {
   useAuthToken,
+  useStaffContext,
   useVenueOffersQuery,
   useVenueSession,
 } from '../query';
@@ -47,17 +49,19 @@ export default function ChooseGameScreen({ navigation, route }: Props) {
   } = session;
 
   const { getToken } = useAuthToken();
+  const staff = useStaffContext({ venueId: routeVenueId });
 
   const offersQuery = useVenueOffersQuery(playVenueId);
-  const activeXpMultiplier = useMemo(() => {
-    const offers = offersQuery.data ?? [];
-    return Math.max(
-      1,
-      ...offers
-        .filter((o) => o.fulfillment === 'AUTO' && (o.autoXpMultiplier ?? 0) > 1)
-        .map((o) => o.autoXpMultiplier ?? 1),
-    );
-  }, [offersQuery.data]);
+  // Own-venue staff never see boost copy: AUTO XP is stripped for them
+  // backend-side (canClaimGuestRewards is loading-safe false meanwhile).
+  const activeXpMultiplier = useMemo(
+    () =>
+      displayedAutoXpMultiplier(
+        offersQuery.data ?? [],
+        staff.canClaimGuestRewards,
+      ),
+    [offersQuery.data, staff.canClaimGuestRewards],
+  );
 
   const openQrCheckIn = () => {
     if (playVenueId) navigation.navigate('QrScan', { venueId: playVenueId });

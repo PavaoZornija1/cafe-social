@@ -315,10 +315,13 @@ model VenueOfferRedemption {
   playerId String
   player   Player     @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
-  /// PENDING = claimed, awaiting staff; FULFILLED = staff honoured at venue.
+  /// PENDING = claimed, awaiting staff; FULFILLED = staff honoured at venue;
+  /// CANCELLED = claim retired without fulfilment (e.g. claimant became venue staff).
   status                 String    @default("PENDING")
   fulfilledAt            DateTime?
   fulfilledByStaffPlayerId String?
+  cancelledAt            DateTime?
+  cancelReason           String?
 
   createdAt DateTime @default(now())
 

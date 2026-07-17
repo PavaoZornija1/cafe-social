@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
 import { useFriendsInboxBadge } from '../../context/FriendsInboxBadgeContext';
+import { triggerFeedback } from '../../lib/feedback';
+import { shouldTriggerTabSwitchFeedback } from '../../lib/uiFeedbackPolicy';
 import { useAppTheme } from '../../theme/ThemeContext';
 import type { AppColors } from '../../theme/colors';
 import { radii, spacing, tabBar } from '../../theme/tokens';
@@ -50,7 +52,8 @@ export default function AppTabBar({ state, descriptors, navigation }: BottomTabB
               target: route.key,
               canPreventDefault: true,
             });
-            if (!focused && !event.defaultPrevented) {
+            if (shouldTriggerTabSwitchFeedback(focused, event.defaultPrevented)) {
+              triggerFeedback('uiTap');
               navigation.navigate(route.name, route.params);
             }
           };

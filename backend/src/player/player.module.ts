@@ -13,7 +13,6 @@ import { RewardModule } from '../reward/reward.module';
   imports: [
     PrismaModule,
     AuthModule,
-    StatsModule,
     PushModule,
     forwardRef(() => StatsModule),
     forwardRef(() => RewardModule),

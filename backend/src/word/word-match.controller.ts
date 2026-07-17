@@ -143,6 +143,16 @@ export class WordMatchController {
     return this.match.versusGuess(this.email(user), sessionId, dto, ifMatch);
   }
 
+  @Post(':sessionId/versus-pass')
+  versusPass(
+    @CurrentUser() user: unknown,
+    @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Headers('if-match') ifMatch: string | undefined,
+    @Body() dto: MatchPassDto,
+  ) {
+    return this.match.versusPass(this.email(user), sessionId, dto, ifMatch);
+  }
+
   @Post(':sessionId/leave')
   leave(
     @CurrentUser() user: unknown,

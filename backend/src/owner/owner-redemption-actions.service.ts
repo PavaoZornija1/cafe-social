@@ -5,10 +5,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { staffVerificationCodeFromRedemptionId } from '../lib/redemption-staff-code';
+import { VenueStaffService } from '../venue-staff/venue-staff.service';
 
 @Injectable()
 export class OwnerRedemptionActionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly venueStaff: VenueStaffService,
+  ) {}
 
   async acknowledge(params: {
     venueId: string;
@@ -42,6 +46,9 @@ export class OwnerRedemptionActionsService {
     if (row.playerId === params.staffPlayerId) {
       throw new BadRequestException('You cannot verify your own reward');
     }
+    // Staff may not receive guest rewards at their own venue, even when a
+    // coworker acknowledges the redemption.
+    await this.venueStaff.assertCanClaimGuestRewards(row.playerId, params.venueId);
     return this.prisma.venuePerkRedemption.update({
       where: { id: row.id },
       data: {

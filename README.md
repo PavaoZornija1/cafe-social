@@ -3,11 +3,51 @@
 **Location-aware social gaming for cafés and other physical venues.** Players unlock challenges and games when they’re at a partner venue (geofenced). This repo is the Cafe Social monorepo: **NestJS + Prisma** 
 backend and **Expo (React Native)** mobile app.
 
-## Startup
+## Startup (local)
 
-npm run start:dev -> backend
-npm run dev -> admin
+Typical full stack: **Postgres** + **Redis** + **Nest API** + **admin** + **Expo app**. Use three terminals (plus Redis).
+
+### 1. Redis
+
+Recommended for local Brawler / multiplayer sockets (arena + combat live state, Socket.IO adapter). Without Redis, set `GAME_RUNTIME_ALLOW_MEMORY=1` in `backend/.env` for **solo/bot only** — not for multi-human PvP.
+
+```bash
+docker run --name cafe-redis -p 6379:6379 -d redis:7-alpine
+# stop later: docker stop cafe-redis
+```
+
+### 2. Backend
+
+```bash
+cd backend
+# Ensure .env has:
+#   DATABASE_URL=postgresql://…
+#   REDIS_URL=redis://127.0.0.1:6379
+# For production-like local: GAME_RUNTIME_REQUIRE_REDIS=1
+# For solo without Redis: GAME_RUNTIME_ALLOW_MEMORY=1 (and leave REDIS_URL unset)
+npm run start:dev    # http://localhost:3005/api (binds 0.0.0.0 for LAN devices)
+```
+
+First-time: `npm install`, `npx prisma migrate dev`, `npx prisma db seed` (see [Backend setup](#backend-setup)).
+
+### 3. Admin portal
+
+```bash
+cd admin && npm run dev    # http://localhost:3000
+```
+
+### 4. Mobile app
+
+```bash
+cd app
+# EXPO_PUBLIC_API_URL=http://<LAN_IP>:3005/api  (not localhost on a physical device)
 npx expo run:ios --device
+# or: npx expo run:ios   # simulator
+```
+
+### Deferred: dedicated game worker
+
+Combat ticks currently run **inside Nest**. A separate `game-worker` process (same repo, scales by active matches) is **planned later** when concurrent PvP load or API tick jitter warrants it — see `docs/superpowers/plans/2026-07-17-authoritative-brawler-runtime.md` (Task 7). No extra process to start today.
 
 ## Repo layout
 
@@ -205,7 +245,9 @@ Pilot / retention coverage includes proximity arrival, geofence enter, venue pin
 
 - **Node.js** (LTS)
 - **PostgreSQL** (local or hosted)
+- **Redis** (recommended for Brawler / Socket.IO; required in production — see [Startup](#startup-local))
 - **Clerk** app with native publishable key + (optional) Google OAuth
+- **Docker** (optional; easiest way to run Redis locally)
 
 ## Backend setup
 
@@ -213,6 +255,7 @@ Pilot / retention coverage includes proximity arrival, geofence enter, venue pin
 cd backend
 cp .env.example .env   # if present; else create .env with DATABASE_URL, etc.
 # DATABASE_URL=postgresql://USER@localhost:5432/cafe-social
+# REDIS_URL=redis://127.0.0.1:6379
 
 npm install
 npx prisma migrate dev
@@ -220,7 +263,7 @@ npx prisma db seed     # if seed is configured
 npm run start:dev      # default http://localhost:3005/api
 ```
 
-**Optional Redis** (multi-instance Socket.IO): `REDIS_URL=redis://127.0.0.1:6379` — e.g. `docker run -p 6379:6379 redis:7-alpine`.
+**Redis** — see [Startup](#startup-local). Env flags: `REDIS_URL`, `GAME_RUNTIME_REQUIRE_REDIS`, `GAME_RUNTIME_ALLOW_MEMORY` (documented in `backend/.env.example`).
 
 **Optional Mapbox** (partner portal address search on venue maps): `MAPBOX_ACCESS_TOKEN=pk....` — create a public token at [mapbox.com](https://www.mapbox.com/) with Geocoding scope. Free tier includes ~100k geocoding requests/month; the backend proxies requests so the token stays server-side.
 
@@ -325,7 +368,9 @@ UPDATE "Player" SET "platformRole" = 'SUPER_ADMIN' WHERE LOWER(email) = LOWER('y
 
 | Variable | Purpose |
 |----------|---------|
-| `REDIS_URL` | If set, Socket.IO uses **@socket.io/redis-adapter** for cross-process rooms |
+| `REDIS_URL` | Socket.IO **redis-adapter** + Brawler arena/combat live state. Required in production / when `GAME_RUNTIME_REQUIRE_REDIS=1` |
+| `GAME_RUNTIME_REQUIRE_REDIS` | `1` — fail closed without Redis (also implied by `NODE_ENV=production`) |
+| `GAME_RUNTIME_ALLOW_MEMORY` | `1` — local solo/bot only when Redis is unset (never in production) |
 | `EXPO_ACCESS_TOKEN` | Optional **Expo push** [access token](https://docs.expo.dev/push-notifications/sending-notifications/) for higher rate limits / security |
 | `VENUE_ORDER_NUDGE_ENABLED` | `false` disables dwell-based “order a drink” pushes (default on if unset) |
 | `VENUE_ORDER_NUDGE_AFTER_MINUTES` | Minutes at same venue before first nudge per visit (default **30**) |

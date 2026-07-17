@@ -11,6 +11,11 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import {
+  isOfferCtaActionable,
+  resolveOfferCta,
+  type OfferCta,
+} from '../../lib/staffRewardPolicy';
 import type { AppColors } from '../../theme/colors';
 import { radii, spacing } from '../../theme/tokens';
 import type { HomePublicOffer } from './types';
@@ -22,6 +27,11 @@ type Props = {
   claimingOfferId?: string | null;
   /** When false, guest claim CTAs are muted (staff at own venue). */
   guestClaimsEnabled?: boolean;
+  /**
+   * False while staff state for this venue is still resolving; claim CTAs
+   * stay non-actionable without showing staff copy to guests.
+   */
+  claimsResolved?: boolean;
   onSeeAll: () => void;
   onOfferPress: (offer: HomePublicOffer) => void;
   onBrowseVenues?: () => void;
@@ -30,20 +40,30 @@ type Props = {
 const PLACEHOLDER_EMOJI = ['☕', '🥐', '🧁', '🍵'];
 
 function offerCtaLabel(
-  offer: HomePublicOffer,
+  cta: OfferCta,
   t: (k: string, o?: Record<string, unknown>) => string,
-  guestClaimsEnabled: boolean,
+  offer: HomePublicOffer,
 ): string {
-  if (offer.fulfillment === 'AUTO') {
-    return offer.autoXpMultiplier && offer.autoXpMultiplier > 1
-      ? t('home.dashboard.offerAutoXp', { mult: offer.autoXpMultiplier })
-      : t('home.dashboard.offerAutoActive');
+  switch (cta.kind) {
+    case 'autoInfo':
+      return cta.boosted
+        ? t('home.dashboard.offerAutoXp', { mult: offer.autoXpMultiplier })
+        : t('home.dashboard.offerAutoActive');
+    case 'fulfilled':
+      return t('home.dashboard.offerFulfilled');
+    case 'showMemberCard':
+      return t('home.dashboard.offerShowMemberCard');
+    case 'exhausted':
+      return t('home.dashboard.offerExhausted');
+    case 'staffUnavailable':
+      return t('home.dashboard.offerStaffUnavailable');
+    case 'claim':
+      return t('home.dashboard.offerClaimCta');
+    default: {
+      const _exhaustive: never = cta;
+      return _exhaustive;
+    }
   }
-  if (offer.claimStatus === 'FULFILLED') return t('home.dashboard.offerFulfilled');
-  if (offer.claimStatus === 'PENDING') return t('home.dashboard.offerShowMemberCard');
-  if (offer.globallyExhausted) return t('home.dashboard.offerExhausted');
-  if (!guestClaimsEnabled) return t('home.dashboard.offerStaffMode');
-  return t('home.dashboard.offerClaimCta');
 }
 
 export default function HomeRewardsSection({
@@ -52,6 +72,7 @@ export default function HomeRewardsSection({
   offers,
   claimingOfferId,
   guestClaimsEnabled = true,
+  claimsResolved = true,
   onSeeAll,
   onOfferPress,
   onBrowseVenues,
@@ -104,15 +125,16 @@ export default function HomeRewardsSection({
           {offers.map((offer, index) => {
             const isAuto = offer.fulfillment === 'AUTO';
             const busy = claimingOfferId === offer.id;
+            // While staff state is unresolved, show plain guest labels
+            // (no staff copy, no AUTO boost) but keep claims disabled.
+            const ctaClaims = claimsResolved ? guestClaimsEnabled : !isAuto;
+            const cta = resolveOfferCta(offer, ctaClaims);
             const claimBlocked =
-              !guestClaimsEnabled &&
-              !isAuto &&
-              offer.claimStatus !== 'PENDING' &&
-              offer.claimStatus !== 'FULFILLED';
+              cta.kind === 'staffUnavailable' ||
+              (!claimsResolved && !isAuto && cta.kind !== 'fulfilled');
             const disabled =
               busy ||
-              offer.globallyExhausted ||
-              offer.claimStatus === 'FULFILLED' ||
+              !isOfferCtaActionable(cta) ||
               claimBlocked ||
               (isAuto && !offer.body);
 
@@ -124,8 +146,8 @@ export default function HomeRewardsSection({
                 style={({ pressed }) => [
                   styles.rewardCard,
                   pressed && !disabled && styles.pressed,
-                  (offer.claimStatus === 'FULFILLED' ||
-                    offer.globallyExhausted ||
+                  (cta.kind === 'fulfilled' ||
+                    cta.kind === 'exhausted' ||
                     claimBlocked) &&
                     styles.rewardCardMuted,
                 ]}
@@ -164,7 +186,9 @@ export default function HomeRewardsSection({
                     <Text style={styles.availableText}>
                       {isAuto
                         ? t('home.dashboard.offerKindAuto')
-                        : t('home.dashboard.offerKindMemberCard')}
+                        : cta.kind === 'staffUnavailable'
+                          ? t('home.dashboard.offerKindMemberCardStaff')
+                          : t('home.dashboard.offerKindMemberCard')}
                     </Text>
                   </View>
                   {busy ? (
@@ -173,13 +197,13 @@ export default function HomeRewardsSection({
                     <Text
                       style={[
                         styles.redeemText,
-                        (offer.claimStatus === 'FULFILLED' ||
-                          offer.globallyExhausted ||
+                        (cta.kind === 'fulfilled' ||
+                          cta.kind === 'exhausted' ||
                           claimBlocked) &&
                           styles.redeemTextMuted,
                       ]}
                     >
-                      {offerCtaLabel(offer, t, guestClaimsEnabled)}
+                      {offerCtaLabel(cta, t, offer)}
                     </Text>
                   )}
                 </View>

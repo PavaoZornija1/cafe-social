@@ -9,38 +9,50 @@ import { useAppTheme } from '../../theme/ThemeContext';
 
 /**
  * Redirects non-staff users away from staff-only screens.
+ * When `venueId` is provided, membership at that exact venue is required
+ * (routed venue tools); otherwise any staff membership is enough
+ * (global screens like StaffVenues).
  * Returns whether the screen should render its body.
  */
-export function useRequireStaffMembership(): {
+export function useRequireStaffMembership(options?: {
+  venueId?: string | null;
+}): {
   ready: boolean;
   allowed: boolean;
 } {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const staffQuery = useStaffVenuesQuery();
-  const hasStaff = (staffQuery.data?.length ?? 0) > 0;
+  const requiredVenueId = options?.venueId?.trim() || null;
+  const memberships = staffQuery.data ?? [];
+  const hasAccess = requiredVenueId
+    ? memberships.some((row) => row.venue.id === requiredVenueId)
+    : memberships.length > 0;
   const ready = !staffQuery.isLoading || Boolean(staffQuery.data);
 
   useEffect(() => {
     if (!ready) return;
-    if (hasStaff) return;
+    if (hasAccess) return;
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
       navigation.navigate('MainTabs');
     }
-  }, [ready, hasStaff, navigation]);
+  }, [ready, hasAccess, navigation]);
 
-  return { ready, allowed: ready && hasStaff };
+  return { ready, allowed: ready && hasAccess };
 }
 
 export function StaffAccessGate({
   children,
+  venueId,
 }: {
   children: React.ReactNode;
+  /** Require staff membership at this exact venue before rendering. */
+  venueId?: string | null;
 }) {
   const { colors } = useAppTheme();
-  const { ready, allowed } = useRequireStaffMembership();
+  const { ready, allowed } = useRequireStaffMembership({ venueId });
 
   if (!ready || !allowed) {
     return (

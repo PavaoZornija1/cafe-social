@@ -2,12 +2,17 @@ import { useMemo } from 'react';
 
 import type { VenueStaffRole } from '../../lib/staffContext';
 import { isManagerPlusRole } from '../../lib/staffContext';
+import { resolveGuestClaimsEnabled } from '../../lib/staffRewardPolicy';
 import { useStaffVenuesQuery } from './useStaffVenuesQuery';
 import { useVenueSession } from './useVenueSession';
 
 export type StaffContext = {
   staffVenues: ReturnType<typeof useStaffVenuesQuery>['data'];
   hasStaffVenues: boolean;
+  /** Venue ids where the user holds any staff role. */
+  staffVenueIds: string[];
+  /** True once the staff memberships query has resolved at least once. */
+  membershipsResolved: boolean;
   roleAtVenue: VenueStaffRole | null;
   isStaffAtVenue: boolean;
   isManagerPlus: boolean;
@@ -28,6 +33,7 @@ export function useStaffContext(options?: { venueId?: string | null }): StaffCon
 
   const activeVenueId = routeVenueId ?? session.playVenueId;
   const staffVenues = staffQuery.data ?? [];
+  const membershipsResolved = staffQuery.data !== undefined;
 
   const roleAtVenue = useMemo((): VenueStaffRole | null => {
     if (!activeVenueId) return null;
@@ -38,8 +44,17 @@ export function useStaffContext(options?: { venueId?: string | null }): StaffCon
   }, [activeVenueId, staffVenues, session.access?.staffRole]);
 
   const isStaffAtVenue = roleAtVenue != null;
-  const canClaimGuestRewards =
-    session.access?.canClaimGuestRewards ?? !isStaffAtVenue;
+  // Loading-safe: while neither the per-venue access flag nor staff
+  // memberships have resolved, guest claim actions stay hidden so staff
+  // never see a claimable flash at their own venue. Non-staff users get
+  // guest actions as soon as memberships resolve.
+  const canClaimGuestRewards = activeVenueId
+    ? resolveGuestClaimsEnabled({
+        accessCanClaimGuestRewards: session.access?.canClaimGuestRewards,
+        membershipsResolved,
+        isStaffAtVenue,
+      })
+    : true;
   const canUseStaffTools =
     session.access?.canUseStaffTools ?? isStaffAtVenue;
 
@@ -47,6 +62,8 @@ export function useStaffContext(options?: { venueId?: string | null }): StaffCon
     () => ({
       staffVenues,
       hasStaffVenues: staffVenues.length > 0,
+      staffVenueIds: staffVenues.map((row) => row.venue.id),
+      membershipsResolved,
       roleAtVenue,
       isStaffAtVenue,
       isManagerPlus: isManagerPlusRole(roleAtVenue),
@@ -57,6 +74,7 @@ export function useStaffContext(options?: { venueId?: string | null }): StaffCon
     }),
     [
       staffVenues,
+      membershipsResolved,
       roleAtVenue,
       isStaffAtVenue,
       canClaimGuestRewards,

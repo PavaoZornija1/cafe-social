@@ -28,6 +28,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { normalizeUserEmail } from '../auth/user-email.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { MinVenueRole } from '../venue-staff/min-venue-role.decorator';
+import { MinOrgRole } from '../venue-staff/min-org-role.decorator';
 import { VenueStaffGuard } from '../venue-staff/venue-staff.guard';
 import { OrganizationStaffGuard } from '../venue-staff/organization-staff.guard';
 import { VenueStaffService } from '../venue-staff/venue-staff.service';
@@ -403,6 +404,7 @@ export class OwnerController {
 
   @Post('organizations/:organizationId/stripe/billing-portal')
   @UseGuards(OrganizationStaffGuard)
+  @MinOrgRole(VenueStaffRole.OWNER)
   partnerStripeBillingPortal(
     @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
   ) {
@@ -414,6 +416,7 @@ export class OwnerController {
 
   @Post('organizations/:organizationId/stripe/checkout-session')
   @UseGuards(OrganizationStaffGuard)
+  @MinOrgRole(VenueStaffRole.OWNER)
   partnerStripeCheckout(
     @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
     @Body() body: { priceId?: string },
@@ -426,6 +429,7 @@ export class OwnerController {
 
   @Post('organizations/:organizationId/stripe/ppv-checkout-session')
   @UseGuards(OrganizationStaffGuard)
+  @MinOrgRole(VenueStaffRole.OWNER)
   partnerStripePpvCheckout(
     @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
   ) {
@@ -436,6 +440,7 @@ export class OwnerController {
 
   @Get('organizations/:organizationId/stripe/elements-subscription-setup')
   @UseGuards(OrganizationStaffGuard)
+  @MinOrgRole(VenueStaffRole.OWNER)
   partnerStripeElementsSubscriptionSetup(
     @Param('organizationId', new ParseUUIDPipe()) organizationId: string,
     @Query('priceId') priceId?: string,
@@ -648,14 +653,14 @@ export class OwnerController {
 
   @Get('venues/:venueId/moderation/staff-summary')
   @UseGuards(VenueStaffGuard)
-  @MinVenueRole(VenueStaffRole.EMPLOYEE)
+  @MinVenueRole(VenueStaffRole.MANAGER)
   staffModerationSummary(@Param('venueId', new ParseUUIDPipe()) venueId: string) {
     return this.venueModeration.staffSummaryForVenue(venueId);
   }
 
   @Get('venues/:venueId/moderation/ban-appeals')
   @UseGuards(VenueStaffGuard)
-  @MinVenueRole(VenueStaffRole.EMPLOYEE)
+  @MinVenueRole(VenueStaffRole.MANAGER)
   listBanAppeals(
     @Param('venueId', new ParseUUIDPipe()) venueId: string,
     @Query('includeResolved') includeResolvedRaw?: string,
@@ -742,14 +747,14 @@ export class OwnerController {
 
   @Get('venues/:venueId/moderation/reports')
   @UseGuards(VenueStaffGuard)
-  @MinVenueRole(VenueStaffRole.EMPLOYEE)
+  @MinVenueRole(VenueStaffRole.MANAGER)
   listPlayerReports(@Param('venueId', new ParseUUIDPipe()) venueId: string) {
     return this.venueModeration.listReportsForVenue(venueId);
   }
 
   @Get('venues/:venueId/moderation/bans')
   @UseGuards(VenueStaffGuard)
-  @MinVenueRole(VenueStaffRole.EMPLOYEE)
+  @MinVenueRole(VenueStaffRole.MANAGER)
   listVenueBans(@Param('venueId', new ParseUUIDPipe()) venueId: string) {
     return this.venueModeration.listBansForVenue(venueId);
   }

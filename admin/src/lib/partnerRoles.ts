@@ -19,6 +19,14 @@ export function partnerHasManagementAccess(
   return venues.some((v) => isManagementRole(v.role));
 }
 
+/** Billing / ownership-sensitive portal surfaces — OWNER only. */
+export function partnerHasOwnerAccess(
+  venues: Pick<PortalMeVenueRow, "role">[] | null | undefined,
+): boolean {
+  if (!venues?.length) return false;
+  return venues.some((v) => v.role === "OWNER");
+}
+
 export function venuePortalHomePath(role: VenueStaffRole, venueId: string): string {
   return isManagementRole(role) ? `/owner/venues/${venueId}` : `/staff/${venueId}`;
 }

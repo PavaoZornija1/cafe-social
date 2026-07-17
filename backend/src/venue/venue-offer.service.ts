@@ -106,7 +106,12 @@ export class VenueOfferService {
         }
 
         const existing = await tx.venueOfferRedemption.findFirst({
-          where: { offerId: offer.id, playerId: params.playerId },
+          where: {
+            offerId: offer.id,
+            playerId: params.playerId,
+            // Retired (CANCELLED) claims never count as an active claim.
+            status: { in: ['PENDING', 'FULFILLED'] },
+          },
           orderBy: { createdAt: 'desc' },
         });
         if (existing) {
@@ -124,7 +129,11 @@ export class VenueOfferService {
           offer.maxRedemptionsPerPlayer > 1
         ) {
           const playerCount = await tx.venueOfferRedemption.count({
-            where: { offerId: offer.id, playerId: params.playerId },
+            where: {
+              offerId: offer.id,
+              playerId: params.playerId,
+              status: { in: ['PENDING', 'FULFILLED'] },
+            },
           });
           if (playerCount >= offer.maxRedemptionsPerPlayer) {
             throw new ConflictException('You already used this offer as many times as allowed');
@@ -225,6 +234,12 @@ export class VenueOfferService {
         alreadyFulfilled: true,
       };
     }
+    if (row.status === 'CANCELLED') {
+      throw new BadRequestException('This offer claim has been cancelled');
+    }
+    // Staff may not receive guest offers at their own venue, even when a
+    // coworker performs the fulfilment.
+    await this.venueStaff.assertCanClaimGuestRewards(row.playerId, params.venueId);
     if (row.playerId === params.staffPlayerId) {
       throw new BadRequestException('You cannot fulfil your own offer claim');
     }

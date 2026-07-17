@@ -64,6 +64,14 @@ function isParticipantActive(p: {
   return Boolean(p.playerId);
 }
 
+/**
+ * Versus deck cursor. `score` = correct answers; `assists` advances on correct or skip.
+ * `Math.max` keeps mid-match sessions safe after deploy (assists was unused / 0).
+ */
+function versusWordIndex(p: { score: number; assists?: number | null }): number {
+  return Math.max(p.assists ?? 0, p.score);
+}
+
 @Injectable()
 export class WordMatchService {
   constructor(
@@ -438,6 +446,9 @@ export class WordMatchService {
     if (activeHumans.length < 2) {
       throw new BadRequestException('need at least 2 players');
     }
+    if (config.ranked && config.wordGameMode === 'versus' && activeHumans.length > 2) {
+      throw new BadRequestException('ranked versus requires exactly 2 players');
+    }
 
     await this.activateWordMatchSession(sessionId);
 
@@ -635,7 +646,13 @@ export class WordMatchService {
 
       const mode = snap.mode;
       const wordIds = snap.wordIds;
-      const wordIndex = mode === 'coop' ? snap.sharedWordIndex : self.score;
+      const wordIndex =
+        mode === 'coop'
+          ? snap.sharedWordIndex
+          : versusWordIndex({
+              score: self.score,
+              assists: self.wordIndex ?? self.score,
+            });
 
       if (wordIndex >= wordIds.length) {
         return {
@@ -689,10 +706,11 @@ export class WordMatchService {
     if (!ws) throw new BadRequestException('invalid session');
 
     const mode = config.wordGameMode;
+    const selfPart = session.participants.find((p) => p.playerId === player.id && !p.leftAt);
     const wordIndex =
       mode === 'coop'
         ? ws.sharedWordIndex
-        : (session.participants.find((p) => p.playerId === player.id && !p.leftAt)?.score ?? 0);
+        : versusWordIndex(selfPart ?? { score: 0, assists: 0 });
 
     if (wordIndex >= config.wordIds.length) {
       return {
@@ -955,7 +973,7 @@ export class WordMatchService {
         throw new ForbiddenException('not in this match');
       }
 
-      const idx = partRow.score;
+      const idx = versusWordIndex(partRow);
       if (idx >= target) {
         throw new BadRequestException('already finished your deck');
       }
@@ -980,9 +998,10 @@ export class WordMatchService {
         };
       }
 
+      const nextCursor = idx + 1;
       const updated = await tx.gameParticipant.update({
         where: { id: part.id },
-        data: { score: { increment: 1 } },
+        data: { score: { increment: 1 }, assists: nextCursor },
       });
 
       await tx.wordParticipantStats.upsert({
@@ -1018,7 +1037,7 @@ export class WordMatchService {
         };
       }
 
-      const nextW = await tx.word.findUnique({ where: { id: config.wordIds[updated.score]! } });
+      const nextW = await tx.word.findUnique({ where: { id: config.wordIds[nextCursor]! } });
       return {
         correct: true,
         finished: false,
@@ -1040,6 +1059,150 @@ export class WordMatchService {
       return this.attachPostGame(sessionId, player.id, result, true);
     }
     return result;
+  }
+
+  /**
+   * Skip the current versus word (timer expiry). Advances the player's deck cursor
+   * without awarding a point and without leaving/forfeiting the match.
+   */
+  async versusPass(email: string, sessionId: string, dto: MatchPassDto, ifMatchHeader?: string) {
+    await this.assertWordMatchIfSnapshotRev(
+      sessionId,
+      resolveIfSnapshotRev(ifMatchHeader, dto.ifSnapshotRev),
+    );
+    const player = await this.players.findOrCreateByEmail(email);
+    const part = await this.ensureParticipant(sessionId, player.id);
+
+    const brief = await this.prisma.gameSession.findUnique({
+      where: { id: sessionId },
+      select: { venueId: true, config: true },
+    });
+    await this.assertAtVenueIfNeeded(
+      this.effectivePlayerVenueId(brief?.config as unknown as WordMatchConfig | null, brief?.venueId, player.id),
+      dto.latitude,
+      dto.longitude,
+    );
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const session = await tx.gameSession.findUnique({
+        where: { id: sessionId },
+        include: { wordSession: true, participants: true },
+      });
+      if (!session || session.status !== GameSessionStatus.ACTIVE || !session.wordSession) {
+        throw new BadRequestException('match not active');
+      }
+      const config = session.config as unknown as WordMatchConfig;
+      if (config.wordGameMode !== 'versus') {
+        throw new BadRequestException('not a versus match');
+      }
+      const target = config.wordIds.length;
+
+      const partRow = session.participants.find((p) => p.id === part.id);
+      if (!partRow?.playerId || partRow.leftAt) {
+        throw new ForbiddenException('not in this match');
+      }
+
+      const idx = versusWordIndex(partRow);
+      if (idx >= target) {
+        return {
+          skipped: true,
+          finished: false,
+          yourScore: partRow.score,
+          currentWord: null as WordPublicHint | null,
+        };
+      }
+
+      await tx.wordParticipantStats.upsert({
+        where: { participantId: part.id },
+        create: { participantId: part.id, wrongAnswers: 1 },
+        update: { wrongAnswers: { increment: 1 } },
+      });
+
+      const nextCursor = idx + 1;
+      await tx.gameParticipant.update({
+        where: { id: part.id },
+        data: { assists: nextCursor },
+      });
+
+      if (nextCursor >= target) {
+        const othersStillPlaying = session.participants
+          .filter(isParticipantActive)
+          .filter((p) => p.id !== part.id)
+          .some((p) => versusWordIndex(p) < target);
+
+        if (!othersStillPlaying) {
+          await this.finishVersusByScore(tx, sessionId, session.participants);
+          return {
+            skipped: true,
+            finished: true,
+            yourScore: partRow.score,
+            currentWord: null as WordPublicHint | null,
+          };
+        }
+
+        return {
+          skipped: true,
+          finished: false,
+          yourScore: partRow.score,
+          currentWord: null as WordPublicHint | null,
+        };
+      }
+
+      const nextW = await tx.word.findUnique({ where: { id: config.wordIds[nextCursor]! } });
+      return {
+        skipped: true,
+        finished: false,
+        yourScore: partRow.score,
+        currentWord: nextW ? wordToPublicHints(nextW) : null,
+      };
+    });
+
+    await this.syncWordMatchSnapshot(sessionId);
+    this.pushSessionRefresh(sessionId, {
+      reason: 'versus_pass',
+      participantId: part.id,
+      score: result.yourScore,
+    });
+    if (result.finished) {
+      return this.attachPostGame(sessionId, player.id, result, true);
+    }
+    return result;
+  }
+
+  private async finishVersusByScore(
+    tx: Prisma.TransactionClient,
+    sessionId: string,
+    participants: Array<{
+      id: string;
+      playerId: string | null;
+      leftAt: Date | null;
+      isBot?: boolean;
+      score: number;
+    }>,
+  ) {
+    const stillIn = participants.filter(isParticipantActive);
+    const ranked = [...stillIn].sort(
+      (a, b) => b.score - a.score || a.id.localeCompare(b.id),
+    );
+    await tx.gameSession.update({
+      where: { id: sessionId },
+      data: { status: GameSessionStatus.FINISHED, endedAt: new Date() },
+    });
+    const topScore = ranked[0]?.score ?? 0;
+    const tiedForFirst = ranked.filter((x) => x.score === topScore).length > 1;
+    for (let i = 0; i < ranked.length; i++) {
+      const p = ranked[i]!;
+      const result =
+        p.score === topScore
+          ? tiedForFirst
+            ? GameParticipantResult.DRAW
+            : GameParticipantResult.WIN
+          : GameParticipantResult.LOSS;
+      await tx.gameParticipant.update({
+        where: { id: p.id },
+        data: { result, placement: i + 1 },
+      });
+    }
   }
 
   async leave(email: string, sessionId: string, ifSnapshotRev?: number) {
@@ -1586,7 +1749,7 @@ export class WordMatchService {
         throw new ForbiddenException('invalid bot participant');
       }
 
-      const idx = partRow.score;
+      const idx = versusWordIndex(partRow);
       if (idx >= target) {
         return { finished: true };
       }
@@ -1603,9 +1766,10 @@ export class WordMatchService {
         return { finished: false };
       }
 
+      const nextCursor = idx + 1;
       const updated = await tx.gameParticipant.update({
         where: { id: partRow.id },
-        data: { score: { increment: 1 } },
+        data: { score: { increment: 1 }, assists: nextCursor },
       });
 
       await tx.wordParticipantStats.upsert({

@@ -214,7 +214,9 @@ export class PostGameService {
   ): Promise<Record<string, ChallengeBumpResult[]>> {
     const session = await this.prisma.gameSession.findUnique({
       where: { id: sessionId },
-      include: { participants: true },
+      include: {
+        participants: { include: { wordStats: true } },
+      },
     });
     if (!session || session.status !== GameSessionStatus.FINISHED) return {};
 
@@ -231,16 +233,57 @@ export class PostGameService {
       const venueId = playerVenueIds[p.playerId] ?? session.venueId;
       if (!venueId) continue;
       const countsAsWin = p.result === GameParticipantResult.WIN;
+
+      // Only trust venue presence for players who actually played (deck fetch counted
+      // or a guess/pass recorded). Avoid awarding venue challenges to idle joiners.
+      const played = await this.participantPlayedAtVenue(
+        session.gameType,
+        p.playerId,
+        sessionId,
+        p,
+      );
+
       out[p.playerId] = await this.challenges.bumpActiveChallengesForPlayerAtVenue({
         playerId: p.playerId,
         venueId,
-        trustVenuePresence: true,
-        activityAtVenue: true,
+        trustVenuePresence: played,
+        activityAtVenue: played,
         countsAsWin,
         source,
       });
     }
     return out;
+  }
+
+  private async participantPlayedAtVenue(
+    gameType: GameType,
+    playerId: string,
+    sessionId: string,
+    participant: {
+      score: number;
+      assists: number;
+      wordStats: { correctAnswers: number; wrongAnswers: number } | null;
+    },
+  ): Promise<boolean> {
+    const kind = gameType === GameType.BRAWLER ? 'brawler' : 'word_match';
+    const counted = await this.prisma.playerVenuePlayCountedGame.findUnique({
+      where: {
+        playerId_gameSessionId_kind: {
+          playerId,
+          gameSessionId: sessionId,
+          kind,
+        },
+      },
+      select: { playerId: true },
+    });
+    if (counted) return true;
+
+    if (gameType === GameType.WORD_GAME) {
+      const stats = participant.wordStats;
+      if (stats && (stats.correctAnswers > 0 || stats.wrongAnswers > 0)) return true;
+      if (participant.score > 0 || participant.assists > 0) return true;
+    }
+    return false;
   }
 
   private async buildAllGameSessionPayloads(

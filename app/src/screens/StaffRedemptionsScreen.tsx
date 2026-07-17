@@ -18,6 +18,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { StaffAccessGate } from '../components/staff/StaffAccessGate';
+import { triggerFeedback } from '../lib/feedback';
 import type { RootStackParamList } from '../navigation/type';
 import { staffRoleLabelKey } from '../lib/staffContext';
 import {
@@ -43,7 +44,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'StaffRedemptions'>;
 
 export default function StaffRedemptionsScreen(props: Props) {
   return (
-    <StaffAccessGate>
+    <StaffAccessGate venueId={props.route.params.venueId}>
       <StaffRedemptionsBody {...props} />
     </StaffAccessGate>
   );
@@ -171,6 +172,7 @@ function StaffRedemptionsBody({ navigation, route }: Props) {
         const token = await getTokenRef.current();
         if (!token) throw new Error(t('staff.signInFirst'));
         await acknowledgeStaffRedemption(token, venueId, redemptionId);
+        triggerFeedback('uiSuccess');
         await load('refresh');
       } catch (e) {
         Alert.alert(t('common.error'), (e as Error).message ?? t('staff.loadFailed'));

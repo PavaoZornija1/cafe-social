@@ -125,19 +125,56 @@ export class VenueStaffService {
     await this.assertVenueExists(params.venueId);
     await this.assertPlayerExists(params.playerId);
 
-    return this.prisma.venueStaff.upsert({
-      where: {
-        venueId_playerId: {
+    return this.prisma.$transaction(async (tx) => {
+      const membership = await tx.venueStaff.upsert({
+        where: {
+          venueId_playerId: {
+            venueId: params.venueId,
+            playerId: params.playerId,
+          },
+        },
+        create: {
           venueId: params.venueId,
           playerId: params.playerId,
+          role: params.role,
         },
-      },
-      create: {
-        venueId: params.venueId,
-        playerId: params.playerId,
-        role: params.role,
-      },
-      update: { role: params.role },
+        update: { role: params.role },
+      });
+
+      // New staff may not hold open guest rewards at this venue: void any
+      // REDEEMABLE/LOCKED perk claims here (rows at other venues untouched).
+      // Idempotent — repeat upserts only match still-open rows.
+      const now = new Date();
+      await tx.venuePerkRedemption.updateMany({
+        where: {
+          playerId: params.playerId,
+          venueId: params.venueId,
+          voidedAt: null,
+          status: { in: ['REDEEMABLE', 'LOCKED'] },
+        },
+        data: {
+          status: 'VOIDED',
+          voidedAt: now,
+          voidReason: 'Voided automatically: player became venue staff',
+        },
+      });
+
+      // Likewise retire any still-pending MEMBER_CARD offer claims at this
+      // venue so they cannot be honoured later. Scoped to this venue's offers.
+      await tx.venueOfferRedemption.updateMany({
+        where: {
+          playerId: params.playerId,
+          status: 'PENDING',
+          offer: { venueId: params.venueId },
+        },
+        data: {
+          status: 'CANCELLED',
+          cancelledAt: now,
+          cancelReason: 'Cancelled automatically: player became venue staff',
+        },
+      });
+
+      return membership;
     });
   }
 

@@ -34,6 +34,7 @@ export class QueueBotFillService {
       const cfg = getQueueBotConfig();
       await this.fillWordQueue(cfg.wordFillAfterMs);
       await this.fillBrawlerQueue(cfg.brawlerFillAfterMs);
+      await this.brawler.expireStaleBrawlerQueueEntries();
     } catch (e) {
       this.log.warn(`queue bot sweep: ${(e as Error).message}`);
     } finally {

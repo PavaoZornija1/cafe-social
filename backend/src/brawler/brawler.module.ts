@@ -8,7 +8,10 @@ import { BrawlerService } from './brawler.service';
 import { BrawlerRepository } from './brawler.repository';
 import { BrawlerLiveRedisService } from './brawler-live-redis.service';
 import { BrawlerArenaRedisService } from './brawler-arena-redis.service';
+import { BrawlerCombatRedisService } from './brawler-combat-redis.service';
+import { BrawlerCombatSimService } from './brawler-combat-sim.service';
 import { BrawlerGateway } from './brawler.gateway';
+import { BrawlerCleanupService } from './brawler-cleanup.service';
 import { StatsModule } from '../stats/stats.module';
 import { ChallengeModule } from '../challenge/challenge.module';
 import { PostGameModule } from '../post-game/post-game.module';
@@ -22,7 +25,10 @@ import { PushModule } from '../push/push.module';
     BrawlerRepository,
     BrawlerLiveRedisService,
     BrawlerArenaRedisService,
+    BrawlerCombatRedisService,
+    BrawlerCombatSimService,
     BrawlerGateway,
+    BrawlerCleanupService,
   ],
   exports: [BrawlerService],
 })

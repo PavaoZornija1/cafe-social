@@ -390,6 +390,10 @@ export class ChallengeService {
       if (grant.ok) {
         perkGranted = true;
         await this.challenges.markRewardClaimed(playerId, challengeId, new Date());
+      } else if (grant.reason === 'staff_at_venue') {
+        // Staff completed the challenge but earn no guest reward at their own
+        // venue — drop the perk title so post-game copy doesn't imply a grant.
+        perkTitle = null;
       }
     }
 

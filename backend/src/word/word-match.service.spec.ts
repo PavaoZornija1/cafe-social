@@ -404,3 +404,112 @@ describe('WordMatchService.leave', () => {
     );
   });
 });
+
+describe('WordMatchService.start ranked guard', () => {
+  it('rejects ranked versus start when more than 2 humans are present', async () => {
+    const sessionId = 'sess-ranked-3';
+    const prisma = buildPrismaDouble();
+    prisma.gameSession.findUnique = jest.fn().mockResolvedValue({
+      id: sessionId,
+      gameType: GameType.WORD_GAME,
+      status: GameSessionStatus.PENDING,
+      config: {
+        wordGameMode: 'versus',
+        ranked: true,
+        hostPlayerId: 'player-a',
+        wordIds: ['w1'],
+        difficulty: 'normal',
+      },
+      participants: [
+        { id: '1', playerId: 'player-a', leftAt: null, isBot: false },
+        { id: '2', playerId: 'player-b', leftAt: null, isBot: false },
+        { id: '3', playerId: 'player-c', leftAt: null, isBot: false },
+      ],
+      wordSession: {},
+    });
+
+    const { svc } = buildService({
+      prisma,
+      player: { id: 'player-a', username: 'Alice' },
+    });
+
+    await expect(svc.start('alice@x', sessionId)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(svc.start('alice@x', sessionId)).rejects.toThrow(
+      /ranked versus requires exactly 2 players/i,
+    );
+  });
+});
+
+describe('WordMatchService.versusPass', () => {
+  it('advances the deck cursor without leaving or awarding a point', async () => {
+    const sessionId = 'sess-vs-pass';
+    const config = {
+      wordGameMode: 'versus' as const,
+      difficulty: 'normal',
+      wordIds: ['w1', 'w2', 'w3'],
+      hostPlayerId: 'player-a',
+      ranked: false,
+    };
+    const prisma = buildPrismaDouble();
+    prisma.gameParticipant.findFirst = jest.fn().mockResolvedValue({
+      id: 'pp-a',
+      playerId: 'player-a',
+      leftAt: null,
+    });
+    prisma.gameSession.findUnique = jest.fn().mockResolvedValue({
+      id: sessionId,
+      status: GameSessionStatus.ACTIVE,
+      venueId: null,
+      config,
+      wordSession: { sharedWordIndex: 0 },
+      participants: [
+        {
+          id: 'pp-a',
+          playerId: 'player-a',
+          leftAt: null,
+          isBot: false,
+          score: 1,
+          assists: 1,
+        },
+        {
+          id: 'pp-b',
+          playerId: 'player-b',
+          leftAt: null,
+          isBot: false,
+          score: 0,
+          assists: 0,
+        },
+      ],
+    });
+    prisma.word.findUnique = jest.fn().mockResolvedValue({
+      id: 'w2',
+      text: 'bean',
+      sentenceHint: 's',
+      wordHints: [],
+      emojiHints: [],
+    });
+    prisma.gameParticipant.update = jest.fn().mockResolvedValue({ score: 1, assists: 2 });
+
+    const { svc } = buildService({
+      prisma,
+      player: { id: 'player-a', username: 'Alice' },
+    });
+
+    const result = await svc.versusPass('alice@x', sessionId, {});
+
+    expect(result.skipped).toBe(true);
+    expect(result.finished).toBe(false);
+    expect(result.yourScore).toBe(1);
+    expect(prisma.gameParticipant.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'pp-a' },
+        data: { assists: 2 },
+      }),
+    );
+    expect(prisma.gameSession.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: GameSessionStatus.FINISHED }),
+      }),
+    );
+  });
+});

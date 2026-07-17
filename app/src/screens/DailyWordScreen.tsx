@@ -353,7 +353,11 @@ export default function DailyWordScreen({ navigation }: Props) {
                 </View>
               ) : state.attempts >= state.maxAttempts ? (
                 <View style={styles.resultCard}>
-                  <Text style={styles.lose}>{t('dailyWord.outOfAttempts')}</Text>
+                  <Text style={styles.lose}>
+                    {state.word
+                      ? t('dailyWord.outOfAttemptsReveal', { word: state.word })
+                      : t('dailyWord.outOfAttempts')}
+                  </Text>
                 </View>
               ) : (
                 <View style={styles.guessCard}>

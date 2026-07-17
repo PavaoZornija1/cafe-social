@@ -1,4 +1,9 @@
-import React from 'react';
+import React, {
+  forwardRef,
+  useImperativeHandle,
+  useRef,
+  type MutableRefObject,
+} from 'react';
 import { LayoutChangeEvent, Text, View, type ViewStyle } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { HeroSpriteView, type HeroSpriteAnim } from '../../../components/HeroSpriteView';
@@ -33,6 +38,8 @@ import { ArenaPhaseAnnounceOverlay } from './ArenaPhaseAnnounceOverlay';
 import { ArenaHeroStatsHud } from './ArenaHeroStatsHud';
 import type { HeroStatRow } from '../heroStatHighlights';
 import { ArenaSpectatePanLayer } from './ArenaSpectatePanLayer';
+import { applyArenaWorldPaint } from '../applyArenaWorldPaint';
+import type { ArenaWorldPaintHandle } from '../arenaWorldPaint';
 
 type Props = {
   styles: ArenaStyles;
@@ -43,8 +50,8 @@ type Props = {
   arenaInnerH: number;
   camX: number;
   camY: number;
-  spectateCamXRef: React.MutableRefObject<number>;
-  spectateCamYRef: React.MutableRefObject<number>;
+  spectateCamXRef: MutableRefObject<number>;
+  spectateCamYRef: MutableRefObject<number>;
   onSpectateCameraChange: () => void;
   skyW: number;
   skyH: number;
@@ -85,7 +92,7 @@ type Props = {
   dashCooldownProgress: number;
   dashCooldownSecondsLeft: number;
   controlLabels: { hit: string; dash: string; jump: string; dashCd: string };
-  joyRef: React.MutableRefObject<{ x: number; y: number }>;
+  joyRef: MutableRefObject<{ x: number; y: number }>;
   onHitTap: () => void;
   onDashTap: () => void;
   onJumpTap: () => void;
@@ -115,7 +122,9 @@ type Props = {
   onExit: () => void;
 };
 
-export function ArenaWorldView({
+export const ArenaWorldView = forwardRef<ArenaWorldPaintHandle, Props>(
+  function ArenaWorldView(
+  {
   styles,
   onArenaLayout,
   worldW,
@@ -194,7 +203,38 @@ export function ArenaWorldView({
   heroStatRows,
   onReplay,
   onExit,
-}: Props) {
+}: Props,
+  ref,
+) {
+  const worldLayerRef = useRef<View>(null);
+  const skyMotionRef = useRef<View>(null);
+  const heroWrapRef = useRef<View>(null);
+  const heroBarWrapRef = useRef<View>(null);
+  const lavaRef = useRef<View>(null);
+  const hitboxRef = useRef<View>(null);
+  const enemyNodes = useRef<Array<View | null>>([]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      paint(frame) {
+        applyArenaWorldPaint(
+          {
+            worldLayer: worldLayerRef,
+            skyMotion: skyMotionRef,
+            heroWrap: heroWrapRef,
+            heroBarWrap: heroBarWrapRef,
+            lava: lavaRef,
+            hitbox: hitboxRef,
+            enemyNodes,
+          },
+          frame,
+        );
+      },
+    }),
+    [],
+  );
+
   const arenaReadyHud = arenaW >= 32 && arenaInnerH >= 32;
   const debugHitW = ATTACK_HIT_W;
   const debugHitH = ATTACK_HIT_H;
@@ -258,6 +298,7 @@ export function ArenaWorldView({
         {!isSpectating ? (
           <>
             <View
+              ref={heroBarWrapRef}
               pointerEvents="none"
               style={{
                 position: 'absolute',
@@ -275,6 +316,7 @@ export function ArenaWorldView({
               />
             </View>
             <View
+              ref={heroWrapRef}
               style={[
                 styles.playerWrap,
                 {
@@ -302,16 +344,20 @@ export function ArenaWorldView({
         ) : null}
 
         {enemies.map((e, idx) => {
-          if (e.hp <= 0 || e.respawnLeft > 0) return null;
+          const visible = e.hp > 0 && e.respawnLeft <= 0;
           return (
             <View
               key={idx}
+              ref={(node) => {
+                enemyNodes.current[idx] = node;
+              }}
               style={{
                 position: 'absolute',
                 left: e.x,
                 top: e.y,
                 width: e.w,
                 height: e.h,
+                opacity: visible ? 1 : 0,
                 backgroundColor: e.flashLeft > 0 ? '#fca5a5' : '#dc2626',
                 borderWidth: 2,
                 borderColor: '#7f1d1d',
@@ -339,22 +385,22 @@ export function ArenaWorldView({
           );
         })}
 
-        {devShowAttackHitbox && attackingNow ? (
-          <View
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              left: debugHitX,
-              top: debugHitY,
-              width: debugHitW,
-              height: debugHitH,
-              borderWidth: 2,
-              borderColor: '#ef4444',
-              backgroundColor: 'rgba(239, 68, 68, 0.20)',
-              zIndex: 6,
-            }}
-          />
-        ) : null}
+        <View
+          ref={hitboxRef}
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            left: debugHitX,
+            top: debugHitY,
+            width: debugHitW,
+            height: debugHitH,
+            borderWidth: 2,
+            borderColor: '#ef4444',
+            backgroundColor: 'rgba(239, 68, 68, 0.20)',
+            zIndex: 6,
+            opacity: devShowAttackHitbox && attackingNow ? 1 : 0,
+          }}
+        />
 
         {dummies.map((d) => {
           if (d.hp <= 0) return null;
@@ -421,21 +467,22 @@ export function ArenaWorldView({
           );
         })}
 
-        {lavaSurfaceY != null ? (
-          <View
-            pointerEvents="none"
-            style={[
-              styles.lavaLayer,
-              {
-                top: lavaSurfaceY,
-                width: worldW,
-                height: Math.max(0, worldH - lavaSurfaceY),
-              },
-            ]}
-          >
-            <View style={styles.lavaCrust} />
-          </View>
-        ) : null}
+        <View
+          ref={lavaRef}
+          pointerEvents="none"
+          style={[
+            styles.lavaLayer,
+            {
+              top: lavaSurfaceY ?? worldH,
+              width: worldW,
+              height:
+                lavaSurfaceY != null ? Math.max(0, worldH - lavaSurfaceY) : 0,
+              opacity: lavaSurfaceY != null ? 1 : 0,
+            },
+          ]}
+        >
+          <View style={styles.lavaCrust} />
+        </View>
     </>
   );
 
@@ -450,14 +497,15 @@ export function ArenaWorldView({
       camYRef={spectateCamYRef}
       onCameraChange={onSpectateCameraChange}
     >
-      <View style={styles.arena} onLayout={onArenaLayout}>
-        <View style={styles.arenaSkyBack} pointerEvents="none">
+        <View style={styles.arena} onLayout={onArenaLayout}>
+        <View ref={skyMotionRef} style={styles.arenaSkyBack} pointerEvents="none">
           {skyLottie(skyLeft, skyTop, skyW, skyH, [
             { translateX: -camX * 0.18 },
             { translateY: -camY * 0.1 },
           ])}
         </View>
         <View
+          ref={worldLayerRef}
           pointerEvents="none"
           style={[
             styles.worldLayer,
@@ -548,4 +596,4 @@ export function ArenaWorldView({
       ) : null}
     </ArenaSpectatePanLayer>
   );
-}
+});

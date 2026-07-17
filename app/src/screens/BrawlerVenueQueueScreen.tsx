@@ -27,9 +27,11 @@ import { radii, spacing } from '../theme/tokens';
 type Props = NativeStackScreenProps<RootStackParamList, 'BrawlerVenueQueue'>;
 
 type QueuePoll = {
-  status: 'idle' | 'waiting' | 'matched';
+  status: 'idle' | 'waiting' | 'matched' | 'timed_out';
   sessionId?: string;
   position?: number;
+  waitedMs?: number;
+  waitTtlMs?: number;
 };
 
 export default function BrawlerVenueQueueScreen({ navigation, route }: Props) {
@@ -55,6 +57,10 @@ export default function BrawlerVenueQueueScreen({ navigation, route }: Props) {
     if (!token) return;
     const s = await apiGet<QueuePoll>('/brawler/queue/me', token);
     setPoll(s);
+    if (s.status === 'timed_out') {
+      setError(t('brawlerMatch.queueNoOpponents'));
+      return;
+    }
     if (s.status === 'matched' && s.sessionId && !navigatedRef.current) {
       navigatedRef.current = true;
       triggerFeedback('lobbyFound');
@@ -71,7 +77,7 @@ export default function BrawlerVenueQueueScreen({ navigation, route }: Props) {
         },
       });
     }
-  }, [venueId, brawlerHeroId, heroStats, navigation]);
+  }, [venueId, brawlerHeroId, heroStats, heroLabel, navigation, t]);
 
   useEffect(() => {
     if (!isLoaded || enrolledRef.current) return;
@@ -216,7 +222,9 @@ export default function BrawlerVenueQueueScreen({ navigation, route }: Props) {
             <Text style={styles.statusBody}>{statusText}</Text>
             {!enrolling && !error && !ranked ? (
               <Text style={styles.botHint}>
-                {t('brawlerMatch.queueBotFillHint', { seconds: 10 })}
+                {partyId
+                  ? t('brawlerMatch.queuePartyWaitHint', { seconds: 90 })
+                  : t('brawlerMatch.queueBotFillHint', { seconds: 10 })}
               </Text>
             ) : null}
           </View>

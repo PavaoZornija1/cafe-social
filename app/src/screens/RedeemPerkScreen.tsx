@@ -22,6 +22,7 @@ import type { RootStackParamList } from '../navigation/type';
 import { apiPost } from '../lib/api';
 import { triggerFeedback } from '../lib/feedback';
 import { isReceiptSubmissionsEnabled } from '../lib/receiptSubmissionsFeature';
+import { canUseGuestRewardActionsAtVenue } from '../lib/staffRewardPolicy';
 import {
   fetchMyVenueRewards,
   fetchVenuePerkTeasers,
@@ -262,6 +263,24 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
     }
   };
 
+  // Per-venue gate: rewards on this screen all belong to resolvedVenueId,
+  // so staff at that exact venue lose guest actions (QR / code / receipt),
+  // while the same account keeps the full guest flow at other venues.
+  // Pre-detection fail-safe: known staff members don't get guest claim UI
+  // while the venue is still being detected — it may turn out to be theirs.
+  // Guests without staff memberships are unaffected.
+  const staffPreDetection =
+    staff.hasStaffVenues && !resolvedVenueId && session.isLoading;
+
+  const guestActionsAllowed =
+    canUseGuestRewardActionsAtVenue({
+      staffVenueIds: staff.staffVenueIds,
+      membershipsResolved: staff.membershipsResolved,
+      rewardVenueId: resolvedVenueId,
+    }) &&
+    staff.canClaimGuestRewards &&
+    !staffPreDetection;
+
   const showInitialSpinner =
     initializing && teasers.length === 0 && myRewards.length === 0 && !lastOk;
 
@@ -403,7 +422,7 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
           </View>
         ) : null}
 
-        {staff.canClaimGuestRewards ? (
+        {staff.canClaimGuestRewards && !staffPreDetection ? (
           <View style={styles.codeSection}>
             <Text style={styles.sectionTitle}>{t('perk.enterCodeTitle')}</Text>
             <View style={styles.inputRow}>
@@ -527,7 +546,10 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
                   {r.status === 'LOCKED' ? (
                     <Text style={styles.lockedHint}>{t('perkWallet.lockedHint')}</Text>
                   ) : null}
-                  {r.status === 'REDEEMABLE' ? (
+                  {!guestActionsAllowed && staff.isStaffAtVenue ? (
+                    <Text style={styles.lockedHint}>{t('perk.staffRewardActionsHidden')}</Text>
+                  ) : null}
+                  {r.status === 'REDEEMABLE' && guestActionsAllowed ? (
                     <View style={styles.qrWrap}>
                       <PerkRewardQr
                         payload={r.qrPayload}
@@ -539,10 +561,12 @@ export default function RedeemPerkScreen({ navigation, route }: Props) {
                   <View style={styles.codeBox}>
                     <Text style={styles.codeLabel}>{t('perk.staffVerificationCode')}</Text>
                     <Text style={styles.codeValue}>
-                      {r.status === 'LOCKED' ? t('perkWallet.codeHidden') : r.staffVerificationCode}
+                      {r.status === 'LOCKED' || !guestActionsAllowed
+                        ? t('perkWallet.codeHidden')
+                        : r.staffVerificationCode}
                     </Text>
                   </View>
-                  {r.status === 'REDEEMABLE' && isReceiptSubmissionsEnabled() ? (
+                  {r.status === 'REDEEMABLE' && guestActionsAllowed && isReceiptSubmissionsEnabled() ? (
                     <Pressable
                       style={({ pressed }) => [styles.submitReceiptBtn, pressed && styles.pressed]}
                       onPress={() => {

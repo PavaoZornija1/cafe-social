@@ -43,9 +43,21 @@ export class PerkExpiryReminderScheduler {
       },
       take: 400,
     });
+    if (candidates.length === 0) return;
+
+    // Staff must not receive guest-reward nudges at their own venue (they keep
+    // reminders for venues where they are guests). One batched lookup, no N+1.
+    const staffRows = await this.prisma.venueStaff.findMany({
+      where: {
+        OR: candidates.map((r) => ({ playerId: r.playerId, venueId: r.venueId })),
+      },
+      select: { playerId: true, venueId: true },
+    });
+    const staffAtVenue = new Set(staffRows.map((s) => `${s.playerId}:${s.venueId}`));
 
     let sent = 0;
     for (const r of candidates) {
+      if (staffAtVenue.has(`${r.playerId}:${r.venueId}`)) continue;
       const existing = await this.prisma.perkExpiryReminderLog.findUnique({
         where: {
           redemptionId_kind: { redemptionId: r.id, kind: REMINDER_KIND },

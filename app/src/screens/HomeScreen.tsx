@@ -13,7 +13,9 @@ import HomeVenueStrip from '../components/home/HomeVenueStrip';
 import StaffAtVenueBanner from '../components/staff/StaffAtVenueBanner';
 import type { FriendAtVenueRow, HomePublicOffer } from '../components/home/types';
 import { apiGet, apiPost } from '../lib/api';
+import { triggerFeedback } from '../lib/feedback';
 import { emitPlatformQuestProgressChanged } from '../lib/platformQuestEvents';
+import { displayedAutoXpMultiplier } from '../lib/staffRewardPolicy';
 import { isLikelyNetworkFailure } from '../lib/isNetworkError';
 import { useMeSummaryQuery, useStaffContext, useVenueOffersQuery, useVenueSession } from '../query';
 import type { TabScreenProps } from '../navigation/screenProps';
@@ -328,13 +330,18 @@ export default function HomeScreen({ navigation }: Props) {
                 return;
             }
 
-            if (offer.claimStatus === 'PENDING') {
-                navigation.navigate('MemberCard');
+            // Staff defense runs before the PENDING shortcut: own-venue staff
+            // must never be routed to the member card, even for stale claims.
+            // While staff state is unresolved the tap is ignored silently.
+            if (!staff.canClaimGuestRewards) {
+                if (staff.isStaffAtVenue) {
+                    Alert.alert(t('common.error'), t('perk.staffGuestRewardsBlocked'));
+                }
                 return;
             }
 
-            if (!staff.canClaimGuestRewards) {
-                Alert.alert(t('common.error'), t('perk.staffGuestRewardsBlocked'));
+            if (offer.claimStatus === 'PENDING') {
+                navigation.navigate('MemberCard');
                 return;
             }
 
@@ -354,6 +361,7 @@ export default function HomeScreen({ navigation }: Props) {
                     token,
                 );
                 await offersQuery.refetch();
+                triggerFeedback('uiSuccess');
                 Alert.alert(
                     t('home.dashboard.offerClaimedTitle'),
                     t('home.dashboard.offerClaimedBody'),
@@ -371,7 +379,7 @@ export default function HomeScreen({ navigation }: Props) {
                 setClaimingOfferId(null);
             }
         },
-        [canDoVenueActions, detectedVenue, detectCoords, offersQuery, navigation, staff.canClaimGuestRewards, t],
+        [canDoVenueActions, detectedVenue, detectCoords, offersQuery, navigation, staff.canClaimGuestRewards, staff.isStaffAtVenue, t],
     );
 
     return (
@@ -470,12 +478,7 @@ export default function HomeScreen({ navigation }: Props) {
                     disabledReason={playDisabledReason}
                     activeXpMultiplier={
                       venueScopedId || canPlayVenueContext
-                        ? Math.max(
-                            1,
-                            ...rewardOffers
-                              .filter((o) => o.fulfillment === 'AUTO' && (o.autoXpMultiplier ?? 0) > 1)
-                              .map((o) => o.autoXpMultiplier ?? 1),
-                          )
+                        ? displayedAutoXpMultiplier(rewardOffers, staff.canClaimGuestRewards)
                         : 1
                     }
                     onPlay={handlePlay}
@@ -487,6 +490,10 @@ export default function HomeScreen({ navigation }: Props) {
                     offers={rewardOffers}
                     claimingOfferId={claimingOfferId}
                     guestClaimsEnabled={staff.canClaimGuestRewards}
+                    claimsResolved={
+                        staff.membershipsResolved ||
+                        typeof access?.canClaimGuestRewards === 'boolean'
+                    }
                     onSeeAll={() => {
                         if (detectedVenue) {
                             openVenueHub();
