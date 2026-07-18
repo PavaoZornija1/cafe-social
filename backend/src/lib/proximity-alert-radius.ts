@@ -2,9 +2,6 @@ export const PROXIMITY_ALERT_RADIUS_PRESETS = [50, 100, 200] as const;
 
 export type ProximityAlertRadiusPreset = (typeof PROXIMITY_ALERT_RADIUS_PRESETS)[number];
 
-/** @deprecated use PROXIMITY_ALERT_RADIUS_PRESETS */
-export const PROXIMITY_ALERT_RADIUS_OPTIONS = PROXIMITY_ALERT_RADIUS_PRESETS;
-
 export type ProximityAlertRadiusMeters = ProximityAlertRadiusPreset;
 
 export const PROXIMITY_ALERT_RADIUS_MIN = 25;

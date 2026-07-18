@@ -620,7 +620,7 @@ export class BrawlerService {
         'multi-human brawler finalize waits for authoritative combat end',
       );
     } else {
-      // Solo / human+bot fallback while combat is still ACTIVE (legacy local end).
+      // Solo / human+bot winner while combat is still ACTIVE.
       if (!dto.participants?.length) {
         throw new BadRequestException('participants are required when combat is still active');
       }

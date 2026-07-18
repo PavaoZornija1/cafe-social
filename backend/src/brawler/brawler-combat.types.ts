@@ -1,10 +1,10 @@
 export const BRAWLER_COMBAT_STATE_VERSION = 1 as const;
 
-/** Fixed simulation rate for authoritative combat (Phase 1 Nest bridge). */
+/** Authoritative combat simulation rate. */
 export const BRAWLER_COMBAT_TICK_HZ = 20;
 export const BRAWLER_COMBAT_TICK_MS = 1000 / BRAWLER_COMBAT_TICK_HZ;
 
-/** Lock TTL should be ~2–3× tick period so a stalled pod releases quickly. */
+/** Lock TTL ~2–3× tick so a stalled owner releases quickly. */
 export const BRAWLER_COMBAT_LOCK_TTL_MS = Math.ceil(BRAWLER_COMBAT_TICK_MS * 3);
 
 export type BrawlerCombatStatus = 'ACTIVE' | 'ENDED';

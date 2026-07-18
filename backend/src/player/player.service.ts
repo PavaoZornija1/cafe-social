@@ -76,7 +76,6 @@ export class PlayerService {
     memberQrToken: string;
     qrPayload: string;
     deepLinkCafeSocial: string;
-    deepLinkLoyaltySocial: string;
   }> {
     const player = await this.ensureMemberQrToken(await this.findOrCreateByEmail(email));
     const token = player.memberQrToken;
@@ -85,8 +84,7 @@ export class PlayerService {
       username: player.username,
       memberQrToken: token,
       qrPayload: buildMemberCardQrPayload(token),
-      deepLinkCafeSocial: buildMemberCardDeepLink(token, 'cafesocial'),
-      deepLinkLoyaltySocial: buildMemberCardDeepLink(token, 'loyaltysocial'),
+      deepLinkCafeSocial: buildMemberCardDeepLink(token),
     };
   }
 

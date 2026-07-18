@@ -49,29 +49,6 @@ if (!TaskManager.isTaskDefined(VENUE_GEOFENCE_TASK)) {
   });
 }
 
-/** @deprecated Use {@link syncProximityGeofenceRegions} for partner arrival alerts. */
-export async function syncVenueGeofenceMonitoring(
-  opts: {
-    venueId: string;
-    latitude: number;
-    longitude: number;
-    radiusMeters: number;
-  } | null,
-): Promise<void> {
-  if (!opts) {
-    await stopProximityGeofenceMonitoring();
-    return;
-  }
-  await syncProximityGeofenceRegions([
-    {
-      venueId: opts.venueId,
-      latitude: opts.latitude,
-      longitude: opts.longitude,
-      radiusMeters: opts.radiusMeters,
-    },
-  ]);
-}
-
 export async function stopProximityGeofenceMonitoring(): Promise<void> {
   try {
     const started = await Location.hasStartedGeofencingAsync(VENUE_GEOFENCE_TASK);
@@ -82,9 +59,6 @@ export async function stopProximityGeofenceMonitoring(): Promise<void> {
     /* ignore */
   }
 }
-
-/** @deprecated Prefer {@link requestAlwaysLocationPermissions} from `./locationPermissions`. */
-export const requestProximityGeofencePermissions = requestAlwaysLocationPermissions;
 
 /**
  * Registers up to 20 circular arrival zones (nearest partner venues).
@@ -100,7 +74,7 @@ export async function syncProximityGeofenceRegions(
 
   if (regions.length === 0) return;
 
-  const perms = await requestProximityGeofencePermissions();
+  const perms = await requestAlwaysLocationPermissions();
   if (!perms.foregroundGranted) return;
 
   const mapped = regions.slice(0, MAX_REGIONS).map((r) => ({

@@ -88,43 +88,12 @@ export default function ProfileScreen({ navigation }: Props) {
         return;
       }
       await meQuery.refetch();
-      const raw = await apiGet<PerkRedemptionsPayload | PerkRedemptionItem[]>(
+      const raw = await apiGet<PerkRedemptionsPayload>(
         '/players/me/perk-redemptions',
         token,
       );
-      if (raw && typeof raw === 'object' && 'items' in raw && Array.isArray(raw.items)) {
-        setPerkPayload(raw as PerkRedemptionsPayload);
-      } else if (
-        Array.isArray(raw) &&
-        raw.length > 0 &&
-        typeof raw[0] === 'object' &&
-        raw[0] !== null &&
-        'perk' in raw[0]
-      ) {
-        type Legacy = {
-          id: string;
-          redeemedAt: string;
-          perk: { title: string; subtitle: string | null; code: string };
-        };
-        const legacy = raw as unknown as Legacy[];
-        setPerkPayload({
-          wallet: { activeRedemptions: legacy.length },
-          expiringSoon: [],
-          items: legacy.map((r) => ({
-            id: r.id,
-            redeemedAt: r.redeemedAt,
-            voided: false,
-            venueId: '',
-            venueName: '',
-            perkCode: r.perk.code,
-            perkTitle: r.perk.title,
-            perkSubtitle: r.perk.subtitle,
-            perkActiveTo: null,
-            daysUntilExpiry: null,
-            expiringSoon: false,
-            expired: false,
-          })),
-        });
+      if (raw && Array.isArray(raw.items)) {
+        setPerkPayload(raw);
       } else {
         setPerkPayload({ wallet: { activeRedemptions: 0 }, expiringSoon: [], items: [] });
       }

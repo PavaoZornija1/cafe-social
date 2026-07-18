@@ -49,13 +49,16 @@ npx expo run:ios --device
 
 Combat ticks currently run **inside Nest**. A separate `game-worker` process (same repo, scales by active matches) is **planned later** when concurrent PvP load or API tick jitter warrants it — see `docs/superpowers/plans/2026-07-17-authoritative-brawler-runtime.md` (Task 7). No extra process to start today.
 
+### Store / payments prep
+
+In-repo Phase A (bundle IDs, paywall confirm, play-time claim recovery, env placeholders) is done. Account setup + sandbox testing checklist: [`docs/superpowers/plans/2026-07-18-store-release-checklist.md`](docs/superpowers/plans/2026-07-18-store-release-checklist.md).
+
 ## Repo layout
 
 | Path | Description |
 |------|-------------|
 | `backend/` | NestJS API (`/api`), PostgreSQL via Prisma, Clerk JWT auth |
 | `app/` | Expo SDK 54 app (iOS/Android), Clerk, React Navigation — venue gaming, social, loyalty, staff tools |
-| `app-loyalty/` | *(optional separate checkout)* loyalty-focused Expo variant — same backend APIs as `app/` |
 | `admin/` | **Next.js 15** partner portal (**Clerk** only): **super admins** (`Player.platformRole`) get full CMS (venues, words, challenges, perks); **OWNER / MANAGER** get venue dashboards including **challenges & perks**, campaigns, receipts; **EMPLOYEE**+ get JWT **staff redemptions** (`/staff/[venueId]` and owner redemptions tab) |
 
 ## What’s implemented
@@ -266,25 +269,6 @@ npm run start:dev      # default http://localhost:3005/api
 **Redis** — see [Startup](#startup-local). Env flags: `REDIS_URL`, `GAME_RUNTIME_REQUIRE_REDIS`, `GAME_RUNTIME_ALLOW_MEMORY` (documented in `backend/.env.example`).
 
 **Optional Mapbox** (partner portal address search on venue maps): `MAPBOX_ACCESS_TOKEN=pk....` — create a public token at [mapbox.com](https://www.mapbox.com/) with Geocoding scope. Free tier includes ~100k geocoding requests/month; the backend proxies requests so the token stays server-side.
-
-## Loyalty app setup (`app-loyalty/`)
-
-Same API and Clerk project as `app/`, but a **slim client** for retail loyalty (perks, offers, receipts, partner map, staff redemptions) without games, parties, or word-match flows.
-
-```bash
-cd app-loyalty
-cp .env.example .env     # same EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY + EXPO_PUBLIC_API_URL as app/
-npm install
-npx expo start
-# or: npx expo run:ios
-```
-
-- **URL scheme**: `loyaltysocial://` (QR payloads may also use `cafesocial://` for shared venue codes).
-- **Bundle ID** (dev): `com.pavaozornija.loyaltysocial.devclient` — register in Apple Developer / Clerk authorized parties if needed.
-- **Location & nudges**: Same geofence detect + dwell-based **partner marketing** pushes as the main app (`VenuePresenceHeartbeat`, background geofence task). Tapping a nudge opens **QR scan** for that store.
-- **Offline check-in**: QR / barcode scan at the till is saved locally and synced via `POST /venue-context/:venueId/register` when the network returns.
-- **Partner directory**: **Partner programs** screen groups venues by organization (e.g. retail chains); map pins include `organizationName` from the API.
-- **Member QR**: Each player gets a personal loyalty QR on sign-up (`GET /players/me/member-card`). Staff scan it at the till (`POST /owner/venues/:venueId/member-scan`) to record the visit day. Shown under **Settings → My member QR** in both apps (cached offline in app-loyalty).
 
 ## App setup
 

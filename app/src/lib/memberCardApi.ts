@@ -6,7 +6,6 @@ export type MemberCardDto = {
   memberQrToken: string;
   qrPayload: string;
   deepLinkCafeSocial: string;
-  deepLinkLoyaltySocial: string;
 };
 
 export function fetchMyMemberCard(token: string): Promise<MemberCardDto> {

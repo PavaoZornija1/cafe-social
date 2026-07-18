@@ -538,7 +538,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         setHeroDeadOpen(true);
       }
 
-      // Soft sync bot HP from authority; leave local physics for prediction until Phase 3.
+      // Soft sync bot HP from authority.
       const botPixels = reconciled.fighterPixels.filter((f) => f.isBot);
       if (botPixels.length > 0 && enemiesRef.current.length > 0) {
         enemiesRef.current = enemiesRef.current.map((enemy, idx) => {

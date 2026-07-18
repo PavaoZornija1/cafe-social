@@ -12,6 +12,6 @@ describe('member-card-qr', () => {
   });
 
   it('parses deep link', () => {
-    expect(parseMemberTokenFromQr(`loyaltysocial://member?t=${token}`)).toBe(token);
+    expect(parseMemberTokenFromQr(`cafesocial://member?t=${token}`)).toBe(token);
   });
 });

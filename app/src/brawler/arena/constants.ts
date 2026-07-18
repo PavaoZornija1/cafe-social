@@ -1,7 +1,5 @@
 import type { BrawlerArenaHeroStats } from '../../navigation/type';
 
-/** Mossy tile — legacy stretch strip (unused while testing fixed ledges). */
-export const ARENA_MAP_BG = require('../../../assets/Mossy - FloatingPlatforms.webp');
 /** Small floating ledge — native 160×48. */
 export const ARENA_LEDGE_S = require('../../../assets/maps/brawlerHeroes/ledge_s.webp');
 export const ARENA_LEDGE_S_W = 160;

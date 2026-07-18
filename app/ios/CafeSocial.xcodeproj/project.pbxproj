@@ -409,7 +409,7 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = com.pavaozornija.cafesocial.devclient;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cafesocial.app.dev;
 				PRODUCT_NAME = CafeSocial;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "CafeSocial/CafeSocial-Bridging-Header.h";
@@ -444,7 +444,7 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
-				PRODUCT_BUNDLE_IDENTIFIER = com.pavaozornija.cafesocial.devclient;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cafesocial.app.dev;
 				PRODUCT_NAME = CafeSocial;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "CafeSocial/CafeSocial-Bridging-Header.h";

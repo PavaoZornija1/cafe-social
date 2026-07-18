@@ -377,6 +377,7 @@ export class VenuePlayBudgetService {
   async claimIapGrant(playerId: string, dto: ClaimVenuePlayBudgetIapDto): Promise<{
     grantedSeconds: number;
     remainingActiveSeconds: number;
+    alreadyClaimed?: boolean;
   }> {
     if (await this.subscriptions.isActiveSubscriber(playerId)) {
       throw new BadRequestException('Subscribers have unlimited venue play; purchase not needed.');
@@ -405,6 +406,7 @@ export class VenuePlayBudgetService {
       return {
         grantedSeconds: existing.grantedSeconds,
         remainingActiveSeconds: this.remainingSeconds(row),
+        alreadyClaimed: true,
       };
     }
 

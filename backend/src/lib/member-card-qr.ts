@@ -16,9 +16,9 @@ export function buildMemberCardQrPayload(memberToken: string): string {
   return JSON.stringify(payload);
 }
 
-/** Deep link fallback: loyaltysocial://member?t=… or cafesocial://member?t=… */
-export function buildMemberCardDeepLink(memberToken: string, scheme = 'cafesocial'): string {
-  return `${scheme}://member?t=${encodeURIComponent(memberToken.trim())}`;
+/** Deep link: cafesocial://member?t=… */
+export function buildMemberCardDeepLink(memberToken: string): string {
+  return `cafesocial://member?t=${encodeURIComponent(memberToken.trim())}`;
 }
 
 function normalizeToken(raw: string): string | null {
@@ -39,9 +39,9 @@ export function parseMemberTokenFromQr(data: string): string | null {
   const direct = normalizeToken(raw);
   if (direct) return direct;
 
-  if (/^(?:cafesocial|loyaltysocial):\/\/member/i.test(raw)) {
+  if (/^cafesocial:\/\/member/i.test(raw)) {
     try {
-      const noScheme = raw.replace(/^(?:cafesocial|loyaltysocial):\/\//i, '');
+      const noScheme = raw.replace(/^cafesocial:\/\//i, '');
       const u = new URL(noScheme, 'https://app.local/');
       const t = u.searchParams.get('t') ?? u.searchParams.get('token') ?? u.searchParams.get('memberToken');
       if (t) {

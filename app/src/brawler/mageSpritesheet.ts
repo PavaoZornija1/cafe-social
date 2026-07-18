@@ -65,6 +65,3 @@ export const MAGE_HERO_SPRITE_CONFIG: HeroSpriteConfig = {
     },
   },
 };
-
-/** @deprecated Use `MAGE_HERO_SPRITE_CONFIG`. */
-export const IGNIS_HERO_SPRITE_CONFIG = MAGE_HERO_SPRITE_CONFIG;

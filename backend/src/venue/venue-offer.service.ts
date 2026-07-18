@@ -171,17 +171,6 @@ export class VenueOfferService {
     );
   }
 
-  /** @deprecated Use claimMemberCardOffer — kept name for route compatibility. */
-  async redeem(params: {
-    playerId: string;
-    venueId: string;
-    offerId: string;
-    latitude?: number;
-    longitude?: number;
-  }) {
-    return this.claimMemberCardOffer(params);
-  }
-
   async listPendingMemberCardOffersForPlayer(
     venueId: string,
     playerId: string,

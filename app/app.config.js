@@ -6,6 +6,11 @@ const googleIosUrlScheme = googleIosClientId
   ? `com.googleusercontent.apps.${googleIosClientId.split('.apps.googleusercontent.com')[0]}`
   : null;
 
+/** EAS sets APP_ENV per profile (see eas.json). */
+const appEnv = (process.env.APP_ENV || 'development').trim().toLowerCase();
+const bundleIdentifier =
+  appEnv === 'production' ? 'com.cafesocial.app' : 'com.cafesocial.app.dev';
+
 export default {
   expo: {
     name: 'Cafe Social',
@@ -22,8 +27,7 @@ export default {
       ...(process.env.EXPO_APPLE_TEAM_ID && {
         appleTeamId: process.env.EXPO_APPLE_TEAM_ID,
       }),
-      // Personal Team: `…cafesocial.app` is not available globally — use a unique suffix (Xcode must accept it).
-      bundleIdentifier: 'com.pavaozornija.cafesocial.devclient',
+      bundleIdentifier,
       usesAppleSignIn: false,
       infoPlist: {
         NSCameraUsageDescription:
@@ -50,7 +54,7 @@ export default {
         backgroundColor: '#FAF7F2',
       },
       edgeToEdgeEnabled: true,
-      package: 'com.pavaozornija.cafesocial.devclient',
+      package: bundleIdentifier,
       permissions: [
         'ACCESS_COARSE_LOCATION',
         'ACCESS_FINE_LOCATION',

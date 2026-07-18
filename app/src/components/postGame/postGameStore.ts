@@ -70,8 +70,3 @@ export function completePostGameCarousel(): void {
   emitDismiss('complete');
   actions?.onDone();
 }
-
-/** @deprecated Prefer hidePostGameCarousel or completePostGameCarousel. */
-export function dismissPostGameCarousel(): void {
-  hidePostGameCarousel();
-}

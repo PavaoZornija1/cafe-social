@@ -18,7 +18,11 @@ import {
   Text,
   View,
 } from 'react-native';
-import Purchases, { PURCHASES_ERROR_CODE, type PurchasesError } from 'react-native-purchases';
+import Purchases, {
+  PURCHASES_ERROR_CODE,
+  type PurchasesError,
+  type PurchasesPackage,
+} from 'react-native-purchases';
 import { useTranslation } from 'react-i18next';
 import SettingsNavRow from '../components/settings/SettingsNavRow';
 import ScreenHeader from '../components/ScreenHeader';
@@ -48,11 +52,15 @@ import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../lib/legalUrls';
 import {
   getPreferredPackageOrder,
   isRevenueCatNativeConfigured,
-  pickPrimaryPackage,
+  listPaywallPackages,
+  packagePeriodLabelKey,
   signOutRevenueCat,
 } from '../lib/revenuecat';
 import { getVenuePlayBudgetIapCatalog } from '../lib/venuePlayBudgetCatalog';
-import { promptVenuePlayTimePurchaseDialog } from '../lib/venuePlayBudgetPurchaseUi';
+import {
+  claimPendingVenuePlayBudgetDialog,
+  promptVenuePlayTimePurchaseDialog,
+} from '../lib/venuePlayBudgetPurchaseUi';
 import { SUBSCRIPTION_MANAGE_URL } from '../lib/subscriptionUrl';
 import {
   getLocationPermissionSummary,
@@ -298,11 +306,55 @@ export default function SettingsScreen({ navigation }: Props) {
         setOfferingsIssue('no_packages');
         return;
       }
-      const pkg = pickPrimaryPackage(pkgs, packageOrder);
-      if (!pkg) {
+      const ordered = listPaywallPackages(pkgs, packageOrder);
+      if (ordered.length === 0) {
         setOfferingsIssue('no_packages');
         return;
       }
+      setRcBusy(false);
+      promptSubscriptionPackagePicker(ordered);
+    } catch (e) {
+      const pe = e as PurchasesError;
+      if (pe.userCancelled || pe.code === PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) return;
+      Alert.alert(t('common.error'), pe.message || t('settings.subscriptionPurchaseError'));
+    } finally {
+      setRcBusy(false);
+    }
+  };
+
+  const periodLabel = (pkg: PurchasesPackage) => {
+    const key = packagePeriodLabelKey(pkg);
+    if (key === 'month') return t('settings.subscriptionPeriodMonth');
+    if (key === 'year') return t('settings.subscriptionPeriodYear');
+    return t('settings.subscriptionPeriodOther');
+  };
+
+  const promptSubscriptionPackagePicker = (pkgs: PurchasesPackage[]) => {
+    const legalBits: string[] = [];
+    if (PRIVACY_POLICY_URL) legalBits.push(t('settings.privacyLink'));
+    if (TERMS_OF_SERVICE_URL) legalBits.push(t('settings.termsLink'));
+    const legalLine =
+      legalBits.length > 0
+        ? t('settings.subscriptionConfirmLegal', { links: legalBits.join(' · ') })
+        : t('settings.subscriptionConfirmLegalMissing');
+
+    Alert.alert(
+      t('settings.subscriptionConfirmTitle'),
+      `${t('settings.subscriptionConfirmBody')}\n\n${legalLine}`,
+      [
+        ...pkgs.slice(0, 3).map((pkg) => ({
+          text: `${periodLabel(pkg)} — ${pkg.product.priceString}`,
+          onPress: () => void purchaseSubscriptionPackage(pkg),
+        })),
+        { text: t('common.cancel'), style: 'cancel' as const },
+      ],
+    );
+  };
+
+  const purchaseSubscriptionPackage = async (pkg: PurchasesPackage) => {
+    if (!isLoaded || Platform.OS === 'web' || !rcNative) return;
+    setRcBusy(true);
+    try {
       await Purchases.purchasePackage(pkg);
       setOfferingsIssue('none');
       const active = await loadPrivacy();
@@ -690,13 +742,6 @@ export default function SettingsScreen({ navigation }: Props) {
             </View>
           ) : null}
           {Platform.OS !== 'web' && rcNative ? (
-            <Text style={styles.packageHint}>
-              {packageOrder === 'annual_first'
-                ? t('settings.subscriptionPackageHintAnnualFirst')
-                : t('settings.subscriptionPackageHintMonthlyFirst')}
-            </Text>
-          ) : null}
-          {Platform.OS !== 'web' && rcNative ? (
             <>
               {!subscriptionActive ? (
                 <Pressable
@@ -781,6 +826,22 @@ export default function SettingsScreen({ navigation }: Props) {
                 }
               >
                 <Text style={styles.linkText}>{t('settings.venuePlayBudgetBuy')}</Text>
+              </Pressable>
+              <Pressable
+                disabled={rcBusy || privacyPending}
+                style={({ pressed }) => [
+                  styles.linkRow,
+                  pressed && styles.actionRowPressed,
+                  (rcBusy || privacyPending) && styles.actionRowDisabled,
+                ]}
+                onPress={() =>
+                  void claimPendingVenuePlayBudgetDialog({
+                    t,
+                    getToken: () => getTokenRef.current(),
+                  })
+                }
+              >
+                <Text style={styles.linkText}>{t('settings.venuePlayBudgetClaimPending')}</Text>
               </Pressable>
             </View>
           </>
@@ -1161,12 +1222,5 @@ function createStyles(colors: AppColors) {
       marginBottom: spacing.sm,
     },
     offeringsIssueBody: { color: colors.honey, fontSize: 12, lineHeight: 17 },
-    packageHint: {
-      color: colors.textMuted,
-      fontSize: 11,
-      lineHeight: 16,
-      marginTop: spacing.sm,
-      fontStyle: 'italic',
-    },
   });
 }
