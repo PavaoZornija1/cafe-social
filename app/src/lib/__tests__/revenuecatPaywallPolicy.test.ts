@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  customerHasEntitlement,
   listPaywallPackagesOrdered,
   periodLabelKeyForPackage,
   pickPrimaryPaywallPackage,
@@ -10,14 +11,19 @@ import {
 } from '../revenuecatPaywallPolicy.ts';
 
 const monthly: PaywallPackageLike = {
-  identifier: '$rc_monthly',
+  identifier: 'monthly',
   kind: 'MONTHLY',
   priceString: '$4.99',
 };
 const annual: PaywallPackageLike = {
-  identifier: '$rc_annual',
+  identifier: 'yearly',
   kind: 'ANNUAL',
   priceString: '$39.99',
+};
+const lifetime: PaywallPackageLike = {
+  identifier: 'lifetime',
+  kind: 'LIFETIME',
+  priceString: '$99.99',
 };
 const custom: PaywallPackageLike = {
   identifier: 'custom',
@@ -26,26 +32,36 @@ const custom: PaywallPackageLike = {
 };
 
 describe('revenuecatPaywallPolicy', () => {
-  it('preferredPackageOrderFromEnv maps annual aliases', () => {
+  it('preferredPackageOrderFromEnv maps annual and lifetime', () => {
     assert.equal(preferredPackageOrderFromEnv('annual'), 'annual_first');
+    assert.equal(preferredPackageOrderFromEnv('lifetime'), 'lifetime_first');
     assert.equal(preferredPackageOrderFromEnv('monthly'), 'monthly_first');
   });
 
   it('pickPrimaryPaywallPackage prefers monthly by default', () => {
-    assert.equal(pickPrimaryPaywallPackage([annual, monthly, custom])?.identifier, '$rc_monthly');
+    assert.equal(
+      pickPrimaryPaywallPackage([lifetime, annual, monthly, custom])?.identifier,
+      'monthly',
+    );
   });
 
-  it('listPaywallPackagesOrdered puts preferred first then the other period', () => {
-    const ordered = listPaywallPackagesOrdered([custom, annual, monthly], 'monthly_first');
+  it('listPaywallPackagesOrdered orders monthly yearly lifetime', () => {
+    const ordered = listPaywallPackagesOrdered([custom, lifetime, annual, monthly], 'monthly_first');
     assert.deepEqual(
       ordered.map((p) => p.identifier),
-      ['$rc_monthly', '$rc_annual', 'custom'],
+      ['monthly', 'yearly', 'lifetime', 'custom'],
     );
   });
 
   it('periodLabelKeyForPackage maps kinds', () => {
     assert.equal(periodLabelKeyForPackage(monthly), 'month');
     assert.equal(periodLabelKeyForPackage(annual), 'year');
+    assert.equal(periodLabelKeyForPackage(lifetime), 'lifetime');
     assert.equal(periodLabelKeyForPackage(custom), 'other');
+  });
+
+  it('customerHasEntitlement matches Cafe Social Pro', () => {
+    assert.equal(customerHasEntitlement(['Cafe Social Pro'], 'Cafe Social Pro'), true);
+    assert.equal(customerHasEntitlement(['premium'], 'Cafe Social Pro'), false);
   });
 });

@@ -1,7 +1,14 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import Purchases, { LOG_LEVEL, PACKAGE_TYPE, type PurchasesPackage } from 'react-native-purchases';
+import Purchases, {
+  LOG_LEVEL,
+  PACKAGE_TYPE,
+  type CustomerInfo,
+  type PurchasesPackage,
+} from 'react-native-purchases';
+import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 import {
+  customerHasEntitlement,
   listPaywallPackagesOrdered,
   periodLabelKeyForPackage,
   pickPrimaryPaywallPackage,
@@ -12,9 +19,13 @@ import {
 } from './revenuecatPaywallPolicy';
 
 export type { PreferredPackageOrder };
+export { PAYWALL_RESULT };
 
 const isExpoGo =
   (Constants as any)?.executionEnvironment === 'storeClient' || Constants.appOwnership === 'expo';
+
+const sharedKey =
+  (process.env.EXPO_PUBLIC_REVENUECAT_API_KEY as string | undefined)?.trim() || '';
 
 const iosKey =
   (process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY as string | undefined)?.trim() ||
@@ -26,27 +37,26 @@ const androidKey =
   (Constants.expoConfig?.extra as { revenueCatAndroidApiKey?: string } | undefined)?.revenueCatAndroidApiKey ||
   '';
 
-/**
- * RevenueCat "Test Store" keys work in Expo Go; native store keys do not.
- * If these are unset and we're in Expo Go, we intentionally no-op purchases.
- */
 const iosTestKey = (process.env.EXPO_PUBLIC_REVENUECAT_TEST_IOS_API_KEY as string | undefined)?.trim() || '';
 const androidTestKey =
   (process.env.EXPO_PUBLIC_REVENUECAT_TEST_ANDROID_API_KEY as string | undefined)?.trim() || '';
 
 let configuredApiKey: string | null = null;
 
+/** Must match the entitlement identifier in the RevenueCat dashboard. */
 export const REVENUECAT_ENTITLEMENT_ID =
-  (process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID as string | undefined)?.trim() || 'premium';
+  (process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID as string | undefined)?.trim() ||
+  'Cafe Social Pro';
 
 function nativeApiKey(): string {
+  if (sharedKey) return sharedKey;
   if (isExpoGo) {
     if (Platform.OS === 'ios') return iosTestKey;
     if (Platform.OS === 'android') return androidTestKey;
     return '';
   }
-  if (Platform.OS === 'ios') return iosKey;
-  if (Platform.OS === 'android') return androidKey;
+  if (Platform.OS === 'ios') return iosKey || iosTestKey;
+  if (Platform.OS === 'android') return androidKey || androidTestKey;
   return '';
 }
 
@@ -71,10 +81,10 @@ export async function signOutRevenueCat(): Promise<void> {
 export async function ensureRevenueCatForPlayer(playerId: string): Promise<void> {
   const key = nativeApiKey();
   if (!key) {
-    if (__DEV__ && isExpoGo) {
+    if (__DEV__) {
       console.warn(
-        '[RevenueCat] Skipping configuration in Expo Go (missing Test Store API key). ' +
-          'Set EXPO_PUBLIC_REVENUECAT_TEST_IOS_API_KEY / EXPO_PUBLIC_REVENUECAT_TEST_ANDROID_API_KEY.',
+        '[RevenueCat] Missing API key. Set EXPO_PUBLIC_REVENUECAT_API_KEY (Test Store) ' +
+          'or platform keys EXPO_PUBLIC_REVENUECAT_IOS_API_KEY / ANDROID.',
       );
     }
     return;
@@ -99,7 +109,6 @@ export async function ensureRevenueCatForPlayer(playerId: string): Promise<void>
   }
 }
 
-/** Set `EXPO_PUBLIC_REVENUECAT_PREFERRED_PACKAGE` to `annual` or `yearly` to prefer annual; default monthly-first. */
 export function getPreferredPackageOrder(): PreferredPackageOrder {
   return preferredPackageOrderFromEnv(
     process.env.EXPO_PUBLIC_REVENUECAT_PREFERRED_PACKAGE as string | undefined,
@@ -112,8 +121,17 @@ function packageKind(pkg: PurchasesPackage): PaywallPackageKind {
       return 'MONTHLY';
     case PACKAGE_TYPE.ANNUAL:
       return 'ANNUAL';
-    default:
+    case PACKAGE_TYPE.LIFETIME:
+      return 'LIFETIME';
+    default: {
+      const id = pkg.identifier.toLowerCase();
+      if (id.includes('lifetime') || id === 'lifetime' || id.includes('$rc_lifetime')) {
+        return 'LIFETIME';
+      }
+      if (id.includes('annual') || id.includes('yearly') || id === 'yearly') return 'ANNUAL';
+      if (id.includes('month') || id === 'monthly') return 'MONTHLY';
       return 'OTHER';
+    }
   }
 }
 
@@ -135,7 +153,6 @@ export function pickPrimaryPackage(
   return packages.find((p) => p.identifier === primary.identifier) ?? null;
 }
 
-/** Ordered packages for paywall buttons (preferred first, then the other period, then rest). */
 export function listPaywallPackages(
   packages: PurchasesPackage[],
   order: PreferredPackageOrder = getPreferredPackageOrder(),
@@ -145,6 +162,42 @@ export function listPaywallPackages(
   return ordered.map((o) => byId.get(o.identifier)).filter((p): p is PurchasesPackage => !!p);
 }
 
-export function packagePeriodLabelKey(pkg: PurchasesPackage): 'month' | 'year' | 'other' {
+export function packagePeriodLabelKey(
+  pkg: PurchasesPackage,
+): 'month' | 'year' | 'lifetime' | 'other' {
   return periodLabelKeyForPackage(toPaywallLike(pkg));
+}
+
+export function hasCafeSocialPro(customerInfo: CustomerInfo): boolean {
+  return customerHasEntitlement(
+    Object.keys(customerInfo.entitlements.active),
+    REVENUECAT_ENTITLEMENT_ID,
+  );
+}
+
+export async function getRevenueCatCustomerInfo(): Promise<CustomerInfo> {
+  return Purchases.getCustomerInfo();
+}
+
+export async function refreshCafeSocialProEntitlement(): Promise<boolean> {
+  const info = await Purchases.getCustomerInfo();
+  return hasCafeSocialPro(info);
+}
+
+/**
+ * Present the dashboard-designed RevenueCat Paywall when Cafe Social Pro is inactive.
+ * Returns true if the user purchased or restored access.
+ */
+export async function presentCafeSocialProPaywall(): Promise<boolean> {
+  if (!isRevenueCatNativeConfigured()) return false;
+  const result = await RevenueCatUI.presentPaywallIfNeeded({
+    requiredEntitlementIdentifier: REVENUECAT_ENTITLEMENT_ID,
+  });
+  return result === PAYWALL_RESULT.PURCHASED || result === PAYWALL_RESULT.RESTORED;
+}
+
+/** Customer Center for restore / cancel / manage (subscribers and past purchasers). */
+export async function presentCafeSocialCustomerCenter(): Promise<void> {
+  if (!isRevenueCatNativeConfigured()) return;
+  await RevenueCatUI.presentCustomerCenter();
 }

@@ -7,9 +7,10 @@ Companion to [Phase A plan](./2026-07-18-store-payments-phase-a.md). Do **accoun
 | `APP_ENV` | iOS / Android ID |
 |-----------|------------------|
 | `production` | `com.cafesocial.app` |
-| anything else (local, preview, staging) | `com.cafesocial.app.dev` |
+| `preview` / `staging` | `com.cafesocial.app.dev` |
+| local / unset | `com.pavaozornija.cafesocial.devclient` (existing device profile) |
 
-EAS profiles set `APP_ENV` in `app/eas.json`. After changing IDs, run a fresh native build / prebuild so Xcode `PRODUCT_BUNDLE_IDENTIFIER` matches.
+Register `com.cafesocial.app` / `.dev` in Apple Developer when the paid team is ready; until then local device builds keep the personal-team id.
 
 ## Account setup order
 

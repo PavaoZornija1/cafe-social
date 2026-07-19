@@ -217,8 +217,11 @@ PODS:
     - ReactNativeDependencies
     - Yoga
   - PromisesObjC (2.4.0)
-  - PurchasesHybridCommon (17.53.0):
-    - RevenueCat (= 5.66.0)
+  - PurchasesHybridCommon (18.21.0):
+    - RevenueCat (= 5.80.3)
+  - PurchasesHybridCommonUI (18.21.0):
+    - PurchasesHybridCommon (= 18.21.0)
+    - RevenueCatUI (= 5.80.3)
   - RCTDeprecation (0.81.5)
   - RCTRequired (0.81.5)
   - RCTTypeSafety (0.81.5):
@@ -1919,7 +1922,9 @@ PODS:
     - React-utils (= 0.81.5)
     - ReactNativeDependencies
   - ReactNativeDependencies (0.81.5)
-  - RevenueCat (5.66.0)
+  - RevenueCat (5.80.3)
+  - RevenueCatUI (5.80.3):
+    - RevenueCat (= 5.80.3)
   - RNCAsyncStorage (2.2.0):
     - hermes-engine
     - RCTRequired
@@ -1964,8 +1969,11 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - RNPurchases (9.15.0):
-    - PurchasesHybridCommon (= 17.53.0)
+  - RNPaywalls (10.4.3):
+    - PurchasesHybridCommonUI (= 18.21.0)
+    - React-Core
+  - RNPurchases (10.4.3):
+    - PurchasesHybridCommon (= 18.21.0)
     - React-Core
   - RNScreens (4.16.0):
     - hermes-engine
@@ -2165,6 +2173,7 @@ DEPENDENCIES:
   - ReactNativeDependencies (from `../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
   - "RNCAsyncStorage (from `../node_modules/@react-native-async-storage/async-storage`)"
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
+  - RNPaywalls (from `../node_modules/react-native-purchases-ui`)
   - RNPurchases (from `../node_modules/react-native-purchases`)
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNSVG (from `../node_modules/react-native-svg`)
@@ -2182,7 +2191,9 @@ SPEC REPOS:
     - lottie-ios
     - PromisesObjC
     - PurchasesHybridCommon
+    - PurchasesHybridCommonUI
     - RevenueCat
+    - RevenueCatUI
     - ZXingObjC
 
 EXTERNAL SOURCES:
@@ -2379,6 +2390,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-async-storage/async-storage"
   RNGestureHandler:
     :path: "../node_modules/react-native-gesture-handler"
+  RNPaywalls:
+    :path: "../node_modules/react-native-purchases-ui"
   RNPurchases:
     :path: "../node_modules/react-native-purchases"
   RNScreens:
@@ -2427,7 +2440,8 @@ SPEC CHECKSUMS:
   lottie-ios: 8f959969761e9c45d70353667d00af0e5b9cadb3
   lottie-react-native: 6a080b2f109ef611c75c503a33ebb8ea75db0c91
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
-  PurchasesHybridCommon: 53d966ac5c39df13c3c759289bb3ef3e2f9f1622
+  PurchasesHybridCommon: 097af88db3cb39b415bef2f3140e6b3324899756
+  PurchasesHybridCommonUI: 860a7cc1cf1d16b7c68cc03923003acf5e84c74c
   RCTDeprecation: 943572d4be82d480a48f4884f670135ae30bf990
   RCTRequired: 8f3cfc90cc25cf6e420ddb3e7caaaabc57df6043
   RCTTypeSafety: 16a4144ca3f959583ab019b57d5633df10b5e97c
@@ -2494,10 +2508,12 @@ SPEC CHECKSUMS:
   ReactCodegen: 7d4593f7591f002d137fe40cef3f6c11f13c88cc
   ReactCommon: 08810150b1206cc44aecf5f6ae19af32f29151a8
   ReactNativeDependencies: 71ce9c28beb282aa720ea7b46980fff9669f428a
-  RevenueCat: a3cf721ad8b1b56a930d748a40342aba16c09bbb
+  RevenueCat: 72d1e14966339bf38c41d9b2841ef64c8fd79646
+  RevenueCatUI: d46a19d3a0d95919d2de453427480aea9593e873
   RNCAsyncStorage: 3a4f5e2777dae1688b781a487923a08569e27fe4
   RNGestureHandler: d9f22af00f4fcfc6147c9cc174ac6bee55b234e7
-  RNPurchases: f3384f8db42ad8abb7525b13c2ecb9bd2a443102
+  RNPaywalls: 619df9b4ea7c284d060d75c6eb1d15efeef6bf3b
+  RNPurchases: 33dbce0054a0833a8c20c8d6244e971dfedaa0c3
   RNScreens: d8d6f1792f6e7ac12b0190d33d8d390efc0c1845
   RNSVG: f2641bf17a3e397882659348d7668667a0805f00
   UMAppLoader: 145337733539f9af9b3dd97eeaa7f3bd97cacb23

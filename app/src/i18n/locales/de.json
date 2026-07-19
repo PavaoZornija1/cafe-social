@@ -215,9 +215,9 @@
     "subscriptionInactive": "Kein aktives Abo hinterlegt.",
     "subscriptionOpen": "Verwalten / abschließen (Web)",
     "subscriptionUrlMissing": "EXPO_PUBLIC_SUBSCRIPTION_URL setzen, falls es Web-Checkout gibt.",
-    "subscriptionSubscribe": "Mit App Store / Google Play abonnieren",
+    "subscriptionSubscribe": "Cafe Social Pro holen",
     "subscriptionRestore": "Käufe wiederherstellen",
-    "subscriptionManageNative": "Abo in den Store-Einstellungen verwalten",
+    "subscriptionManageNative": "Cafe Social Pro verwalten",
     "subscriptionRcMissingKey": "Für In-App-Abos EXPO_PUBLIC_REVENUECAT_IOS_API_KEY und EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY setzen.",
     "subscriptionWebOnlyHint": "In-App-Abos laufen über RevenueCat auf iOS und Android. Nutze den Web-Link unten, falls es Web-Checkout gibt.",
     "subscriptionOfferingsTitle": "Abo in der App noch nicht bereit",
@@ -226,9 +226,9 @@
     "subscriptionPendingBanner": "Zahlung war erfolgreich — wir warten, bis das Abo auf unseren Servern erscheint. Meist unter einer Minute.",
     "subscriptionPendingFollowUp": "Noch nicht „aktiv“? Webhook kann trödeln. Aktualisieren tippen, Wiederherstellen versuchen oder kurz warten.",
     "subscriptionPendingRefresh": "Abo-Status aktualisieren",
-    "subscriptionPurchaseImmediate": "Fertig — dein Abo ist aktiv.",
+    "subscriptionPurchaseImmediate": "Fertig — Cafe Social Pro ist aktiv.",
     "subscriptionPurchaseError": "Kauf nicht abgeschlossen. Erneut versuchen oder „Käufe wiederherstellen“.",
-    "subscriptionRestoreActive": "Wiederherstellung ok — Abo ist aktiv.",
+    "subscriptionRestoreActive": "Wiederherstellung ok — Cafe Social Pro ist aktiv.",
     "subscriptionManageNativeError": "Abo-Verwaltung konnte nicht geöffnet werden. Bitte in App Store bzw. Google Play unter Abos öffnen.",
     "subscriptionConfirmTitle": "Plan wählen",
     "subscriptionConfirmBody": "Preis und Abrechnungszeitraum kommen vom App Store oder Google Play. Abos verlängern sich automatisch, bis du sie im Store-Konto kündigst.",
@@ -256,7 +256,8 @@
     "venuePlayBudgetAlreadyClaimedTitle": "Bereits gutgeschrieben",
     "venuePlayBudgetAlreadyClaimedBody": "Dieser Kauf ist bereits erfasst. Heute (UTC) an diesem Ort noch etwa {{remaining}} Minuten.",
     "venuePlayBudgetNothingToClaimTitle": "Nichts zu beanspruchen",
-    "venuePlayBudgetNothingToClaimBody": "Keine offenen Spielzeit-Käufe für dieses Konto. Nach einer Abbuchung kurz warten, unter Abo „Käufe wiederherstellen“ tippen und im Lokal erneut versuchen."
+    "venuePlayBudgetNothingToClaimBody": "Keine offenen Spielzeit-Käufe für dieses Konto. Nach einer Abbuchung kurz warten, unter Abo „Käufe wiederherstellen“ tippen und im Lokal erneut versuchen.",
+    "subscriptionPeriodLifetime": "Lebenslang"
   },
   "chooseGame": {
     "title": "Spiel wählen",

@@ -215,9 +215,9 @@
     "subscriptionInactive": "Nema aktivne pretplate.",
     "subscriptionOpen": "Upravljanje ili pretplata (web)",
     "subscriptionUrlMissing": "Postavi EXPO_PUBLIC_SUBSCRIPTION_URL ako nudiš web naplatu.",
-    "subscriptionSubscribe": "Pretplata putem App Storea / Google Playa",
+    "subscriptionSubscribe": "Nabavi Cafe Social Pro",
     "subscriptionRestore": "Vrati kupnje",
-    "subscriptionManageNative": "Upravljaj pretplatom u postavkama trgovine",
+    "subscriptionManageNative": "Upravljaj Cafe Social Pro",
     "subscriptionRcMissingKey": "Za pretplate u aplikaciji postavi EXPO_PUBLIC_REVENUECAT_IOS_API_KEY i EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY.",
     "subscriptionWebOnlyHint": "Pretplate u aplikaciji koriste RevenueCat na iOS-u i Androidu. Web-poveznica ispod ako imate web naplatu.",
     "subscriptionOfferingsTitle": "Pretplata u aplikaciji još nije spremna",
@@ -226,9 +226,9 @@
     "subscriptionPendingBanner": "Plaćanje je prošlo — čekamo da se pretplata pojavi na našem poslužitelju. Obično ispod minute.",
     "subscriptionPendingFollowUp": "Jo uvijek nema \"aktivno\"? Webhook može kasniti. Osvježi, probaj Vrati kupnje ili pričekaj malo.",
     "subscriptionPendingRefresh": "Osvježi status pretplate",
-    "subscriptionPurchaseImmediate": "Sve je spremno — pretplata je aktivna.",
+    "subscriptionPurchaseImmediate": "Sve je spremno — Cafe Social Pro je aktivan.",
     "subscriptionPurchaseError": "Kupnja nije dovršena. Pokušaj ponovno ili Vrati kupnje.",
-    "subscriptionRestoreActive": "Obnova uspjela — pretplata je aktivna.",
+    "subscriptionRestoreActive": "Obnova uspjela — Cafe Social Pro je aktivan.",
     "subscriptionManageNativeError": "Nije moguće otvoriti upravljanje pretplatom. Otvori postavke pretplate u App Storeu ili Google Playu.",
     "subscriptionConfirmTitle": "Odaberi plan",
     "subscriptionConfirmBody": "Cijenu i razdoblje određuju App Store ili Google Play. Pretplata se automatski obnavlja dok je ne otkažeš u trgovini.",
@@ -256,7 +256,8 @@
     "venuePlayBudgetAlreadyClaimedTitle": "Već pripisano",
     "venuePlayBudgetAlreadyClaimedBody": "Ta je kupnja već na evidenciji. Ostalo ti je oko {{remaining}} minuta danas (UTC) u ovom lokalu.",
     "venuePlayBudgetNothingToClaimTitle": "Nema što zatražiti",
-    "venuePlayBudgetNothingToClaimBody": "Nema neiskorištenih kupnji vremena za ovaj račun. Ako si upravo naplaćen, pričekaj, tapni Obnovi kupnje pod Pretplata, pa pokušaj ponovo u lokalu."
+    "venuePlayBudgetNothingToClaimBody": "Nema neiskorištenih kupnji vremena za ovaj račun. Ako si upravo naplaćen, pričekaj, tapni Obnovi kupnje pod Pretplata, pa pokušaj ponovo u lokalu.",
+    "subscriptionPeriodLifetime": "Doživotno"
   },
   "chooseGame": {
     "title": "Odaberi igru",

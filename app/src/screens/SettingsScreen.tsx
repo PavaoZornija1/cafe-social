@@ -21,7 +21,6 @@ import {
 import Purchases, {
   PURCHASES_ERROR_CODE,
   type PurchasesError,
-  type PurchasesPackage,
 } from 'react-native-purchases';
 import { useTranslation } from 'react-i18next';
 import SettingsNavRow from '../components/settings/SettingsNavRow';
@@ -50,10 +49,9 @@ import { unregisterExpoPushTokenFromBackend } from '../lib/expoPush';
 import { createAndShareFriendInviteLink } from '../lib/friendInviteShare';
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../lib/legalUrls';
 import {
-  getPreferredPackageOrder,
   isRevenueCatNativeConfigured,
-  listPaywallPackages,
-  packagePeriodLabelKey,
+  presentCafeSocialCustomerCenter,
+  presentCafeSocialProPaywall,
   signOutRevenueCat,
 } from '../lib/revenuecat';
 import { getVenuePlayBudgetIapCatalog } from '../lib/venuePlayBudgetCatalog';
@@ -127,7 +125,6 @@ export default function SettingsScreen({ navigation }: Props) {
   );
   const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '—';
   const rcNative = isRevenueCatNativeConfigured();
-  const packageOrder = getPreferredPackageOrder();
   const switchTrackOn = colors.primary;
   const switchTrackOff = colors.borderStrong;
   const switchThumb = colors.surface;
@@ -296,66 +293,8 @@ export default function SettingsScreen({ navigation }: Props) {
     setRcBusy(true);
     setOfferingsIssue('none');
     try {
-      const offerings = await Purchases.getOfferings();
-      if (!offerings.current) {
-        setOfferingsIssue('no_current');
-        return;
-      }
-      const pkgs = offerings.current.availablePackages ?? [];
-      if (pkgs.length === 0) {
-        setOfferingsIssue('no_packages');
-        return;
-      }
-      const ordered = listPaywallPackages(pkgs, packageOrder);
-      if (ordered.length === 0) {
-        setOfferingsIssue('no_packages');
-        return;
-      }
-      setRcBusy(false);
-      promptSubscriptionPackagePicker(ordered);
-    } catch (e) {
-      const pe = e as PurchasesError;
-      if (pe.userCancelled || pe.code === PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) return;
-      Alert.alert(t('common.error'), pe.message || t('settings.subscriptionPurchaseError'));
-    } finally {
-      setRcBusy(false);
-    }
-  };
-
-  const periodLabel = (pkg: PurchasesPackage) => {
-    const key = packagePeriodLabelKey(pkg);
-    if (key === 'month') return t('settings.subscriptionPeriodMonth');
-    if (key === 'year') return t('settings.subscriptionPeriodYear');
-    return t('settings.subscriptionPeriodOther');
-  };
-
-  const promptSubscriptionPackagePicker = (pkgs: PurchasesPackage[]) => {
-    const legalBits: string[] = [];
-    if (PRIVACY_POLICY_URL) legalBits.push(t('settings.privacyLink'));
-    if (TERMS_OF_SERVICE_URL) legalBits.push(t('settings.termsLink'));
-    const legalLine =
-      legalBits.length > 0
-        ? t('settings.subscriptionConfirmLegal', { links: legalBits.join(' · ') })
-        : t('settings.subscriptionConfirmLegalMissing');
-
-    Alert.alert(
-      t('settings.subscriptionConfirmTitle'),
-      `${t('settings.subscriptionConfirmBody')}\n\n${legalLine}`,
-      [
-        ...pkgs.slice(0, 3).map((pkg) => ({
-          text: `${periodLabel(pkg)} — ${pkg.product.priceString}`,
-          onPress: () => void purchaseSubscriptionPackage(pkg),
-        })),
-        { text: t('common.cancel'), style: 'cancel' as const },
-      ],
-    );
-  };
-
-  const purchaseSubscriptionPackage = async (pkg: PurchasesPackage) => {
-    if (!isLoaded || Platform.OS === 'web' || !rcNative) return;
-    setRcBusy(true);
-    try {
-      await Purchases.purchasePackage(pkg);
+      const purchased = await presentCafeSocialProPaywall();
+      if (!purchased) return;
       setOfferingsIssue('none');
       const active = await loadPrivacy();
       if (active) {
@@ -407,7 +346,12 @@ export default function SettingsScreen({ navigation }: Props) {
     if (!isLoaded || Platform.OS === 'web' || !rcNative) return;
     setRcBusy(true);
     try {
-      await Purchases.showManageSubscriptions();
+      await presentCafeSocialCustomerCenter();
+      const active = await loadPrivacy();
+      if (!active) {
+        setSubscriptionPendingFollowUp(false);
+        setSubscriptionPendingSync(true);
+      }
     } catch {
       Alert.alert(t('common.error'), t('settings.subscriptionManageNativeError'));
     } finally {

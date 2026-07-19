@@ -9,7 +9,11 @@ const googleIosUrlScheme = googleIosClientId
 /** EAS sets APP_ENV per profile (see eas.json). */
 const appEnv = (process.env.APP_ENV || 'development').trim().toLowerCase();
 const bundleIdentifier =
-  appEnv === 'production' ? 'com.cafesocial.app' : 'com.cafesocial.app.dev';
+  appEnv === 'production'
+    ? 'com.cafesocial.app'
+    : appEnv === 'preview' || appEnv === 'staging'
+      ? 'com.cafesocial.app.dev'
+      : 'com.pavaozornija.cafesocial.devclient';
 
 export default {
   expo: {

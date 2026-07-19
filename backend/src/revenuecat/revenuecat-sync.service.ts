@@ -33,7 +33,7 @@ export class RevenueCatSyncService {
   ) {}
 
   private getEntitlementId(): string {
-    return (this.config.get<string>('REVENUECAT_ENTITLEMENT_ID') ?? 'premium').trim();
+    return (this.config.get<string>('REVENUECAT_ENTITLEMENT_ID') ?? 'Cafe Social Pro').trim();
   }
 
   private getSecretKey(): string | undefined {
