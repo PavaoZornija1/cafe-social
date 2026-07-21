@@ -374,11 +374,13 @@ export function createArenaStyles(colors: AppColors) {
       flex: 1,
       position: 'relative',
       overflow: 'hidden',
+      backgroundColor: '#07140f',
     },
     arenaSkyBack: {
       ...StyleSheet.absoluteFillObject,
       zIndex: 0,
       overflow: 'hidden',
+      backgroundColor: '#07140f',
     },
     worldLayer: {
       position: 'absolute',

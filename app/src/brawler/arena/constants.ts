@@ -27,8 +27,17 @@ export const ARENA_LEDGE_BY_SIZE = {
     h: ARENA_LEDGE_M_H,
   },
 } as const;
-/** Distant sky behind platforms and hero. */
-export const ARENA_SKY_LOTTIE = require('../../../assets/lottie/Underwater Ocean Fish and Turtle.json');
+/** Map backdrop panels — native 1024×1024 each (left / center / right). */
+export const ARENA_SKY_LEFT = require('../../../assets/maps/brawlerHeroes/background_left.png');
+export const ARENA_SKY_CENTER = require('../../../assets/maps/brawlerHeroes/background_1.png');
+export const ARENA_SKY_RIGHT = require('../../../assets/maps/brawlerHeroes/background_3.png');
+export const ARENA_SKY_PANELS = [
+  ARENA_SKY_LEFT,
+  ARENA_SKY_CENTER,
+  ARENA_SKY_RIGHT,
+] as const;
+export const ARENA_SKY_W = 1024;
+export const ARENA_SKY_H = 1024;
 
 export const ACTION_CIRCLE_SIZE = 66;
 

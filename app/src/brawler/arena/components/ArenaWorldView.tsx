@@ -4,14 +4,15 @@ import React, {
   useRef,
   type MutableRefObject,
 } from 'react';
-import { LayoutChangeEvent, Text, View, type ViewStyle } from 'react-native';
-import LottieView from 'lottie-react-native';
+import { Image, LayoutChangeEvent, Text, View } from 'react-native';
 import { HeroSpriteView, type HeroSpriteAnim } from '../../../components/HeroSpriteView';
 import type { HeroSpriteConfig } from '../../heroSpriteTypes';
 import type { PlatformWorld } from '../../arenaPlatforms';
 import type { ArenaSafeInsets } from '../arenaSafeArea';
 import {
-  ARENA_SKY_LOTTIE,
+  ARENA_SKY_H,
+  ARENA_SKY_PANELS,
+  ARENA_SKY_W,
   ATTACK_HIT_H,
   ATTACK_HIT_W,
   DMG_FLOAT_LIFETIME_S,
@@ -53,10 +54,6 @@ type Props = {
   spectateCamXRef: MutableRefObject<number>;
   spectateCamYRef: MutableRefObject<number>;
   onSpectateCameraChange: () => void;
-  skyW: number;
-  skyH: number;
-  skyLeft: number;
-  skyTop: number;
   platformsWorld: PlatformWorld[];
   powerups: SpawnedPowerup[];
   powerupDefs: BrawlerPowerupDef[];
@@ -136,10 +133,6 @@ export const ArenaWorldView = forwardRef<ArenaWorldPaintHandle, Props>(
   spectateCamXRef,
   spectateCamYRef,
   onSpectateCameraChange,
-  skyW,
-  skyH,
-  skyLeft,
-  skyTop,
   platformsWorld,
   powerups,
   powerupDefs,
@@ -240,31 +233,40 @@ export const ArenaWorldView = forwardRef<ArenaWorldPaintHandle, Props>(
   const debugHitH = ATTACK_HIT_H;
   const heroBarW = Math.max(52, Math.round(bodyW * 0.95));
 
-  const skyLottie = (
-    left: number,
-    top: number,
-    width: number,
-    height: number,
-    transform?: ViewStyle['transform'],
-  ) => (
-    <LottieView
-      source={ARENA_SKY_LOTTIE}
-      autoPlay
-      loop
-      resizeMode="cover"
-      style={{
-        position: 'absolute',
-        left,
-        top,
-        width,
-        height,
-        transform,
-      }}
-    />
+  /**
+   * Same viewport-cover tile size as the working 3× repeat, but panels are
+   * left / center / right (exactly three).
+   */
+  const skyFit = Math.max(
+    arenaW / ARENA_SKY_W,
+    arenaInnerH / ARENA_SKY_H,
+    worldH / ARENA_SKY_H,
   );
+  const skyTileW = Math.max(1, Math.round(ARENA_SKY_W * skyFit));
+  const skyTileH = Math.max(1, Math.round(ARENA_SKY_H * skyFit));
+  const skyTileCount = ARENA_SKY_PANELS.length;
+  const skyRowW = skyTileCount * skyTileW;
+  const skyRowLeft = Math.round((worldW - skyRowW) / 2);
+  const skyRowTop = Math.round((worldH - skyTileH) / 2);
 
   const worldEntities = (
     <>
+        {ARENA_SKY_PANELS.map((source, i) => (
+          <Image
+            key={`arena-sky-${i}`}
+            source={source}
+            resizeMode="stretch"
+            fadeDuration={0}
+            style={{
+              position: 'absolute',
+              left: skyRowLeft + i * skyTileW,
+              top: skyRowTop,
+              width: skyTileW,
+              height: skyTileH,
+              zIndex: 0,
+            }}
+          />
+        ))}
         <View style={styles.platformBg}>
           <ArenaPlatformArt
             platforms={platformsWorld}
@@ -498,12 +500,11 @@ export const ArenaWorldView = forwardRef<ArenaWorldPaintHandle, Props>(
       onCameraChange={onSpectateCameraChange}
     >
         <View style={styles.arena} onLayout={onArenaLayout}>
-        <View ref={skyMotionRef} style={styles.arenaSkyBack} pointerEvents="none">
-          {skyLottie(skyLeft, skyTop, skyW, skyH, [
-            { translateX: -camX * 0.18 },
-            { translateY: -camY * 0.1 },
-          ])}
-        </View>
+        <View
+          ref={skyMotionRef}
+          style={[styles.arenaSkyBack, { backgroundColor: '#07140f' }]}
+          pointerEvents="none"
+        />
         <View
           ref={worldLayerRef}
           pointerEvents="none"

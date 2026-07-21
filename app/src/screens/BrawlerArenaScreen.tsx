@@ -1316,12 +1316,6 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     worldH,
   );
 
-  // Sky background is oversized so parallax translation never reveals empty edges.
-  const skyW = arenaW * 1.9;
-  const skyH = arenaInnerH * 1.7;
-  const skyLeft = (arenaW - skyW) / 2;
-  const skyTop = (arenaInnerH - skyH) / 2;
-
   const safeInsets = useMemo(() => resolveArenaSafeInsets(insets), [insets]);
   const actionArcRight =
     Math.max(0, safeInsets.right - ACTION_CONTROLS_SAFE_RIGHT_NUDGE_PX) +
@@ -1456,10 +1450,6 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           spectateCamXRef={spectateCamXRef}
           spectateCamYRef={spectateCamYRef}
           onSpectateCameraChange={handleSpectateCameraChange}
-          skyW={skyW}
-          skyH={skyH}
-          skyLeft={skyLeft}
-          skyTop={skyTop}
           platformsWorld={platformsWorld}
           powerups={powerupsOnMapRef.current}
           powerupDefs={powerupDefsRef.current}
