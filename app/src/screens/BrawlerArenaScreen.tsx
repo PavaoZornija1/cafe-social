@@ -30,6 +30,7 @@ import {
   PRE_MATCH_COUNTDOWN_S,
   FALLBACK_ARENA_HERO_STATS,
 } from '../brawler/arena/constants';
+import { getArenaMapAssets } from '../brawler/arena/arenaMaps';
 import { resolveArenaSafeInsets } from '../brawler/arena/arenaSafeArea';
 import {
   arenaHeroCombat,
@@ -105,7 +106,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
   const styles = useMemo(() => createArenaStyles(colors), [colors]);
-  const { heroId, heroStats: heroStatsParam, venueId: routeVenueId } = route.params;
+  const { heroId, heroStats: heroStatsParam, venueId: routeVenueId, mapId: routeMapId } =
+    route.params;
   const insets = useSafeAreaInsets();
   const sessionId = route.params.sessionId;
 
@@ -246,6 +248,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const heroSprite = useMemo(() => getHeroSpriteConfig(heroId), [heroId]);
   const heroSpriteLiveRef = useRef(heroSprite);
   heroSpriteLiveRef.current = heroSprite;
+  const mapAssets = useMemo(() => getArenaMapAssets(routeMapId), [routeMapId]);
 
   const playerX = useRef(0);
   const playerY = useRef(0);
@@ -1450,6 +1453,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           spectateCamXRef={spectateCamXRef}
           spectateCamYRef={spectateCamYRef}
           onSpectateCameraChange={handleSpectateCameraChange}
+          mapAssets={mapAssets}
           platformsWorld={platformsWorld}
           powerups={powerupsOnMapRef.current}
           powerupDefs={powerupDefsRef.current}

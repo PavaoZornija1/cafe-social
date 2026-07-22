@@ -1,12 +1,7 @@
 import React from 'react';
 import { Image, View } from 'react-native';
 import type { PlatformWorld } from '../../arenaPlatforms';
-import {
-  ARENA_GROUND,
-  ARENA_GROUND_H,
-  ARENA_GROUND_W,
-  ARENA_LEDGE_BY_SIZE,
-} from '../constants';
+import type { ArenaMapAssets } from '../arenaMaps';
 import type { ArenaStyles } from '../styles';
 
 /**
@@ -21,14 +16,16 @@ type Props = {
   platforms: PlatformWorld[];
   worldW: number;
   worldH: number;
+  mapAssets: ArenaMapAssets;
   styles: Pick<ArenaStyles, 'platformArtClip' | 'platformArtImage'>;
 };
 
 /** Visual slabs aligned with physics hitboxes from `buildArenaPlatforms`. */
-export function ArenaPlatformArt({ platforms, worldW, worldH, styles }: Props) {
+export function ArenaPlatformArt({ platforms, worldW, worldH, mapAssets, styles }: Props) {
   if (worldW < 2 || worldH < 2) return null;
 
   const last = platforms.length - 1;
+  const { ground, groundW, groundH, ledgeBySize } = mapAssets;
 
   return (
     <>
@@ -36,8 +33,8 @@ export function ArenaPlatformArt({ platforms, worldW, worldH, styles }: Props) {
         const isGround = i === last;
 
         if (isGround) {
-          const artTop = p.y - GROUND_WALK_Y_FRAC * ARENA_GROUND_H;
-          const artLeft = p.x + (p.w - ARENA_GROUND_W) / 2;
+          const artTop = p.y - GROUND_WALK_Y_FRAC * groundH;
+          const artLeft = p.x + (p.w - groundW) / 2;
           return (
             <View
               key={i}
@@ -46,19 +43,19 @@ export function ArenaPlatformArt({ platforms, worldW, worldH, styles }: Props) {
                 position: 'absolute',
                 left: artLeft,
                 top: artTop,
-                width: ARENA_GROUND_W,
-                height: ARENA_GROUND_H,
+                width: groundW,
+                height: groundH,
                 zIndex: 2,
               }}
               accessibilityLabel={`Platform ${i + 1}`}
             >
               <Image
-                source={ARENA_GROUND}
+                source={ground}
                 fadeDuration={0}
                 resizeMode="stretch"
                 style={{
-                  width: ARENA_GROUND_W,
-                  height: ARENA_GROUND_H,
+                  width: groundW,
+                  height: groundH,
                 }}
               />
             </View>
@@ -86,7 +83,7 @@ export function ArenaPlatformArt({ platforms, worldW, worldH, styles }: Props) {
           );
         }
 
-        const art = ARENA_LEDGE_BY_SIZE[p.ledgeSize];
+        const art = ledgeBySize[p.ledgeSize];
         const artTop = p.y - LEDGE_WALK_Y_FRAC * art.h;
         const artLeft = p.x + (p.w - art.w) / 2;
         return (

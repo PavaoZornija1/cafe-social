@@ -320,6 +320,13 @@
     "statDash": "Enfriamiento del dash: {{value}} ms",
     "statAttack": "Daño de ataque: {{value}}",
     "statKnockback": "Empuje: {{value}}",
+    "mapTitle": "Mapa de arena",
+    "mapHint": "Selector temporal — Aleatorio elige Cueva musgosa o Llanuras del desierto para esta partida.",
+    "maps": {
+      "random": "Aleatorio",
+      "mossyCavern": "Cueva musgosa",
+      "desertPlains": "Llanuras del desierto"
+    },
     "powerupLegendTitle": "Power-ups de la arena"
   },
   "brawlerMatch": {

@@ -320,6 +320,13 @@
     "statDash": "Dash cooldown: {{value}}ms",
     "statAttack": "Šteta napada: {{value}}",
     "statKnockback": "Odbacivanje: {{value}}",
+    "mapTitle": "Arena mapa",
+    "mapHint": "Privremeni odabir — Nasumično bira Mahovinu pećinu ili Pustinjsku ravnicu za ovu utakmicu.",
+    "maps": {
+      "random": "Nasumično",
+      "mossyCavern": "Mahovina pećina",
+      "desertPlains": "Pustinjska ravnica"
+    },
     "powerupLegendTitle": "Arena power-upi"
   },
   "brawlerMatch": {

@@ -320,6 +320,13 @@
     "statDash": "Dash-Abklingzeit: {{value}} ms",
     "statAttack": "Angriffsschaden: {{value}}",
     "statKnockback": "Rückstoß: {{value}}",
+    "mapTitle": "Arena-Karte",
+    "mapHint": "Vorübergehende Auswahl — Zufällig wählt Mooshöhle oder Wüstenebene für dieses Match.",
+    "maps": {
+      "random": "Zufällig",
+      "mossyCavern": "Mooshöhle",
+      "desertPlains": "Wüstenebene"
+    },
     "powerupLegendTitle": "Arena-Power-ups"
   },
   "brawlerMatch": {

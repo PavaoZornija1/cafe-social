@@ -322,6 +322,13 @@
     "statDash": "Dash cooldown: {{value}}ms",
     "statAttack": "Attack damage: {{value}}",
     "statKnockback": "Knockback: {{value}}",
+    "mapTitle": "Arena map",
+    "mapHint": "Temporary picker — Random rolls Mossy Cavern or Desert Plains for this match.",
+    "maps": {
+      "random": "Random",
+      "mossyCavern": "Mossy Cavern",
+      "desertPlains": "Desert Plains"
+    },
     "powerupLegendTitle": "Arena power-ups"
   },
   "brawlerMatch": {

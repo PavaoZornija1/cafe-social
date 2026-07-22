@@ -9,10 +9,8 @@ import { HeroSpriteView, type HeroSpriteAnim } from '../../../components/HeroSpr
 import type { HeroSpriteConfig } from '../../heroSpriteTypes';
 import type { PlatformWorld } from '../../arenaPlatforms';
 import type { ArenaSafeInsets } from '../arenaSafeArea';
+import type { ArenaMapAssets } from '../arenaMaps';
 import {
-  ARENA_SKY_H,
-  ARENA_SKY_PANELS,
-  ARENA_SKY_W,
   ATTACK_HIT_H,
   ATTACK_HIT_W,
   DMG_FLOAT_LIFETIME_S,
@@ -54,6 +52,7 @@ type Props = {
   spectateCamXRef: MutableRefObject<number>;
   spectateCamYRef: MutableRefObject<number>;
   onSpectateCameraChange: () => void;
+  mapAssets: ArenaMapAssets;
   platformsWorld: PlatformWorld[];
   powerups: SpawnedPowerup[];
   powerupDefs: BrawlerPowerupDef[];
@@ -133,6 +132,7 @@ export const ArenaWorldView = forwardRef<ArenaWorldPaintHandle, Props>(
   spectateCamXRef,
   spectateCamYRef,
   onSpectateCameraChange,
+  mapAssets,
   platformsWorld,
   powerups,
   powerupDefs,
@@ -234,44 +234,58 @@ export const ArenaWorldView = forwardRef<ArenaWorldPaintHandle, Props>(
   const heroBarW = Math.max(52, Math.round(bodyW * 0.95));
 
   /**
-   * Same viewport-cover tile size as the working 3× repeat, but panels are
-   * left / center / right (exactly three).
+   * Three panels (1 left / 2 center / 3 right) as equal strips across the world.
+   * Fill the world rect exactly so nothing hangs off-screen or leaves a gap.
    */
-  const skyFit = Math.max(
-    arenaW / ARENA_SKY_W,
-    arenaInnerH / ARENA_SKY_H,
-    worldH / ARENA_SKY_H,
+  const { skyPanels } = mapAssets;
+  const skyTileCount = skyPanels.length;
+  const skyTileW = Math.max(1, Math.floor(worldW / skyTileCount));
+  const skyTileH = Math.max(1, worldH);
+  /** Last panel absorbs remainder so the row is exactly worldW. */
+  const skyTileWidths = skyPanels.map((_, i) =>
+    i === skyTileCount - 1 ? Math.max(1, worldW - skyTileW * (skyTileCount - 1)) : skyTileW,
   );
-  const skyTileW = Math.max(1, Math.round(ARENA_SKY_W * skyFit));
-  const skyTileH = Math.max(1, Math.round(ARENA_SKY_H * skyFit));
-  const skyTileCount = ARENA_SKY_PANELS.length;
-  const skyRowW = skyTileCount * skyTileW;
-  const skyRowLeft = Math.round((worldW - skyRowW) / 2);
-  const skyRowTop = Math.round((worldH - skyTileH) / 2);
+  let skyTileX = 0;
+  const skyTileXs = skyTileWidths.map((w) => {
+    const x = skyTileX;
+    skyTileX += w;
+    return x;
+  });
 
   const worldEntities = (
     <>
-        {ARENA_SKY_PANELS.map((source, i) => (
-          <Image
-            key={`arena-sky-${i}`}
-            source={source}
-            resizeMode="stretch"
-            fadeDuration={0}
+        {skyPanels.map((source, i) => (
+          <View
+            key={`arena-sky-${i}-${worldW}x${worldH}`}
+            collapsable={false}
+            pointerEvents="none"
             style={{
               position: 'absolute',
-              left: skyRowLeft + i * skyTileW,
-              top: skyRowTop,
-              width: skyTileW,
+              left: skyTileXs[i],
+              top: 0,
+              width: skyTileWidths[i],
               height: skyTileH,
               zIndex: 0,
+              overflow: 'hidden',
             }}
-          />
+          >
+            <Image
+              source={source}
+              resizeMode="stretch"
+              fadeDuration={0}
+              style={{
+                width: skyTileWidths[i],
+                height: skyTileH,
+              }}
+            />
+          </View>
         ))}
         <View style={styles.platformBg}>
           <ArenaPlatformArt
             platforms={platformsWorld}
             worldW={worldW}
             worldH={worldH}
+            mapAssets={mapAssets}
             styles={styles}
           />
         </View>

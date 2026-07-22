@@ -22,6 +22,12 @@ import {
   isArenaSpriteHero,
   isLobbySelectableHero,
 } from '../brawler/heroSpritesheets';
+import {
+  ARENA_MAP_IDS,
+  ARENA_MAPS,
+  resolveArenaMapId,
+  type ArenaMapChoice,
+} from '../brawler/arena/arenaMaps';
 import { BrawlerPowerupLegend } from '../brawler/components/BrawlerPowerupLegend';
 import type { BrawlerPowerupDef } from '../brawler/arena/types';
 import type { BrawlerArenaHeroStats, RootStackParamList } from '../navigation/type';
@@ -55,6 +61,8 @@ type CreateSessionResponse = {
   }>;
 };
 
+const MAP_CHOICES: ArenaMapChoice[] = ['random', ...ARENA_MAP_IDS];
+
 export default function BrawlerLobbyScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
@@ -71,6 +79,8 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
   const [creating, setCreating] = useState(false);
   const [heroes, setHeroes] = useState<BrawlerHero[]>([]);
   const [selectedHeroId, setSelectedHeroId] = useState<string | null>(null);
+  /** Dev/temp: force a map or roll randomly when starting. */
+  const [selectedMapChoice, setSelectedMapChoice] = useState<ArenaMapChoice>('random');
 
   const [soloSetupOpen, setSoloSetupOpen] = useState(false);
   const [soloOpponentCount, setSoloOpponentCount] = useState(1);
@@ -78,6 +88,8 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
   /** Casual vs ranked queue mode for online matchmaking. */
   const [queueRanked, setQueueRanked] = useState(false);
   const [powerups, setPowerups] = useState<BrawlerPowerupDef[]>([]);
+
+  const resolveMapForMatch = () => resolveArenaMapId(selectedMapChoice);
 
   useEffect(() => {
     let cancelled = false;
@@ -192,6 +204,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
           venueId,
           heroStats,
           sessionId: created.id,
+          mapId: resolveMapForMatch(),
         },
       });
     } catch (e) {
@@ -224,6 +237,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
       heroName: selectedHero?.name,
       ranked: queueRanked ? true : undefined,
       heroStats,
+      mapId: resolveMapForMatch(),
     });
   };
 
@@ -257,6 +271,7 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
         heroId: selectedHeroId,
         venueId,
         heroStats,
+        mapId: resolveMapForMatch(),
         soloOptions: {
           opponentCount: soloOpponentCount,
           difficulty: soloDifficulty,
@@ -378,6 +393,35 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
             </View>
           </View>
         ) : null}
+
+        <View style={styles.mapCard}>
+          <Text style={styles.sectionLabel}>{t('brawlerLobby.mapTitle')}</Text>
+          <Text style={styles.mapHint}>{t('brawlerLobby.mapHint')}</Text>
+          <View style={styles.mapRow}>
+            {MAP_CHOICES.map((choice) => {
+              const selected = choice === selectedMapChoice;
+              const label =
+                choice === 'random'
+                  ? t('brawlerLobby.maps.random')
+                  : t(`brawlerLobby.maps.${ARENA_MAPS[choice].nameKey}`);
+              return (
+                <Pressable
+                  key={choice}
+                  onPress={() => setSelectedMapChoice(choice)}
+                  style={({ pressed }) => [
+                    styles.mapPill,
+                    selected && styles.mapPillOn,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text style={[styles.mapPillText, selected && styles.mapPillTextOn]}>
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
 
         <BrawlerPowerupLegend
           colors={colors}
@@ -722,6 +766,31 @@ function createStyles(colors: AppColors) {
     },
     statsGrid: { gap: spacing.xs },
     statsText: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+    mapCard: {
+      backgroundColor: colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      borderRadius: radii.lg,
+      padding: spacing.lg,
+      marginBottom: spacing.md,
+      gap: spacing.sm,
+    },
+    mapHint: { color: colors.textMuted, fontSize: 13, fontWeight: '600', lineHeight: 18 },
+    mapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    mapPill: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radii.md,
+      backgroundColor: colors.bgElevated,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    mapPillOn: {
+      backgroundColor: colors.primaryMuted,
+      borderColor: colors.xp,
+    },
+    mapPillText: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
+    mapPillTextOn: { color: colors.text },
     rankCard: {
       padding: spacing.lg,
       borderRadius: radii.lg,

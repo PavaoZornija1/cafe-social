@@ -1,43 +1,8 @@
 import type { BrawlerArenaHeroStats } from '../../navigation/type';
 
-/** Small floating ledge — native 160×48. */
-export const ARENA_LEDGE_S = require('../../../assets/maps/brawlerHeroes/ledge_s.webp');
-export const ARENA_LEDGE_S_W = 160;
-export const ARENA_LEDGE_S_H = 48;
-/** Medium floating ledge — native 224×48. */
-export const ARENA_LEDGE_M = require('../../../assets/maps/brawlerHeroes/ledge_m.webp');
-export const ARENA_LEDGE_M_W = 224;
-export const ARENA_LEDGE_M_H = 48;
-/** Full ground strip — native 1920×64 (one Image, centered on floor). */
-export const ARENA_GROUND = require('../../../assets/maps/brawlerHeroes/ground.webp');
-export const ARENA_GROUND_W = 1920;
-export const ARENA_GROUND_H = 64;
-
 export type ArenaLedgeSize = 's' | 'm';
 
-export const ARENA_LEDGE_BY_SIZE = {
-  s: {
-    source: ARENA_LEDGE_S,
-    w: ARENA_LEDGE_S_W,
-    h: ARENA_LEDGE_S_H,
-  },
-  m: {
-    source: ARENA_LEDGE_M,
-    w: ARENA_LEDGE_M_W,
-    h: ARENA_LEDGE_M_H,
-  },
-} as const;
-/** Map backdrop panels — native 1024×1024 each (left / center / right). */
-export const ARENA_SKY_LEFT = require('../../../assets/maps/brawlerHeroes/background_left.png');
-export const ARENA_SKY_CENTER = require('../../../assets/maps/brawlerHeroes/background_1.png');
-export const ARENA_SKY_RIGHT = require('../../../assets/maps/brawlerHeroes/background_3.png');
-export const ARENA_SKY_PANELS = [
-  ARENA_SKY_LEFT,
-  ARENA_SKY_CENTER,
-  ARENA_SKY_RIGHT,
-] as const;
-export const ARENA_SKY_W = 1024;
-export const ARENA_SKY_H = 1024;
+/** Map backdrop / platform art lives in `arenaMaps.ts` (per-map packs). */
 
 export const ACTION_CIRCLE_SIZE = 66;
 

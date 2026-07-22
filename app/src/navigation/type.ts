@@ -7,6 +7,9 @@ export type BrawlerArenaHeroStats = {
   attackKnockback: number;
 };
 
+/** Concrete arena backdrop pack (see `arenaMaps.ts`). */
+export type BrawlerArenaMapId = 'mossy_cavern' | 'desert_plains';
+
 export type { MainTabParamList } from './mainTabsRoutes';
 
 import type { NavigatorScreenParams } from '@react-navigation/native';
@@ -36,6 +39,8 @@ export type RootStackParamList = {
       ranked?: boolean;
       /** Same tuning as Practice vs bot — forwarded to `BrawlerArena` on match. */
       heroStats?: BrawlerArenaHeroStats;
+      /** Resolved map for this match (lobby may pick or roll randomly). */
+      mapId?: BrawlerArenaMapId;
     };
     BrawlerArena: {
       /** Required for local/solo; may be omitted when resuming a server session from a push. */
@@ -44,6 +49,8 @@ export type RootStackParamList = {
       heroStats?: BrawlerArenaHeroStats;
       /** Present for server-tracked brawler matches (multiplayer / ranked). */
       sessionId?: string;
+      /** Arena backdrop pack; defaults to mossy_cavern when omitted. */
+      mapId?: BrawlerArenaMapId;
       soloOptions?: {
         opponentCount: number;
         difficulty: 'easy' | 'normal' | 'hard';
@@ -144,6 +151,7 @@ export type RootStackParamList = {
             venueId?: string;
             heroStats?: BrawlerArenaHeroStats;
             sessionId?: string;
+            mapId?: BrawlerArenaMapId;
             soloOptions?: {
               opponentCount: number;
               difficulty: 'easy' | 'normal' | 'hard';
