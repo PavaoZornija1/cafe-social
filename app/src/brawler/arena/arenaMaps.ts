@@ -70,9 +70,9 @@ const MOSSY_CAVERN_ASSETS: ArenaMapAssets = {
 const DESERT_PLAINS_ASSETS: ArenaMapAssets = {
   // left → center → right = panel 2 / 1 / 3
   skyPanels: [
-    require('../../../assets/maps/brawlerHeroes/desert_plains/panel_2.png'),
-    require('../../../assets/maps/brawlerHeroes/desert_plains/panel_1.png'),
-    require('../../../assets/maps/brawlerHeroes/desert_plains/panel_3.png'),
+    require('../../../assets/maps/brawlerHeroes/desert_plains/panel_2.webp'),
+    require('../../../assets/maps/brawlerHeroes/desert_plains/panel_1.webp'),
+    require('../../../assets/maps/brawlerHeroes/desert_plains/panel_3.webp'),
   ],
   skyW: SKY_W,
   skyH: SKY_H,

@@ -27,6 +27,8 @@ Current mossy cavern mapping (filenames vs on-screen slot):
 | Center | `panel_1.png` | bg1 |
 | Right | `panel_3.png` | bg3 |
 
+Desert plains uses the same slot order with `panel_*.webp`.
+
 Do **not** size panels from screen width alone. That makes the row wider than the world, hangs the left panel off-screen, and turns the visible crop into “blurry green mush”.
 
 ---
@@ -44,26 +46,28 @@ Each map is a folder under `app/assets/maps/brawlerHeroes/`:
 
 | Role | Filename | Native size |
 |------|----------|-------------|
-| Sky left | `panel_2.png` | **512×512** |
-| Sky center | `panel_1.png` | **512×512** |
-| Sky right | `panel_3.png` | **512×512** |
+| Sky left | `panel_2.webp` | **512×512** |
+| Sky center | `panel_1.webp` | **512×512** |
+| Sky right | `panel_3.webp` | **512×512** |
 | Ground strip | `ground.webp` | 1920×64 |
 | Small ledge | `ledge_s.webp` | 160×48 |
 | Medium ledge | `ledge_m.webp` | 224×48 |
 
+(`mossy_cavern` still ships `panel_*.png`; new maps should use static WebP.)
+
 ```text
 app/assets/maps/brawlerHeroes/
   mossy_cavern/
-    panel_1.png    # center
+    panel_1.png    # center (legacy PNG)
     panel_2.png    # left
     panel_3.png    # right
     ground.webp
     ledge_s.webp
     ledge_m.webp
   desert_plains/
-    panel_1.png    # center
-    panel_2.png    # left
-    panel_3.png    # right
+    panel_1.webp   # center
+    panel_2.webp   # left
+    panel_3.webp   # right
     ground.webp
     ledge_s.webp
     ledge_m.webp
@@ -83,8 +87,8 @@ PixelLab often caps generate size. Recommended pipeline:
 2. In Aseprite: **Sprite → Sprite Size**
    - Target **1024×1024** (or keep 512 if already sharp enough)
    - Method: **Nearest Neighbor** (preserves pixels)
-3. Export a **static PNG** (current frame only).
-4. Produce the game file at **512×512** nearest-neighbor → `panel_1.png` / `panel_2.png` / `panel_3.png`.
+3. Export a **static WebP** (current frame only — not animated).
+4. Produce the game file at **512×512** nearest-neighbor → `panel_1.webp` / `panel_2.webp` / `panel_3.webp`.
 
 512×512 loads reliably in React Native and still looks sharp when stretched to a world third.
 
@@ -103,7 +107,7 @@ PixelLab often caps generate size. Recommended pipeline:
 | Small ledge | 160×48 |
 | Medium ledge | 224×48 |
 
-Export as **static WebP** (or PNG). Same “no animation” rule as sky panels.
+Export as **static WebP**. Same “no animation” rule as sky panels.
 
 ---
 
@@ -111,9 +115,9 @@ Export as **static WebP** (or PNG). Same “no animation” rule as sky panels.
 
 **Do**
 
-- Static **PNG** for sky panels (preferred)
+- Static **WebP** for sky panels (single frame, no ANIM/ANMF)
 - One opaque image per panel
-- Game sky files at **512×512** named `panel_1.png`, `panel_2.png`, `panel_3.png`
+- Game sky files at **512×512** named `panel_1.webp`, `panel_2.webp`, `panel_3.webp`
 
 **Do not**
 
@@ -122,7 +126,7 @@ Export as **static WebP** (or PNG). Same “no animation” rule as sky panels.
 - Stretch one square across the entire world width in code  
   Always use **three** panels
 
-If an export looks wrong in-game, open the file in Preview/Aseprite. If frame 0 is empty, re-export the real frame as a static PNG.
+If an export looks wrong in-game, open the file in Preview/Aseprite. If frame 0 is empty, re-export the real frame as a **static** WebP.
 
 **Cache bust:** after replacing art, prefer a **new filename** (or bump suffix) and update the `require(...)`. Metro often keeps stale bitmaps otherwise.
 
@@ -138,9 +142,9 @@ If an export looks wrong in-game, open the file in Preview/Aseprite. If frame 0 
 const DESERT_PLAINS_ASSETS: ArenaMapAssets = {
   // left → center → right
   skyPanels: [
-    require('../../../assets/maps/brawlerHeroes/desert_plains/panel_2.png'),
-    require('../../../assets/maps/brawlerHeroes/desert_plains/panel_1.png'),
-    require('../../../assets/maps/brawlerHeroes/desert_plains/panel_3.png'),
+    require('../../../assets/maps/brawlerHeroes/desert_plains/panel_2.webp'),
+    require('../../../assets/maps/brawlerHeroes/desert_plains/panel_1.webp'),
+    require('../../../assets/maps/brawlerHeroes/desert_plains/panel_3.webp'),
   ],
   skyW: 512,
   skyH: 512,
@@ -183,7 +187,7 @@ Do not switch back to “one image covers the whole world” or “tile size = s
 ## 4. Checklist: adding a new map (e.g. desert plains)
 
 1. Create `app/assets/maps/brawlerHeroes/<map_id>/`
-2. Drop `panel_1.png`, `panel_2.png`, `panel_3.png` (512×512 static) plus ground/ledge webps
+2. Drop `panel_1.webp`, `panel_2.webp`, `panel_3.webp` (512×512 **static**) plus ground/ledge webps
 3. Confirm files open correctly outside the app (not animated / not blank frame 0)
 4. Point `DESERT_PLAINS_ASSETS` (or a new pack) at that folder in `arenaMaps.ts`
 5. Register id + i18n label
@@ -203,7 +207,7 @@ npx expo start -c
 |---------|--------------|-----|
 | Blurry green mush | One image stretched too wide, or panels sized from screen width so the row overhangs the world | Three panels as equal `worldW ÷ 3` strips, full `worldH` |
 | Left panel missing; center/right shifted | Row wider than world (negative `left`) | Span exactly `worldW`; no screen-width-only fit |
-| Cream / white / empty | Animated WebP or asset not in bundle | Static PNG; `npx expo start -c` |
+| Cream / white / empty | Animated WebP or asset not in bundle | Static WebP; `npx expo start -c` |
 | One side wrong | Bad export or Metro cache | Re-export; new filename + update `require` |
 | Gaps when panning | Row shorter than world | Three panels must cover full `worldW` |
 | New map looks like mossy | Requires still point at mossy | Update that map’s asset pack paths |
