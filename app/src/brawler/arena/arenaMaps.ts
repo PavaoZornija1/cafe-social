@@ -41,7 +41,6 @@ const LEDGE_S_H = 48;
 const LEDGE_M_W = 224;
 const LEDGE_M_H = 48;
 
-/** Shared mossy cavern pack (also temporary stand-in for desert_plains). */
 const MOSSY_CAVERN_ASSETS: ArenaMapAssets = {
   // left → center → right = panel 2 / 1 / 3
   skyPanels: [
@@ -68,11 +67,31 @@ const MOSSY_CAVERN_ASSETS: ArenaMapAssets = {
   },
 };
 
-/**
- * Desert plains — drop matching filenames into `desert_plains/` then point these
- * requires at that folder (same layout as mossy_cavern).
- */
-const DESERT_PLAINS_ASSETS: ArenaMapAssets = MOSSY_CAVERN_ASSETS;
+const DESERT_PLAINS_ASSETS: ArenaMapAssets = {
+  // left → center → right = panel 2 / 1 / 3
+  skyPanels: [
+    require('../../../assets/maps/brawlerHeroes/desert_plains/panel_2.png'),
+    require('../../../assets/maps/brawlerHeroes/desert_plains/panel_1.png'),
+    require('../../../assets/maps/brawlerHeroes/desert_plains/panel_3.png'),
+  ],
+  skyW: SKY_W,
+  skyH: SKY_H,
+  ground: require('../../../assets/maps/brawlerHeroes/desert_plains/ground.webp'),
+  groundW: GROUND_W,
+  groundH: GROUND_H,
+  ledgeBySize: {
+    s: {
+      source: require('../../../assets/maps/brawlerHeroes/desert_plains/ledge_s.webp'),
+      w: LEDGE_S_W,
+      h: LEDGE_S_H,
+    },
+    m: {
+      source: require('../../../assets/maps/brawlerHeroes/desert_plains/ledge_m.webp'),
+      w: LEDGE_M_W,
+      h: LEDGE_M_H,
+    },
+  },
+};
 
 export const ARENA_MAPS: Record<ArenaMapId, ArenaMapDef> = {
   mossy_cavern: {

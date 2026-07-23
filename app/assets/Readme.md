@@ -38,7 +38,7 @@ Each map is a folder under `app/assets/maps/brawlerHeroes/`:
 | Map id | Folder | Status |
 |--------|--------|--------|
 | `mossy_cavern` | `mossy_cavern/` | Live |
-| `desert_plains` | `desert_plains/` | Folder only — still reuses mossy assets in code |
+| `desert_plains` | `desert_plains/` | Live |
 
 ### Required files per map
 
@@ -61,7 +61,12 @@ app/assets/maps/brawlerHeroes/
     ledge_s.webp
     ledge_m.webp
   desert_plains/
-    …same filenames when art is ready…
+    panel_1.png    # center
+    panel_2.png    # left
+    panel_3.png    # right
+    ground.webp
+    ledge_s.webp
+    ledge_m.webp
 ```
 
 Platform ledges / ground are separate from the 3-panel sky (see `ArenaPlatformArt`).
