@@ -118,7 +118,7 @@ const FLOATING_LEDGE_SIZES: PlatformLedgeSize[] = [
 
 /**
  * Full platform list: floating ledges locked to art width + full-width ground slab.
- * Ground art is `ground.webp` (1920×64), centered on the floor hitbox.
+ * Ground art (`ground.webp`) is stretched to the floor hitbox width in `ArenaPlatformArt`.
  */
 export function buildArenaPlatforms(
   worldW: number,

@@ -25,7 +25,7 @@ export function ArenaPlatformArt({ platforms, worldW, worldH, mapAssets, styles 
   if (worldW < 2 || worldH < 2) return null;
 
   const last = platforms.length - 1;
-  const { ground, groundW, groundH, ledgeBySize } = mapAssets;
+  const { ground, groundH, ledgeBySize } = mapAssets;
 
   return (
     <>
@@ -33,17 +33,19 @@ export function ArenaPlatformArt({ platforms, worldW, worldH, mapAssets, styles 
         const isGround = i === last;
 
         if (isGround) {
+          // Stretch to the full floor hitbox (world width). Native groundW is only
+          // the source resolution — fixed 1920 left gaps when worldW > groundW.
           const artTop = p.y - GROUND_WALK_Y_FRAC * groundH;
-          const artLeft = p.x + (p.w - groundW) / 2;
+          const artW = Math.max(1, p.w);
           return (
             <View
               key={i}
               pointerEvents="none"
               style={{
                 position: 'absolute',
-                left: artLeft,
+                left: p.x,
                 top: artTop,
-                width: groundW,
+                width: artW,
                 height: groundH,
                 zIndex: 2,
               }}
@@ -54,7 +56,7 @@ export function ArenaPlatformArt({ platforms, worldW, worldH, mapAssets, styles 
                 fadeDuration={0}
                 resizeMode="stretch"
                 style={{
-                  width: groundW,
+                  width: artW,
                   height: groundH,
                 }}
               />
