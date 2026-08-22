@@ -1,6 +1,18 @@
-# Cafe Social API on Oracle Always Free VM (Ampere ARM).
+# Cafe Social API on a single VPS (Hetzner / Oracle / similar).
 # Usage: cp .env.example .env && docker compose up -d --build
 services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   api:
     build:
       context: ../../backend
@@ -10,6 +22,10 @@ services:
       HOST: 0.0.0.0
       PORT: "8080"
       NODE_ENV: production
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     expose:
       - "8080"

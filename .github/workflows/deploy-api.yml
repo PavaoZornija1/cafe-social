@@ -1,0 +1,37 @@
+name: Deploy API (Hetzner)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "deploy/oracle/**"
+      - ".github/workflows/deploy-api.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-api-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy Nest API to Hetzner
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          script_stop: true
+          command_timeout: 20m
+          script: |
+            set -euo pipefail
+            cd /opt/cafe-social
+            git fetch --depth 1 origin main
+            git checkout -B main origin/main
+            cd deploy/oracle
+            test -f .env
+            docker compose up -d --build
+            curl -fsS https://api.cafe-social.com/api/health
