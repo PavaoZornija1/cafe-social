@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 git fetch --depth 1 origin main
-git checkout -B main origin/main
+git reset --hard origin/main
 cd deploy/oracle
 test -f .env
 docker compose up -d --build
