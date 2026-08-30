@@ -23,7 +23,7 @@ import {
   BRAWLER_COMBAT_ENDED_EVENT,
   type BrawlerCombatSocketPayload,
 } from './brawler-combat.events';
-import { BrawlerService } from './brawler.service';
+import type { BrawlerService } from './brawler.service';
 
 const MAX_INPUTS_PER_SEC = 40;
 
@@ -39,7 +39,7 @@ export class BrawlerCombatSimService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly combat: BrawlerCombatRedisService,
     private readonly events: EventEmitter2,
-    @Inject(forwardRef(() => BrawlerService))
+    @Inject(forwardRef(() => require('./brawler.service').BrawlerService))
     private readonly brawler: BrawlerService,
   ) {}
 

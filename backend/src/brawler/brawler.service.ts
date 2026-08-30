@@ -37,7 +37,7 @@ import type { EnqueueBrawlerMatchQueueDto } from './dto/enqueue-brawler-match-qu
 import { BrawlerLiveRedisService } from './brawler-live-redis.service';
 import { BrawlerArenaRedisService } from './brawler-arena-redis.service';
 import { BrawlerCombatRedisService } from './brawler-combat-redis.service';
-import { BrawlerCombatSimService } from './brawler-combat-sim.service';
+import type { BrawlerCombatSimService } from './brawler-combat-sim.service';
 import {
   arenaSpawnsForClient,
   maybeSpawnArenaPowerup,
@@ -92,7 +92,7 @@ export class BrawlerService {
     private readonly brawlerLive: BrawlerLiveRedisService,
     private readonly brawlerArena: BrawlerArenaRedisService,
     private readonly brawlerCombat: BrawlerCombatRedisService,
-    @Inject(forwardRef(() => BrawlerCombatSimService))
+    @Inject(forwardRef(() => require('./brawler-combat-sim.service').BrawlerCombatSimService))
     private readonly brawlerCombatSim: BrawlerCombatSimService,
     private readonly subscriptions: SubscriptionRepository,
     private readonly events: EventEmitter2,
