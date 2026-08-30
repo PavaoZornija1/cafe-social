@@ -1,0 +1,242 @@
+{
+  "meta": {
+    "title": "Cafe Social — Social gaming at partner cafés",
+    "description": "Loyalty, friends, and venue-locked games at partner cafés. Check in on site, earn perks, and play Word or Brawler — or from home with a subscription."
+  },
+  "nav": {
+    "games": "Games",
+    "howItWorks": "How it works",
+    "forCafes": "For cafés",
+    "faq": "FAQ",
+    "getApp": "Get the app",
+    "partners": "Partner with us",
+    "menu": "Menu",
+    "close": "Close"
+  },
+  "hero": {
+    "eyebrow": "Location-aware social gaming",
+    "title": "Play where you belong.",
+    "subtitle": "Loyalty and social play at partner cafés — games when you're there, or at home with a subscription.",
+    "ctaApp": "Get the app",
+    "ctaPartners": "For café partners",
+    "scroll": "Scroll",
+    "phoneVenue": "You're at a partner café",
+    "phoneXp": "2× venue XP active",
+    "phoneGameWord": "Word rooms",
+    "phoneGameBrawler": "Brawler arena"
+  },
+  "partnerStage": {
+    "eyebrow": "Partner cafés",
+    "title": "Where Cafe Social comes alive",
+    "subtitle": "Games, challenges, and perks are tied to real venues — not a generic feed. We're growing the partner network; pilot venues lead the way.",
+    "pilotLabel": "Pilot venue",
+    "openLabel": "Spot open",
+    "cta": "Become a partner"
+  },
+  "productStory": {
+    "eyebrow": "How it works",
+    "title": "This is Cafe Social",
+    "steps": {
+      "checkIn": {
+        "number": "1",
+        "title": "Check in on site",
+        "body": "We detect partner venues with geofencing. Scan a QR or enter a venue code while you're there — that unlocks games and venue challenges for your visit."
+      },
+      "games": {
+        "number": "2",
+        "title": "Word rooms & Brawler",
+        "body": "Short word clue games — solo or with friends in a room. Or jump into Brawler: 1v1 arena battles with heroes and power-ups, tied to the café you're at."
+      },
+      "loyalty": {
+        "number": "3",
+        "title": "Perks, XP & friends",
+        "body": "Earn venue XP, climb tiers, unlock staff-redeemable perks. Add friends, see who's here, and stay in the loop with venue activity."
+      },
+      "subscription": {
+        "number": "4",
+        "title": "Play from home too",
+        "body": "Away from cafés you still get loyalty and social features. A subscription lets you play Word and Brawler globally — no visit required."
+      }
+    }
+  },
+  "games": {
+    "eyebrow": "The games",
+    "title": "Two ways to play",
+    "subtitle": "Hover a card to flip between the vibe and the game mode — just like meeting the heroes before the match.",
+    "word": {
+      "name": "Word rooms",
+      "tagline": "Clues, rounds, and café bragging rights",
+      "description": "Multi-round clue games: solo practice or create/join a room with a code. Co-op or versus — perfect for the table while you wait.",
+      "backTitle": "Word rooms",
+      "backBody": "Not the daily puzzle — this is the full lobby experience with friends at your venue."
+    },
+    "brawler": {
+      "name": "Brawler",
+      "tagline": "Short arena battles",
+      "description": "Pick a hero, queue for casual or ranked 1v1, or practice solo. Arena matches are tied to partner cafés — or global with a subscription.",
+      "backTitle": "Brawler arena",
+      "backBody": "Heroes, power-ups, and quick rounds built for mobile play between sips."
+    },
+    "heroesTitle": "Meet the fighters",
+    "heroesSubtitle": "A sample of Brawler heroes you'll unlock in the app."
+  },
+  "values": {
+    "eyebrow": "Why Cafe Social",
+    "title": "More than a game on your phone",
+    "items": {
+      "table": {
+        "number": "01",
+        "title": "Built for the table",
+        "body": "Short sessions while you wait or hang out — not an endless grind away from the people you're with."
+      },
+      "venue": {
+        "number": "02",
+        "title": "Rewards tied to the venue",
+        "body": "Perks and challenges belong to the café you're in. Staff redeem codes — clear rules, no lost punch cards."
+      },
+      "social": {
+        "number": "03",
+        "title": "Friends at the café",
+        "body": "See who's here, invite a party, climb venue leaderboards. Social play that stays grounded in real places."
+      },
+      "partners": {
+        "number": "04",
+        "title": "Good for guests and cafés",
+        "body": "Repeat visits, longer dwell, measurable engagement — without aggressive ads plastered on every screen."
+      }
+    }
+  },
+  "visitSteps": {
+    "eyebrow": "A visit in four beats",
+    "title": "What an afternoon looks like",
+    "subtitle": "No scripts — just a realistic flow at a partner café.",
+    "steps": {
+      "arrive": {
+        "title": "Walk in & check in",
+        "body": "Location on, QR scanned. Games and venue challenges unlock for this visit."
+      },
+      "play": {
+        "title": "Play a round",
+        "body": "Word room with a friend or a quick Brawler match while your order arrives."
+      },
+      "earn": {
+        "title": "Earn & redeem",
+        "body": "Complete a challenge, collect a perk code, show it to staff at the till."
+      },
+      "return": {
+        "title": "Come back next week",
+        "body": "Daily word, new challenges, and friends who remember your username."
+      }
+    }
+  },
+  "partnerCta": {
+    "eyebrow": "For café owners",
+    "title": "Turn dwell time into loyalty",
+    "body": "Cafe Social gives partner venues a digital layer: geofenced play, staff-redeemable perks, and analytics — without asking guests to install five different apps.",
+    "benefits": {
+      "visits": "Encourage repeat visits with challenges and daily rituals",
+      "brand": "Keep the experience tied to your name and space",
+      "staff": "Simple staff redemption — codes and QR, not paper cards",
+      "pilot": "Start with a short pilot and clear success metrics"
+    },
+    "ctaPage": "Partner program",
+    "ctaEmail": "Get in touch"
+  },
+  "faq": {
+    "eyebrow": "FAQ",
+    "title": "Common questions",
+    "items": {
+      "what": {
+        "q": "What is Cafe Social?",
+        "a": "Cafe Social is a mobile app that connects guests and partner cafés through location-aware games, loyalty, and social features. When you're at a partner venue, you can check in, play Word or Brawler, earn XP, and redeem perks — all tied to that café."
+      },
+      "free": {
+        "q": "Is it free?",
+        "a": "Yes. You can download the app, create an account, and use loyalty and social features for free. Games unlock when you visit a partner café. An optional subscription lets you play from home without a visit."
+      },
+      "unlock": {
+        "q": "How do games unlock?",
+        "a": "Games need a venue check-in: scan the café's QR or enter a code while you're on site, with location enabled so we can confirm you're there. Away from partner venues, games stay locked unless you have a subscription."
+      },
+      "partner": {
+        "q": "What is a partner café?",
+        "a": "A partner café is a physical venue enrolled in Cafe Social. It has a geofence, staff tools for perk redemption, and optional challenges and offers you configure with us."
+      },
+      "subscription": {
+        "q": "What does the subscription include?",
+        "a": "A subscription (Cafe Social Pro) lets you play Word and Brawler globally — not only when you're checked in at a venue. Loyalty and venue-specific perks still require visits."
+      },
+      "stores": {
+        "q": "Where can I download the app?",
+        "a": "Cafe Social is coming soon to the App Store and Google Play. Join our partner pilot or check back here for store links when we launch."
+      }
+    }
+  },
+  "download": {
+    "eyebrow": "Get started",
+    "title": "Ready to play?",
+    "subtitle": "Download Cafe Social and find a partner café near you — or partner with us to bring it to your venue.",
+    "appStore": "App Store",
+    "playStore": "Google Play",
+    "comingSoon": "Coming soon",
+    "partnerLink": "Café partners"
+  },
+  "footer": {
+    "tagline": "Location-aware social gaming for partner cafés.",
+    "navTitle": "Explore",
+    "legalTitle": "Legal",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "partners": "Partner program",
+    "copyright": "© {year} Cafe Social. Made with care for cafés and the people in them."
+  },
+  "partnersPage": {
+    "metaTitle": "Partner with Cafe Social",
+    "metaDescription": "Bring location-aware games, loyalty, and perks to your café. Pilot program, staff tools, and measurable engagement.",
+    "heroTitle": "Partner with Cafe Social",
+    "heroSubtitle": "A mobile layer that connects your guests to your brand — games at the table, perks staff can redeem, and reasons to come back.",
+    "whatTitle": "What we offer venues",
+    "whatItems": {
+      "context": "Venue context — content and play when guests are physically at your location",
+      "games": "Short word games and Brawler — ideal for waiting or social tables",
+      "challenges": "Daily word and challenges you define together",
+      "perks": "Perks staff confirm with a code — measurable and simple",
+      "social": "Friends, leaderboards, and venue activity — on your terms",
+      "analytics": "Pilot metrics: activations, redemptions, weekly engagement"
+    },
+    "benefitsGuestTitle": "Benefits for your guests",
+    "benefitsGuest": {
+      "fun": "Quick fun while they wait or socialize",
+      "belonging": "Activities tied to your café, not generic entertainment",
+      "rewards": "Clear rewards you control — what, when, and how to redeem"
+    },
+    "benefitsVenueTitle": "Benefits for your café",
+    "benefitsVenue": {
+      "repeat": "Repeat visits driven by daily rituals and challenges",
+      "brand": "Digital engagement under your brand and roof",
+      "measure": "Simple metrics during the pilot",
+      "differentiate": "Stand out where everyone looks the same"
+    },
+    "pilotTitle": "Suggested next steps",
+    "pilotSteps": {
+      "interest": "Confirm interest in a short pilot (2–4 weeks)",
+      "offer": "Agree on a simple first perk or challenge staff can handle",
+      "launch": "QR material, setup, and brief staff training",
+      "review": "Review results and decide on ongoing partnership"
+    },
+    "contactTitle": "Let's talk",
+    "contactBody": "Tell us about your café and we'll reach out about a pilot.",
+    "contactCta": "Email us",
+    "backHome": "Back to home"
+  },
+  "legal": {
+    "privacyTitle": "Privacy Policy",
+    "privacyBody": "Cafe Social respects your privacy. This page will be updated with our full privacy policy before public launch. For questions, contact {email}.",
+    "termsTitle": "Terms of Service",
+    "termsBody": "These terms govern use of Cafe Social. Full terms will be published before store launch. For questions, contact {email}.",
+    "backHome": "Back to home"
+  },
+  "language": {
+    "label": "Language"
+  }
+}
