@@ -14,7 +14,7 @@
     "ios:sim": "expo run:ios",
     "web": "expo start --web",
     "lint": "eslint . --ext .ts,.tsx",
-    "test": "node --experimental-strip-types --test src/lib/__tests__/staffRewardPolicy.test.ts src/lib/__tests__/uiFeedbackPolicy.test.ts src/lib/__tests__/revenuecatPaywallPolicy.test.ts src/brawler/arena/__tests__/brawlerPvpHold.test.ts src/brawler/arena/__tests__/combatRealtime.test.ts src/brawler/arena/__tests__/arenaHudBumpPolicy.test.ts src/brawler/arena/__tests__/powerupCoords.test.ts src/brawler/arena/__tests__/powerupPickupRollback.test.ts",
+    "test": "node --experimental-strip-types --test src/lib/__tests__/staffRewardPolicy.test.ts src/lib/__tests__/uiFeedbackPolicy.test.ts src/lib/__tests__/revenuecatPaywallPolicy.test.ts src/brawler/arena/__tests__/brawlerPvpHold.test.ts src/brawler/arena/__tests__/combatRealtime.test.ts src/brawler/arena/__tests__/remoteFighters.test.ts src/brawler/arena/__tests__/arenaHudBumpPolicy.test.ts src/brawler/arena/__tests__/powerupCoords.test.ts src/brawler/arena/__tests__/powerupPickupRollback.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {

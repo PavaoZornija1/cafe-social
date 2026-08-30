@@ -44,6 +44,7 @@ import {
   announceForPhase,
   countAliveArenaParticipants,
   DEATH_DUEL_ANNOUNCE,
+  fightersLeftAnnounce,
   type ArenaAnnounce,
 } from '../brawler/arena/arenaAnnounces';
 import {
@@ -54,9 +55,6 @@ import { buildHeroStatRows } from '../brawler/arena/heroStatHighlights';
 import { heroFollowCamera } from '../brawler/arena/spectateView';
 import { ArenaDevPanel } from '../brawler/arena/components/ArenaDevPanel';
 import { ArenaHud } from '../brawler/arena/components/ArenaHud';
-import {
-  ArenaVenuePvpHoldOverlay,
-} from '../brawler/arena/components/ArenaOverlays';
 import { ArenaWorldView } from '../brawler/arena/components/ArenaWorldView';
 import type { ArenaWorldPaintHandle } from '../brawler/arena/arenaWorldPaint';
 import {
@@ -87,6 +85,12 @@ import {
   reconcileCombatSnapshot,
   type BrawlerCombatSocketPayload,
 } from '../brawler/arena/combatRealtime';
+import {
+  RemoteFighterInterpolator,
+  fighterPixelsToSnapshots,
+  reconcileLocalPosition,
+  type RemoteFighterRender,
+} from '../brawler/arena/remoteFighters';
 import { shouldHoldTwoHumanPvp, resolveLocalFinalizeWinner } from '../brawler/arena/brawlerPvpHold';
 import { apiGet, apiPost } from '../lib/api';
 import { triggerFeedback } from '../lib/feedback';
@@ -260,6 +264,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const heroHpRef = useRef(heroCombat.baseHp);
   const heroIFramesLeftRef = useRef(0);
   const [heroDeadOpen, setHeroDeadOpen] = useState(false);
+  const [localForfeited, setLocalForfeited] = useState(false);
   const [deathChoiceOpen, setDeathChoiceOpen] = useState(false);
   const isSpectatingRef = useRef(false);
   const spectateCamXRef = useRef(0);
@@ -272,6 +277,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const combatWinnerRef = useRef<string | null>(null);
   const combatEndedRef = useRef(false);
   const combatInputSeqRef = useRef(0);
+  const remoteFighterInterpolatorRef = useRef(new RemoteFighterInterpolator());
+  const lastRemotePaintBumpMsRef = useRef(0);
+  const remoteFightersRef = useRef<RemoteFighterRender[]>([]);
+  const heroIdByParticipantRef = useRef<Map<string, string | null>>(new Map());
 
   const enemiesRef = useRef<Enemy[]>([]);
 
@@ -354,6 +363,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
   const [gameOverOpen, setGameOverOpen] = useState(false);
   const lastAnnouncedPhaseKeyRef = useRef<MatchPhaseKey | null>(null);
   const deathDuelAnnouncedRef = useRef(false);
+  const lastFightersAliveAnnouncedRef = useRef<number | null>(null);
   const eliminatedParticipantIdsRef = useRef<Set<string>>(new Set());
   const [arenaAnnounce, setArenaAnnounce] = useState<ArenaAnnounce | null>(null);
 
@@ -379,6 +389,15 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     );
     const camXNow = spectating ? spectateCamXRef.current : follow.x;
     const camYNow = spectating ? spectateCamYRef.current : follow.y;
+    if (sessionIdLiveRef.current) {
+      remoteFightersRef.current =
+        remoteFighterInterpolatorRef.current.render(Date.now());
+      const now = Date.now();
+      if (now - lastRemotePaintBumpMsRef.current >= 33) {
+        lastRemotePaintBumpMsRef.current = now;
+        bump();
+      }
+    }
     const attacking = spriteAnimRef.current === 'hit';
     const hitFine =
       attacking
@@ -526,6 +545,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         worldW: worldWLiveRef.current || worldW || 1,
         worldH: worldHLiveRef.current || worldH || 1,
         bodyH,
+        heroIdByParticipant: heroIdByParticipantRef.current,
       });
 
       if (reconciled.localHp != null) {
@@ -537,22 +557,51 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       if (reconciled.localDeaths != null) {
         playerDeathsRef.current = reconciled.localDeaths;
       }
+      if (reconciled.localForfeited) {
+        setLocalForfeited(true);
+      }
       if (reconciled.localAlive === false && !isSpectatingRef.current) {
         setHeroDeadOpen(true);
       }
 
-      // Soft sync bot HP from authority.
-      const botPixels = reconciled.fighterPixels.filter((f) => f.isBot);
-      if (botPixels.length > 0 && enemiesRef.current.length > 0) {
-        enemiesRef.current = enemiesRef.current.map((enemy, idx) => {
-          const bot = botPixels[idx] ?? botPixels[0];
-          if (!bot) return enemy;
-          return {
-            ...enemy,
-            hp: bot.hp,
-            respawnLeft: bot.alive ? 0 : Math.max(enemy.respawnLeft, 0.01),
-          };
+      if (
+        reconciled.localX != null &&
+        reconciled.localY != null &&
+        sessionIdLiveRef.current
+      ) {
+        const fixed = reconcileLocalPosition({
+          localX: playerX.current,
+          localY: playerY.current,
+          serverX: reconciled.localX,
+          serverY: reconciled.localY,
         });
+        playerX.current = fixed.x;
+        playerY.current = fixed.y;
+        prevPlayerY.current = fixed.y;
+      }
+
+      const snapshots = fighterPixelsToSnapshots(
+        reconciled.fighterPixels,
+        heroIdByParticipantRef.current,
+        localParticipantIdRef.current,
+      );
+      remoteFighterInterpolatorRef.current.ingest(snapshots, Date.now());
+      remoteFightersRef.current =
+        remoteFighterInterpolatorRef.current.render(Date.now());
+
+      const participantCount = participantsRef.current.length;
+      if (participantCount > 2 && payload.state.fighters.length > 0) {
+        const aliveNow = payload.state.fighters.filter((f) => f.alive).length;
+        const prevAlive = lastFightersAliveAnnouncedRef.current;
+        if (
+          prevAlive != null &&
+          aliveNow < prevAlive &&
+          aliveNow >= 1 &&
+          aliveNow < participantCount
+        ) {
+          setArenaAnnounce(fightersLeftAnnounce(aliveNow));
+        }
+        lastFightersAliveAnnouncedRef.current = aliveNow;
       }
 
       if (reconciled.ended) {
@@ -563,7 +612,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       }
       bump();
     },
-    [bump],
+    [bump, bodyH, worldH, worldW],
   );
 
   const { emitCombatInput } = useBrawlerSocket({
@@ -585,6 +634,8 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         seq: combatInputSeqRef.current,
         moveX: joyRef.current.x,
         moveY: joyRef.current.y,
+        jump: jumpQueued.current,
+        dash: dashQueued.current,
         fire: hitQueued.current || attackTimeLeft.current > 0,
       });
     }, 50);
@@ -643,7 +694,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         if (!token) throw new Error('Not authenticated');
         const session = await apiGet<{
           snapshotRev?: number | null;
-          participants: TrackedParticipant[];
+          participants: Array<
+            TrackedParticipant & { brawlerHeroId?: string | null }
+          >;
           brawlerSession: {
             chaosDurationMs: number;
             endgameDurationMs: number;
@@ -661,6 +714,11 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         }
         const parts = session.participants ?? [];
         participantsRef.current = parts;
+        heroIdByParticipantRef.current = new Map(
+          parts.map((p) => [p.id, p.brawlerHeroId ?? null]),
+        );
+        remoteFighterInterpolatorRef.current.clear();
+        remoteFightersRef.current = [];
         powerupDefsRef.current = session.config?.brawler?.powerups ?? [];
         const mePid = mePlayerIdRef.current;
         const localPart =
@@ -668,6 +726,11 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
             ? parts.find((p) => p.playerId === mePid && !p.isBot)
             : parts.find((p) => !p.isBot);
         localParticipantIdRef.current = localPart?.id ?? null;
+        if (localPart?.leftAt) {
+          setLocalForfeited(true);
+          setHeroDeadOpen(true);
+          isSpectatingRef.current = true;
+        }
         // Authoritative combat is live — 2-human matches play normally (no hold overlay).
         const hold = shouldHoldTwoHumanPvp(parts);
         venueTwoHumanHoldRef.current = hold;
@@ -870,6 +933,11 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       navigation.replace('BrawlerLobby', { venueId: route.params.venueId });
       return;
     }
+    const humanCount = participantsRef.current.filter((p) => !p.isBot).length;
+    if (humanCount >= 2) {
+      navigation.replace('BrawlerLobby', { venueId: route.params.venueId });
+      return;
+    }
     void (async () => {
       await finalizeBrawlerSession({ showResults: false });
       navigation.replace('BrawlerLobby', { venueId: route.params.venueId });
@@ -953,10 +1021,10 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     playerY.current = spawn.y;
     prevPlayerY.current = spawn.y;
 
-    if (devDummiesEnabled) spawnDummiesRandomOnPlatforms(devDummyCount, spawn);
+    if (devDummiesEnabled && !sessionId) spawnDummiesRandomOnPlatforms(devDummyCount, spawn);
     else dummiesRef.current = [];
 
-    if (devEnemiesEnabled) syncEnemyCount(devEnemyCount);
+    if (devEnemiesEnabled && !sessionId) syncEnemyCount(devEnemyCount);
     else enemiesRef.current = [];
 
     heroHpRef.current = heroCombat.baseHp;
@@ -981,6 +1049,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     devDummyCount,
     devEnemiesEnabled,
     devEnemyCount,
+    sessionId,
   ]);
 
   useEffect(() => {
@@ -1052,7 +1121,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
       eliminatedParticipantIds: eliminatedParticipantIdsRef.current,
     });
 
-    if (participantsRef.current.length < 2 || alive !== 2) return;
+    if (participantsRef.current.length !== 2 || alive !== 2) return;
 
     deathDuelAnnouncedRef.current = true;
     setArenaAnnounce(DEATH_DUEL_ANNOUNCE);
@@ -1333,6 +1402,28 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     [t],
   );
 
+  const forfeitSessionAndLeave = useCallback(async () => {
+    if (!sessionId) {
+      navigation.goBack();
+      return;
+    }
+    try {
+      const token = await getTokenRef.current();
+      if (token) {
+        await apiPost(
+          `/brawler/sessions/${encodeURIComponent(sessionId)}/forfeit`,
+          typeof brawlerSnapshotRevRef.current === 'number'
+            ? { ifSnapshotRev: brawlerSnapshotRevRef.current }
+            : {},
+          token,
+        );
+      }
+    } catch {
+      /* best-effort forfeit before leave */
+    }
+    navigation.replace('BrawlerLobby', { venueId: route.params.venueId });
+  }, [navigation, route.params.venueId, sessionId]);
+
   const abandonVenueTwoHumanAndLeave = useCallback(async () => {
     if (!sessionId) return;
     try {
@@ -1374,11 +1465,26 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
         {
           text: t('brawlerArena.leave'),
           style: 'destructive',
-          onPress: () => navigation.goBack(),
+          onPress: () => {
+            if (sessionId) {
+              void forfeitSessionAndLeave();
+            } else {
+              navigation.goBack();
+            }
+          },
         },
       ],
     );
-  }, [abandonVenueTwoHumanAndLeave, gameOverOpen, handleLeaveToLobbyAfterDeath, heroDeadOpen, navigation, t]);
+  }, [
+    abandonVenueTwoHumanAndLeave,
+    forfeitSessionAndLeave,
+    gameOverOpen,
+    handleLeaveToLobbyAfterDeath,
+    heroDeadOpen,
+    navigation,
+    sessionId,
+    t,
+  ]);
 
   const dummies = dummiesRef.current;
   const debugHitW = ATTACK_HIT_W;
@@ -1421,6 +1527,12 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
     !showPreMatchOverlay &&
     !venueTwoHumanHold &&
     (controlsLive || isSpectating);
+
+  const fightersAliveHud =
+    sessionId && arenaReadyHud
+      ? remoteFightersRef.current.filter((f) => f.alive).length +
+        (heroHpRef.current > 0 ? 1 : 0)
+      : undefined;
 
   return (
     <View style={styles.root}>
@@ -1475,8 +1587,9 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           heroHp={heroHpRef.current}
           heroHpMax={heroCombat.baseHp}
           heroIFramesLeft={heroIFramesLeftRef.current}
-          enemies={enemiesRef.current}
-          dummies={dummies}
+          enemies={sessionId ? [] : enemiesRef.current}
+          remoteFighters={sessionId ? remoteFightersRef.current : []}
+          dummies={sessionId ? [] : dummies}
           dmgFloats={dmgFloats}
           devShowAttackHitbox={devShowAttackHitbox}
           attackingNow={attackingNow}
@@ -1508,8 +1621,16 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
           gameOverReplayLabel={t('brawlerMatch.gameOverReplay')}
           gameOverExitLabel={t('brawlerMatch.gameOverExit')}
           showHeroDeadOverlay={deathChoiceOpen && !postGameActive && !gameOverOpen}
-          heroDeadTitle={t('brawlerMatch.heroDeadTitle')}
-          heroDeadBody={t('brawlerMatch.heroDeadBody')}
+          heroDeadTitle={
+            localForfeited
+              ? t('brawlerArena.forfeitTitle')
+              : t('brawlerMatch.heroDeadTitle')
+          }
+          heroDeadBody={
+            localForfeited
+              ? t('brawlerArena.forfeitBody')
+              : t('brawlerMatch.heroDeadBody')
+          }
           heroDeadLeaveLabel={t('brawlerMatch.heroDeadLeave')}
           heroDeadSpectateLabel={t('brawlerMatch.heroDeadSpectate')}
           onLeaveToLobbyAfterDeath={handleLeaveToLobbyAfterDeath}
@@ -1534,6 +1655,7 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
             showKdHud={showKdHud}
             kills={playerKillsRef.current}
             deaths={playerDeathsRef.current}
+            fightersAlive={fightersAliveHud}
             showHudMatchClock={showHudMatchClock}
             phaseLabel={phaseShown}
             matchClockSeconds={matchRemainingShown}
@@ -1616,18 +1738,6 @@ export default function BrawlerArenaScreen({ navigation, route }: Props) {
             bump();
           }}
           onHitboxDebugPress={() => setDevShowAttackHitbox((v) => !v)}
-        />
-      ) : null}
-
-      {venueTwoHumanHold ? (
-        <ArenaVenuePvpHoldOverlay
-          styles={styles}
-          title={t('brawlerMatch.pvpPlaceholderTitle')}
-          body={t('brawlerMatch.pvpPlaceholderBody')}
-          buttonLabel={t('brawlerMatch.backToLobby')}
-          onLeave={() => {
-            void abandonVenueTwoHumanAndLeave();
-          }}
         />
       ) : null}
 

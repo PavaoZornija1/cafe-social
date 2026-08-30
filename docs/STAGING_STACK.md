@@ -105,6 +105,7 @@ Compose: Caddy + Nest + Redis. Template: [`deploy/oracle/.env.example`](../deplo
 | `DIRECT_DATABASE_URL` | Supabase session pooler **5432** |
 | `REDIS_URL` | `redis://redis:6379` (set by compose) |
 | `GAME_RUNTIME_REQUIRE_REDIS` | `1` |
+| `BRAWLER_FORFEIT_IDLE_MS` | `30000` (optional; input-idle auto-forfeit grace) |
 | `CLERK_SECRET_KEY` | Clerk secret |
 | `CLERK_AUTHORIZED_PARTIES` | portal + API + localhost origins |
 | `ADMIN_PORTAL_ORIGIN` | `https://partner.cafe-social.com` |

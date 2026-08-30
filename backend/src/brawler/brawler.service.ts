@@ -2,17 +2,20 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
   BrawlerMatchQueueStatus,
   GameSessionStatus,
   GameType,
   type GameEventType,
-  type GameParticipantResult,
+  GameParticipantResult,
   type Prisma,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -26,6 +29,7 @@ import {
   CreateBrawlerSessionDto,
   type CreateBrawlerParticipantDto,
 } from './dto/create-brawler-session.dto';
+import { CreatePartyBrawlerSessionDto } from './dto/create-party-brawler-session.dto';
 import { RecordBrawlerEventsDto } from './dto/record-brawler-events.dto';
 import { FinalizeBrawlerSessionDto } from './dto/finalize-brawler-session.dto';
 import { PickBrawlerPowerupDto } from './dto/pick-brawler-powerup.dto';
@@ -39,12 +43,21 @@ import {
   maybeSpawnArenaPowerup,
 } from './brawler-arena.util';
 import type { BrawlerPowerupConfigRow } from './brawler-arena.types';
-import type { BrawlerCombatFighterV1 } from './brawler-combat.types';
+import type {
+  BrawlerCombatFighterV1,
+  BrawlerCombatLiveStateV1,
+} from './brawler-combat.types';
+import { secondsToTicks } from './brawler-combat.types';
 import type { BrawlerCombatInputV1 } from './brawler-combat-step';
+import { combatWorldFromRef, DEFAULT_BRAWLER_FORFEIT_IDLE_MS } from './brawler-combat.constants';
+import { applyForfeitsToState } from './brawler-combat-forfeit.util';
+import { spawnFightersOnBottomPlatform } from './brawler-arena-platforms.util';
 import { buildFinalizeFromCombat } from './brawler-combat-finalize';
 import {
   BRAWLER_COMBAT_ENDED_EVENT,
+  BRAWLER_COMBAT_EVENT,
   type BrawlerCombatEndedPayload,
+  type BrawlerCombatSocketPayload,
 } from './brawler-combat.events';
 import {
   BRAWLER_ARENA_EVENT,
@@ -79,44 +92,112 @@ export class BrawlerService {
     private readonly brawlerLive: BrawlerLiveRedisService,
     private readonly brawlerArena: BrawlerArenaRedisService,
     private readonly brawlerCombat: BrawlerCombatRedisService,
+    @Inject(forwardRef(() => BrawlerCombatSimService))
     private readonly brawlerCombatSim: BrawlerCombatSimService,
     private readonly subscriptions: SubscriptionRepository,
     private readonly events: EventEmitter2,
     private readonly pushNotifications: PushService,
+    private readonly config: ConfigService,
   ) {}
+
+  forfeitIdleMs(): number {
+    const raw = this.config.get<string>('BRAWLER_FORFEIT_IDLE_MS');
+    const n = raw != null ? Number(raw) : DEFAULT_BRAWLER_FORFEIT_IDLE_MS;
+    return Number.isFinite(n) && n > 0 ? n : DEFAULT_BRAWLER_FORFEIT_IDLE_MS;
+  }
+
+  private emitCombat(state: BrawlerCombatLiveStateV1): void {
+    const payload: BrawlerCombatSocketPayload = {
+      sessionId: state.sessionId,
+      type: 'snapshot',
+      state,
+    };
+    this.events.emit(BRAWLER_COMBAT_EVENT, payload);
+    if (state.status === 'ENDED') {
+      this.events.emit(BRAWLER_COMBAT_ENDED_EVENT, {
+        sessionId: state.sessionId,
+        state,
+      } satisfies BrawlerCombatEndedPayload);
+    }
+  }
 
   private emitArena(payload: BrawlerArenaSocketPayload) {
     this.events.emit(BRAWLER_ARENA_EVENT, payload);
   }
 
-  private fighterMaxHp(heroSnapshot: unknown): number {
-    const snap = heroSnapshot as { baseHp?: number } | null;
-    if (typeof snap?.baseHp === 'number' && Number.isFinite(snap.baseHp) && snap.baseHp > 0) {
-      return Math.floor(snap.baseHp);
-    }
-    return 100;
+  private heroSnapshotFields(heroSnapshot: unknown): {
+    maxHp: number;
+    moveSpeedMul: number;
+    attackDamage: number;
+    dashCooldownS: number;
+  } {
+    const snap = heroSnapshot as {
+      baseHp?: number;
+      moveSpeed?: number;
+      attackDamage?: number;
+      dashCooldownMs?: number;
+    } | null;
+    const maxHp =
+      typeof snap?.baseHp === 'number' &&
+      Number.isFinite(snap.baseHp) &&
+      snap.baseHp > 0
+        ? Math.floor(snap.baseHp)
+        : 100;
+    const moveSpeedMul =
+      typeof snap?.moveSpeed === 'number' && snap.moveSpeed > 0
+        ? snap.moveSpeed
+        : 1;
+    const attackDamage =
+      typeof snap?.attackDamage === 'number' && snap.attackDamage > 0
+        ? Math.round(snap.attackDamage)
+        : 14;
+    const dashCooldownS =
+      typeof snap?.dashCooldownMs === 'number' && snap.dashCooldownMs > 0
+        ? snap.dashCooldownMs / 1000
+        : 2.2;
+    return { maxHp, moveSpeedMul, attackDamage, dashCooldownS };
   }
 
   private buildCombatFighters(
     participants: BrawlerSessionView['participants'],
+    world: { w: number; h: number },
   ): BrawlerCombatFighterV1[] {
     const active = participants.filter((p) => !p.leftAt);
+    const spawns = spawnFightersOnBottomPlatform(
+      active.length,
+      world.w,
+      world.h,
+    );
     return active.map((p, i) => {
-      const maxHp = this.fighterMaxHp(p.heroSnapshot);
+      const stats = this.heroSnapshotFields(p.heroSnapshot);
+      const spawn = spawns[i] ?? spawns[0]!;
+      const dashCooldownTicks = secondsToTicks(stats.dashCooldownS);
       return {
         participantId: p.id,
         playerId: p.playerId,
         isBot: p.isBot,
-        x: (i + 1) / (active.length + 1),
-        y: 0.82,
+        brawlerHeroId: p.brawlerHeroId ?? null,
+        x: spawn.x,
+        y: spawn.y,
+        prevY: spawn.y,
         vx: 0,
         vy: 0,
         facing: i % 2 === 0 ? 1 : -1,
-        hp: maxHp,
-        maxHp,
+        hp: stats.maxHp,
+        maxHp: stats.maxHp,
         alive: true,
         kills: 0,
         deaths: 0,
+        onGround: true,
+        airJumpsLeft: 1,
+        iFramesLeftTicks: 0,
+        meleeReadyTick: 0,
+        dashTimeLeftTicks: 0,
+        dashCooldownLeftTicks: 0,
+        attackTimeLeftTicks: 0,
+        moveSpeedMul: stats.moveSpeedMul,
+        attackDamage: stats.attackDamage,
+        dashCooldownTicks,
         cooldowns: {},
         buffs: [],
       };
@@ -130,12 +211,22 @@ export class BrawlerService {
       (b?.chaosDurationMs ?? 45_000) +
       (b?.endgameDurationMs ?? 15_000) +
       (b?.suddenDeathMaxMs ?? 15_000);
+    const world = combatWorldFromRef();
     await this.brawlerCombat.initState({
       sessionId: session.id,
       startedAtMs,
       endsAtMs: startedAtMs + totalMs,
-      fighters: this.buildCombatFighters(session.participants),
+      world,
+      fighters: this.buildCombatFighters(session.participants, world),
     });
+    const humanParticipantIds = session.participants
+      .filter((p) => !p.isBot && !p.leftAt)
+      .map((p) => p.id);
+    const presenceInit: Record<string, number> = {};
+    for (const id of humanParticipantIds) {
+      presenceInit[id] = startedAtMs;
+    }
+    await this.brawlerCombat.initPresence(session.id, presenceInit);
     this.brawlerCombatSim.registerSession(session.id);
   }
 
@@ -168,6 +259,13 @@ export class BrawlerService {
       (p) => p.playerId === playerId && !p.leftAt,
     );
     if (!participant) return { ok: false, error: 'forbidden' };
+    const combat = await this.brawlerCombat.readState(sessionId);
+    const fighter = combat?.fighters.find(
+      (f) => f.participantId === participant.id,
+    );
+    if (fighter && !fighter.alive) {
+      return { ok: false, error: 'forfeited' };
+    }
     if (
       input.participantId &&
       input.participantId !== participant.id
@@ -179,11 +277,130 @@ export class BrawlerService {
       seq: input.seq,
       moveX: input.moveX,
       moveY: input.moveY,
+      jump: input.jump,
+      dash: input.dash,
       fire: input.fire,
       pickup: input.pickup,
     });
     if (!accepted) return { ok: false, error: 'rate_limited' };
+    void this.brawlerCombat.touchInput(sessionId, participant.id, Date.now()).catch(
+      (e) => {
+        this.log.warn(`touchInput ${sessionId}: ${(e as Error).message}`);
+      },
+    );
     return { ok: true };
+  }
+
+  /**
+   * Mark participants as forfeited in combat + Postgres. Emits snapshot/ended.
+   * Idempotent for already-dead fighters.
+   */
+  async applyCombatForfeits(
+    sessionId: string,
+    participantIds: readonly string[],
+  ): Promise<BrawlerCombatLiveStateV1 | null> {
+    if (participantIds.length === 0) return null;
+
+    const combatBefore = await this.brawlerCombat.readState(sessionId);
+    if (!combatBefore || combatBefore.status !== 'ACTIVE') {
+      return combatBefore;
+    }
+
+    const toForfeit = participantIds.filter((pid) => {
+      const f = combatBefore.fighters.find((x) => x.participantId === pid);
+      return f?.alive && !f.isBot;
+    });
+    if (toForfeit.length === 0) {
+      return combatBefore;
+    }
+
+    const written = await this.brawlerCombat.mutateState(sessionId, (state) =>
+      applyForfeitsToState(state, toForfeit),
+    );
+
+    await this.prisma.gameParticipant.updateMany({
+      where: {
+        sessionId,
+        id: { in: toForfeit },
+        leftAt: null,
+      },
+      data: {
+        leftAt: new Date(),
+        result: GameParticipantResult.LOSS,
+      },
+    });
+
+    for (const pid of toForfeit) {
+      this.brawlerCombatSim.clearParticipantInput(sessionId, pid);
+    }
+
+    this.emitCombat(written);
+    await this.syncBrawlerSnapshot(sessionId);
+
+    if (written.status === 'ENDED') {
+      this.brawlerCombatSim.unregisterSession(sessionId);
+    }
+
+    return written;
+  }
+
+  async forfeitSession(
+    sessionId: string,
+    email: string,
+    ifSnapshotRev?: number,
+  ): Promise<{ ok: true; already?: boolean; snapshotRev: number | null }> {
+    await this.assertBrawlerIfSnapshotRev(sessionId, ifSnapshotRev);
+    const { session, playerId } = await this.assertSessionParticipant(
+      sessionId,
+      email,
+    );
+    if (session.status !== GameSessionStatus.ACTIVE) {
+      throw new BadRequestException('session is not active');
+    }
+
+    const participant = session.participants.find(
+      (p) => p.playerId === playerId && !p.isBot,
+    );
+    if (!participant) {
+      throw new ForbiddenException('not in this session');
+    }
+
+    if (participant.leftAt) {
+      return {
+        ok: true as const,
+        already: true,
+        snapshotRev: await this.readBrawlerSnapshotRev(sessionId),
+      };
+    }
+
+    const combat = await this.brawlerCombat.readState(sessionId);
+    const fighter = combat?.fighters.find(
+      (f) => f.participantId === participant.id,
+    );
+    if (fighter && !fighter.alive) {
+      if (!participant.leftAt) {
+        await this.prisma.gameParticipant.update({
+          where: { id: participant.id },
+          data: {
+            leftAt: new Date(),
+            result: GameParticipantResult.LOSS,
+          },
+        });
+        await this.syncBrawlerSnapshot(sessionId);
+      }
+      return {
+        ok: true as const,
+        already: true,
+        snapshotRev: await this.readBrawlerSnapshotRev(sessionId),
+      };
+    }
+
+    await this.applyCombatForfeits(sessionId, [participant.id]);
+
+    return {
+      ok: true as const,
+      snapshotRev: await this.readBrawlerSnapshotRev(sessionId),
+    };
   }
 
   private powerupDefsFromSession(session: { config?: unknown }): BrawlerPowerupConfigRow[] {
@@ -394,6 +611,7 @@ export class BrawlerService {
       throw new BadRequestException('one or more brawlerHeroId values are invalid');
     }
     const heroById = new Map(heroes.map((h) => [h.id, h]));
+    const playerById = new Map(foundPlayers.map((p) => [p.id, p]));
 
     const config = await this.buildSessionConfig(
       !hasBot && humanCount === 2 ? { ranked: rankedReq } : {},
@@ -405,12 +623,14 @@ export class BrawlerService {
       config,
       participants: participants.map((p) => {
         const hero = p.brawlerHeroId ? heroById.get(p.brawlerHeroId) : null;
+        const player = p.playerId ? playerById.get(p.playerId) : undefined;
         return {
           playerId: p.playerId,
           isBot: p.isBot,
           botName: p.botName,
           brawlerHeroId: p.brawlerHeroId,
           characterSnapshot: p.brawlerHeroId ?? p.botName,
+          displayNameSnapshot: player?.username ?? p.botName,
           heroSnapshot: hero
             ? {
                 id: hero.id,
@@ -431,6 +651,57 @@ export class BrawlerService {
       ...created,
       snapshotRev: await this.readBrawlerSnapshotRev(created.id),
     };
+  }
+
+  async createPartySession(email: string, dto: CreatePartyBrawlerSessionDto) {
+    const requester = await this.players.findOrCreateByEmail(email);
+    const partyId = dto.partyId.trim();
+
+    const party = await this.prisma.party.findUnique({
+      where: { id: partyId },
+      include: {
+        members: {
+          include: { player: { select: { id: true, username: true } } },
+        },
+      },
+    });
+    if (!party) throw new NotFoundException('party not found');
+    if (party.leaderId !== requester.id) {
+      throw new ForbiddenException('Only the party leader can start a party brawl');
+    }
+
+    const memberIds = new Set(party.members.map((m) => m.playerId));
+    if (!memberIds.has(requester.id)) {
+      throw new ForbiddenException('Not a party member');
+    }
+
+    if (dto.participants.length < 2 || dto.participants.length > 4) {
+      throw new BadRequestException('participants must be between 2 and 4');
+    }
+
+    const uniquePlayerIds = new Set(dto.participants.map((p) => p.playerId));
+    if (uniquePlayerIds.size !== dto.participants.length) {
+      throw new BadRequestException('duplicate playerId in participants');
+    }
+
+    for (const p of dto.participants) {
+      if (!memberIds.has(p.playerId)) {
+        throw new BadRequestException('all participants must be party members');
+      }
+    }
+
+    const participants: CreateBrawlerParticipantDto[] = dto.participants.map((p) => ({
+      playerId: p.playerId,
+      isBot: false,
+      brawlerHeroId: p.brawlerHeroId,
+    }));
+
+    return this.createSession(email, {
+      venueId: dto.venueId,
+      partyId,
+      ranked: dto.ranked,
+      participants,
+    });
   }
 
   async getSession(sessionId: string, email: string): Promise<BrawlerSessionPayload> {
@@ -491,6 +762,7 @@ export class BrawlerService {
     await this.brawlerArena.initState(sessionId);
     await this.initCombatForSession(full);
     await this.syncBrawlerSnapshot(sessionId);
+    await this.notifyBrawlerMatchStarting(sessionId, full);
     return {
       ...session,
       snapshotRev: await this.readBrawlerSnapshotRev(sessionId),
@@ -1199,27 +1471,35 @@ export class BrawlerService {
     await this.initCombatForSession(session);
     await this.syncBrawlerSnapshot(sessionId);
 
-    const participantIds = session.participants
-      .filter((p) => p.playerId && !p.isBot)
-      .map((p) => p.playerId as string);
-    if (participantIds.length > 0) {
-      // Soft English: no per-player locale pipeline for match pushes yet.
-      void this.pushNotifications.sendToPlayers(
-        participantIds,
-        undefined,
-        {
-          title: 'Cafe Social',
-          body: 'Brawler match is starting — open the app to play!',
-          data: {
-            type: 'brawler_match_start',
-            sessionId,
-            venueId: session.venueId ?? '',
-            pushCategory: 'match',
-          },
+    await this.notifyBrawlerMatchStarting(sessionId, session);
+  }
+
+  private async notifyBrawlerMatchStarting(
+    sessionId: string,
+    session: BrawlerSessionView,
+    participantIds?: string[],
+  ): Promise<void> {
+    const ids =
+      participantIds ??
+      session.participants
+        .filter((p) => p.playerId && !p.isBot)
+        .map((p) => p.playerId as string);
+    if (ids.length === 0) return;
+    void this.pushNotifications.sendToPlayers(
+      ids,
+      undefined,
+      {
+        title: 'Cafe Social',
+        body: 'Brawler match is starting — open the app to play!',
+        data: {
+          type: 'brawler_match_start',
+          sessionId,
+          venueId: session.venueId ?? '',
+          pushCategory: 'match',
         },
-        { channel: 'match' },
-      );
-    }
+      },
+      { channel: 'match' },
+    );
   }
 
   async pickPowerup(sessionId: string, email: string, dto: PickBrawlerPowerupDto) {

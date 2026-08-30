@@ -8,6 +8,7 @@ const ANNOUNCE_ACCENT: Record<ArenaAnnounceKind, string> = {
   phase_endgame: '#f97316',
   phase_sudden_death: '#ef4444',
   death_duel: '#f43f5e',
+  fighters_left: '#eab308',
 };
 
 const HOLD_MS = 2200;

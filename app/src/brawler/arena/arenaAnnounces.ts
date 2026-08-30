@@ -5,7 +5,8 @@ export type ArenaAnnounceKind =
   | 'phase_chaos'
   | 'phase_endgame'
   | 'phase_sudden_death'
-  | 'death_duel';
+  | 'death_duel'
+  | 'fighters_left';
 
 export type ArenaAnnounce = {
   kind: ArenaAnnounceKind;
@@ -33,6 +34,14 @@ export const DEATH_DUEL_ANNOUNCE: ArenaAnnounce = {
   title: 'DEATH DUEL!',
   subtitle: 'Only one walks away.',
 };
+
+export function fightersLeftAnnounce(alive: number): ArenaAnnounce {
+  return {
+    kind: 'fighters_left',
+    title: `${alive} fighters left`,
+    subtitle: alive <= 2 ? 'Finish them!' : undefined,
+  };
+}
 
 /** Alive fighters for duel announcements (local HP + elimination set). */
 export function countAliveArenaParticipants(opts: {

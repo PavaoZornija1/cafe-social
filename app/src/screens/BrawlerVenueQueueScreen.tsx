@@ -17,6 +17,7 @@ import LinearGradientFill from '../components/ui/LinearGradientFill';
 import ScreenHeader from '../components/ScreenHeader';
 import { apiGet, apiPost } from '../lib/api';
 import { triggerFeedback } from '../lib/feedback';
+import type { MeSummaryDto } from '../lib/meSummary';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
 import { getHeroSpriteConfig } from '../brawler/heroSpritesheets';
 import type { RootStackParamList } from '../navigation/type';
@@ -32,6 +33,15 @@ type QueuePoll = {
   position?: number;
   waitedMs?: number;
   waitTtlMs?: number;
+};
+
+type BrawlerSessionParticipants = {
+  participants: Array<{
+    playerId: string | null;
+    isBot?: boolean;
+    botName?: string | null;
+    displayNameSnapshot?: string | null;
+  }>;
 };
 
 export default function BrawlerVenueQueueScreen({ navigation, route }: Props) {
@@ -65,11 +75,27 @@ export default function BrawlerVenueQueueScreen({ navigation, route }: Props) {
     if (s.status === 'matched' && s.sessionId && !navigatedRef.current) {
       navigatedRef.current = true;
       triggerFeedback('lobbyFound');
+      const [session, me] = await Promise.all([
+        apiGet<BrawlerSessionParticipants>(
+          `/brawler/sessions/${encodeURIComponent(s.sessionId)}`,
+          token,
+        ),
+        apiGet<MeSummaryDto>('/players/me/summary', token).catch(() => null),
+      ]);
+      const mePlayerId = me?.playerId ?? null;
+      const players =
+        session.participants
+          ?.filter((p) => !p.isBot)
+          .map((p) => ({
+            username:
+              p.displayNameSnapshot?.trim() ||
+              p.botName?.trim() ||
+              'Fighter',
+            isYou: mePlayerId != null && p.playerId === mePlayerId,
+          })) ?? [{ username: heroLabel, isYou: true }];
       navigation.replace('GameLaunch', {
         kind: 'brawler',
-        players: [
-          { username: heroLabel, isYou: true },
-        ],
+        players,
         brawler: {
           heroId: brawlerHeroId,
           venueId,

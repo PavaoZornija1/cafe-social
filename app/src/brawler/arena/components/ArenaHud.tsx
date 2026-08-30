@@ -17,6 +17,7 @@ type Props = {
   /** Seconds remaining (countdown). */
   matchClockSeconds: number;
   sessionId: string | undefined;
+  fightersAlive?: number;
   onToggleDev: () => void;
   resetLabel: string;
   onReset: () => void;
@@ -33,6 +34,7 @@ export function ArenaHud({
   phaseLabel,
   matchClockSeconds,
   sessionId,
+  fightersAlive,
   onToggleDev,
   resetLabel,
   onReset,
@@ -78,6 +80,12 @@ export function ArenaHud({
               <Text style={styles.hudKdLabel}>{t('brawlerMatch.resultsDeaths')}</Text>
               <Text style={styles.hudKdValue}>{deaths}</Text>
             </View>
+            {fightersAlive != null ? (
+              <View style={[styles.hudPill, styles.hudKdPill]}>
+                <Text style={styles.hudKdLabel}>{t('brawlerMatch.fightersAlive')}</Text>
+                <Text style={styles.hudKdValue}>{fightersAlive}</Text>
+              </View>
+            ) : null}
           </View>
         ) : null}
       </View>

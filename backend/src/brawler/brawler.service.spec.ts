@@ -153,11 +153,15 @@ function buildService(opts: {
     }),
     removeState: jest.fn().mockResolvedValue(undefined),
     readState: jest.fn().mockResolvedValue(null),
+    initPresence: jest.fn(),
+    touchInput: jest.fn(),
+    mutateState: jest.fn(),
   };
   const brawlerCombatSim = {
     registerSession: jest.fn(),
     unregisterSession: jest.fn(),
     enqueueInput: jest.fn().mockReturnValue(true),
+    clearParticipantInput: jest.fn(),
   };
   const subscriptions = {
     isActiveSubscriber: jest.fn().mockResolvedValue(opts.isSubscriber ?? false),
@@ -170,6 +174,9 @@ function buildService(opts: {
     getForGameSession: jest.fn().mockResolvedValue({ moments: [], summary: { game: 'brawler', won: false } }),
   };
   const pushNotifications = { sendToPlayers: jest.fn() };
+  const config = {
+    get: jest.fn((_key: string) => undefined),
+  };
 
   const svc = new BrawlerService(
     prisma as never,
@@ -186,6 +193,7 @@ function buildService(opts: {
     subscriptions as never,
     events as never,
     pushNotifications as never,
+    config as never,
   );
   return {
     svc,

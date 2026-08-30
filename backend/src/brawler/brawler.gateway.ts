@@ -130,6 +130,8 @@ export class BrawlerGateway implements OnGatewayConnection {
       seq?: number;
       moveX?: number;
       moveY?: number;
+      jump?: boolean;
+      dash?: boolean;
       fire?: boolean;
       pickup?: boolean;
       participantId?: string;
@@ -145,6 +147,8 @@ export class BrawlerGateway implements OnGatewayConnection {
         seq: body.seq,
         moveX: typeof body.moveX === 'number' ? body.moveX : 0,
         moveY: typeof body.moveY === 'number' ? body.moveY : 0,
+        jump: body.jump,
+        dash: body.dash,
         fire: body.fire,
         pickup: body.pickup,
       });

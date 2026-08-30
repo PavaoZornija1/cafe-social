@@ -30,6 +30,7 @@ import {
 } from '../brawler/arena/arenaMaps';
 import { BrawlerPowerupLegend } from '../brawler/components/BrawlerPowerupLegend';
 import type { BrawlerPowerupDef } from '../brawler/arena/types';
+import type { MeSummaryDto } from '../lib/meSummary';
 import type { BrawlerArenaHeroStats, RootStackParamList } from '../navigation/type';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
@@ -63,6 +64,17 @@ type CreateSessionResponse = {
 
 const MAP_CHOICES: ArenaMapChoice[] = ['random', ...ARENA_MAP_IDS];
 
+type PartyMember = {
+  playerId: string;
+  player: { id: string; username: string };
+};
+
+type PartyDetail = {
+  id: string;
+  leaderId: string;
+  members: PartyMember[];
+};
+
 export default function BrawlerLobbyScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
   const { colors } = useAppTheme();
@@ -88,6 +100,8 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
   /** Casual vs ranked queue mode for online matchmaking. */
   const [queueRanked, setQueueRanked] = useState(false);
   const [powerups, setPowerups] = useState<BrawlerPowerupDef[]>([]);
+  const [partyDetail, setPartyDetail] = useState<PartyDetail | null>(null);
+  const [mePlayerId, setMePlayerId] = useState<string | null>(null);
 
   const resolveMapForMatch = () => resolveArenaMapId(selectedMapChoice);
 
@@ -120,6 +134,33 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
       cancelled = true;
     };
   }, [isLoaded]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (!isLoaded) return;
+      try {
+        const token = await getTokenRef.current();
+        if (!token) return;
+        const me = await apiGet<MeSummaryDto>('/players/me/summary', token);
+        if (!cancelled) setMePlayerId(me.playerId ?? null);
+        if (partyId) {
+          const party = await apiGet<PartyDetail>(
+            `/parties/${encodeURIComponent(partyId)}`,
+            token,
+          );
+          if (!cancelled) setPartyDetail(party);
+        } else if (!cancelled) {
+          setPartyDetail(null);
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded, partyId]);
 
   const matchmakingAvailable = canDoVenueActions && Boolean(venueScopedId || subscriptionActive);
   const practiceDisabled = !canDoVenueActions || !selectedHeroId || creating || loadingHeroes;
@@ -199,6 +240,93 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
 
       navigation.navigate('GameLaunch', {
         kind: 'brawler',
+        brawler: {
+          heroId: selectedHeroId,
+          venueId,
+          heroStats,
+          sessionId: created.id,
+          mapId: resolveMapForMatch(),
+        },
+      });
+    } catch (e) {
+      Alert.alert(t('common.error'), (e as Error).message || t('brawlerLobby.startSessionFailed'));
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const isPartyLeader =
+    Boolean(partyId && partyDetail && mePlayerId && partyDetail.leaderId === mePlayerId);
+  const partyMemberCount = partyDetail?.members.length ?? 0;
+
+  const onStartPartyBrawl = async () => {
+    if (!canDoVenueActions || !partyId || !partyDetail || !selectedHeroId || !isPartyLeader) {
+      return;
+    }
+    if (partyMemberCount < 2 || partyMemberCount > 4) {
+      Alert.alert(t('common.error'), t('brawlerLobby.partyBrawlSizeError'));
+      return;
+    }
+    if (!isArenaSpriteHero(selectedHeroId)) {
+      Alert.alert(t('brawlerLobby.heroGateTitle'), t('brawlerLobby.heroGateBody'));
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const token = await getTokenRef.current();
+      if (!token) throw new Error('Not authenticated');
+      const fallbackHeroId = selectedHeroId;
+      const created = await apiPost<CreateSessionResponse>(
+        '/brawler/sessions/party',
+        {
+          partyId,
+          ...(venueId ? { venueId } : {}),
+          ranked: queueRanked ? true : undefined,
+          participants: partyDetail.members.map((m) => ({
+            playerId: m.playerId,
+            brawlerHeroId:
+              m.playerId === mePlayerId ? selectedHeroId : fallbackHeroId,
+          })),
+        },
+        token,
+      );
+
+      const { coords } = await fetchDetectedVenue({ locationAccuracy: 'high' });
+      if (!coords) {
+        throw new Error(t('brawlerLobby.needLocationForStart'));
+      }
+
+      const startBody: { ifSnapshotRev?: number; latitude: number; longitude: number } = {
+        latitude: coords.lat,
+        longitude: coords.lng,
+      };
+      if (typeof created.snapshotRev === 'number') {
+        startBody.ifSnapshotRev = created.snapshotRev;
+      }
+
+      await apiPost(
+        `/brawler/sessions/${encodeURIComponent(created.id)}/start`,
+        startBody,
+        token,
+      );
+
+      const heroStats: BrawlerArenaHeroStats | undefined = selectedHero
+        ? {
+            baseHp: selectedHero.baseHp,
+            moveSpeed: selectedHero.moveSpeed,
+            dashCooldownMs: selectedHero.dashCooldownMs,
+            attackDamage: selectedHero.attackDamage,
+            attackKnockback: selectedHero.attackKnockback,
+          }
+        : undefined;
+
+      navigation.navigate('GameLaunch', {
+        kind: 'brawler',
+        players: partyDetail.members.map((m) => ({
+          username: m.player.username,
+          isYou: m.playerId === mePlayerId,
+        })),
         brawler: {
           heroId: selectedHeroId,
           venueId,
@@ -428,6 +556,28 @@ export default function BrawlerLobbyScreen({ route, navigation }: Props) {
           title={t('brawlerLobby.powerupLegendTitle')}
           powerups={powerups}
         />
+
+        {partyId && partyMemberCount >= 2 ? (
+          <View style={styles.rankCard}>
+            <Text style={styles.sectionLabel}>{t('brawlerLobby.partyBrawlTitle')}</Text>
+            <Text style={styles.rankHint}>{t('brawlerLobby.partyBrawlHint')}</Text>
+            {isPartyLeader ? (
+              <Pressable
+                onPress={() => void onStartPartyBrawl()}
+                disabled={practiceDisabled || creating}
+                style={({ pressed }) => [
+                  styles.queueCta,
+                  pressed && styles.pressed,
+                  (practiceDisabled || creating) && styles.ctaDisabled,
+                ]}
+              >
+                <Text style={styles.queueCtaText}>{t('brawlerLobby.partyBrawlCta')}</Text>
+              </Pressable>
+            ) : (
+              <Text style={styles.rankHint}>{t('brawlerLobby.partyBrawlWaitLeader')}</Text>
+            )}
+          </View>
+        ) : null}
 
         {matchmakingAvailable ? (
           <View style={styles.rankCard}>

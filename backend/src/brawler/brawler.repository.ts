@@ -48,7 +48,7 @@ export class BrawlerRepository {
     if (!ids.length) return Promise.resolve([]);
     return this.prisma.player.findMany({
       where: { id: { in: ids } },
-      select: { id: true },
+      select: { id: true, username: true },
     });
   }
 

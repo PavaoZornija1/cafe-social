@@ -2,30 +2,39 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { reconcileCombatSnapshot } from '../combatRealtime.ts';
+import {
+  RemoteFighterInterpolator,
+  reconcileLocalPosition,
+} from '../remoteFighters.ts';
 
 describe('reconcileCombatSnapshot', () => {
-  it('maps normalized fighters to pixels and local stats', () => {
+  it('maps pixel fighters and remote list for v2 state', () => {
     const result = reconcileCombatSnapshot({
       localParticipantId: 'p1',
       worldW: 1000,
-      worldH: 500,
-      bodyH: 50,
+      worldH: 945,
+      bodyH: 48,
+      heroIdByParticipant: new Map([
+        ['p1', 'hero-a'],
+        ['p2', 'hero-b'],
+      ]),
       state: {
-        v: 1,
+        v: 2,
         sessionId: 's1',
         rev: 2,
         status: 'ACTIVE',
         startedAtMs: 0,
         endsAtMs: 1,
         tick: 3,
-        world: { w: 1, h: 1 },
+        world: { w: 936, h: 945 },
         fighters: [
           {
             participantId: 'p1',
             playerId: 'pl',
             isBot: false,
-            x: 0.25,
-            y: 0.8,
+            brawlerHeroId: 'hero-a',
+            x: 250,
+            y: 800,
             vx: 0,
             vy: 0,
             facing: 1,
@@ -35,37 +44,143 @@ describe('reconcileCombatSnapshot', () => {
             kills: 1,
             deaths: 0,
           },
+          {
+            participantId: 'p2',
+            playerId: 'pl2',
+            isBot: false,
+            brawlerHeroId: 'hero-b',
+            x: 600,
+            y: 810,
+            vx: 10,
+            vy: 0,
+            facing: -1,
+            hp: 90,
+            maxHp: 100,
+            alive: true,
+            kills: 0,
+            deaths: 0,
+          },
         ],
       },
     });
-    assert.equal(result.ended, false);
-    assert.equal(result.localHp, 70);
-    assert.equal(result.localKills, 1);
     assert.equal(result.fighterPixels[0]?.x, 250);
-    assert.equal(result.fighterPixels[0]?.y, 350);
+    assert.equal(result.localX, 250);
+    assert.equal(result.remoteFighters.length, 1);
+    assert.equal(result.remoteFighters[0]?.participantId, 'p2');
+    assert.equal(result.remoteFighters[0]?.brawlerHeroId, 'hero-b');
   });
 
-  it('flags ended matches', () => {
+  it('reports localForfeited when server marks fighter forfeited', () => {
     const result = reconcileCombatSnapshot({
-      localParticipantId: null,
-      worldW: 100,
-      worldH: 100,
-      bodyH: 10,
+      localParticipantId: 'p1',
+      worldW: 936,
+      worldH: 945,
+      bodyH: 48,
       state: {
-        v: 1,
+        v: 2,
         sessionId: 's1',
-        rev: 9,
-        status: 'ENDED',
+        rev: 1,
+        status: 'ACTIVE',
         startedAtMs: 0,
-        endsAtMs: 1,
-        tick: 99,
-        world: { w: 1, h: 1 },
-        fighters: [],
-        winnerParticipantId: 'p1',
-        endReason: 'KO',
+        endsAtMs: 60_000,
+        tick: 1,
+        world: { w: 936, h: 945 },
+        fighters: [
+          {
+            participantId: 'p1',
+            playerId: 'pl',
+            isBot: false,
+            x: 200,
+            y: 800,
+            vx: 0,
+            vy: 0,
+            facing: 1,
+            hp: 0,
+            maxHp: 100,
+            alive: false,
+            forfeited: true,
+            kills: 0,
+            deaths: 1,
+          },
+          {
+            participantId: 'p2',
+            playerId: 'pl2',
+            isBot: false,
+            x: 400,
+            y: 800,
+            vx: 0,
+            vy: 0,
+            facing: -1,
+            hp: 100,
+            maxHp: 100,
+            alive: true,
+            kills: 0,
+            deaths: 0,
+          },
+        ],
       },
     });
-    assert.equal(result.ended, true);
-    assert.equal(result.winnerParticipantId, 'p1');
+    assert.equal(result.localForfeited, true);
+    assert.equal(result.localAlive, false);
+  });
+});
+
+describe('RemoteFighterInterpolator', () => {
+  it('interpolates between two samples', () => {
+    const interp = new RemoteFighterInterpolator();
+    interp.ingest(
+      [
+        {
+          participantId: 'p2',
+          brawlerHeroId: 'hero-b',
+          x: 0,
+          y: 0,
+          vx: 0,
+          vy: 0,
+          facing: 1,
+          hp: 100,
+          maxHp: 100,
+          alive: true,
+          isBot: false,
+          anim: 'idle',
+        },
+      ],
+      0,
+    );
+    interp.ingest(
+      [
+        {
+          participantId: 'p2',
+          brawlerHeroId: 'hero-b',
+          x: 100,
+          y: 0,
+          vx: 0,
+          vy: 0,
+          facing: 1,
+          hp: 100,
+          maxHp: 100,
+          alive: true,
+          isBot: false,
+          anim: 'walk',
+        },
+      ],
+      100,
+    );
+    const mid = interp.render(50);
+    assert.equal(mid.length, 1);
+    assert.ok(mid[0]!.displayX > 40 && mid[0]!.displayX < 60);
+  });
+});
+
+describe('reconcileLocalPosition', () => {
+  it('soft lerps when error is moderate', () => {
+    const out = reconcileLocalPosition({
+      localX: 0,
+      localY: 0,
+      serverX: 40,
+      serverY: 0,
+      thresholdPx: 24,
+    });
+    assert.ok(out.x > 0 && out.x < 40);
   });
 });
