@@ -16,6 +16,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { normalizeUserEmail } from '../auth/user-email.util';
 import { BrawlerService } from './brawler.service';
 import { CreateBrawlerSessionDto } from './dto/create-brawler-session.dto';
+import { CreatePartyBrawlerSessionDto } from './dto/create-party-brawler-session.dto';
 import { RecordBrawlerEventsDto } from './dto/record-brawler-events.dto';
 import { FinalizeBrawlerSessionDto } from './dto/finalize-brawler-session.dto';
 import { PickBrawlerPowerupDto } from './dto/pick-brawler-powerup.dto';
@@ -46,6 +47,14 @@ export class BrawlerController {
   @Get('powerups')
   listPowerups() {
     return this.brawler.listPowerups();
+  }
+
+  @Post('sessions/party')
+  createPartySession(
+    @CurrentUser() user: unknown,
+    @Body() dto: CreatePartyBrawlerSessionDto,
+  ) {
+    return this.brawler.createPartySession(this.email(user), dto);
   }
 
   @Post('sessions')
@@ -134,6 +143,20 @@ export class BrawlerController {
     @Body() meta: BrawlerIfRevDto,
   ) {
     return this.brawler.abandonSession(
+      sessionId,
+      this.email(user),
+      resolveIfSnapshotRev(ifMatch, meta.ifSnapshotRev),
+    );
+  }
+
+  @Post('sessions/:sessionId/forfeit')
+  forfeitSession(
+    @CurrentUser() user: unknown,
+    @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
+    @Headers('if-match') ifMatch: string | undefined,
+    @Body() meta: BrawlerIfRevDto,
+  ) {
+    return this.brawler.forfeitSession(
       sessionId,
       this.email(user),
       resolveIfSnapshotRev(ifMatch, meta.ifSnapshotRev),

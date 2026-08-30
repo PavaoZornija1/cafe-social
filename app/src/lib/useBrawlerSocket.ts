@@ -15,6 +15,8 @@ export type BrawlerCombatInputEmit = {
   seq: number;
   moveX: number;
   moveY: number;
+  jump?: boolean;
+  dash?: boolean;
   fire?: boolean;
   pickup?: boolean;
 };
@@ -57,6 +59,8 @@ export function useBrawlerSocket(options: {
       seq: input.seq,
       moveX: input.moveX,
       moveY: input.moveY,
+      jump: input.jump,
+      dash: input.dash,
       fire: input.fire,
       pickup: input.pickup,
     });

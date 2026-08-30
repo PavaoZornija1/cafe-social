@@ -794,7 +794,10 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
       // Hero invulnerability frames (contact damage cooldown).
       heroIFramesLeftRef.current = Math.max(0, heroIFramesLeftRef.current - dt);
 
-      // Enemy state tick (respawn / i-frames / patrol).
+      const onlineMatch = Boolean(sessionIdLiveRef.current);
+
+      // Enemy state tick (respawn / i-frames / patrol) — solo sandbox only.
+      if (!onlineMatch) {
       {
         const enemies = enemiesRef.current;
         if (enemies.length > 0) {
@@ -893,6 +896,7 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
           }
         }
       }
+      }
 
       if (
         hitQueued.current &&
@@ -954,8 +958,8 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
         1,
       );
 
-      // Dash damage: one hit per dash, enemy first, then dummies.
-      if (dashing && !dashHitAppliedRef.current) {
+      // Dash damage: one hit per dash, enemy first, then dummies (solo only).
+      if (!onlineMatch && dashing && !dashHitAppliedRef.current) {
         const dashW = bodyW * 0.9;
         const dashH = bodyH * 0.7;
         const dashY = playerY.current + bodyH * 0.15;
@@ -1043,8 +1047,8 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
 
 
       if (attacking) {
-        // Only allow 1 damage application per swing.
-        if (!hitAppliedThisSwing.current) {
+        // Solo sandbox only — online matches use server melee authority.
+        if (!onlineMatch && !hitAppliedThisSwing.current) {
           const hitW = ATTACK_HIT_W;
           const hitH = ATTACK_HIT_H;
 
@@ -1327,8 +1331,12 @@ export function useArenaGameLoop(config: ArenaGameLoopConfig) {
         }
       }
 
-      // Enemy contact damage (strict contact collider: inset rectangles).
-      if (heroHpRef.current > 0 && heroIFramesLeftRef.current <= 0) {
+      // Enemy contact damage (strict contact collider: inset rectangles) — solo only.
+      if (
+        !onlineMatch &&
+        heroHpRef.current > 0 &&
+        heroIFramesLeftRef.current <= 0
+      ) {
         const enemies = enemiesRef.current;
         if (enemies.length > 0) {
           // Tighten both colliders so being on a nearby platform doesn't count as contact.

@@ -1,8 +1,10 @@
 import {
+  Inject,
   Injectable,
   Logger,
   OnModuleDestroy,
   OnModuleInit,
+  forwardRef,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { randomUUID } from 'node:crypto';
@@ -21,6 +23,7 @@ import {
   BRAWLER_COMBAT_ENDED_EVENT,
   type BrawlerCombatSocketPayload,
 } from './brawler-combat.events';
+import type { BrawlerService } from './brawler.service';
 
 const MAX_INPUTS_PER_SEC = 40;
 
@@ -36,13 +39,14 @@ export class BrawlerCombatSimService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly combat: BrawlerCombatRedisService,
     private readonly events: EventEmitter2,
+    @Inject(forwardRef(() => require('./brawler.service').BrawlerService))
+    private readonly brawler: BrawlerService,
   ) {}
 
   onModuleInit(): void {
     this.timer = setInterval(() => {
       void this.tickAll();
     }, BRAWLER_COMBAT_TICK_MS);
-    // Unref so Jest / short-lived scripts can exit; Nest production keeps the loop.
     this.timer.unref?.();
   }
 
@@ -60,10 +64,10 @@ export class BrawlerCombatSimService implements OnModuleInit, OnModuleDestroy {
     this.mailbox.delete(sessionId);
   }
 
-  /**
-   * Store latest input for a participant (overwrite by seq).
-   * Returns false when rate-limited.
-   */
+  clearParticipantInput(sessionId: string, participantId: string): void {
+    this.mailbox.get(sessionId)?.delete(participantId);
+  }
+
   enqueueInput(sessionId: string, input: BrawlerCombatInputV1): boolean {
     const rateKey = `${sessionId}:${input.participantId}`;
     const now = Date.now();
@@ -109,6 +113,27 @@ export class BrawlerCombatSimService implements OnModuleInit, OnModuleDestroy {
     this.events.emit(BRAWLER_COMBAT_EVENT, payload);
   }
 
+  private async applyIdleForfeits(
+    sessionId: string,
+    state: BrawlerCombatLiveStateV1,
+    nowMs: number,
+  ): Promise<BrawlerCombatLiveStateV1> {
+    const idleMs = this.brawler.forfeitIdleMs();
+    const presence = await this.combat.readPresence(sessionId);
+    const stale: string[] = [];
+    for (const f of state.fighters) {
+      if (!f.alive || f.isBot) continue;
+      const last = presence[f.participantId];
+      if (last == null) continue;
+      if (nowMs - last >= idleMs) {
+        stale.push(f.participantId);
+      }
+    }
+    if (stale.length === 0) return state;
+    const next = await this.brawler.applyCombatForfeits(sessionId, stale);
+    return next ?? state;
+  }
+
   async tickSession(sessionId: string): Promise<void> {
     const acquired = await this.combat.tryAcquireTickLock(
       sessionId,
@@ -130,14 +155,22 @@ export class BrawlerCombatSimService implements OnModuleInit, OnModuleDestroy {
       );
     }
 
-    const current = await this.combat.readState(sessionId);
+    let current = await this.combat.readState(sessionId);
     if (!current || current.status !== 'ACTIVE') {
       this.unregisterSession(sessionId);
       return;
     }
 
+    const nowMs = Date.now();
+    current = await this.applyIdleForfeits(sessionId, current, nowMs);
+    if (current.status !== 'ACTIVE') {
+      this.unregisterSession(sessionId);
+      await this.combat.releaseTickLock(sessionId, this.ownerToken);
+      return;
+    }
+
     const inputs = this.drainInputs(sessionId);
-    const stepped = stepCombat(current, inputs, Date.now());
+    const stepped = stepCombat(current, inputs, nowMs);
     const written = await this.combat.writeState(stepped);
     this.emitSnapshot(written);
 

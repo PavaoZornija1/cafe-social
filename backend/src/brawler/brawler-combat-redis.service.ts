@@ -18,6 +18,7 @@ import {
 } from './brawler-combat.types';
 
 const STATE_KEY_PREFIX = 'v1:gm:brawler:combat:';
+const PRESENCE_KEY_PREFIX = 'v1:gm:brawler:combat:presence:';
 const LOCK_KEY_PREFIX = 'v1:gm:brawler:combat:lock:';
 const STATE_TTL_SEC = 172800;
 const CAS_MAX_ATTEMPTS = 8;
@@ -26,6 +27,7 @@ const CAS_MAX_ATTEMPTS = 8;
 export class BrawlerCombatRedisService {
   private readonly log = new Logger(BrawlerCombatRedisService.name);
   private readonly memory = new Map<string, BrawlerCombatLiveStateV1>();
+  private readonly memoryPresence = new Map<string, Record<string, number>>();
   private readonly memoryAllowed: boolean;
 
   constructor(
@@ -54,6 +56,10 @@ export class BrawlerCombatRedisService {
 
   private lockKey(sessionId: string): string {
     return `${LOCK_KEY_PREFIX}${sessionId}`;
+  }
+
+  private presenceKey(sessionId: string): string {
+    return `${PRESENCE_KEY_PREFIX}${sessionId}`;
   }
 
   private unavailable(message: string): ServiceUnavailableException {
@@ -223,10 +229,12 @@ export class BrawlerCombatRedisService {
 
   async removeState(sessionId: string): Promise<void> {
     this.memory.delete(sessionId);
+    this.memoryPresence.delete(sessionId);
     if (!this.redis.isEnabled()) return;
     try {
       await this.redis.del(this.stateKey(sessionId));
       await this.redis.del(this.lockKey(sessionId));
+      await this.redis.del(this.presenceKey(sessionId));
     } catch (e) {
       this.log.warn(`removeState ${sessionId}: ${(e as Error).message}`);
       throw this.unavailable(
@@ -274,5 +282,70 @@ export class BrawlerCombatRedisService {
       key: this.lockKey(sessionId),
       token,
     });
+  }
+
+  async readPresence(sessionId: string): Promise<Record<string, number>> {
+    if (this.redis.isEnabled()) {
+      try {
+        const raw = await this.redis.get(this.presenceKey(sessionId));
+        if (!raw) return {};
+        const parsed = JSON.parse(raw) as Record<string, number>;
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch (e) {
+        this.log.warn(`readPresence ${sessionId}: ${(e as Error).message}`);
+        return {};
+      }
+    }
+    this.assertMemoryFallbackAllowed('read presence');
+    return { ...(this.memoryPresence.get(sessionId) ?? {}) };
+  }
+
+  async initPresence(
+    sessionId: string,
+    participantLastInputMs: Record<string, number>,
+  ): Promise<void> {
+    if (this.redis.isEnabled()) {
+      try {
+        await this.redis.setEx(
+          this.presenceKey(sessionId),
+          STATE_TTL_SEC,
+          JSON.stringify(participantLastInputMs),
+        );
+        return;
+      } catch (e) {
+        this.log.warn(`initPresence ${sessionId}: ${(e as Error).message}`);
+        throw this.unavailable(
+          `Brawler combat presence init failed: ${(e as Error).message}`,
+        );
+      }
+    }
+    this.assertMemoryFallbackAllowed('init presence');
+    this.memoryPresence.set(sessionId, { ...participantLastInputMs });
+  }
+
+  async touchInput(
+    sessionId: string,
+    participantId: string,
+    atMs: number,
+  ): Promise<void> {
+    const map = await this.readPresence(sessionId);
+    map[participantId] = atMs;
+    if (this.redis.isEnabled()) {
+      try {
+        await this.redis.setEx(
+          this.presenceKey(sessionId),
+          STATE_TTL_SEC,
+          JSON.stringify(map),
+        );
+        return;
+      } catch (e) {
+        this.log.warn(`touchInput ${sessionId}: ${(e as Error).message}`);
+        throw this.unavailable(
+          `Brawler combat presence touch failed: ${(e as Error).message}`,
+        );
+      }
+    }
+    this.assertMemoryFallbackAllowed('touch presence');
+    this.memoryPresence.set(sessionId, map);
   }
 }

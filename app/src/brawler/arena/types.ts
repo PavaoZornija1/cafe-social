@@ -72,6 +72,8 @@ export type TrackedParticipant = {
   botName?: string | null;
   playerId?: string | null;
   displayNameSnapshot?: string | null;
+  brawlerHeroId?: string | null;
+  leftAt?: string | null;
 };
 
 export type BrawlerResultsScoreRow = {

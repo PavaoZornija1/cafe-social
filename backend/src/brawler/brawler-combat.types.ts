@@ -1,4 +1,4 @@
-export const BRAWLER_COMBAT_STATE_VERSION = 1 as const;
+export const BRAWLER_COMBAT_STATE_VERSION = 2 as const;
 
 /** Authoritative combat simulation rate. */
 export const BRAWLER_COMBAT_TICK_HZ = 20;
@@ -21,18 +21,34 @@ export type BrawlerCombatFighterV1 = {
   participantId: string;
   playerId: string | null;
   isBot: boolean;
-  /** Normalized world X (0–1). */
+  brawlerHeroId?: string | null;
+  /** Pixel world X (top-left of body). */
   x: number;
-  /** Normalized world Y (0–1). */
+  /** Pixel world Y (top-left of body). */
   y: number;
+  prevY: number;
   vx: number;
   vy: number;
   facing: number;
   hp: number;
   maxHp: number;
   alive: boolean;
+  /** Set when eliminated via forfeit / idle timeout (not melee KO). */
+  forfeited?: boolean;
   kills: number;
   deaths: number;
+  onGround: boolean;
+  airJumpsLeft: number;
+  iFramesLeftTicks: number;
+  meleeReadyTick: number;
+  dashTimeLeftTicks: number;
+  dashCooldownLeftTicks: number;
+  attackTimeLeftTicks: number;
+  /** Move speed multiplier from hero stats (1.0 default). */
+  moveSpeedMul: number;
+  /** Attack damage (rounded int). */
+  attackDamage: number;
+  dashCooldownTicks: number;
   cooldowns: Record<string, number>;
   buffs: BrawlerCombatBuffV1[];
 };
@@ -54,7 +70,7 @@ export type BrawlerCombatLiveStateV1 = {
   startedAtMs: number;
   endsAtMs: number;
   tick: number;
-  /** Logical world size; fighters use normalized 0–1 coords against this. */
+  /** Logical world size in pixels. */
   world: { w: number; h: number };
   fighters: BrawlerCombatFighterV1[];
   projectiles: BrawlerCombatProjectileV1[];
@@ -81,7 +97,7 @@ export function createEmptyCombatState(
     startedAtMs: input.startedAtMs,
     endsAtMs: input.endsAtMs,
     tick: 0,
-    world: input.world ?? { w: 1, h: 1 },
+    world: input.world ?? { w: 936, h: 945 },
     fighters: input.fighters.map((f) => ({
       ...f,
       cooldowns: { ...f.cooldowns },
@@ -89,4 +105,8 @@ export function createEmptyCombatState(
     })),
     projectiles: [],
   };
+}
+
+export function secondsToTicks(seconds: number): number {
+  return Math.max(0, Math.ceil(seconds / (BRAWLER_COMBAT_TICK_MS / 1000)));
 }

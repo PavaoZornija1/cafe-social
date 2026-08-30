@@ -15,6 +15,14 @@ export type CombatFinalizePayload = {
   endReason: BrawlerCombatLiveStateV1['endReason'];
 };
 
+function rankFightersForFinalize(state: BrawlerCombatLiveStateV1) {
+  return [...state.fighters].sort((a, b) => {
+    if (a.alive !== b.alive) return a.alive ? -1 : 1;
+    if (b.kills !== a.kills) return b.kills - a.kills;
+    return a.deaths - b.deaths;
+  });
+}
+
 /**
  * Build Postgres finalize payload from an ENDED combat document.
  * Client-supplied winner/kills must not be used when this returns.
@@ -25,19 +33,27 @@ export function buildFinalizeFromCombat(
   if (state.status !== 'ENDED') {
     throw new Error('combat is not ended');
   }
+
+  const ranked = rankFightersForFinalize(state);
   const winnerId = state.winnerParticipantId ?? undefined;
   const living = state.fighters.filter((f) => f.alive);
   const isDraw =
     !winnerId &&
     (state.endReason === 'TIME' || living.length !== 1);
 
+  const placementById = new Map<string, number>();
+  ranked.forEach((f, idx) => {
+    placementById.set(f.participantId, idx + 1);
+  });
+
   const participants: CombatFinalizeParticipant[] = state.fighters.map((f) => {
+    const placement = placementById.get(f.participantId) ?? state.fighters.length;
     let result: 'WIN' | 'LOSS' | 'DRAW' = 'LOSS';
-    if (isDraw) result = 'DRAW';
+    if (isDraw && placement === 1) result = 'DRAW';
     else if (winnerId && f.participantId === winnerId) result = 'WIN';
     return {
       participantId: f.participantId,
-      placement: result === 'WIN' ? 1 : result === 'DRAW' ? 1 : 2,
+      placement,
       score: f.kills,
       result,
       kills: f.kills,

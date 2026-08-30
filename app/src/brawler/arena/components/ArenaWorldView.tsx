@@ -39,6 +39,8 @@ import type { HeroStatRow } from '../heroStatHighlights';
 import { ArenaSpectatePanLayer } from './ArenaSpectatePanLayer';
 import { applyArenaWorldPaint } from '../applyArenaWorldPaint';
 import type { ArenaWorldPaintHandle } from '../arenaWorldPaint';
+import { ArenaRemoteFighter } from './ArenaRemoteFighter';
+import type { RemoteFighterRender } from '../remoteFighters';
 
 type Props = {
   styles: ArenaStyles;
@@ -75,6 +77,7 @@ type Props = {
   heroHpMax: number;
   heroIFramesLeft: number;
   enemies: Enemy[];
+  remoteFighters: RemoteFighterRender[];
   dummies: Dummy[];
   dmgFloats: DmgFloat[];
   devShowAttackHitbox: boolean;
@@ -155,6 +158,7 @@ export const ArenaWorldView = forwardRef<ArenaWorldPaintHandle, Props>(
   heroHpMax,
   heroIFramesLeft,
   enemies,
+  remoteFighters,
   dummies,
   dmgFloats,
   devShowAttackHitbox,
@@ -358,6 +362,15 @@ export const ArenaWorldView = forwardRef<ArenaWorldPaintHandle, Props>(
             </View>
           </>
         ) : null}
+
+        {remoteFighters.map((rf) => (
+          <ArenaRemoteFighter
+            key={rf.participantId}
+            fighter={rf}
+            spriteScale={spriteScale}
+            bodyW={bodyW}
+          />
+        ))}
 
         {enemies.map((e, idx) => {
           const visible = e.hp > 0 && e.respawnLeft <= 0;
