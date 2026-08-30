@@ -192,4 +192,4 @@ Skip for single VM (Socket.IO in-memory). Add Upstash `REDIS_URL` to `.env` when
 ## Related
 
 - Supabase + seed: [`DEPLOYMENT.md`](./DEPLOYMENT.md) §1
-- Railway (interim host): [`DEPLOYMENT_RAILWAY.md`](./DEPLOYMENT_RAILWAY.md)
+- Live URLs / env map: [`STAGING_STACK.md`](./STAGING_STACK.md)

@@ -8,7 +8,7 @@ For **venue pilot operations** (offers, challenges, proximity, staff flows) see 
 
 - **Node.js** LTS (≥ 20)
 - **PostgreSQL** running locally (or hosted) — used by the backend via Prisma
-- For **hosted staging/production** (Supabase + Railway + Vercel), see [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md)
+- For **hosted staging/production** (Supabase + Hetzner API + Vercel), see [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md)
 - **Clerk** application (one app, used by `app/`, `admin/`, and `backend/`)
 - For mobile on a real iPhone: **Xcode**, **CocoaPods**, an Apple ID added to Xcode, an iPhone on the same Wi‑Fi as your Mac
 - Optional: **Redis** (only needed if you want Socket.IO scale‑out — `docker run -p 6379:6379 redis:7-alpine`)

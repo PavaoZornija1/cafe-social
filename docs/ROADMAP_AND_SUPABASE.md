@@ -145,7 +145,7 @@ Mobile and admin **never** connect to Supabase directly; no RLS required for pha
 
 1. **Environments:** e.g. `cafe-social-dev`, `cafe-social-staging`, `cafe-social-prod` (separate Supabase projects recommended).
 2. **Local dev:** keep local Postgres **or** point dev machines at Supabase dev project (team preference).
-3. **API hosting:** where Nest runs in prod (Railway, Oracle VM) — Supabase does not host Nest.
+3. **API hosting:** where Nest runs in prod (Hetzner VPS / Docker) — Supabase does not host Nest.
 4. **Region:** choose EU (e.g. Frankfurt) if pilot is Sarajevo/EU-heavy.
 
 #### Phase 1 — Supabase project + schema

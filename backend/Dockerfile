@@ -1,4 +1,4 @@
-# NestJS API — production image (Railway, Oracle VM)
+# NestJS API — production image (Hetzner / Docker Compose)
 FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./

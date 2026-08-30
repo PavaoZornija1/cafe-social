@@ -20,6 +20,12 @@
     },
     "cloudflare-observability": {
       "url": "https://observability.mcp.cloudflare.com/mcp"
+    },
+    "stripe": {
+      "url": "https://mcp.stripe.com"
+    },
+    "revenuecat": {
+      "url": "https://mcp.revenuecat.ai/mcp"
     }
   }
 }

@@ -4,19 +4,20 @@ Single reference for **what we use**, **where it lives**, and **how pieces conne
 
 > **Secrets:** full credentials in [`STAGING_STACK.secrets.local.md`](./STAGING_STACK.secrets.local.md) (gitignored via [`docs/.gitignore`](./.gitignore) — never commit).
 
-Last updated: June 2026
+Last updated: August 2026
 
 ---
 
 ## Architecture
 
 ```
-[Expo app] ──HTTPS/WSS──► [Railway Nest API] ──► [Supabase Postgres]
-[Next admin @ Vercel] ──HTTPS──► [Railway Nest API]
+[Expo app] ──HTTPS/WSS──► [api.cafe-social.com — Nest on Hetzner] ──► [Supabase Postgres]
+[Partner portal @ partner.cafe-social.com] ──HTTPS──► [api.cafe-social.com]
+                                                    └── Redis (Docker on VPS)
                               └── Clerk (auth, all clients)
 ```
 
-**Planned later:** migrate API from Railway → **Oracle Always Free VM** when Ampere capacity is available ([`DEPLOYMENT_ORACLE.md`](./DEPLOYMENT_ORACLE.md)).
+Deploy: GitHub Actions → Hetzner (`deploy-api.yml`); Vercel → `admin/` on `main`.
 
 ---
 
@@ -24,9 +25,9 @@ Last updated: June 2026
 
 | Service | URL | Notes |
 |---------|-----|--------|
-| **API (Railway)** | https://cafe-social-production.up.railway.app | Health: `/api/health` |
-| **API base (clients)** | https://cafe-social-production.up.railway.app/api | Use this in Vercel + EAS |
-| **Admin (Vercel)** | https://cafe-social-omega.vercel.app | Next.js partner portal |
+| **API** | https://api.cafe-social.com | Health: `/api/health` |
+| **API base (clients)** | https://api.cafe-social.com/api | Vercel + EAS |
+| **Partner portal** | https://partner.cafe-social.com | Next.js (`admin/`); redirects from `cafe-social-omega.vercel.app` |
 | **GitHub repo** | https://github.com/PavaoZornija1/cafe-social | Monorepo |
 
 ---
@@ -36,20 +37,20 @@ Last updated: June 2026
 | Tool | Purpose | Dashboard |
 |------|---------|-----------|
 | **Supabase** | Hosted PostgreSQL | https://supabase.com/dashboard/project/hhauytryloschyjqjbmj |
-| **Railway** | Nest API + Socket.IO (interim) | https://railway.com |
-| **Vercel** | Next.js admin | https://vercel.com/dashboard |
+| **Hetzner** | Nest API + Caddy + Redis | Cloud console → CX23 Nuremberg |
+| **Vercel** | Partner portal | https://vercel.com/pzornijas-projects/cafe-social |
 | **Clerk** | Auth (app + admin + API JWT) | https://dashboard.clerk.com |
 | **Expo / EAS** | Mobile builds | https://expo.dev |
-| **Oracle Cloud** | Free VM (future API host) | https://cloud.oracle.com — Frankfurt, Ampere pending capacity |
+| **Cloudflare** | DNS for `cafe-social.com` | Zone DNS |
+| **Stripe** | Partner SaaS + PPV (test mode) | https://dashboard.stripe.com |
+| **RevenueCat** | Guest Pro (Test Store until ASC) | https://app.revenuecat.com |
 
-### Not configured yet (optional)
+### Optional later
 
 | Tool | Purpose | When to add |
 |------|---------|-------------|
-| **Upstash Redis** | Socket.IO multi-instance + game runtime (arena/combat) | Second API instance / any multi-pod game traffic. Set `REDIS_URL`; use `GAME_RUNTIME_REQUIRE_REDIS=1` on staging. Local solo-only may use `GAME_RUNTIME_ALLOW_MEMORY=1` without Redis. |
 | **Resend** | Transactional email | Friend/party invite emails |
-| **Stripe** | Partner billing | SaaS checkout in admin |
-| **RevenueCat** | Mobile subscriptions | In-app premium |
+| **App Store / Play** | Real IAP (replace RC Test Store) | After Apple Developer enrollment |
 
 ---
 
@@ -63,7 +64,7 @@ Last updated: June 2026
 | **Migrate / seed URL** | Session pooler, port **5432** → `DIRECT_DATABASE_URL` |
 | **Host** | `aws-1-eu-central-1.pooler.supabase.com` |
 
-Pooler URLs (not direct `db.*.supabase.co`) — IPv4-friendly.
+Pooler URLs (not direct `db.*.supabase.co`) — IPv4-friendly from the VPS.
 
 **Local CLI:**
 
@@ -85,29 +86,39 @@ npx prisma db seed
 
 **Redirect URLs / allowed origins must include:**
 
-- `https://cafe-social-omega.vercel.app`
+- `https://partner.cafe-social.com`
+- `https://cafe-social-omega.vercel.app` (legacy redirect host)
 - `http://localhost:3000` (local admin dev)
 
 ---
 
 ## Environment variables by host
 
-### Railway (backend service)
+### Hetzner VPS (`/opt/cafe-social/deploy/oracle/.env`)
 
-Root directory: `backend`. Do **not** set `PORT` (Railway injects it).
+Compose: Caddy + Nest + Redis. Template: [`deploy/oracle/.env.example`](../deploy/oracle/.env.example)
 
 | Variable | Staging value |
 |----------|----------------|
+| `API_DOMAIN` | `api.cafe-social.com` |
 | `DATABASE_URL` | Supabase pooler **6543** |
-| `DIRECT_DATABASE_URL` | Supabase pooler **5432** |
+| `DIRECT_DATABASE_URL` | Supabase session pooler **5432** |
+| `REDIS_URL` | `redis://redis:6379` (set by compose) |
+| `GAME_RUNTIME_REQUIRE_REDIS` | `1` |
 | `CLERK_SECRET_KEY` | Clerk secret |
-| `CLERK_AUTHORIZED_PARTIES` | `http://localhost:3000,https://cafe-social-omega.vercel.app` |
-| `ADMIN_PORTAL_ORIGIN` | `https://cafe-social-omega.vercel.app` |
-| `PARTNER_PORTAL_BASE_URL` | `https://cafe-social-omega.vercel.app` |
+| `CLERK_AUTHORIZED_PARTIES` | portal + API + localhost origins |
+| `ADMIN_PORTAL_ORIGIN` | `https://partner.cafe-social.com` |
+| `PARTNER_PORTAL_BASE_URL` | `https://partner.cafe-social.com` |
 | `NODE_ENV` | `production` |
-| `HOST` | `0.0.0.0` |
-
-Templates: [`deploy/railway/.env.example`](../deploy/railway/.env.example)
+| `STRIPE_SECRET_KEY` | Stripe test secret |
+| `STRIPE_PUBLISHABLE_KEY` | Stripe test publishable |
+| `STRIPE_WEBHOOK_SECRET` | From Stripe webhook endpoint |
+| `STRIPE_PARTNER_PRICE_ID` | `price_1U7HVZB5x0B8YBlYJno33XTZ` (€49/mo) |
+| `STRIPE_PPV_METERED_PRICE_ID` | `price_1U7HWYB5x0B8YBlYCzi3d7qf` (€0.50/visit) |
+| `STRIPE_PPV_USAGE_REPORTING_ENABLED` | `true` |
+| `REVENUECAT_ENTITLEMENT_ID` | `Cafe Social Pro` |
+| `REVENUECAT_WEBHOOK_AUTHORIZATION` | Must match RC webhook Authorization header |
+| `REVENUECAT_SECRET_API_KEY` | RC secret API key (REST sync; set in dashboard if missing) |
 
 ### Vercel (admin — root `admin/`)
 
@@ -115,7 +126,7 @@ Templates: [`deploy/railway/.env.example`](../deploy/railway/.env.example)
 |----------|----------------|
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key |
 | `CLERK_SECRET_KEY` | Clerk secret |
-| `NEXT_PUBLIC_API_URL` | `https://cafe-social-production.up.railway.app/api` |
+| `NEXT_PUBLIC_API_URL` | `https://api.cafe-social.com/api` |
 
 Region: Frankfurt (`admin/vercel.json`).
 
@@ -131,11 +142,9 @@ Region: Frankfurt (`admin/vercel.json`).
 
 ## Mobile (EAS staging)
 
-When building for staging against Railway:
-
 ```bash
 cd app
-eas secret:create --scope project --name EXPO_PUBLIC_API_URL --value "https://cafe-social-production.up.railway.app/api"
+eas secret:create --scope project --name EXPO_PUBLIC_API_URL --value "https://api.cafe-social.com/api"
 eas build --profile staging --platform ios
 ```
 
@@ -158,17 +167,16 @@ WHERE email = 'your-email@example.com';
 | Doc | Topic |
 |-----|--------|
 | [`DEPLOYMENT.md`](./DEPLOYMENT.md) | Overview |
-| [`DEPLOYMENT_RAILWAY.md`](./DEPLOYMENT_RAILWAY.md) | Railway API |
-| [`DEPLOYMENT_ORACLE.md`](./DEPLOYMENT_ORACLE.md) | Oracle VM (future) |
+| [`DEPLOYMENT_ORACLE.md`](./DEPLOYMENT_ORACLE.md) | VPS / Docker API (`deploy/oracle/`) |
 | [`GETTING_STARTED.md`](../GETTING_STARTED.md) | Local dev |
 
 ---
 
 ## Verification checklist
 
-- [ ] https://cafe-social-production.up.railway.app/api/health → `{"status":"ok"}`
-- [ ] https://cafe-social-omega.vercel.app loads; Clerk sign-in works
-- [ ] Admin network calls hit `cafe-social-production.up.railway.app/api`
+- [ ] https://api.cafe-social.com/api/health → `{"status":"ok"}`
+- [ ] https://partner.cafe-social.com loads; Clerk sign-in works
+- [ ] Admin network calls hit `api.cafe-social.com/api`
 - [ ] Super admin role set for your user in Supabase
 - [ ] (Optional) Mobile EAS build with staging API URL
 
@@ -177,5 +185,5 @@ WHERE email = 'your-email@example.com';
 ## Security notes
 
 1. **Rotate Supabase DB password** if it was ever pasted in chat or committed.
-2. Never commit `backend/.env`, `admin/.env.local`, or `STAGING_STACK.secrets.local.md`.
-3. Clerk **secret** keys only on server (Railway, Vercel server env) — never in Expo client.
+2. Never commit `backend/.env`, `admin/.env.local`, `deploy/oracle/.env`, or `STAGING_STACK.secrets.local.md`.
+3. Clerk **secret** keys only on server (VPS, Vercel server env) — never in Expo client.

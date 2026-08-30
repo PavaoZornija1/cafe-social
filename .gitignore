@@ -1,2 +1,50 @@
-Frugends
+# --- secrets / local env ---
+.env
+.env.*
+!.env.example
+**/.env
+!**/.env.example
 deploy/oracle/.env
+*.pem
+*.key
+!**/certs/*.key
+*id_rsa*
+ssh-key*
+
+# --- dependencies / build ---
+node_modules/
+dist/
+build/
+.next/
+out/
+coverage/
+.turbo/
+*.tsbuildinfo
+
+# --- mobile / native ---
+app/.expo/
+app/ios/Pods/
+app/android/.gradle/
+app/android/app/build/
+*.jks
+*.mobileprovision
+
+# --- python / local tooling ---
+.cv-venv/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*~
+
+# --- unrelated trees parked in this folder ---
+Frugends/
+
+# --- empty / generated placeholders ---
+# (leave supabase/ unignored so future CLI config can be committed)
