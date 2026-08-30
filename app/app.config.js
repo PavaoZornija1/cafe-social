@@ -25,6 +25,7 @@ export default {
     scheme: 'cafesocial',
     userInterfaceStyle: 'automatic',
     newArchEnabled: true,
+    icon: './assets/brand/icon.png',
     ios: {
       supportsTablet: false,
       // Optional: set EXPO_APPLE_TEAM_ID=XXXXXXXXXX for `expo prebuild` / EAS; matches your Apple Developer team.
@@ -55,6 +56,7 @@ export default {
     },
     android: {
       adaptiveIcon: {
+        foregroundImage: './assets/brand/icon.png',
         backgroundColor: '#FAF7F2',
       },
       edgeToEdgeEnabled: true,
