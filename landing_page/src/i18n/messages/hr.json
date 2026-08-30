@@ -1,0 +1,242 @@
+{
+  "meta": {
+    "title": "Cafe Social — Društveno igranje u partnerskim kafićima",
+    "description": "Lojalnost, prijatelji i igre vezane uz lokaciju u partnerskim kafićima. Prijavi se na mjestu, zaradi pogodnosti i igraj Word ili Brawler — ili od kuće s pretplatom."
+  },
+  "nav": {
+    "games": "Igre",
+    "howItWorks": "Kako radi",
+    "forCafes": "Za kafiće",
+    "faq": "FAQ",
+    "getApp": "Preuzmi app",
+    "partners": "Postani partner",
+    "menu": "Izbornik",
+    "close": "Zatvori"
+  },
+  "hero": {
+    "eyebrow": "Društveno igranje s lokacijom",
+    "title": "Igraj tamo gdje pripadaš.",
+    "subtitle": "Lojalnost i igra u partnerskom kafiću — igre na licu mjesta ili od kuće s pretplatom.",
+    "ctaApp": "Preuzmi app",
+    "ctaPartners": "Za partnerske kafiće",
+    "scroll": "Skrolaj",
+    "phoneVenue": "U partnerskom si kafiću",
+    "phoneXp": "2× venue XP aktivan",
+    "phoneGameWord": "Word sobe",
+    "phoneGameBrawler": "Brawler arena"
+  },
+  "partnerStage": {
+    "eyebrow": "Partnerski kafići",
+    "title": "Gdje Cafe Social oživljava",
+    "subtitle": "Igre, izazovi i pogodnosti vezani uz stvarne lokacije — ne generički feed. Širimo mrežu; pilot lokacije vode.",
+    "pilotLabel": "Pilot lokacija",
+    "openLabel": "Mjesto slobodno",
+    "cta": "Postani partner"
+  },
+  "productStory": {
+    "eyebrow": "Kako radi",
+    "title": "Ovo je Cafe Social",
+    "steps": {
+      "checkIn": {
+        "number": "1",
+        "title": "Prijava na lokaciji",
+        "body": "Prepoznajemo partnerske kafiće geofenceom. Skeniraj QR ili unesi kod dok si tamo — otključavaš igre i venue izazove za posjet."
+      },
+      "games": {
+        "number": "2",
+        "title": "Word sobe i Brawler",
+        "body": "Kratke igre s tragovima — solo ili s prijateljima u sobi. Ili Brawler: 1v1 arena s herojima i power-upovima, vezan uz kafić gdje sjediš."
+      },
+      "loyalty": {
+        "number": "3",
+        "title": "Pogodnosti, XP i prijatelji",
+        "body": "Skupljaj venue XP, penji se tierovima, otkupi pogodnosti koje osoblje potvrdi. Dodaj prijatelje, vidi tko je tu, prati aktivnost lokala."
+      },
+      "subscription": {
+        "number": "4",
+        "title": "Igraj i od kuće",
+        "body": "Daleko od kafića i dalje imaš lojalnost i društvene značajke. Pretplata omogućuje globalno igranje Worda i Brawlera."
+      }
+    }
+  },
+  "games": {
+    "eyebrow": "Igre",
+    "title": "Dva načina igranja",
+    "subtitle": "Pređi mišem preko kartice — između atmosfere i načina igre.",
+    "word": {
+      "name": "Word sobe",
+      "tagline": "Tragovi, runde, kafićki ponos",
+      "description": "Više rundi s tragovima: solo ili soba s kodom. Co-op ili versus — idealno za stol.",
+      "backTitle": "Word sobe",
+      "backBody": "Nije dnevna riječ — puno lobby iskustvo s prijateljima u tvom kafiću."
+    },
+    "brawler": {
+      "name": "Brawler",
+      "tagline": "Kratke arena bitke",
+      "description": "Odaberi heroja, casual ili ranked 1v1, ili vježbaj solo. Arena u partnerskim kafićima — ili globalno s pretplatom.",
+      "backTitle": "Brawler arena",
+      "backBody": "Heroji, power-upovi i brze runde između gutljaja."
+    },
+    "heroesTitle": "Upoznaj borce",
+    "heroesSubtitle": "Uzorak Brawler heroja koje otključavaš u appu."
+  },
+  "values": {
+    "eyebrow": "Zašto Cafe Social",
+    "title": "Više od igre na mobitelu",
+    "items": {
+      "table": {
+        "number": "01",
+        "title": "Za stol u kafiću",
+        "body": "Kratke sesije dok čekaš ili družiš se — bez beskonačnog grindanja daleko od ljudi s kojima si."
+      },
+      "venue": {
+        "number": "02",
+        "title": "Nagrade vezane uz lokaciju",
+        "body": "Pogodnosti i izazovi pripadaju kafiću gdje si. Osoblje otkupljuje kodove — jasna pravila."
+      },
+      "social": {
+        "number": "03",
+        "title": "Prijatelji u kafiću",
+        "body": "Tko je tu, pozovi party, venue ljestvice. Društvena igra u stvarnim mjestima."
+      },
+      "partners": {
+        "number": "04",
+        "title": "Dobro za goste i kafiće",
+        "body": "Ponovni posjeti, duži boravak, mjerljiv angažman — bez agresivnog marketinga."
+      }
+    }
+  },
+  "visitSteps": {
+    "eyebrow": "Posjet u četiri koraka",
+    "title": "Kako izgleda poslijepodne",
+    "subtitle": "Bez scenarija — realan tijek u partnerskom kafiću.",
+    "steps": {
+      "arrive": {
+        "title": "Uđi i prijavi se",
+        "body": "Lokacija uključena, QR skeniran. Igre i venue izazovi otključani za ovaj posjet."
+      },
+      "play": {
+        "title": "Odigraj rundu",
+        "body": "Word soba s prijateljem ili brzi Brawler dok narudžba stigne."
+      },
+      "earn": {
+        "title": "Zaradi i otkupi",
+        "body": "Dovrši izazov, pokupi kod pogodnosti, pokaži osoblju na blagajni."
+      },
+      "return": {
+        "title": "Vrati se sljedeći tjedan",
+        "body": "Dnevna riječ, novi izazovi, prijatelji koji pamte tvoje ime."
+      }
+    }
+  },
+  "partnerCta": {
+    "eyebrow": "Za vlasnike kafića",
+    "title": "Pretvori boravak u lojalnost",
+    "body": "Cafe Social daje partnerskim lokacijama digitalni sloj: geofence igru, pogodnosti za osoblje i analitiku — bez pet appova za goste.",
+    "benefits": {
+      "visits": "Potakni ponovne posjete izazovima i dnevnim ritualima",
+      "brand": "Iskustvo vezano uz tvoje ime i prostor",
+      "staff": "Jednostavno otkupljivanje — kodovi i QR, bez papirnatih kartica",
+      "pilot": "Kratki pilot s jasnim metrikama"
+    },
+    "ctaPage": "Partnerski program",
+    "ctaEmail": "Javi nam se"
+  },
+  "faq": {
+    "eyebrow": "FAQ",
+    "title": "Česta pitanja",
+    "items": {
+      "what": {
+        "q": "Što je Cafe Social?",
+        "a": "Cafe Social je mobilna app koja povezuje goste i partnerske kafiće kroz igre, lojalnost i društvene značajke vezane uz lokaciju. Na partnerskoj lokaciji možeš se prijaviti, igrati Word ili Brawler, skupljati XP i otkupljivati pogodnosti — sve vezano uz taj kafić."
+      },
+      "free": {
+        "q": "Je li besplatno?",
+        "a": "Da. Preuzmi app, napravi račun i koristi lojalnost i društvene značajke besplatno. Igre se otključavaju posjetom partnerskom kafiću. Opcionalna pretplata omogućuje igranje od kuće."
+      },
+      "unlock": {
+        "q": "Kako se otključavaju igre?",
+        "a": "Treba venue prijava: QR kafića ili kod na licu mjesta, s uključenom lokacijom. Izvan partnerskih kafića igre ostaju zaključane osim s pretplatom."
+      },
+      "partner": {
+        "q": "Što je partnerski kafić?",
+        "a": "Fizička lokacija u Cafe Socialu s geofenceom, alatima osoblja za pogodnosti i opcionalnim izazovima i ponudama koje zajedno postavimo."
+      },
+      "subscription": {
+        "q": "Što uključuje pretplata?",
+        "a": "Pretplata (Cafe Social Pro) omogućuje globalno igranje Worda i Brawlera — ne samo uz check-in. Venue lojalnost i pogodnosti i dalje traže posjete."
+      },
+      "stores": {
+        "q": "Gdje preuzimam app?",
+        "a": "Cafe Social uskoro dolazi na App Store i Google Play. Vrati se ovdje ili postani pilot partner."
+      }
+    }
+  },
+  "download": {
+    "eyebrow": "Kreni",
+    "title": "Spreman za igru?",
+    "subtitle": "Preuzmi Cafe Social i pronađi partnerski kafić — ili nam se javi kao partner.",
+    "appStore": "App Store",
+    "playStore": "Google Play",
+    "comingSoon": "Uskoro",
+    "partnerLink": "Partnerski kafići"
+  },
+  "footer": {
+    "tagline": "Društveno igranje s lokacijom za partnerske kafiće.",
+    "navTitle": "Istraži",
+    "legalTitle": "Pravno",
+    "privacy": "Privatnost",
+    "terms": "Uvjeti",
+    "partners": "Partnerski program",
+    "copyright": "© {year} Cafe Social. Napravljeno s pažnjom za kafiće i njihove goste."
+  },
+  "partnersPage": {
+    "metaTitle": "Postani partner — Cafe Social",
+    "metaDescription": "Igre, lojalnost i pogodnosti za tvoj kafić. Pilot program, alati za osoblje, mjerljiv angažman.",
+    "heroTitle": "Postani partner Cafe Sociala",
+    "heroSubtitle": "Mobilni sloj koji povezuje goste s tvojim brendom — igre za stolom, pogodnosti za osoblje, razlozi za povratak.",
+    "whatTitle": "Što nudimo lokacijama",
+    "whatItems": {
+      "context": "Kontekst lokala — sadržaj i igra kad su gosti fizički kod tebe",
+      "games": "Kratke word igre i Brawler — idealno dok čekaju",
+      "challenges": "Dnevna riječ i izazovi koje zajedno definiramo",
+      "perks": "Pogodnosti koje osoblje potvrdi kodom — mjerljivo i jednostavno",
+      "social": "Prijatelji, ljestvice, aktivnost lokala — po tvom tonu",
+      "analytics": "Pilot metrike: aktivacije, otkupljenja, tjedni angažman"
+    },
+    "benefitsGuestTitle": "Benefiti za goste",
+    "benefitsGuest": {
+      "fun": "Kratka zabava dok čekaju ili druže se",
+      "belonging": "Aktivnosti vezane uz tvoj kafić, ne generička zabava",
+      "rewards": "Jasne nagrade koje ti kontroliraš"
+    },
+    "benefitsVenueTitle": "Benefiti za kafić",
+    "benefitsVenue": {
+      "repeat": "Ponovni posjeti kroz dnevne rituale i izazove",
+      "brand": "Digitalni angažman pod tvojim brendom",
+      "measure": "Jednostavne metrike u pilotu",
+      "differentiate": "Istakni se gdje svi izgledaju isto"
+    },
+    "pilotTitle": "Sljedeći koraci",
+    "pilotSteps": {
+      "interest": "Potvrdi interes za kratki pilot (2–4 tjedna)",
+      "offer": "Dogovori jednostavnu prvu pogodnost ili izazov za osoblje",
+      "launch": "QR materijal, postavljanje, kratka obuka osoblja",
+      "review": "Pregled rezultata i odluka o nastavku"
+    },
+    "contactTitle": "Javimo se",
+    "contactBody": "Reci nam o svom kafiću — javit ćemo se oko pilota.",
+    "contactCta": "Pošalji email",
+    "backHome": "Natrag na početnu"
+  },
+  "legal": {
+    "privacyTitle": "Politika privatnosti",
+    "privacyBody": "Cafe Social poštuje tvoju privatnost. Ova stranica bit će ažurirana punom politikom prije javnog lansiranja. Pitanja: {email}.",
+    "termsTitle": "Uvjeti korištenja",
+    "termsBody": "Ovi uvjeti reguliraju korištenje Cafe Sociala. Puni uvjeti bit će objavljeni prije lansiranja u trgovinama. Pitanja: {email}.",
+    "backHome": "Natrag na početnu"
+  },
+  "language": {
+    "label": "Jezik"
+  }
+}

@@ -1,0 +1,242 @@
+{
+  "meta": {
+    "title": "Cafe Social — Juegos sociales en cafés asociados",
+    "description": "Fidelidad, amigos y juegos ligados al local en cafés asociados. Regístrate en el sitio, gana ventajas y juega Word o Brawler — o desde casa con suscripción."
+  },
+  "nav": {
+    "games": "Juegos",
+    "howItWorks": "Cómo funciona",
+    "forCafes": "Para cafés",
+    "faq": "FAQ",
+    "getApp": "Descargar app",
+    "partners": "Ser partner",
+    "menu": "Menú",
+    "close": "Cerrar"
+  },
+  "hero": {
+    "eyebrow": "Juegos sociales con ubicación",
+    "title": "Juega donde perteneces.",
+    "subtitle": "Fidelidad y juego en cafés asociados — juegos cuando estás allí, o en casa con suscripción.",
+    "ctaApp": "Descargar app",
+    "ctaPartners": "Para cafés asociados",
+    "scroll": "Desplazar",
+    "phoneVenue": "Estás en un café asociado",
+    "phoneXp": "2× XP del local activo",
+    "phoneGameWord": "Salas Word",
+    "phoneGameBrawler": "Arena Brawler"
+  },
+  "partnerStage": {
+    "eyebrow": "Cafés asociados",
+    "title": "Donde cobra vida Cafe Social",
+    "subtitle": "Juegos, retos y ventajas ligados a locales reales — no un feed genérico. Ampliamos la red; los pilotos lideran.",
+    "pilotLabel": "Local piloto",
+    "openLabel": "Plaza libre",
+    "cta": "Ser partner"
+  },
+  "productStory": {
+    "eyebrow": "Cómo funciona",
+    "title": "Esto es Cafe Social",
+    "steps": {
+      "checkIn": {
+        "number": "1",
+        "title": "Registro en el local",
+        "body": "Detectamos cafés asociados con geovalla. Escanea un QR o introduce un código estando allí — desbloqueas juegos y retos del local."
+      },
+      "games": {
+        "number": "2",
+        "title": "Salas Word y Brawler",
+        "body": "Juegos de pistas cortos — solo o con amigos en una sala. O Brawler: duelos 1v1 con héroes y power-ups, ligados al café donde estás."
+      },
+      "loyalty": {
+        "number": "3",
+        "title": "Ventajas, XP y amigos",
+        "body": "Gana XP del local, sube de nivel, canjea ventajas con el personal. Añade amigos, mira quién está aquí, sigue la actividad del local."
+      },
+      "subscription": {
+        "number": "4",
+        "title": "Jugar también desde casa",
+        "body": "Lejos de los cafés sigues teniendo fidelidad y social. Una suscripción permite jugar Word y Brawler globalmente."
+      }
+    }
+  },
+  "games": {
+    "eyebrow": "Los juegos",
+    "title": "Dos formas de jugar",
+    "subtitle": "Pasa el cursor sobre una carta — entre ambiente y modo de juego.",
+    "word": {
+      "name": "Salas Word",
+      "tagline": "Pistas, rondas y orgullo del café",
+      "description": "Varias rondas de pistas: solo o sala con código. Cooperativo o versus — ideal en la mesa.",
+      "backTitle": "Salas Word",
+      "backBody": "No es el puzzle diario — la experiencia completa de lobby con amigos en tu local."
+    },
+    "brawler": {
+      "name": "Brawler",
+      "tagline": "Duelos cortos en arena",
+      "description": "Elige héroe, cola casual o ranked 1v1, o practica solo. Partidas en cafés asociados — o global con suscripción.",
+      "backTitle": "Arena Brawler",
+      "backBody": "Héroes, power-ups y rondas rápidas entre sorbo y sorbo."
+    },
+    "heroesTitle": "Conoce a los luchadores",
+    "heroesSubtitle": "Una muestra de héroes Brawler que desbloquearás en la app."
+  },
+  "values": {
+    "eyebrow": "Por qué Cafe Social",
+    "title": "Más que un juego en el móvil",
+    "items": {
+      "table": {
+        "number": "01",
+        "title": "Hecho para la mesa",
+        "body": "Sesiones cortas mientras esperas o charlas — sin grind infinito lejos de tu gente."
+      },
+      "venue": {
+        "number": "02",
+        "title": "Recompensas del local",
+        "body": "Ventajas y retos del café donde estás. El personal canjea códigos — reglas claras."
+      },
+      "social": {
+        "number": "03",
+        "title": "Amigos en el café",
+        "body": "Quién está aquí, invita al grupo, rankings del local. Juego social en lugares reales."
+      },
+      "partners": {
+        "number": "04",
+        "title": "Bueno para invitados y cafés",
+        "body": "Visitas repetidas, más permanencia, engagement medible — sin publicidad agresiva."
+      }
+    }
+  },
+  "visitSteps": {
+    "eyebrow": "Una visita en cuatro pasos",
+    "title": "Cómo se ve una tarde",
+    "subtitle": "Sin guion — un flujo realista en un café asociado.",
+    "steps": {
+      "arrive": {
+        "title": "Entrar y registrarte",
+        "body": "Ubicación activa, QR escaneado. Juegos y retos del local desbloqueados."
+      },
+      "play": {
+        "title": "Jugar una ronda",
+        "body": "Sala Word con un amigo o partida Brawler mientras llega tu pedido."
+      },
+      "earn": {
+        "title": "Ganar y canjear",
+        "body": "Completa un reto, recoge un código de ventaja, muéstralo al personal."
+      },
+      "return": {
+        "title": "Vuelve la semana que viene",
+        "body": "Palabra del día, nuevos retos y amigos que recuerdan tu nombre."
+      }
+    }
+  },
+  "partnerCta": {
+    "eyebrow": "Para dueños de café",
+    "title": "Convierte la permanencia en fidelidad",
+    "body": "Cafe Social da a los locales una capa digital: juego con geovalla, ventajas del personal y analíticas — sin cinco apps para los clientes.",
+    "benefits": {
+      "visits": "Fomenta visitas repetidas con retos y rituales diarios",
+      "brand": "Experiencia ligada a tu nombre y espacio",
+      "staff": "Canje simple — códigos y QR, sin tarjetas de papel",
+      "pilot": "Piloto corto con métricas claras"
+    },
+    "ctaPage": "Programa de partners",
+    "ctaEmail": "Contactar"
+  },
+  "faq": {
+    "eyebrow": "FAQ",
+    "title": "Preguntas frecuentes",
+    "items": {
+      "what": {
+        "q": "¿Qué es Cafe Social?",
+        "a": "Cafe Social es una app móvil que conecta clientes y cafés asociados con juegos, fidelidad y funciones sociales según la ubicación. En un local asociado puedes registrarte, jugar Word o Brawler, ganar XP y canjear ventajas — todo ligado a ese café."
+      },
+      "free": {
+        "q": "¿Es gratis?",
+        "a": "Sí. Descarga la app, crea cuenta y usa fidelidad y social gratis. Los juegos se desbloquean visitando un café asociado. Una suscripción opcional permite jugar desde casa."
+      },
+      "unlock": {
+        "q": "¿Cómo se desbloquean los juegos?",
+        "a": "Necesitas registro en el local: QR del café o código estando allí, con ubicación activa. Fuera de locales asociados, los juegos quedan bloqueados salvo con suscripción."
+      },
+      "partner": {
+        "q": "¿Qué es un café asociado?",
+        "a": "Un local físico inscrito en Cafe Social con geovalla, herramientas del personal para ventajas y retos u ofertas opcionales que configuramos juntos."
+      },
+      "subscription": {
+        "q": "¿Qué incluye la suscripción?",
+        "a": "La suscripción (Cafe Social Pro) permite jugar Word y Brawler globalmente — no solo con check-in. La fidelidad y ventajas del local siguen requiriendo visitas."
+      },
+      "stores": {
+        "q": "¿Dónde descargo la app?",
+        "a": "Cafe Social llegará pronto a App Store y Google Play. Vuelve aquí o únete como partner piloto."
+      }
+    }
+  },
+  "download": {
+    "eyebrow": "Empezar",
+    "title": "¿Listo para jugar?",
+    "subtitle": "Descarga Cafe Social y encuentra un café asociado — o trae la app a tu local como partner.",
+    "appStore": "App Store",
+    "playStore": "Google Play",
+    "comingSoon": "Próximamente",
+    "partnerLink": "Cafés partners"
+  },
+  "footer": {
+    "tagline": "Juegos sociales con ubicación para cafés asociados.",
+    "navTitle": "Explorar",
+    "legalTitle": "Legal",
+    "privacy": "Privacidad",
+    "terms": "Términos",
+    "partners": "Programa de partners",
+    "copyright": "© {year} Cafe Social. Hecho con cuidado para cafés y quienes los visitan."
+  },
+  "partnersPage": {
+    "metaTitle": "Ser partner — Cafe Social",
+    "metaDescription": "Juegos, fidelidad y ventajas para tu café. Programa piloto, herramientas del personal, engagement medible.",
+    "heroTitle": "Ser partner de Cafe Social",
+    "heroSubtitle": "Una capa móvil que conecta a tus clientes con tu marca — juegos en la mesa, ventajas del personal, razones para volver.",
+    "whatTitle": "Qué ofrecemos a los locales",
+    "whatItems": {
+      "context": "Contexto del local — contenido y juego cuando los clientes están físicamente contigo",
+      "games": "Juegos Word cortos y Brawler — ideal mientras esperan",
+      "challenges": "Palabra del día y retos que definimos juntos",
+      "perks": "Ventajas que el personal confirma con código — medible y simple",
+      "social": "Amigos, rankings, actividad del local — a tu medida",
+      "analytics": "Métricas piloto: activaciones, canjes, engagement semanal"
+    },
+    "benefitsGuestTitle": "Beneficios para tus clientes",
+    "benefitsGuest": {
+      "fun": "Diversión rápida mientras esperan o socializan",
+      "belonging": "Actividades ligadas a tu café, no entretenimiento genérico",
+      "rewards": "Recompensas claras que tú controlas"
+    },
+    "benefitsVenueTitle": "Beneficios para tu café",
+    "benefitsVenue": {
+      "repeat": "Visitas repetidas por rituales y retos diarios",
+      "brand": "Engagement digital bajo tu marca",
+      "measure": "Métricas simples en el piloto",
+      "differentiate": "Destacar donde todos se ven iguales"
+    },
+    "pilotTitle": "Próximos pasos",
+    "pilotSteps": {
+      "interest": "Confirmar interés en piloto corto (2–4 semanas)",
+      "offer": "Acordar primera ventaja o reto simple para el personal",
+      "launch": "Material QR, configuración y breve formación del personal",
+      "review": "Revisar resultados y decidir continuidad"
+    },
+    "contactTitle": "Hablemos",
+    "contactBody": "Cuéntanos sobre tu café y contactaremos sobre un piloto.",
+    "contactCta": "Enviar email",
+    "backHome": "Volver al inicio"
+  },
+  "legal": {
+    "privacyTitle": "Política de privacidad",
+    "privacyBody": "Cafe Social respeta tu privacidad. Esta página se actualizará con la política completa antes del lanzamiento. Preguntas: {email}.",
+    "termsTitle": "Términos de servicio",
+    "termsBody": "Estos términos rigen el uso de Cafe Social. Los términos completos se publicarán antes del lanzamiento en tiendas. Preguntas: {email}.",
+    "backHome": "Volver al inicio"
+  },
+  "language": {
+    "label": "Idioma"
+  }
+}

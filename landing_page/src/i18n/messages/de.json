@@ -1,0 +1,242 @@
+{
+  "meta": {
+    "title": "Cafe Social — Social Gaming in Partner-Cafés",
+    "description": "Treue, Freunde und standortgebundene Spiele in Partner-Cafés. Vor Ort einchecken, Perks verdienen und Word oder Brawler spielen — oder mit Abo von zu Hause."
+  },
+  "nav": {
+    "games": "Spiele",
+    "howItWorks": "So funktioniert's",
+    "forCafes": "Für Cafés",
+    "faq": "FAQ",
+    "getApp": "App holen",
+    "partners": "Partner werden",
+    "menu": "Menü",
+    "close": "Schließen"
+  },
+  "hero": {
+    "eyebrow": "Standortbasiertes Social Gaming",
+    "title": "Spiel, wo du hingehörst.",
+    "subtitle": "Treue und Spiel am Partner-Café — Spiele vor Ort oder mit Abo auch von zu Hause.",
+    "ctaApp": "App holen",
+    "ctaPartners": "Für Café-Partner",
+    "scroll": "Scrollen",
+    "phoneVenue": "Du bist in einem Partner-Café",
+    "phoneXp": "2× Venue-XP aktiv",
+    "phoneGameWord": "Word-Räume",
+    "phoneGameBrawler": "Brawler-Arena"
+  },
+  "partnerStage": {
+    "eyebrow": "Partner-Cafés",
+    "title": "Wo Cafe Social lebendig wird",
+    "subtitle": "Spiele, Challenges und Perks hängen an echten Locations — kein generischer Feed. Wir bauen das Partnernetz aus; Pilot-Cafés führen.",
+    "pilotLabel": "Pilot-Café",
+    "openLabel": "Platz frei",
+    "cta": "Partner werden"
+  },
+  "productStory": {
+    "eyebrow": "So funktioniert's",
+    "title": "Das ist Cafe Social",
+    "steps": {
+      "checkIn": {
+        "number": "1",
+        "title": "Vor Ort einchecken",
+        "body": "Wir erkennen Partner-Cafés per Geofence. QR scannen oder Venue-Code eingeben — damit schaltest du Spiele und Venue-Challenges für deinen Besuch frei."
+      },
+      "games": {
+        "number": "2",
+        "title": "Word-Räume & Brawler",
+        "body": "Kurze Wort-Rätsel — solo oder mit Freunden in einem Raum. Oder Brawler: 1v1-Arena mit Helden und Power-ups, gebunden an das Café, in dem du sitzt."
+      },
+      "loyalty": {
+        "number": "3",
+        "title": "Perks, XP & Freunde",
+        "body": "Venue-XP sammeln, Tiers erreichen, Perks einlösen, die das Personal bestätigt. Freunde hinzufügen, sehen wer da ist, Venue-Aktivität verfolgen."
+      },
+      "subscription": {
+        "number": "4",
+        "title": "Auch von zu Hause spielen",
+        "body": "Abseits der Cafés bleiben Treue und Social-Features verfügbar. Mit Abo spielst du Word und Brawler global — ohne Besuch."
+      }
+    }
+  },
+  "games": {
+    "eyebrow": "Die Spiele",
+    "title": "Zwei Spielweisen",
+    "subtitle": "Fahr über eine Karte — zwischen Stimmung und Spielmodus, wie vor dem Match.",
+    "word": {
+      "name": "Word-Räume",
+      "tagline": "Hinweise, Runden, Café-Stolz",
+      "description": "Mehrere Runden mit Hinweisen: solo oder Raum mit Code. Co-op oder versus — ideal am Tisch.",
+      "backTitle": "Word-Räume",
+      "backBody": "Nicht das Tagesrätsel — das volle Lobby-Erlebnis mit Freunden in deinem Café."
+    },
+    "brawler": {
+      "name": "Brawler",
+      "tagline": "Kurze Arena-Duelle",
+      "description": "Held wählen, casual oder ranked 1v1, oder solo üben. Arena-Matches in Partner-Cafés — oder global mit Abo.",
+      "backTitle": "Brawler-Arena",
+      "backBody": "Helden, Power-ups und schnelle Runden zwischen den Schlucken."
+    },
+    "heroesTitle": "Triff die Kämpfer",
+    "heroesSubtitle": "Eine Auswahl Brawler-Helden, die du in der App freischaltest."
+  },
+  "values": {
+    "eyebrow": "Warum Cafe Social",
+    "title": "Mehr als ein Spiel auf dem Handy",
+    "items": {
+      "table": {
+        "number": "01",
+        "title": "Fürs Café-Tisch",
+        "body": "Kurze Sessions beim Warten oder Zusammensitzen — kein Endlos-Grind fernab deiner Leute."
+      },
+      "venue": {
+        "number": "02",
+        "title": "Belohnungen am Ort",
+        "body": "Perks und Challenges gehören zum Café, in dem du sitzt. Personal löst Codes ein — klare Regeln."
+      },
+      "social": {
+        "number": "03",
+        "title": "Freunde im Café",
+        "body": "Wer ist da, Party einladen, Venue-Ranglisten. Social Play an echten Orten."
+      },
+      "partners": {
+        "number": "04",
+        "title": "Gut für Gäste und Cafés",
+        "body": "Wiederkehr, längerer Aufenthalt, messbarer Engagement — ohne aggressive Werbung."
+      }
+    }
+  },
+  "visitSteps": {
+    "eyebrow": "Ein Besuch in vier Schritten",
+    "title": "So sieht ein Nachmittag aus",
+    "subtitle": "Kein Skript — ein realistischer Ablauf in einem Partner-Café.",
+    "steps": {
+      "arrive": {
+        "title": "Reinkommen & einchecken",
+        "body": "Standort an, QR gescannt. Spiele und Venue-Challenges für diesen Besuch frei."
+      },
+      "play": {
+        "title": "Eine Runde spielen",
+        "body": "Word-Raum mit Freund oder schnelles Brawler-Match bis die Bestellung da ist."
+      },
+      "earn": {
+        "title": "Verdienen & einlösen",
+        "body": "Challenge schaffen, Perk-Code sammeln, Personal an der Kasse zeigen."
+      },
+      "return": {
+        "title": "Nächste Woche wieder",
+        "body": "Tageswort, neue Challenges, Freunde die deinen Namen kennen."
+      }
+    }
+  },
+  "partnerCta": {
+    "eyebrow": "Für Café-Betreiber",
+    "title": "Aufenthaltszeit in Treue verwandeln",
+    "body": "Cafe Social gibt Partner-Cafés eine digitale Schicht: Geofence-Spiel, Personal-Perks und Analytics — ohne fünf Apps für Gäste.",
+    "benefits": {
+      "visits": "Wiederkehr durch Challenges und tägliche Rituale",
+      "brand": "Erlebnis an deinem Namen und Ort",
+      "staff": "Einfache Einlösung — Codes und QR, keine Papierkarten",
+      "pilot": "Kurzer Pilot mit klaren Erfolgsmetriken"
+    },
+    "ctaPage": "Partnerprogramm",
+    "ctaEmail": "Kontakt aufnehmen"
+  },
+  "faq": {
+    "eyebrow": "FAQ",
+    "title": "Häufige Fragen",
+    "items": {
+      "what": {
+        "q": "Was ist Cafe Social?",
+        "a": "Cafe Social ist eine App, die Gäste und Partner-Cafés über standortbasierte Spiele, Treue und Social Features verbindet. Vor Ort kannst du einchecken, Word oder Brawler spielen, XP sammeln und Perks einlösen — alles an dieses Café gebunden."
+      },
+      "free": {
+        "q": "Ist es kostenlos?",
+        "a": "Ja. App laden, Konto erstellen, Treue und Social kostenlos nutzen. Spiele schaltest du in Partner-Cafés frei. Optional: Abo für Spielen von zu Hause."
+      },
+      "unlock": {
+        "q": "Wie werden Spiele freigeschaltet?",
+        "a": "Spiele brauchen Venue-Check-in: QR des Cafés oder Code vor Ort, mit Standort zur Bestätigung. Ohne Partner-Café bleiben Spiele gesperrt — außer mit Abo."
+      },
+      "partner": {
+        "q": "Was ist ein Partner-Café?",
+        "a": "Ein physischer Standort in Cafe Social mit Geofence, Personal-Tools für Perks und optionalen Challenges und Angeboten, die wir gemeinsam einrichten."
+      },
+      "subscription": {
+        "q": "Was bringt das Abo?",
+        "a": "Mit Abo (Cafe Social Pro) spielst du Word und Brawler global — nicht nur beim Check-in. Venue-Treue und -Perks brauchen weiterhin Besuche."
+      },
+      "stores": {
+        "q": "Wo lade ich die App?",
+        "a": "Cafe Social kommt bald in App Store und Google Play. Schau hier wieder vorbei oder werde Pilot-Partner."
+      }
+    }
+  },
+  "download": {
+    "eyebrow": "Loslegen",
+    "title": "Bereit zum Spielen?",
+    "subtitle": "Lade Cafe Social und finde ein Partner-Café — oder bring es als Partner in dein Lokal.",
+    "appStore": "App Store",
+    "playStore": "Google Play",
+    "comingSoon": "Demnächst",
+    "partnerLink": "Café-Partner"
+  },
+  "footer": {
+    "tagline": "Standortbasiertes Social Gaming für Partner-Cafés.",
+    "navTitle": "Entdecken",
+    "legalTitle": "Rechtliches",
+    "privacy": "Datenschutz",
+    "terms": "AGB",
+    "partners": "Partnerprogramm",
+    "copyright": "© {year} Cafe Social. Mit Sorgfalt für Cafés und ihre Gäste gemacht."
+  },
+  "partnersPage": {
+    "metaTitle": "Partner werden — Cafe Social",
+    "metaDescription": "Spiele, Treue und Perks für dein Café. Pilotprogramm, Personal-Tools, messbarer Engagement.",
+    "heroTitle": "Partner werden",
+    "heroSubtitle": "Eine mobile Schicht, die Gäste an deine Marke bindet — Spiele am Tisch, Perks fürs Personal, Gründe zurückzukommen.",
+    "whatTitle": "Was wir Cafés bieten",
+    "whatItems": {
+      "context": "Venue-Kontext — Inhalte und Spiel, wenn Gäste physisch bei dir sind",
+      "games": "Kurze Word-Spiele und Brawler — ideal zum Warten",
+      "challenges": "Tageswort und Challenges, die wir gemeinsam definieren",
+      "perks": "Perks, die Personal per Code bestätigt — messbar und einfach",
+      "social": "Freunde, Ranglisten, Venue-Aktivität — nach deinem Ton",
+      "analytics": "Pilot-Kennzahlen: Aktivierungen, Einlösungen, wöchentlicher Engagement"
+    },
+    "benefitsGuestTitle": "Vorteile für Gäste",
+    "benefitsGuest": {
+      "fun": "Kurze Unterhaltung beim Warten oder in der Runde",
+      "belonging": "Aktivitäten an deinem Café, nicht generisch",
+      "rewards": "Klare Belohnungen, die du steuerst"
+    },
+    "benefitsVenueTitle": "Vorteile für dein Café",
+    "benefitsVenue": {
+      "repeat": "Wiederkehr durch tägliche Rituale und Challenges",
+      "brand": "Digitales Engagement unter deiner Marke",
+      "measure": "Einfache Metriken im Pilot",
+      "differentiate": "Abheben, wo alle gleich aussehen"
+    },
+    "pilotTitle": "Nächste Schritte",
+    "pilotSteps": {
+      "interest": "Interesse an kurzem Pilot (2–4 Wochen) bestätigen",
+      "offer": "Einfachen ersten Perk oder Challenge vereinbaren",
+      "launch": "QR-Material, Setup, kurze Personal-Schulung",
+      "review": "Ergebnisse prüfen und über Fortführung entscheiden"
+    },
+    "contactTitle": "Lass uns reden",
+    "contactBody": "Erzähl uns von deinem Café — wir melden uns zum Pilot.",
+    "contactCta": "E-Mail schreiben",
+    "backHome": "Zur Startseite"
+  },
+  "legal": {
+    "privacyTitle": "Datenschutz",
+    "privacyBody": "Cafe Social respektiert deine Privatsphäre. Diese Seite wird vor dem Launch mit der vollständigen Datenschutzerklärung aktualisiert. Fragen: {email}.",
+    "termsTitle": "Nutzungsbedingungen",
+    "termsBody": "Diese Bedingungen regeln die Nutzung von Cafe Social. Vollständige AGB folgen vor dem Store-Launch. Fragen: {email}.",
+    "backHome": "Zur Startseite"
+  },
+  "language": {
+    "label": "Sprache"
+  }
+}
