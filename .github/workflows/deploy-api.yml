@@ -24,7 +24,9 @@ jobs:
           host: ${{ secrets.HETZNER_HOST }}
           username: ${{ secrets.HETZNER_USER }}
           key: ${{ secrets.HETZNER_SSH_KEY }}
-          script_stop: true
+          # No script_stop: appleboy/ssh-action v1.2.2 dropped that input and
+          # warns on every run. Failure propagation comes from `set -euo
+          # pipefail` in the script below, which is what was doing the work.
           command_timeout: 20m
           script: |
             set -euo pipefail
