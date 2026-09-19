@@ -34,4 +34,20 @@ jobs:
             cd deploy/oracle
             test -f .env
             docker compose up -d --build
-            curl -fsS https://api.cafe-social.com/api/health
+            # Nest needs a few seconds after the container starts. Curling
+            # immediately races the boot and returns 502, failing the run even
+            # though the deploy succeeded (see run 33340306134). Poll instead.
+            ok=0
+            for i in $(seq 1 30); do
+              if curl -fsS -o /dev/null https://api.cafe-social.com/api/health; then
+                echo "API healthy after $((i * 5))s"
+                ok=1
+                break
+              fi
+              sleep 5
+            done
+            if [ "$ok" != "1" ]; then
+              echo "API did not become healthy within 150s"
+              docker compose logs --tail 50 api || true
+              exit 1
+            fi
