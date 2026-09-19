@@ -48,3 +48,6 @@ Frugends/
 
 # --- empty / generated placeholders ---
 # (leave supabase/ unignored so future CLI config can be committed)
+
+# Claude Code local settings (personal permission grants)
+.claude/settings.local.json
