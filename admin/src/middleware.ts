@@ -1,6 +1,9 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 const isPublicRoute = createRouteMatcher([
+  // Front door: let app/page.tsx decide (sign-in when signed out, dashboard when signed in).
+  // Without this, auth.protect() 404s anonymous visitors landing on partner.cafe-social.com.
+  "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/owner/sign-in(.*)",
