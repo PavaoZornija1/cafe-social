@@ -35,6 +35,9 @@ export default {
       bundleIdentifier,
       usesAppleSignIn: false,
       infoPlist: {
+        // Declares we use only exempt encryption (HTTPS). Without this, App Store
+        // Connect asks the export-compliance question on every single submission.
+        ITSAppUsesNonExemptEncryption: false,
         NSCameraUsageDescription:
           'Cafe Social uses the camera to scan venue QR codes to unlock games and partner offers at that location.',
         NSPhotoLibraryUsageDescription:
@@ -44,8 +47,15 @@ export default {
         NSLocationAlwaysAndWhenInUseUsageDescription:
           'If you allow “Always”, Cafe Social can notify you when you are near a partner café with an active offer, and record approximate venue enter/exit for visit analytics — without continuous GPS tracking for unrelated ads.',
         UIBackgroundModes: ['location'],
+        // Setting CFBundleURLTypes makes Expo ignore the top-level `scheme`, so the
+        // app's own deep links must be re-declared here or `cafesocial://` invites,
+        // QR unlocks and notification taps stop resolving on iOS.
         ...(googleIosUrlScheme && {
           CFBundleURLTypes: [
+            {
+              CFBundleURLSchemes: ['cafesocial', bundleIdentifier],
+              CFBundleURLName: 'App Scheme',
+            },
             {
               CFBundleURLSchemes: [googleIosUrlScheme],
               CFBundleURLName: 'Google Sign-In',
