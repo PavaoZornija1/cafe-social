@@ -147,6 +147,10 @@ export default {
       policy: 'appVersion',
     },
     updates: {
+      // EAS Update endpoint for this project. `eas update:configure` cannot write
+      // a dynamic config, so it is set here. Pairs with the `channel` on each
+      // eas.json build profile and the appVersion runtimeVersion policy above.
+      url: 'https://u.expo.dev/34bc0f30-19bd-4ae3-b14b-ae67a13f65f7',
       checkAutomatically: 'ON_LOAD',
     },
   },
