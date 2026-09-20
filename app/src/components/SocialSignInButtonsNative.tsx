@@ -3,6 +3,7 @@
  * Google uses useSSO so Clerk accepts the strategy; native useSignInWithGoogle sends google_one_tap which some instances reject.
  */
 import { useSignInWithApple } from '@clerk/expo/apple';
+import Constants from 'expo-constants';
 import { useSSO } from '@clerk/expo';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -32,7 +33,12 @@ export function SocialSignInButtonsNative({
     const { colors } = useAppTheme();
     const styles = useMemo(() => createStyles(colors), [colors]);
     const { t } = useTranslation();
-    const ENABLE_APPLE_SIGN_IN = false;
+    // Driven by app.config.js `extra.appleSignInEnabled`, which is true only for
+    // the store-bound APP_ENV profiles — the personal-team dev bundle cannot
+    // provision the Sign in with Apple entitlement.
+    const ENABLE_APPLE_SIGN_IN =
+        (Constants.expoConfig?.extra as { appleSignInEnabled?: boolean } | undefined)
+            ?.appleSignInEnabled === true;
     const [loading, setLoading] = useState<'google' | 'apple' | null>(null);
 
     return (

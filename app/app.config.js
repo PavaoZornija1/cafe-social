@@ -15,6 +15,13 @@ const bundleIdentifier =
       ? 'com.cafesocial.app.dev'
       : 'com.pavaozornija.cafesocial.devclient';
 
+// Sign in with Apple needs a paid Apple Developer team to provision the
+// entitlement. Local device builds use the personal-team bundle id, which
+// cannot, so enable it only for the store-bound profiles. Apple guideline 4.8
+// requires it wherever third-party sign-in (Google) is offered.
+const appleSignInEnabled =
+  appEnv === 'production' || appEnv === 'preview' || appEnv === 'staging';
+
 export default {
   expo: {
     name: 'Cafe Social',
@@ -33,7 +40,7 @@ export default {
         appleTeamId: process.env.EXPO_APPLE_TEAM_ID,
       }),
       bundleIdentifier,
-      usesAppleSignIn: false,
+      usesAppleSignIn: appleSignInEnabled,
       infoPlist: {
         // Declares we use only exempt encryption (HTTPS). Without this, App Store
         // Connect asks the export-compliance question on every single submission.
@@ -82,9 +89,14 @@ export default {
       bundler: 'metro',
       output: 'single',
     },
-    // plugins: ['@clerk/expo', 'expo-secure-store', 'expo-web-browser', 'expo-apple-authentication'],
     plugins: [
+      // Registered BEFORE @clerk/expo on purpose: Expo runs mods in reverse
+      // registration order, so this executes after Clerk's and can strip the
+      // Sign in with Apple entitlement Clerk adds unconditionally. A personal
+      // Apple team cannot provision it, so dev builds would fail to sign.
+      ...(appleSignInEnabled ? [] : ['./plugins/withAppleSignInGate']),
       '@clerk/expo',
+      ...(appleSignInEnabled ? ['expo-apple-authentication'] : []),
       'expo-secure-store',
       'expo-web-browser',
       'expo-localization',
@@ -122,6 +134,7 @@ export default {
     ],
     extra: {
       eas: easProjectId ? { projectId: easProjectId } : {},
+      appleSignInEnabled,
       receiptSubmissionsEnabled:
         process.env.EXPO_PUBLIC_RECEIPT_SUBMISSIONS_ENABLED === 'true' ||
         process.env.EXPO_PUBLIC_RECEIPT_SUBMISSIONS_ENABLED === '1',
