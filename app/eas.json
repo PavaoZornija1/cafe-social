@@ -39,6 +39,17 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6806779236",
+        "ascApiKeyPath": "./credentials/AuthKey_CHDSJR4GSU.p8",
+        "ascApiKeyId": "CHDSJR4GSU",
+        "ascApiKeyIssuerId": "685affe8-1b8b-4cc9-b659-ee2a23e10053"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./credentials/play-service-account.json",
+        "track": "internal"
+      }
+    }
   }
 }

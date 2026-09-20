@@ -57,3 +57,9 @@ Frugends/
 # push and Apple-signin entries from Info.plist.
 app/ios/
 app/android/
+
+# --- store submission credentials (never commit) ---
+app/credentials/
+*.p8
+google-service-account*.json
+play-service-account*.json
