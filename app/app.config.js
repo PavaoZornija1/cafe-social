@@ -100,6 +100,7 @@ export default {
       // Apple team cannot provision it, so dev builds would fail to sign.
       ...(appleSignInEnabled ? [] : ['./plugins/withAppleSignInGate']),
       '@clerk/expo',
+      './plugins/withModularHeaders',
       ...(appleSignInEnabled ? ['expo-apple-authentication'] : []),
       'expo-secure-store',
       'expo-web-browser',
