@@ -1,4 +1,8 @@
-const easProjectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID || '';
+// EAS project id is a public identifier, not a secret — `eas init` normally writes
+// it into app.json. It must be literal here: EAS CLI does not read .env when
+// evaluating this config, and .env is gitignored so it never reaches a cloud build.
+const easProjectId =
+  process.env.EXPO_PUBLIC_EAS_PROJECT_ID || '34bc0f30-19bd-4ae3-b14b-ae67a13f65f7';
 
 // Google Sign-In iOS: URL scheme is the "reversed" client ID (required for OAuth redirect)
 const googleIosClientId = process.env.EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID || '';

@@ -10,28 +10,32 @@
       "channel": "development",
       "env": {
         "APP_ENV": "development"
-      }
+      },
+      "environment": "development"
     },
     "preview": {
       "distribution": "internal",
       "channel": "preview",
       "env": {
         "APP_ENV": "preview"
-      }
+      },
+      "environment": "preview"
     },
     "staging": {
       "distribution": "internal",
       "channel": "staging",
       "env": {
         "APP_ENV": "staging"
-      }
+      },
+      "environment": "preview"
     },
     "production": {
       "autoIncrement": true,
       "channel": "production",
       "env": {
         "APP_ENV": "production"
-      }
+      },
+      "environment": "production"
     }
   },
   "submit": {
