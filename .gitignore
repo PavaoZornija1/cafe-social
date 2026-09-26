@@ -63,3 +63,10 @@ app/credentials/
 *.p8
 google-service-account*.json
 play-service-account*.json
+
+# --- local agent/editor config (per-machine, not shared) ---
+.codex/
+
+# --- store assets ---
+# Superseded screenshot captures: kept on disk for reference, too large to track.
+store/screenshots/**/_superseded/
