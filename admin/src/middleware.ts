@@ -10,6 +10,9 @@ const isPublicRoute = createRouteMatcher([
   "/owner/sign-up(.*)",
   "/privacy(.*)",
   "/terms(.*)",
+  // Google Play requires the account-deletion page to be reachable without
+  // signing in or installing the app; auth.protect() would 404 those visitors.
+  "/delete-account(.*)",
 ]);
 
 export default clerkMiddleware(

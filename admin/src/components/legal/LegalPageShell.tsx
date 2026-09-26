@@ -25,6 +25,9 @@ export function LegalPageShell({
             <Link href="/terms" className="hover:text-brand">
               Terms
             </Link>
+            <Link href="/delete-account" className="hover:text-brand">
+              Delete account
+            </Link>
           </nav>
         </div>
       </header>
@@ -43,6 +46,9 @@ export function LegalPageShell({
           </Link>
           <Link href="/terms" className="hover:text-brand">
             Terms of service
+          </Link>
+          <Link href="/delete-account" className="hover:text-brand">
+            Delete your account
           </Link>
         </div>
       </footer>
