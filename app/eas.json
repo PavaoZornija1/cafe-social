@@ -44,6 +44,19 @@
       "android": {
         "buildType": "apk"
       }
+    },
+    "screenshots-android": {
+      "extends": "production",
+      "autoIncrement": false,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "APP_ENV": "production",
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY": " ",
+        "EXPO_PUBLIC_REVENUECAT_TEST_ANDROID_API_KEY": " "
+      }
     }
   },
   "submit": {
