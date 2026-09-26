@@ -101,6 +101,7 @@ export default {
       ...(appleSignInEnabled ? [] : ['./plugins/withAppleSignInGate']),
       '@clerk/expo',
       './plugins/withModularHeaders',
+      './plugins/withPodDeploymentTarget',
       ...(appleSignInEnabled ? ['expo-apple-authentication'] : []),
       'expo-secure-store',
       'expo-web-browser',
