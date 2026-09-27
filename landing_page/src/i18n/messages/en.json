@@ -225,9 +225,27 @@
       "review": "Review results and decide on ongoing partnership"
     },
     "contactTitle": "Let's talk",
-    "contactBody": "Tell us about your café and we'll reach out about a pilot.",
+    "contactBody": "Prefer email? We're happy to hear from you directly as well.",
     "contactCta": "Email us",
-    "backHome": "Back to home"
+    "backHome": "Back to home",
+    "applicationForm": {
+      "applyCta": "Apply now",
+      "title": "Apply to become a partner",
+      "lead": "Share your contact details and venue address. We review every application before go-live.",
+      "applicantName": "Your name",
+      "email": "Email",
+      "phone": "Phone (optional)",
+      "venueName": "Venue / café name",
+      "address": "Street address",
+      "city": "City",
+      "country": "Country",
+      "countryPlaceholder": "e.g. Croatia or HR",
+      "submit": "Submit application",
+      "submitting": "Submitting…",
+      "successTitle": "Application received",
+      "successBody": "Thanks! Our team will review your details and email you when your venue is approved.",
+      "errorGeneric": "Could not submit. Please try again."
+    }
   },
   "legal": {
     "privacyTitle": "Privacy Policy",

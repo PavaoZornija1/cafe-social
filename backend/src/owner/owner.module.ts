@@ -20,6 +20,7 @@ import { PartnerOnboardingThrottlerFilter } from './partner-onboarding-throttle.
 import { VenueModule } from '../venue/venue.module';
 import { StripeModule } from '../stripe/stripe.module';
 import { NotificationModule } from '../notification/notification.module';
+import { PartnerApplicationModule } from '../partner-application/partner-application.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { NotificationModule } from '../notification/notification.module';
     ReceiptModule,
     NotificationModule,
     forwardRef(() => StripeModule),
+    PartnerApplicationModule,
   ],
   controllers: [OwnerController],
   providers: [

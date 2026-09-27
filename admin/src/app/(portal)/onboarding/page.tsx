@@ -12,6 +12,7 @@ import { CitySelect } from "@/components/ui/CitySelect";
 import { CountrySelect } from "@/components/ui/CountrySelect";
 import type { PartnerOnboardingPayload } from "@/lib/portalApi";
 import { usePartnerOnboardingMutation, usePortalMeQuery } from "@/lib/queries";
+import { redirectToPartnersApply } from "@/lib/partnersApplyUrl";
 
 const VenueGeofenceMap = dynamic(() => import("@/components/VenueGeofenceMap"), {
   ssr: false,
@@ -128,6 +129,14 @@ export default function PartnerOnboardingPage() {
 
     if (prevNeedsOnboardingRef.current === null) {
       prevNeedsOnboardingRef.current = needs;
+      if (meQ.data.partnerApplication?.status === "PENDING") {
+        router.replace("/application-pending");
+        return;
+      }
+      if (needs) {
+        redirectToPartnersApply();
+        return;
+      }
       if (!needs) {
         router.replace("/owner/venues");
       }

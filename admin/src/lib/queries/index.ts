@@ -2039,3 +2039,87 @@ export function useOwnerCreateVenueUnderOrgMutation(
     },
   });
 }
+
+export function useAdminPartnerApplicationsQuery(
+  getToken: () => Promise<string | null>,
+  isLoaded: boolean,
+  params: { status?: string; page: number; limit: number; search?: string },
+) {
+  return useQuery({
+    queryKey: queryKeys.admin.partnerApplicationsList(params),
+    enabled: isLoaded,
+    queryFn: () => {
+      const sp = new URLSearchParams();
+      sp.set("page", String(params.page));
+      sp.set("limit", String(params.limit));
+      if (params.status) sp.set("status", params.status);
+      if (params.search?.trim()) sp.set("search", params.search.trim());
+      return portalFetch<{
+        total: number;
+        page: number;
+        limit: number;
+        items: import("@/lib/partnerApplicationApi").AdminPartnerApplicationListItem[];
+      }>(getToken, `/admin/partner-applications?${sp.toString()}`);
+    },
+  });
+}
+
+export function useAdminPartnerApplicationQuery(
+  getToken: () => Promise<string | null>,
+  isLoaded: boolean,
+  id: string | undefined,
+) {
+  return useQuery({
+    queryKey: queryKeys.admin.partnerApplication(id ?? ""),
+    enabled: isLoaded && Boolean(id),
+    queryFn: () =>
+      portalFetch<import("@/lib/partnerApplicationApi").AdminPartnerApplicationDetail>(
+        getToken,
+        `/admin/partner-applications/${id}`,
+      ),
+  });
+}
+
+export function useAdminApprovePartnerApplicationMutation(
+  getToken: () => Promise<string | null>,
+  applicationId: string | undefined,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: import("@/lib/partnerApplicationApi").ApprovePartnerApplicationPayload) =>
+      portalFetch(getToken, `/admin/partner-applications/${applicationId}/approve`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", "partner-applications"] });
+      if (applicationId) {
+        void qc.invalidateQueries({
+          queryKey: queryKeys.admin.partnerApplication(applicationId),
+        });
+      }
+    },
+  });
+}
+
+export function useAdminRejectPartnerApplicationMutation(
+  getToken: () => Promise<string | null>,
+  applicationId: string | undefined,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (reason?: string) =>
+      portalFetch(getToken, `/admin/partner-applications/${applicationId}/reject`, {
+        method: "POST",
+        body: JSON.stringify(reason ? { reason } : {}),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin", "partner-applications"] });
+      if (applicationId) {
+        void qc.invalidateQueries({
+          queryKey: queryKeys.admin.partnerApplication(applicationId),
+        });
+      }
+    },
+  });
+}

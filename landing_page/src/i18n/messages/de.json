@@ -225,9 +225,27 @@
       "review": "Ergebnisse prüfen und über Fortführung entscheiden"
     },
     "contactTitle": "Lass uns reden",
-    "contactBody": "Erzähl uns von deinem Café — wir melden uns zum Pilot.",
+    "contactBody": "Lieber per E-Mail? Schreib uns gern direkt.",
     "contactCta": "E-Mail schreiben",
-    "backHome": "Zur Startseite"
+    "backHome": "Zur Startseite",
+    "applicationForm": {
+      "applyCta": "Jetzt bewerben",
+      "title": "Partner werden",
+      "lead": "Kontakt und Adresse deines Lokals. Wir prüfen jede Anfrage vor dem Go-live.",
+      "applicantName": "Dein Name",
+      "email": "E-Mail",
+      "phone": "Telefon (optional)",
+      "venueName": "Name des Lokals / Cafés",
+      "address": "Straße und Hausnummer",
+      "city": "Stadt",
+      "country": "Land",
+      "countryPlaceholder": "z. B. Deutschland oder DE",
+      "submit": "Bewerbung senden",
+      "submitting": "Wird gesendet…",
+      "successTitle": "Bewerbung eingegangen",
+      "successBody": "Danke! Wir melden uns per E-Mail, sobald dein Lokal freigeschaltet ist.",
+      "errorGeneric": "Senden fehlgeschlagen. Bitte erneut versuchen."
+    }
   },
   "legal": {
     "privacyTitle": "Datenschutz",

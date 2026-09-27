@@ -24,6 +24,13 @@ export const queryKeys = {
     nudgeTemplates: ["admin", "nudge-templates"] as const,
     venueNudgeAssignments: (venueId: string) =>
       ["admin", "venues", venueId, "nudge-assignments"] as const,
+    partnerApplicationsList: (p: {
+      status?: string;
+      page: number;
+      limit: number;
+      search?: string;
+    }) => ["admin", "partner-applications", "list", p] as const,
+    partnerApplication: (id: string) => ["admin", "partner-applications", id] as const,
   },
   owner: {
     superAdminVenuePicker: ["owner", "super-admin", "venue-picker"] as const,

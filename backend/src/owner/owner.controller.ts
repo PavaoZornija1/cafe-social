@@ -17,6 +17,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import {
+  PartnerVenueApplicationStatus,
   PlatformRole,
   ReceiptSubmissionStatus,
   VenueStaff,
@@ -66,6 +67,7 @@ import { BanPlayerDto } from './dto/ban-player.dto';
 import { ResolveBanAppealDto } from './dto/resolve-ban-appeal.dto';
 import { DismissModerationReportDto } from './dto/dismiss-moderation-report.dto';
 import { parseYmdUtc } from './analytics-period.util';
+import { PartnerApplicationService } from '../partner-application/partner-application.service';
 
 function utcTodayYmd(): string {
   const n = new Date();
@@ -101,6 +103,7 @@ export class OwnerController {
     private readonly venueModeration: VenueModerationService,
     private readonly stripePartnerBilling: StripePartnerBillingService,
     private readonly stripePartnerPpvBilling: StripePartnerPpvBillingService,
+    private readonly partnerApplications: PartnerApplicationService,
   ) {}
 
   private async staffPlayerId(user: unknown): Promise<string> {
@@ -327,6 +330,29 @@ export class OwnerController {
         needsPartnerOnboarding = false;
       }
     }
+
+    const partnerApplicationRaw =
+      ctx.platformRole !== PlatformRole.SUPER_ADMIN && ctx.venues.length === 0
+        ? await this.partnerApplications.getLatestForEmail(ctx.email)
+        : null;
+
+    const partnerApplication = partnerApplicationRaw
+      ? {
+          id: partnerApplicationRaw.id,
+          status: partnerApplicationRaw.status,
+          rejectionReason: partnerApplicationRaw.rejectionReason,
+          createdVenueId: partnerApplicationRaw.createdVenueId,
+          createdOrganizationId: partnerApplicationRaw.createdOrganizationId,
+        }
+      : null;
+
+    if (
+      partnerApplication?.status === PartnerVenueApplicationStatus.PENDING ||
+      partnerApplication?.status === PartnerVenueApplicationStatus.REJECTED
+    ) {
+      needsPartnerOnboarding = false;
+    }
+
     return {
       platformRole: ctx.platformRole,
       playerId: ctx.playerId,
@@ -334,6 +360,7 @@ export class OwnerController {
       username: ctx.username,
       venues: ctx.venues,
       needsPartnerOnboarding,
+      partnerApplication,
       actingPartnerVenueId,
     };
   }

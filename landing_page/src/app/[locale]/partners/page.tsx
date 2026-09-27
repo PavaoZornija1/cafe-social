@@ -4,6 +4,7 @@ import { siteConfig } from "@/lib/config";
 import { SiteNav } from "@/components/SiteNav";
 import { SiteFooter } from "@/components/SiteFooter";
 import { GlowCard } from "@/components/GlowCard";
+import { PartnerApplicationForm } from "@/components/PartnerApplicationForm";
 import { Reveal } from "@/components/Reveal";
 
 const whatKeys = [
@@ -58,6 +59,12 @@ export default async function PartnersPage({
             <p className="mt-4 text-lg leading-relaxed text-text-secondary">
               {t("heroSubtitle")}
             </p>
+            <a
+              href="#apply"
+              className="mt-6 inline-flex rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white"
+            >
+              {t("applicationForm.applyCta")}
+            </a>
           </Reveal>
 
           <Reveal className="mt-12">
@@ -114,14 +121,17 @@ export default async function PartnersPage({
             </GlowCard>
           </Reveal>
 
+          <Reveal className="mt-12">
+            <PartnerApplicationForm />
+          </Reveal>
+
           <Reveal className="mt-8">
             <GlowCard className="rounded-3xl border border-border bg-surface-muted p-6 text-center">
-              <h2 className="text-2xl font-bold">{t("contactTitle")}</h2>
-              <p className="mt-3 text-text-secondary">{t("contactBody")}</p>
-              <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <p className="text-sm text-text-secondary">{t("contactBody")}</p>
+              <div className="mt-4 flex flex-wrap justify-center gap-3">
                 <a
                   href={`mailto:${siteConfig.contactEmail}`}
-                  className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white"
+                  className="rounded-full border border-border bg-surface px-6 py-3 text-sm font-semibold text-foreground"
                 >
                   {t("contactCta")}
                 </a>

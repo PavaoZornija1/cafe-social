@@ -26,6 +26,7 @@ import { RedisModule } from './redis/redis.module';
 import { QueueBotModule } from './queue-bot/queue-bot.module';
 import { PlatformQuestModule } from './platform-quest/platform-quest.module';
 import { GeocodeModule } from './geocode/geocode.module';
+import { PartnerApplicationModule } from './partner-application/partner-application.module';
 
 @Module({
   imports: [
@@ -75,6 +76,7 @@ import { GeocodeModule } from './geocode/geocode.module';
     QueueBotModule,
     PlatformQuestModule,
     GeocodeModule,
+    PartnerApplicationModule,
   ],
   controllers: [HealthController],
   providers: [],

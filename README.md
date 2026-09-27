@@ -36,6 +36,18 @@ First-time: `npm install`, `npx prisma migrate dev`, `npx prisma db seed` (see [
 cd admin && npm run dev    # http://localhost:3000
 ```
 
+**Super admins:** partner waiting list at `/partner-applications` (approve with geofence in admin).
+
+### 3b. Marketing / partner apply (`landing_page/`)
+
+```bash
+cd landing_page
+# NEXT_PUBLIC_API_URL=http://localhost:3005/api
+npm run dev    # http://localhost:3001 — apply form at /partners#apply
+```
+
+Set **`NEXT_PUBLIC_LANDING_PARTNERS_APPLY_URL`** on the admin app (e.g. `https://cafesocial.app/partners#apply`) so signed-in users without a venue are sent to the marketing form, not admin.
+
 ### 4. Mobile app
 
 ```bash
@@ -59,6 +71,7 @@ In-repo Phase A (bundle IDs, paywall confirm, play-time claim recovery, env plac
 |------|-------------|
 | `backend/` | NestJS API (`/api`), PostgreSQL via Prisma, Clerk JWT auth |
 | `app/` | Expo SDK 54 app (iOS/Android), Clerk, React Navigation — venue gaming, social, loyalty, staff tools |
+| `landing_page/` | **Next.js 15** marketing site (port **3001**); public partner apply form at **`/partners#apply`** |
 | `admin/` | **Next.js 15** partner portal (**Clerk** only): **super admins** (`Player.platformRole`) get full CMS (venues, words, challenges, perks); **OWNER / MANAGER** get venue dashboards including **challenges & perks**, campaigns, receipts; **EMPLOYEE**+ get JWT **staff redemptions** (`/staff/[venueId]` and owner redemptions tab) |
 
 ## What’s implemented

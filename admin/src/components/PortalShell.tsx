@@ -15,6 +15,7 @@ import {
 } from "@/lib/partnerRoles";
 import { SuperAdminVenuePicker } from "./SuperAdminVenuePicker";
 import { TrialContactBar } from "./TrialContactBar";
+import { redirectToPartnersApply } from "@/lib/partnersApplyUrl";
 
 type NavIconName =
   | "overview"
@@ -254,6 +255,14 @@ function PortalNavLinks({
             {t("admin.shell.organizations")}
           </NavLink>
           <NavLink
+            href="/partner-applications"
+            active={Boolean(pathname?.startsWith("/partner-applications"))}
+            icon="partner"
+            onNavigate={onNavigate}
+          >
+            {t("admin.shell.partnerApplications")}
+          </NavLink>
+          <NavLink
             href="/venues"
             active={
               pathname === "/venues" ||
@@ -459,15 +468,23 @@ export default function PortalShell({
   }, [me?.venues]);
 
   const onboardingPathsWhileIncomplete = useMemo(() => {
-    return pathname === "/onboarding" || Boolean(pathname?.startsWith("/owner/accept-invite"));
+    return (
+      pathname === "/onboarding" ||
+      pathname === "/application-pending" ||
+      Boolean(pathname?.startsWith("/owner/accept-invite"))
+    );
   }, [pathname]);
 
   useEffect(() => {
     if (!isLoaded || !me) return;
-    if (me.needsPartnerOnboarding && !onboardingPathsWhileIncomplete) {
-      router.replace("/onboarding");
+    if (me.partnerApplication?.status === "PENDING" && pathname !== "/application-pending") {
+      router.replace("/application-pending");
+      return;
     }
-  }, [isLoaded, me, onboardingPathsWhileIncomplete, router]);
+    if (me.needsPartnerOnboarding && !onboardingPathsWhileIncomplete) {
+      redirectToPartnersApply();
+    }
+  }, [isLoaded, me, onboardingPathsWhileIncomplete, pathname, router]);
 
   useEffect(() => {
     setMobileNavOpen(false);

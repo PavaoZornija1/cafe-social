@@ -42,6 +42,13 @@ export type PortalMeResponse = {
   venues: PortalMeVenueRow[];
   /** True when the user should complete self-serve partner onboarding (no pending staff invites). */
   needsPartnerOnboarding: boolean;
+  partnerApplication?: {
+    id: string;
+    status: "PENDING" | "APPROVED" | "REJECTED";
+    rejectionReason: string | null;
+    createdVenueId: string | null;
+    createdOrganizationId: string | null;
+  } | null;
   /** Super admin: echoed from `X-Portal-Venue-Context` when valid (partner acting mode). */
   actingPartnerVenueId?: string | null;
 };

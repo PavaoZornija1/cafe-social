@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { usePortalMeQuery } from "@/lib/queries";
+import { redirectToPartnersApply } from "@/lib/partnersApplyUrl";
 
 export default function DashboardRedirectPage() {
   const { t } = useTranslation();
@@ -23,8 +24,12 @@ export default function DashboardRedirectPage() {
       router.replace("/sign-in");
       return;
     }
+    if (me.partnerApplication?.status === "PENDING") {
+      router.replace("/application-pending");
+      return;
+    }
     if (me.needsPartnerOnboarding) {
-      router.replace("/onboarding");
+      redirectToPartnersApply();
       return;
     }
     if (me.platformRole === "SUPER_ADMIN") {

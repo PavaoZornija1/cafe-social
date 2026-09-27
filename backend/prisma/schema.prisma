@@ -56,6 +56,52 @@ model VenueOrganization {
   @@index([selfServeCreatedByPlayerId])
 }
 
+enum PartnerVenueApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Public `/partners` apply form; super admin approves with geofence before venue exists.
+model PartnerVenueApplication {
+  id     String                        @id @default(uuid())
+  status PartnerVenueApplicationStatus @default(PENDING)
+
+  applicantEmail String
+  applicantName  String
+  applicantPhone String?
+
+  submittedByPlayerId String?
+  submittedBy         Player? @relation("PartnerApplicationSubmittedBy", fields: [submittedByPlayerId], references: [id], onDelete: SetNull)
+
+  venueName String
+  address   String
+  city      String
+  country   String
+
+  /// Filled when super admin approves (audit + review UI).
+  latitude          Float?
+  longitude         Float?
+  geofencePolygon   Json?
+  locationKind      VenueOrganizationKind?
+  organizationName  String?
+  analyticsTimeZone String?
+
+  reviewedAt         DateTime?
+  reviewedByPlayerId String?
+  reviewedBy         Player? @relation("PartnerApplicationReviewedBy", fields: [reviewedByPlayerId], references: [id], onDelete: SetNull)
+  rejectionReason    String?
+
+  createdOrganizationId String?
+  createdVenueId        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([applicantEmail])
+}
+
 /// Processed Stripe webhook events (idempotency; `id` is Stripe evt_…).
 model StripeProcessedWebhookEvent {
   id        String   @id
@@ -595,6 +641,9 @@ model Player {
   blocksCreated      PlayerBlock[]              @relation("Blocker")
   blocksReceived     PlayerBlock[]              @relation("Blocked")
   moderationAudits   VenueModerationAuditLog[]
+
+  partnerApplicationsSubmitted PartnerVenueApplication[] @relation("PartnerApplicationSubmittedBy")
+  partnerApplicationsReviewed  PartnerVenueApplication[] @relation("PartnerApplicationReviewedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

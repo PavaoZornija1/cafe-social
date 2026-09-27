@@ -225,9 +225,27 @@
       "review": "Pregled rezultata i odluka o nastavku"
     },
     "contactTitle": "Javimo se",
-    "contactBody": "Reci nam o svom kafiću — javit ćemo se oko pilota.",
+    "contactBody": "Radije email? Slobodno nam se javi direktno.",
     "contactCta": "Pošalji email",
-    "backHome": "Natrag na početnu"
+    "backHome": "Natrag na početnu",
+    "applicationForm": {
+      "applyCta": "Prijavi se",
+      "title": "Postani partner",
+      "lead": "Kontakt i adresa lokala. Svaku prijavu pregledavamo prije objave.",
+      "applicantName": "Ime i prezime",
+      "email": "Email",
+      "phone": "Telefon (opcionalno)",
+      "venueName": "Naziv kafića / lokala",
+      "address": "Ulica i broj",
+      "city": "Grad",
+      "country": "Država",
+      "countryPlaceholder": "npr. Hrvatska ili HR",
+      "submit": "Pošalji prijavu",
+      "submitting": "Šaljem…",
+      "successTitle": "Prijava primljena",
+      "successBody": "Hvala! Javit ćemo ti se emailom kad lokacija bude odobrena.",
+      "errorGeneric": "Slanje nije uspjelo. Pokušaj ponovno."
+    }
   },
   "legal": {
     "privacyTitle": "Politika privatnosti",

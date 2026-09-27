@@ -225,9 +225,27 @@
       "review": "Revisar resultados y decidir continuidad"
     },
     "contactTitle": "Hablemos",
-    "contactBody": "Cuéntanos sobre tu café y contactaremos sobre un piloto.",
+    "contactBody": "¿Prefieres email? También puedes escribirnos directamente.",
     "contactCta": "Enviar email",
-    "backHome": "Volver al inicio"
+    "backHome": "Volver al inicio",
+    "applicationForm": {
+      "applyCta": "Solicitar ahora",
+      "title": "Ser partner",
+      "lead": "Datos de contacto y dirección del local. Revisamos cada solicitud antes del lanzamiento.",
+      "applicantName": "Tu nombre",
+      "email": "Email",
+      "phone": "Teléfono (opcional)",
+      "venueName": "Nombre del café / local",
+      "address": "Dirección",
+      "city": "Ciudad",
+      "country": "País",
+      "countryPlaceholder": "p. ej. España o ES",
+      "submit": "Enviar solicitud",
+      "submitting": "Enviando…",
+      "successTitle": "Solicitud recibida",
+      "successBody": "¡Gracias! Te escribiremos cuando tu local esté aprobado.",
+      "errorGeneric": "No se pudo enviar. Inténtalo de nuevo."
+    }
   },
   "legal": {
     "privacyTitle": "Política de privacidad",
