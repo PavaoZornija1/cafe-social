@@ -29,7 +29,7 @@ Suggested single take, roughly 4–6 minutes:
 | 4 | Typical flow: Home, Venues map, Play, Leaderboards, Friends, Rewards hub | bottom tabs |
 | 5 | **User-generated content + reporting** — show a username on a leaderboard, tap **Report** | Leaderboard → Report |
 | 6 | **Blocking** — open Friends, tap **Block** on a friend | Friends → My friends → Block |
-| 7 | **Accessing paid content** — open the paywall and complete a Sandbox purchase, then show a previously locked game now playable | Me → gear → Subscription → Get Cafe Social Pro |
+| 7 | **Accessing paid content** — open the paywall and show the two Pro tiers. **Do not attempt the purchase** — see “Why the purchase cannot be recorded” below | Me → gear → Subscription → Get Cafe Social Pro |
 | 8 | **Account deletion** — Settings → Account → Delete my account, and confirm | Settings → Account |
 
 Notes that will save you a retake:
@@ -40,10 +40,52 @@ Notes that will save you a retake:
 - Items 5 and 6 are the ones most often missed. Apple asks for content reporting
   **and** blocking mechanisms specifically; the app has `ReportPlayerScreen` and
   `PlayerBlock`, so show both.
-- Item 7 doubles as the sandbox-purchase test that has never been run. If the
-  purchase fails, stop and tell me before recording anything else.
+- Item 7 is **paywall only**. The purchase cannot succeed yet and the failure
+  must not appear in the recording — record the paywall, then move on.
 - Upload to a stable URL (unlisted YouTube, iCloud, Dropbox) and include the link
   in the reply.
+
+---
+
+## Why the purchase cannot be recorded yet
+
+Attempting it on a device returns RevenueCat **error 23** (`CONFIGURATION_ERROR`).
+That is not a bug in our setup. Every link in the chain was verified against the
+live APIs on 2026-09-27, not assumed:
+
+| Check | Result |
+|---|---|
+| RevenueCat App Store app bundle id | `com.cafesocial.app` — matches `app.config.js` for `APP_ENV=production` |
+| iOS publishable key in EAS `production` | `appl_mSQAPDNH…` — matches the only key on the App Store app |
+| Shared-key override (`EXPO_PUBLIC_REVENUECAT_API_KEY`) | not set, so the iOS key wins in `nativeApiKey()` |
+| App Store Connect API key | valid — list-apps and subscriptions-info permissions both pass |
+| App Store subscriptions (in-app) key | valid |
+| Current offering `default` | `$rc_monthly` and `$rc_annual`, each carrying the App Store product |
+| Entitlement | `Cafe Social Pro` — exactly matches `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID`, both products attached |
+| Product status as Apple reports it | **`READY_TO_SUBMIT`** — never been through review |
+
+The last row is the cause. Apple will not serve a first app's subscriptions to
+StoreKit until they have been submitted for review with a version, and the Paid
+Applications Agreement only went Active today — its propagation is separately
+slow.
+
+**This resolves itself the moment the submission goes in**, because subscriptions
+under review are purchasable in the reviewer's sandbox. So the sequence is:
+
+1. Record items 1–6 and 8, skipping the purchase.
+2. Reply with the recording and items 2–6, including the paragraph below.
+3. Submit — the draft submission already contains the build, the subscription
+   group and both subscriptions, so Apple's “configured and submitted alongside
+   the app” instruction is satisfied.
+
+Paragraph to include in the reply:
+
+> The two Cafe Social Pro subscriptions are submitted for review alongside this
+> build, so they become purchasable in the sandbox as soon as review begins. They
+> were not purchasable while the app sat in Ready for Review, which is why the
+> recording shows the paywall rather than a completed transaction. If you have any
+> difficulty completing the test purchase, please let us know and we will provide
+> a second account with the subscription already granted.
 
 ---
 
