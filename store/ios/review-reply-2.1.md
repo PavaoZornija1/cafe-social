@@ -15,35 +15,52 @@ screen recording on a physical device, and I cannot produce it.
 
 ## Item 1 — Screen recording (ACTION REQUIRED, only you can do this)
 
-Record on the iPhone 14 Pro, on the latest iOS, using a build of the submitted
-version. Start the recording **before** launching the app. Apple explicitly wants
-four things shown; all four exist in the app.
+Record **TestFlight build 1.0.0 (4)** — the binary attached to version 1.0. Not
+Expo Go: it cannot load this app at all (RevenueCat, Clerk native sign-in,
+react-native-maps and expo-updates are not bundled in it), and it would show the
+wrong bundle id.
 
-Suggested single take, roughly 4–6 minutes:
+Start the recording **before** launching the app. One take, roughly 6 minutes.
 
-| # | Show | Where |
+### Before you start
+
+- Have **two** accounts: the demo account `pzornija+appreview@gmail.com`, and a
+  throwaway you create on camera. Blocking needs a second party — see step 7.
+- Know where you are going for Report: **Venues → Kafić Avlija**. That venue has
+  4 players on its board; Ministry of Ćejf has 3. Every other venue is empty.
+
+### The take
+
+| # | Show | Exact path |
 |---|---|---|
-| 1 | Cold launch from the Home screen | — |
-| 2 | **Account registration** — create a new account with a fresh email, receive the code, verify | Sign up → Verify your email |
-| 3 | **Login** — sign out, then sign back in | Settings → sign out, then Sign in |
-| 4 | Typical flow: Home, Venues map, Play, Leaderboards, Friends, Rewards hub | bottom tabs |
-| 5 | **User-generated content + reporting** — show a username on a leaderboard, tap **Report** | Leaderboard → Report |
-| 6 | **Blocking** — open Friends, tap **Block** on a friend | Friends → My friends → Block |
-| 7 | **Accessing paid content** — open the paywall and show the two Pro tiers. **Do not attempt the purchase** — see “Why the purchase cannot be recorded” below | Me → gear → Subscription → Get Cafe Social Pro |
-| 8 | **Account deletion** — Settings → Account → Delete my account, and confirm | Settings → Account |
+| 1 | Cold launch | from the Home screen |
+| 2 | **Account registration** | Sign up with a fresh email → enter the emailed code → verify. **Write the username down.** |
+| 3 | Typical flow | bottom tabs: Home, Venues, Play, Leaderboards, Friends, Rewards |
+| 4 | **User-generated content + reporting** | Venues → **Kafić Avlija** → **Open leaderboard** → flag icon next to any player who is not you |
+| 5 | **Accessing paid content** | Me → gear → Subscription → Get Cafe Social Pro. **Show the two tiers, then back out. Do not tap buy.** |
+| 6 | **Login** | Settings → sign out → sign in as `pzornija+appreview@gmail.com` |
+| 7 | **Blocking** — setup | As the demo account: Friends → add by username → send a request to the throwaway from step 2 |
+| 8 | **Login** again + **Blocking** | Sign out → sign back in as the throwaway → Friends → the incoming request from the demo account has **Block** right next to Accept → tap it → confirm |
+| 9 | **Account deletion** | Settings → Account → Delete my account → confirm |
 
-Notes that will save you a retake:
+Steps 6 and 8 both show login, which is what Apple asked for; the sign-out in
+between is what makes the block demonstrable at all.
 
-- **Do item 8 last.** It deletes the account you used for everything above.
-- Use a throwaway account, not `pzornija+appreview@gmail.com` — that one must
-  keep working for the reviewer.
-- Items 5 and 6 are the ones most often missed. Apple asks for content reporting
-  **and** blocking mechanisms specifically; the app has `ReportPlayerScreen` and
-  `PlayerBlock`, so show both.
-- Item 7 is **paywall only**. The purchase cannot succeed yet and the failure
-  must not appear in the recording — record the paywall, then move on.
-- Upload to a stable URL (unlisted YouTube, iCloud, Dropbox) and include the link
-  in the reply.
+### Traps, each of which costs a retake
+
+- **Step 9 last, always.** It destroys the account used for everything above.
+- **Report is venue-scoped only.** `canReport` is
+  `scope === 'venue' && Boolean(venueId) && meId != null && !isMe`, so the flag
+  icon is absent on the City, Country and Global boards. You must enter through a
+  venue. The "Open leaderboard" pill itself only appears when that venue already
+  has players on its board — which is why the venue is named above.
+- **Block needs a second account.** It renders only on an incoming friend request
+  or an existing friend row. A fresh account has neither, hence steps 7–8.
+- **Never tap buy.** The purchase still fails with error 23 and the failure must
+  not appear on camera. Show the paywall, back out.
+- **Do not use `pzornija+appreview@gmail.com` for step 9.** The reviewer needs it.
+- Upload to a stable URL (unlisted YouTube, iCloud, Dropbox) and put the link in
+  the reply.
 
 ---
 
