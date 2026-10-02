@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import type { Player, Prisma } from '@prisma/client';
 import { CreatePlayerDto } from './dto/create-player.dto';
@@ -51,6 +52,8 @@ export class PlayerService {
   async findOrCreateByEmail(email: string): Promise<Player> {
     const existing = await this.players.findByEmail(email);
     if (existing) return this.ensureMemberQrToken(existing);
+
+    await this.assertNotJustDeleted(email);
 
     // Simple default username for new accounts.
     // Can be expanded later once we store more user profile data.
@@ -487,6 +490,41 @@ export class PlayerService {
    * Store-compliant account deletion: purge player data (FK cascades), then Clerk user.
    * Player row is removed first so a partial failure still leaves no personal gameplay data.
    */
+  /**
+   * How long a freshly deleted identity is barred from being re-provisioned.
+   *
+   * Only needs to outlive the Clerk JWT that was minted before the delete; a
+   * generous margin costs nothing because a genuine re-registration goes
+   * through a brand-new Clerk user, which carries a different identity.
+   */
+  private static readonly DELETION_GUARD_MS = 15 * 60 * 1000;
+
+  /**
+   * Refuses to re-provision an identity that just deleted its account.
+   *
+   * `me/*` endpoints all provision through `findOrCreateByEmail`, and a Clerk
+   * JWT outlives the user it was issued for by up to a minute. Without this,
+   * a single in-flight request resurrects the row the user just erased.
+   */
+  private async assertNotJustDeleted(email: string): Promise<void> {
+    const tombstone = await this.players.findDeletedAccount(email);
+    if (!tombstone) return;
+
+    // `<clerkUserId>@clerk.local` identities are derived from the Clerk user id,
+    // which Clerk never reuses — so this address can never belong to a genuine
+    // new sign-up and the tombstone stands for good.
+    if (email.endsWith('@clerk.local')) {
+      throw new UnauthorizedException('Account deleted');
+    }
+
+    // A real email address can legitimately register again later.
+    const age = Date.now() - tombstone.deletedAt.getTime();
+    if (age < PlayerService.DELETION_GUARD_MS) {
+      throw new UnauthorizedException('Account deleted');
+    }
+    await this.players.clearDeletedAccount(email);
+  }
+
   async deleteMyAccount(
     email: string,
     clerkUserId: string,
@@ -496,6 +534,9 @@ export class PlayerService {
       await this.players.deleteById(player.id);
       this.log.log(`Deleted player ${player.id} for account purge`);
     }
+    // Written even when no player row existed: the JWT can still provision one
+    // on its way out.
+    await this.players.recordDeletedAccount(email, clerkUserId);
     await this.clerkUsers.deleteUser(clerkUserId);
     return { ok: true as const };
   }

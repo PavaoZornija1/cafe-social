@@ -14,9 +14,9 @@ enum VenueOrganizationKind {
 
 /// Partner organization (single- or multi-location). Multi-location orgs roll up analytics across linked venues; each venue is still a distinct location.
 model VenueOrganization {
-  id     String  @id @default(uuid())
-  name   String
-  slug   String? @unique
+  id   String  @id @default(uuid())
+  name String
+  slug String? @unique
 
   /// Declared at signup; trial still caps venues until paid.
   locationKind VenueOrganizationKind @default(SINGLE_LOCATION)
@@ -30,20 +30,20 @@ model VenueOrganization {
   selfServeCreatedBy         Player? @relation("SelfServeOrganizationsCreated", fields: [selfServeCreatedByPlayerId], references: [id], onDelete: SetNull)
 
   /// Cafe Social platform billing (owner-facing); super admin maintains.
-  platformBillingPlan      String?
+  platformBillingPlan         String?
   /// SUBSCRIPTION (flat SaaS) | PAY_PER_VISIT (metered usage, $0 base).
-  platformBillingModel     String  @default("SUBSCRIPTION")
-  platformBillingStatus    String  @default("NONE")
-  platformBillingRenewsAt  DateTime?
-  stripeCustomerId         String?
+  platformBillingModel        String    @default("SUBSCRIPTION")
+  platformBillingStatus       String    @default("NONE")
+  platformBillingRenewsAt     DateTime?
+  stripeCustomerId            String?
   /// Primary Stripe Subscription id (partner SaaS); webhooks keep status in sync.
-  stripeSubscriptionId     String?
+  stripeSubscriptionId        String?
   /// Subscription item id for metered pay-per-visit price (usage records).
   stripePpvSubscriptionItemId String?
   /// Optional link shown to venue owners (e.g. Stripe Customer Portal).
-  billingPortalUrl         String?
+  billingPortalUrl            String?
   /// Last time org billing fields were updated from a Stripe webhook (Checkout/subscription events).
-  platformBillingSyncedAt  DateTime?
+  platformBillingSyncedAt     DateTime?
 
   /// Default max guest **games per UTC day per venue** for org locations; null = platform env default.
   guestPlayDailyGamesLimit Int?
@@ -89,7 +89,7 @@ model PartnerVenueApplication {
 
   reviewedAt         DateTime?
   reviewedByPlayerId String?
-  reviewedBy         Player? @relation("PartnerApplicationReviewedBy", fields: [reviewedByPlayerId], references: [id], onDelete: SetNull)
+  reviewedBy         Player?   @relation("PartnerApplicationReviewedBy", fields: [reviewedByPlayerId], references: [id], onDelete: SetNull)
   rejectionReason    String?
 
   createdOrganizationId String?
@@ -113,16 +113,16 @@ model StripeProcessedWebhookEvent {
 
 /// A physical venue (café, bar, etc.) where games can be played.
 model Venue {
-  id           String  @id @default(uuid())
-  name         String
-  address      String?
-  latitude     Float
-  longitude    Float
+  id        String  @id @default(uuid())
+  name      String
+  address   String?
+  latitude  Float
+  longitude Float
 
   /// GeoJSON Polygon (WGS84, lng/lat order). Required for containment; legacy circle venues store an approximated circle polygon.
   geofencePolygon Json?
 
-  isPremium    Boolean @default(false)
+  isPremium Boolean @default(false)
 
   organizationId String?
   organization   VenueOrganization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
@@ -151,35 +151,35 @@ model Venue {
   analyticsTimeZone String?
 
   /// Circular OS geofence radius for “you’re near this venue” marketing pushes (fixed 100 m from pin; not owner-configurable).
-  proximityAlertRadiusMeters Int @default(100)
+  proximityAlertRadiusMeters Int     @default(100)
   /// When false, venue is excluded from proximity geofence registration and arrival pushes.
-  proximityAlertsEnabled       Boolean @default(true)
+  proximityAlertsEnabled     Boolean @default(true)
 
   offers VenueOffer[]
 
   venueVenueTypes VenueVenueType[]
 
-  playerVenues     PlayerVenue[]
-  playerVenueStats PlayerVenueStats[]
-  challenges       Challenge[]
-  gameSessions         GameSession[]
-  wordMatchQueueEntries   WordMatchQueueEntry[]
-  brawlerMatchQueueEntries BrawlerMatchQueueEntry[]
-  playerGameVenueStats PlayerGameVenueStats[]
-  feedEvents       VenueFeedEvent[]
-  perks            VenuePerk[]
-  perkRedemptionRows VenuePerkRedemption[] @relation("VenuePerkRedemptionVenue")
-  visitDays        PlayerVenueVisitDay[]
-  venuePlayDays    PlayerVenuePlayDay[]
-  venuePlayCountedGames PlayerVenuePlayCountedGame[]
+  playerVenues              PlayerVenue[]
+  playerVenueStats          PlayerVenueStats[]
+  challenges                Challenge[]
+  gameSessions              GameSession[]
+  wordMatchQueueEntries     WordMatchQueueEntry[]
+  brawlerMatchQueueEntries  BrawlerMatchQueueEntry[]
+  playerGameVenueStats      PlayerGameVenueStats[]
+  feedEvents                VenueFeedEvent[]
+  perks                     VenuePerk[]
+  perkRedemptionRows        VenuePerkRedemption[]            @relation("VenuePerkRedemptionVenue")
+  visitDays                 PlayerVenueVisitDay[]
+  venuePlayDays             PlayerVenuePlayDay[]
+  venuePlayCountedGames     PlayerVenuePlayCountedGame[]
   venueActivePlayBudgetDays PlayerVenueActivePlayBudgetDay[]
   venueActivePlaySessions   PlayerVenueActivePlaySession[]
   venuePlayBudgetIapGrants  VenuePlayBudgetIapGrant[]
-  staffMembers     VenueStaff[]
-  staffInvites     VenueStaffInvite[]
-  campaigns        VenueCampaign[]
-  playerRewardGrants PlayerRewardGrant[]
-  receiptSubmissions VenueReceiptSubmission[]
+  staffMembers              VenueStaff[]
+  staffInvites              VenueStaffInvite[]
+  campaigns                 VenueCampaign[]
+  playerRewardGrants        PlayerRewardGrant[]
+  receiptSubmissions        VenueReceiptSubmission[]
 
   /// Rate-limits marketing “send nudge now” from admin (see `VenueNudgeAdminService`).
   lastAdminNudgeBroadcastAt DateTime?
@@ -189,15 +189,15 @@ model Venue {
   /// Max guest games per UTC day at **this** venue; null = inherit from organization then platform default.
   guestPlayDailyGamesLimit Int?
 
-  funnelEvents    VenueFunnelEvent[]
-  playerReports   VenuePlayerReport[]
-  playerBans      VenuePlayerBan[]
-  banAppeals      VenueBanAppeal[]
-  geofenceEvents  PlayerVenueGeofenceEvent[]
+  funnelEvents             VenueFunnelEvent[]
+  playerReports            VenuePlayerReport[]
+  playerBans               VenuePlayerBan[]
+  banAppeals               VenueBanAppeal[]
+  geofenceEvents           PlayerVenueGeofenceEvent[]
   proximityArrivalPushLogs ProximityArrivalPushLog[]
-  polygonSessions PlayerVenuePolygonSession[]
-  moderationAuditLogs VenueModerationAuditLog[]
-  explicitCheckIns    PlayerVenueCheckIn[]
+  polygonSessions          PlayerVenuePolygonSession[]
+  moderationAuditLogs      VenueModerationAuditLog[]
+  explicitCheckIns         PlayerVenueCheckIn[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -207,8 +207,8 @@ model Venue {
 
 /// Last explicit QR check-in per player per venue (venues with `requiresExplicitCheckIn` gate on this).
 model PlayerVenueCheckIn {
-  playerId   String
-  venueId    String
+  playerId      String
+  venueId       String
   lastCheckInAt DateTime
 
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
@@ -225,7 +225,7 @@ model VenueType {
   code  String  @unique
   label String?
 
-  venues            VenueVenueType[]
+  venues             VenueVenueType[]
   nudgeTemplateLinks VenueOrderNudgeTemplateVenueType[]
 
   createdAt DateTime @default(now())
@@ -244,22 +244,22 @@ model VenueVenueType {
 
 /// Predefined dwell nudge copy; tied to venue types via `VenueOrderNudgeTemplateVenueType`.
 model VenueOrderNudgeTemplate {
-  id    String @id @default(uuid())
+  id                  String  @id @default(uuid())
   /// Stable key for seeds (e.g. `coffee_order_drink_v1`).
-  code  String @unique
+  code                String  @unique
   /// Analytics bucket — see `VENUE_NUDGE_TYPES` in `src/lib/venue-taxonomy.ts`.
-  nudgeType     String
-  titleTemplate String
-  bodyTemplate  String
+  nudgeType           String
+  titleTemplate       String
+  bodyTemplate        String
   /// CMS notes (not shown in push).
-  description String?
+  description         String?
   /// Default dwell minutes before auto nudge when this template wins; null = global env default.
   defaultAfterMinutes Int?
   /// Lower sorts first when several templates match a venue’s types.
-  sortPriority  Int     @default(100)
-  active        Boolean @default(true)
+  sortPriority        Int     @default(100)
+  active              Boolean @default(true)
 
-  venueTypeLinks VenueOrderNudgeTemplateVenueType[]
+  venueTypeLinks   VenueOrderNudgeTemplateVenueType[]
   venueAssignments VenueNudgeAssignment[]
 
   createdAt DateTime @default(now())
@@ -270,15 +270,15 @@ model VenueOrderNudgeTemplate {
 
 /// Explicit venue ↔ template link with optional per-venue overrides (M:N). Auto dwell uses lowest `sortOrder` enabled row first; legacy type-based templates apply when this list is empty.
 model VenueNudgeAssignment {
-  id         String @id @default(uuid())
+  id         String                  @id @default(uuid())
   venueId    String
   templateId String
-  venue    Venue                   @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  template VenueOrderNudgeTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  venue      Venue                   @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  template   VenueOrderNudgeTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
-  enabled Boolean @default(true)
+  enabled   Boolean @default(true)
   /// Lower runs first for automatic dwell nudge selection.
-  sortOrder Int @default(100)
+  sortOrder Int     @default(100)
 
   titleOverride        String?
   bodyOverride         String?
@@ -295,8 +295,8 @@ model VenueNudgeAssignment {
 model VenueOrderNudgeTemplateVenueType {
   templateId  String
   venueTypeId String
-  template   VenueOrderNudgeTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  venueType  VenueType               @relation(fields: [venueTypeId], references: [id], onDelete: Cascade)
+  template    VenueOrderNudgeTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  venueType   VenueType               @relation(fields: [venueTypeId], references: [id], onDelete: Cascade)
 
   @@id([templateId, venueTypeId])
   @@index([venueTypeId])
@@ -318,9 +318,9 @@ enum VenueOfferFulfillment {
 }
 
 model VenueOffer {
-  id     String @id @default(uuid())
+  id      String @id @default(uuid())
   venueId String
-  venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  venue   Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
 
   title    String
   body     String?
@@ -330,7 +330,7 @@ model VenueOffer {
   status     VenueOfferStatus @default(DRAFT)
   isFeatured Boolean          @default(false)
 
-  fulfillment VenueOfferFulfillment @default(MEMBER_CARD)
+  fulfillment      VenueOfferFulfillment @default(MEMBER_CARD)
   /// When `fulfillment = AUTO`, multiplies venue XP while the offer is live (e.g. 2 = 2× XP).
   autoXpMultiplier Float?
 
@@ -338,7 +338,7 @@ model VenueOffer {
   validTo   DateTime?
 
   /// Global cap; null = unlimited. Applies to MEMBER_CARD claims.
-  maxRedemptions Int?
+  maxRedemptions          Int?
   /// Per-player cap per offer; null = unlimited redemptions per guest.
   maxRedemptionsPerPlayer Int?
 
@@ -363,11 +363,11 @@ model VenueOfferRedemption {
 
   /// PENDING = claimed, awaiting staff; FULFILLED = staff honoured at venue;
   /// CANCELLED = claim retired without fulfilment (e.g. claimant became venue staff).
-  status                 String    @default("PENDING")
-  fulfilledAt            DateTime?
+  status                   String    @default("PENDING")
+  fulfilledAt              DateTime?
   fulfilledByStaffPlayerId String?
-  cancelledAt            DateTime?
-  cancelReason           String?
+  cancelledAt              DateTime?
+  cancelReason             String?
 
   createdAt DateTime @default(now())
 
@@ -384,15 +384,15 @@ enum VenueStaffInviteStatus {
 }
 
 model VenueStaffInvite {
-  id           String                 @id @default(uuid())
-  venueId      String
-  email        String
-  role         VenueStaffRole
-  token        String                 @unique
-  invitedById  String
-  status       VenueStaffInviteStatus @default(PENDING)
-  expiresAt    DateTime
-  acceptedAt   DateTime?
+  id          String                 @id @default(uuid())
+  venueId     String
+  email       String
+  role        VenueStaffRole
+  token       String                 @unique
+  invitedById String
+  status      VenueStaffInviteStatus @default(PENDING)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
 
   venue     Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
   invitedBy Player @relation("StaffInviteSentBy", fields: [invitedById], references: [id], onDelete: Cascade)
@@ -411,23 +411,23 @@ enum CampaignStatus {
 }
 
 model VenueCampaign {
-  id              String         @id @default(uuid())
-  venueId         String
-  name            String
-  title           String
-  body            String
+  id             String         @id @default(uuid())
+  venueId        String
+  name           String
+  title          String
+  body           String
   /// Players who had any visit-day at this venue in the last N UTC days.
-  segmentDays     Int            @default(30)
-  status          CampaignStatus @default(DRAFT)
-  recipientCount  Int?
-  pushSentCount   Int            @default(0)
-  lastError       String?
-  sentAt          DateTime?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  segmentDays    Int            @default(30)
+  status         CampaignStatus @default(DRAFT)
+  recipientCount Int?
+  pushSentCount  Int            @default(0)
+  lastError      String?
+  sentAt         DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
-  venue Venue                @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  sends   VenueCampaignSend[]
+  venue    Venue                  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  sends    VenueCampaignSend[]
   bindings VenueCampaignBinding[]
 
   @@index([venueId])
@@ -484,10 +484,10 @@ model VenueReceiptSubmission {
   reviewedByPlayerId String?
   /// When set, submitting locks this perk claim pending staff review.
   linkedRedemptionId String?
-  linkedRedemption   VenuePerkRedemption? @relation("ReceiptLinkedRedemption", fields: [linkedRedemptionId], references: [id], onDelete: SetNull)
+  linkedRedemption   VenuePerkRedemption?    @relation("ReceiptLinkedRedemption", fields: [linkedRedemptionId], references: [id], onDelete: SetNull)
 
-  venue    Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  player   Player @relation("ReceiptSubmitter", fields: [playerId], references: [id], onDelete: Cascade)
+  venue    Venue   @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  player   Player  @relation("ReceiptSubmitter", fields: [playerId], references: [id], onDelete: Cascade)
   reviewer Player? @relation("ReceiptReviewer", fields: [reviewedByPlayerId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
@@ -527,9 +527,9 @@ model VenueStaff {
 
 /// A user profile inside Cafe Social.
 model Player {
-  id       String @id @default(uuid())
-  email    String @unique
-  username String @unique
+  id            String @id @default(uuid())
+  email         String @unique
+  username      String @unique
   /// Stable token encoded in the member loyalty QR (assigned at registration).
   memberQrToken String @unique
 
@@ -559,9 +559,9 @@ model Player {
   /// Global competitive rating (Elo-style); independent of XP / tier. Updated on every ranked match (any mode).
   competitiveRankRating Int @default(1500)
   /// Ranked word (versus) ladder only.
-  wordRankRating Int @default(1500)
+  wordRankRating        Int @default(1500)
   /// Ranked brawler ladder only (future).
-  brawlerRankRating Int @default(1500)
+  brawlerRankRating     Int @default(1500)
 
   lastPresenceVenueId String?
   lastPresenceAt      DateTime?
@@ -575,22 +575,22 @@ model Player {
   backgroundTokenHash      String?   @unique
   backgroundTokenExpiresAt DateTime?
 
-  playerVenues        PlayerVenue[]
-  playerVenueStats    PlayerVenueStats[]
-  subscriptions       Subscription[]
-  challengeProgress   ChallengeProgress[]
+  playerVenues      PlayerVenue[]
+  playerVenueStats  PlayerVenueStats[]
+  subscriptions     Subscription[]
+  challengeProgress ChallengeProgress[]
 
-  gameParticipants     GameParticipant[]
-  gameStats      PlayerGameStats[]
-  gameVenueStats PlayerGameVenueStats[]
+  gameParticipants GameParticipant[]
+  gameStats        PlayerGameStats[]
+  gameVenueStats   PlayerGameVenueStats[]
 
-  partiesCreated    Party[]       @relation("PartyCreator")
-  partiesLed        Party[]       @relation("PartyLeader")
-  partyMemberships  PartyMember[]
+  partiesCreated       Party[]             @relation("PartyCreator")
+  partiesLed           Party[]             @relation("PartyLeader")
+  partyMemberships     PartyMember[]
   partyInvitesReceived PartyPlayerInvite[] @relation("PartyInvitesReceived")
   partyInvitesSent     PartyPlayerInvite[] @relation("PartyInvitesSent")
-  inboxReceived        PlayerInboxItem[]     @relation("InboxRecipient")
-  inboxActor           PlayerInboxItem[]     @relation("InboxActor")
+  inboxReceived        PlayerInboxItem[]   @relation("InboxRecipient")
+  inboxActor           PlayerInboxItem[]   @relation("InboxActor")
 
   friendshipsAsLow  Friendship[] @relation("FriendshipLow")
   friendshipsAsHigh Friendship[] @relation("FriendshipHigh")
@@ -599,48 +599,48 @@ model Player {
 
   expoPushTokens PlayerExpoPushToken[]
 
-  dailyWords  PlayerDailyWord[]
-  dailyStreaks PlayerDailyStreak[]
+  dailyWords                PlayerDailyWord[]
+  dailyStreaks              PlayerDailyStreak[]
   dailyStreakAtRiskPushLogs DailyStreakAtRiskPushLog[]
-  proximityArrivalPushLogs ProximityArrivalPushLog[]
-  polygonSessions      PlayerVenuePolygonSession[]
-  soloWordSessions SoloWordSession[]
-  venueVisitDays   PlayerVenueVisitDay[]
-  venuePlayDays    PlayerVenuePlayDay[]
-  venuePlayCountedGames PlayerVenuePlayCountedGame[]
+  proximityArrivalPushLogs  ProximityArrivalPushLog[]
+  polygonSessions           PlayerVenuePolygonSession[]
+  soloWordSessions          SoloWordSession[]
+  venueVisitDays            PlayerVenueVisitDay[]
+  venuePlayDays             PlayerVenuePlayDay[]
+  venuePlayCountedGames     PlayerVenuePlayCountedGame[]
   venueActivePlayBudgetDays PlayerVenueActivePlayBudgetDay[]
   venueActivePlaySessions   PlayerVenueActivePlaySession[]
   venuePlayBudgetIapGrants  VenuePlayBudgetIapGrant[]
-  perkRedemptions  VenuePerkRedemption[] @relation("RedemptionGuest")
-  rewardGrants     PlayerRewardGrant[]
-  offerRedemptions VenueOfferRedemption[]
+  perkRedemptions           VenuePerkRedemption[]            @relation("RedemptionGuest")
+  rewardGrants              PlayerRewardGrant[]
+  offerRedemptions          VenueOfferRedemption[]
 
-  reportsFiled     VenuePlayerReport[] @relation("VenueReportReporter")
-  reportsAgainst   VenuePlayerReport[] @relation("VenueReportTarget")
-  bansReceived     VenuePlayerBan[]    @relation("VenueBanSubject")
-  bansIssued       VenuePlayerBan[]    @relation("VenueBanCreatedBy")
-  funnelEvents     VenueFunnelEvent[]
+  reportsFiled   VenuePlayerReport[] @relation("VenueReportReporter")
+  reportsAgainst VenuePlayerReport[] @relation("VenueReportTarget")
+  bansReceived   VenuePlayerBan[]    @relation("VenueBanSubject")
+  bansIssued     VenuePlayerBan[]    @relation("VenueBanCreatedBy")
+  funnelEvents   VenueFunnelEvent[]
 
-  wordMatchQueueEntries   WordMatchQueueEntry[]
+  wordMatchQueueEntries    WordMatchQueueEntry[]
   brawlerMatchQueueEntries BrawlerMatchQueueEntry[]
 
-  venueStaff VenueStaff[]
-  staffInvitesSent VenueStaffInvite[] @relation("StaffInviteSentBy")
+  venueStaff                    VenueStaff[]
+  staffInvitesSent              VenueStaffInvite[]         @relation("StaffInviteSentBy")
   /// Orgs this player created via partner self-serve onboarding (rate limits).
-  selfServeOrganizationsCreated VenueOrganization[] @relation("SelfServeOrganizationsCreated")
-  campaignSends VenueCampaignSend[]
-  receiptSubmissions VenueReceiptSubmission[] @relation("ReceiptSubmitter")
-  receiptsReviewed VenueReceiptSubmission[] @relation("ReceiptReviewer")
-  redemptionsAcknowledged VenuePerkRedemption[] @relation("RedemptionStaffAck")
-  redemptionsVoided VenuePerkRedemption[] @relation("RedemptionStaffVoid")
-  venueBanAppeals    VenueBanAppeal[]
-  banAppealsResolved VenueBanAppeal[]           @relation("BanAppealResolvedBy")
-  geofenceEvents     PlayerVenueGeofenceEvent[]
-  playerVenueCheckIns PlayerVenueCheckIn[]
-  platformQuestClaims PlayerPlatformQuestClaim[]
-  blocksCreated      PlayerBlock[]              @relation("Blocker")
-  blocksReceived     PlayerBlock[]              @relation("Blocked")
-  moderationAudits   VenueModerationAuditLog[]
+  selfServeOrganizationsCreated VenueOrganization[]        @relation("SelfServeOrganizationsCreated")
+  campaignSends                 VenueCampaignSend[]
+  receiptSubmissions            VenueReceiptSubmission[]   @relation("ReceiptSubmitter")
+  receiptsReviewed              VenueReceiptSubmission[]   @relation("ReceiptReviewer")
+  redemptionsAcknowledged       VenuePerkRedemption[]      @relation("RedemptionStaffAck")
+  redemptionsVoided             VenuePerkRedemption[]      @relation("RedemptionStaffVoid")
+  venueBanAppeals               VenueBanAppeal[]
+  banAppealsResolved            VenueBanAppeal[]           @relation("BanAppealResolvedBy")
+  geofenceEvents                PlayerVenueGeofenceEvent[]
+  playerVenueCheckIns           PlayerVenueCheckIn[]
+  platformQuestClaims           PlayerPlatformQuestClaim[]
+  blocksCreated                 PlayerBlock[]              @relation("Blocker")
+  blocksReceived                PlayerBlock[]              @relation("Blocked")
+  moderationAudits              VenueModerationAuditLog[]
 
   partnerApplicationsSubmitted PartnerVenueApplication[] @relation("PartnerApplicationSubmittedBy")
   partnerApplicationsReviewed  PartnerVenueApplication[] @relation("PartnerApplicationReviewedBy")
@@ -675,7 +675,7 @@ model VenueModerationAuditLog {
   metadata      Json?
   createdAt     DateTime @default(now())
 
-  venue Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  venue Venue   @relation(fields: [venueId], references: [id], onDelete: Cascade)
   actor Player? @relation(fields: [actorPlayerId], references: [id], onDelete: SetNull)
 
   @@index([venueId, createdAt])
@@ -698,13 +698,13 @@ model PlayerVenueVisitDay {
 
 /// **Guest venue games started** per UTC calendar day (word solo / match / brawler at that venue).
 model PlayerVenuePlayDay {
-  playerId    String
-  venueId     String
-  dayKey      String
-  gamesPlayed Int       @default(0)
+  playerId       String
+  venueId        String
+  dayKey         String
+  gamesPlayed    Int       @default(0)
   /// Dedupes repeated solo `POST /words/session/start` within this window as one game.
   lastSoloDeckAt DateTime?
-  updatedAt   DateTime @updatedAt
+  updatedAt      DateTime  @updatedAt
 
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
   venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
@@ -716,7 +716,7 @@ model PlayerVenuePlayDay {
 
 /// One row per counted match/brawler `GameSession` so deck reloads / retries do not consume extra daily slots.
 model PlayerVenuePlayCountedGame {
-  id            String   @id @default(uuid())
+  id            String @id @default(uuid())
   playerId      String
   venueId       String
   dayKey        String
@@ -733,14 +733,14 @@ model PlayerVenuePlayCountedGame {
 
 /// Per UTC day per venue: **active play seconds** consumed + IAP bonus pool (free tier stamina).
 model PlayerVenueActivePlayBudgetDay {
-  playerId   String
-  venueId    String
-  dayKey     String
+  playerId                 String
+  venueId                  String
+  dayKey                   String
   /// Seconds of active play charged while in geofence (free allowance + IAP bonus).
-  consumedActiveSeconds    Int @default(0)
+  consumedActiveSeconds    Int      @default(0)
   /// Extra seconds granted via in-app purchase today at this venue (UTC day).
-  iapBonusSecondsRemaining Int @default(0)
-  updatedAt DateTime @updatedAt
+  iapBonusSecondsRemaining Int      @default(0)
+  updatedAt                DateTime @updatedAt
 
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
   venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
@@ -752,17 +752,17 @@ model PlayerVenueActivePlayBudgetDay {
 
 /// Server-side “active play” interval for stamina ticks (geofence re-checked each tick).
 model PlayerVenueActivePlaySession {
-  id        String @id @default(uuid())
-  playerId  String
-  venueId   String
-  dayKey    String
+  id                String    @id @default(uuid())
+  playerId          String
+  venueId           String
+  dayKey            String
   /// solo_word | word_match | brawler
-  kind      String
+  kind              String
   gameSessionId     String?
   soloWordSessionId String?
-  startedAt  DateTime @default(now())
-  lastTickAt DateTime @default(now())
-  endedAt    DateTime?
+  startedAt         DateTime  @default(now())
+  lastTickAt        DateTime  @default(now())
+  endedAt           DateTime?
 
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
   venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
@@ -773,14 +773,14 @@ model PlayerVenueActivePlaySession {
 
 /// Idempotent log: one RevenueCat non-subscription transaction grants bonus seconds once.
 model VenuePlayBudgetIapGrant {
-  id                  String   @id @default(uuid())
-  playerId            String
-  venueId             String
-  dayKey              String
-  productId           String
-  storeTransactionId  String   @unique
-  grantedSeconds      Int
-  createdAt           DateTime @default(now())
+  id                 String   @id @default(uuid())
+  playerId           String
+  venueId            String
+  dayKey             String
+  productId          String
+  storeTransactionId String   @unique
+  grantedSeconds     Int
+  createdAt          DateTime @default(now())
 
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
   venue  Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
@@ -805,15 +805,15 @@ model VenueFunnelEvent {
 }
 
 model VenuePlayerReport {
-  id               String    @id @default(uuid())
-  venueId          String
-  reporterId       String
-  reportedPlayerId String
-  reason           String
-  note             String?
-  status           String    @default("open")
-  createdAt        DateTime  @default(now())
-  dismissedAt      DateTime?
+  id                      String    @id @default(uuid())
+  venueId                 String
+  reporterId              String
+  reportedPlayerId        String
+  reason                  String
+  note                    String?
+  status                  String    @default("open")
+  createdAt               DateTime  @default(now())
+  dismissedAt             DateTime?
   /// Optional short message visible to the reporter when status becomes dismissed.
   dismissalNoteToReporter String?
 
@@ -833,8 +833,8 @@ model VenuePlayerBan {
   createdByStaffPlayerId String?
   createdAt              DateTime @default(now())
 
-  venue     Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  player    Player @relation("VenueBanSubject", fields: [playerId], references: [id], onDelete: Cascade)
+  venue     Venue   @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  player    Player  @relation("VenueBanSubject", fields: [playerId], references: [id], onDelete: Cascade)
   createdBy Player? @relation("VenueBanCreatedBy", fields: [createdByStaffPlayerId], references: [id], onDelete: SetNull)
 
   @@unique([venueId, playerId])
@@ -852,9 +852,9 @@ model VenueBanAppeal {
   createdAt DateTime @default(now())
 
   /// Internal note for venue staff (not shown to player).
-  staffNote String?
+  staffNote               String?
   /// Optional short message sent to the player if notifyPlayer is used.
-  staffMessageToPlayer String?
+  staffMessageToPlayer    String?
   resolvedAt              DateTime?
   resolvedByStaffPlayerId String?
   playerNotifiedAt        DateTime?
@@ -905,27 +905,27 @@ model PerkExpiryReminderLog {
 
 /// Staff-configured perk codes (“show this screen for 10% off”).
 model VenuePerk {
-  id        String   @id @default(uuid())
-  venueId   String
+  id               String    @id @default(uuid())
+  venueId          String
   /// Normalized uppercase code (unique globally for simple lookup).
-  code      String   @unique
-  title     String
-  subtitle  String?
-  body      String?
-  requiresQrUnlock Boolean @default(false)
-  activeFrom DateTime?
-  activeTo   DateTime?
-  maxRedemptions Int?
-  redemptionCount Int @default(0)
+  code             String    @unique
+  title            String
+  subtitle         String?
+  body             String?
+  requiresQrUnlock Boolean   @default(false)
+  activeFrom       DateTime?
+  activeTo         DateTime?
+  maxRedemptions   Int?
+  redemptionCount  Int       @default(0)
   /// When true, perk is marked redeemed immediately on grant (no staff scan required).
-  autoRedeem Boolean @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  autoRedeem       Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  venue       Venue                 @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  redemptions VenuePerkRedemption[]
-  rewardGrants PlayerRewardGrant[]
-  challengesWithReward Challenge[] @relation("ChallengeRewardPerk")
+  venue                    Venue                     @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  redemptions              VenuePerkRedemption[]
+  rewardGrants             PlayerRewardGrant[]
+  challengesWithReward     Challenge[]               @relation("ChallengeRewardPerk")
   platformAutomatedRewards PlatformAutomatedReward[]
 
   @@index([venueId])
@@ -933,17 +933,17 @@ model VenuePerk {
 
 /// CMS link: stable reward key → venue perk for automated issuance (tiers, quest bundles).
 model PlatformAutomatedReward {
-  id              String   @id @default(uuid())
+  id            String   @id @default(uuid())
   /// e.g. tier.silver, platform_quest.daily.bundle
-  rewardKey       String   @unique
-  perkId          String?
+  rewardKey     String   @unique
+  perkId        String?
   /// App copy override; falls back to linked perk title.
-  label           String?
+  label         String?
   /// When set, grant once per player when lifetime XP reaches this threshold.
-  minLifetimeXp   Int?
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  minLifetimeXp Int?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   perk VenuePerk? @relation(fields: [perkId], references: [id], onDelete: SetNull)
 
@@ -952,15 +952,15 @@ model PlatformAutomatedReward {
 }
 
 model VenuePerkRedemption {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   perkId     String
   playerId   String
   venueId    String
   /// Lifecycle: REDEEMABLE | REDEEMED | EXPIRED | VOIDED | LOCKED
-  status     String   @default("REDEEMABLE")
+  status     String    @default("REDEEMABLE")
   /// Claims expire by default after 7 days from issue.
   expiresAt  DateTime
-  issuedAt   DateTime @default(now())
+  issuedAt   DateTime  @default(now())
   redeemedAt DateTime?
 
   redeemedByPlayerId String?
@@ -968,14 +968,17 @@ model VenuePerkRedemption {
   voidReason         String?
   voidedByPlayerId   String?
 
-  perk        VenuePerk @relation(fields: [perkId], references: [id], onDelete: Cascade)
-  venue       Venue     @relation("VenuePerkRedemptionVenue", fields: [venueId], references: [id], onDelete: Cascade)
-  player      Player    @relation("RedemptionGuest", fields: [playerId], references: [id], onDelete: Cascade)
-  redeemedBy  Player?   @relation("RedemptionStaffAck", fields: [redeemedByPlayerId], references: [id], onDelete: SetNull)
-  voidedBy    Player?   @relation("RedemptionStaffVoid", fields: [voidedByPlayerId], references: [id], onDelete: SetNull)
+  perk       VenuePerk @relation(fields: [perkId], references: [id], onDelete: Cascade)
+  venue      Venue     @relation("VenuePerkRedemptionVenue", fields: [venueId], references: [id], onDelete: Cascade)
+  player     Player    @relation("RedemptionGuest", fields: [playerId], references: [id], onDelete: Cascade)
+  redeemedBy Player?   @relation("RedemptionStaffAck", fields: [redeemedByPlayerId], references: [id], onDelete: SetNull)
+  voidedBy   Player?   @relation("RedemptionStaffVoid", fields: [voidedByPlayerId], references: [id], onDelete: SetNull)
 
-  playerRewardGrantId String? @unique
+  playerRewardGrantId String?            @unique
   playerRewardGrant   PlayerRewardGrant? @relation(fields: [playerRewardGrantId], references: [id], onDelete: SetNull)
+
+  expiryReminderLogs       PerkExpiryReminderLog[]
+  linkedReceiptSubmissions VenueReceiptSubmission[] @relation("ReceiptLinkedRedemption")
 
   @@index([perkId, playerId])
   @@index([playerId])
@@ -983,29 +986,26 @@ model VenuePerkRedemption {
   @@index([status])
   @@index([expiresAt])
   @@index([voidedAt])
-
-  expiryReminderLogs PerkExpiryReminderLog[]
-  linkedReceiptSubmissions VenueReceiptSubmission[] @relation("ReceiptLinkedRedemption")
 }
 
 /// Orchestrated reward issuance; optional 1:1 `VenuePerkRedemption` for staff QR fulfillment.
 model PlayerRewardGrant {
-  id               String   @id @default(uuid())
-  playerId         String
-  venueId          String
+  id             String   @id @default(uuid())
+  playerId       String
+  venueId        String
   /// PERK for staff-redeemable QR claims today.
-  kind             String
-  perkId           String?
+  kind           String
+  perkId         String?
   /// e.g. CHALLENGE, CAMPAIGN — compositional; automations reuse the same issuer.
-  sourceType       String
-  sourceId         String?
-  idempotencyKey   String   @unique
-  status           String   @default("ACTIVE")
-  issuedAt         DateTime @default(now())
+  sourceType     String
+  sourceId       String?
+  idempotencyKey String   @unique
+  status         String   @default("ACTIVE")
+  issuedAt       DateTime @default(now())
 
-  player    Player              @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  venue     Venue               @relation(fields: [venueId], references: [id], onDelete: Cascade)
-  perk      VenuePerk?          @relation(fields: [perkId], references: [id], onDelete: SetNull)
+  player     Player               @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue      Venue                @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  perk       VenuePerk?           @relation(fields: [perkId], references: [id], onDelete: SetNull)
   redemption VenuePerkRedemption?
 
   @@index([playerId])
@@ -1041,9 +1041,9 @@ model PlayerVenue {
 
 /// Per-venue XP; global XP = sum(venueXp) in queries.
 model PlayerVenueStats {
-  playerId String
-  venueId  String
-  venueXp  Int      @default(0)
+  playerId  String
+  venueId   String
+  venueXp   Int      @default(0)
   updatedAt DateTime @updatedAt
 
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
@@ -1089,15 +1089,15 @@ enum InboxStatus {
 
 /// Canonical friendship edge: playerLowId < playerHighId lexicographically.
 model Friendship {
-  id           String            @id @default(uuid())
-  playerLowId  String
-  playerHighId String
-  status       FriendshipStatus
+  id            String           @id @default(uuid())
+  playerLowId   String
+  playerHighId  String
+  status        FriendshipStatus
   /// Who initiated (must equal playerLowId or playerHighId).
   requestedById String
 
-  playerLow  Player @relation("FriendshipLow", fields: [playerLowId], references: [id], onDelete: Cascade)
-  playerHigh Player @relation("FriendshipHigh", fields: [playerHighId], references: [id], onDelete: Cascade)
+  playerLow  Player           @relation("FriendshipLow", fields: [playerLowId], references: [id], onDelete: Cascade)
+  playerHigh Player           @relation("FriendshipHigh", fields: [playerHighId], references: [id], onDelete: Cascade)
   inboxItem  PlayerInboxItem?
 
   createdAt DateTime @default(now())
@@ -1125,9 +1125,9 @@ model PlayerInboxItem {
   friendshipId  String? @unique
   partyInviteId String? @unique
 
-  recipient   Player @relation("InboxRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
-  actor       Player? @relation("InboxActor", fields: [actorId], references: [id], onDelete: SetNull)
-  friendship  Friendship? @relation(fields: [friendshipId], references: [id], onDelete: Cascade)
+  recipient   Player             @relation("InboxRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor       Player?            @relation("InboxActor", fields: [actorId], references: [id], onDelete: SetNull)
+  friendship  Friendship?        @relation(fields: [friendshipId], references: [id], onDelete: Cascade)
   partyInvite PartyPlayerInvite? @relation(fields: [partyInviteId], references: [id], onDelete: Cascade)
 
   @@index([recipientId, status])
@@ -1135,21 +1135,21 @@ model PlayerInboxItem {
 }
 
 model Party {
-  id        String @id @default(uuid())
-  name      String?
-  creatorId String
-  leaderId  String
+  id         String  @id @default(uuid())
+  name       String?
+  creatorId  String
+  leaderId   String
   /// Max members from creator subscription at party creation (4 free, 200 subscriber).
   maxMembers Int
 
   creator Player @relation("PartyCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   leader  Player @relation("PartyLeader", fields: [leaderId], references: [id], onDelete: Cascade)
 
-  members     PartyMember[]
-  inviteLinks InviteLink[]
-  playerInvites PartyPlayerInvite[]
-  gameSessions GameSession[]
-  wordMatchQueueEntries WordMatchQueueEntry[]
+  members                  PartyMember[]
+  inviteLinks              InviteLink[]
+  playerInvites            PartyPlayerInvite[]
+  gameSessions             GameSession[]
+  wordMatchQueueEntries    WordMatchQueueEntry[]
   brawlerMatchQueueEntries BrawlerMatchQueueEntry[]
 
   createdAt DateTime @default(now())
@@ -1175,9 +1175,9 @@ model PartyPlayerInvite {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
-  party         Party  @relation(fields: [partyId], references: [id], onDelete: Cascade)
-  invitedPlayer Player @relation("PartyInvitesReceived", fields: [invitedPlayerId], references: [id], onDelete: Cascade)
-  invitedBy     Player @relation("PartyInvitesSent", fields: [invitedById], references: [id], onDelete: Cascade)
+  party         Party            @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  invitedPlayer Player           @relation("PartyInvitesReceived", fields: [invitedPlayerId], references: [id], onDelete: Cascade)
+  invitedBy     Player           @relation("PartyInvitesSent", fields: [invitedById], references: [id], onDelete: Cascade)
   inboxItem     PlayerInboxItem?
 
   @@unique([partyId, invitedPlayerId])
@@ -1256,22 +1256,22 @@ model Word {
 
 /// Server-backed solo word run: answers never sent until validated; hints only per round.
 model SoloWordSession {
-  id         String        @id @default(uuid())
-  playerId   String
-  wordIds    String[]
-  wordIndex  Int           @default(0)
-  language   String
-  category   WordCategory?
-  difficulty String        @default("normal")
-  venueId    String?
-  globalPlay Boolean       @default(false)
-  createdAt  DateTime      @default(now())
-  expiresAt  DateTime
-  finishedAt DateTime?
+  id               String        @id @default(uuid())
+  playerId         String
+  wordIds          String[]
+  wordIndex        Int           @default(0)
+  language         String
+  category         WordCategory?
+  difficulty       String        @default("normal")
+  venueId          String?
+  globalPlay       Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+  expiresAt        DateTime
+  finishedAt       DateTime?
   /// Correct guesses only (skips/timeouts do not increment). Used for deck-complete XP.
-  wordsSolved Int @default(0)
+  wordsSolved      Int           @default(0)
   /// Set once when deck-complete XP has been granted.
-  winXpAwarded Boolean @default(false)
+  winXpAwarded     Boolean       @default(false)
   /// Cached post-game carousel payload for the solo player.
   postGameSnapshot Json?
 
@@ -1283,16 +1283,16 @@ model SoloWordSession {
 
 /// One async “daily word” attempt record per player per calendar day (UTC) and scope (global or venue).
 model PlayerDailyWord {
-  id        String    @id @default(uuid())
-  playerId  String
-  dayKey    String
-  scopeKey  String
-  attempts  Int       @default(0)
-  solvedAt  DateTime?
+  id           String    @id @default(uuid())
+  playerId     String
+  dayKey       String
+  scopeKey     String
+  attempts     Int       @default(0)
+  solvedAt     DateTime?
   /// Set once when first-solve XP has been granted.
-  winXpAwarded Boolean @default(false)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  winXpAwarded Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
@@ -1304,7 +1304,7 @@ model PlayerDailyWord {
 model PlayerDailyStreak {
   playerId         String
   scopeKey         String
-  currentStreak    Int     @default(0)
+  currentStreak    Int      @default(0)
   lastSolvedDayKey String?
   updatedAt        DateTime @updatedAt
 
@@ -1347,21 +1347,21 @@ model ProximityArrivalPushLog {
 
 /// In-venue stay inside the partner play polygon — powers dwell, attribution, and future pay-per-visit billing.
 model PlayerVenuePolygonSession {
-  id             String    @id @default(uuid())
-  playerId       String
-  venueId        String
-  dayKey         String
-  enteredAt      DateTime
-  exitedAt       DateTime?
-  dwellSeconds   Int?
-  nudgeLogId     String?   @unique
-  attributionMet Boolean   @default(false)
-  dwellQualified Boolean   @default(false)
-  billableAt     DateTime?
+  id                    String    @id @default(uuid())
+  playerId              String
+  venueId               String
+  dayKey                String
+  enteredAt             DateTime
+  exitedAt              DateTime?
+  dwellSeconds          Int?
+  nudgeLogId            String?   @unique
+  attributionMet        Boolean   @default(false)
+  dwellQualified        Boolean   @default(false)
+  billableAt            DateTime?
   stripeUsageReportedAt DateTime?
 
-  player   Player                  @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  venue    Venue                   @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  player   Player                   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue    Venue                    @relation(fields: [venueId], references: [id], onDelete: Cascade)
   nudgeLog ProximityArrivalPushLog? @relation(fields: [nudgeLogId], references: [id], onDelete: SetNull)
 
   @@index([venueId, enteredAt])
@@ -1377,13 +1377,13 @@ enum VenueFeedEventKind {
 
 /// Lightweight venue activity feed (“who’s playing what”).
 model VenueFeedEvent {
-  id              String             @id @default(uuid())
-  venueId         String
-  kind            VenueFeedEventKind
-  title           String
-  subtitle        String?
-  actorUsername   String?
-  createdAt       DateTime           @default(now())
+  id            String             @id @default(uuid())
+  venueId       String
+  kind          VenueFeedEventKind
+  title         String
+  subtitle      String?
+  actorUsername String?
+  createdAt     DateTime           @default(now())
 
   venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
 
@@ -1408,19 +1408,19 @@ enum ChallengeAutoProgressSource {
 
 /// A single venue-scoped challenge that can be progressed by a player.
 model Challenge {
-  id                  String  @id @default(uuid())
-  venueId             String
-  title               String
-  description         String?
+  id          String  @id @default(uuid())
+  venueId     String
+  title       String
+  description String?
 
   /// Which verified activity auto-increments progress. MANUAL = client/admin POST only.
-  autoProgressSource  ChallengeAutoProgressSource @default(WORD_MATCH)
+  autoProgressSource ChallengeAutoProgressSource @default(WORD_MATCH)
 
   /// If true, rewards/claims require venue membership (QR-unlock) in addition to location rules.
   rewardVenueSpecific Boolean @default(true)
 
   /// If true, physical presence (detected venue match) is required to progress/complete.
-  locationRequired    Boolean @default(false)
+  locationRequired Boolean @default(false)
 
   /// For MVP, we model a simple "do X actions" challenge.
   targetCount Int @default(1)
@@ -1457,9 +1457,9 @@ model Challenge {
 
 /// Per-player progress for a challenge.
 model ChallengeProgress {
-  id              String    @id @default(uuid())
-  playerId        String
-  challengeId     String
+  id          String @id @default(uuid())
+  playerId    String
+  challengeId String
 
   progressCount   Int       @default(0)
   completedAt     DateTime?
@@ -1538,11 +1538,11 @@ model BrawlerPowerupDefinition {
 
   effectType BrawlerPowerupEffectType
   /// Numeric effect strength; interpretation depends on `effectType`.
-  magnitude Float
+  magnitude  Float
   durationMs Int
 
   /// Spawn selection weight (higher = more frequent).
-  spawnWeight Int @default(100)
+  spawnWeight Int     @default(100)
   enabled     Boolean @default(true)
 
   version   Int      @default(1)
@@ -1554,36 +1554,37 @@ model BrawlerPowerupDefinition {
 }
 
 model GameSession {
-  id          String            @id @default(uuid())
-  gameType    GameType
-  status      GameSessionStatus @default(PENDING)
+  id                  String            @id @default(uuid())
+  gameType            GameType
+  status              GameSessionStatus @default(PENDING)
   /// Short code so friends can join a pending word match (co-op / versus).
-  inviteCode  String?           @unique
+  inviteCode          String?           @unique
   /// Optional context links for your existing ecosystem.
-  venueId     String?
-  partyId     String?
+  venueId             String?
+  partyId             String?
   /// Version + optional snapshot for balance/config reproducibility.
-  configVersion Int             @default(1)
-  config        Json?
-  startedAt   DateTime?
-  endedAt     DateTime?
+  configVersion       Int               @default(1)
+  config              Json?
+  startedAt           DateTime?
+  endedAt             DateTime?
   /// Set once when win XP has been granted for this finished session (idempotency).
-  winXpAwardedAt DateTime?
+  winXpAwardedAt      DateTime?
   /// Set once competitive rank deltas have been applied for this session (idempotency; any ranked mode).
-  rankAwardedAt DateTime?
+  rankAwardedAt       DateTime?
   /// Set once post-game XP, challenge bumps, and participant snapshots have been captured.
   postGameProcessedAt DateTime?
   /// Winner stored at participant level (supports bots + non-player entities).
   winnerParticipantId String?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  venue       Venue?            @relation(fields: [venueId], references: [id], onDelete: SetNull)
-  party       Party?            @relation(fields: [partyId], references: [id], onDelete: SetNull)
-  participants GameParticipant[]
-  events       GameEvent[]
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  venue               Venue?            @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  party               Party?            @relation(fields: [partyId], references: [id], onDelete: SetNull)
+  participants        GameParticipant[]
+  events              GameEvent[]
   /// 1:1 extensions (nullable unless that gameType applies)
-  brawlerSession BrawlerSession?
-  wordSession    WordSession?
+  brawlerSession      BrawlerSession?
+  wordSession         WordSession?
+
   @@index([gameType, status, createdAt])
   @@index([startedAt])
   @@index([endedAt])
@@ -1592,62 +1593,64 @@ model GameSession {
 }
 
 model GameParticipant {
-  id           String  @id @default(uuid())
-  sessionId    String
+  id                  String                   @id @default(uuid())
+  sessionId           String
   /// Either playerId set OR isBot=true (+ bot fields), depending on participant kind.
-  playerId     String?
-  isBot        Boolean @default(false)
-  botName      String?
+  playerId            String?
+  isBot               Boolean                  @default(false)
+  botName             String?
   /// Snapshot fields prevent historical drift if user profile changes.
   displayNameSnapshot String?
   characterSnapshot   String? // e.g., selected hero/skin identifier
   brawlerHeroId       String?
   /// Optional immutable snapshot of hero tuning at match start.
   heroSnapshot        Json?
-  joinedAt     DateTime @default(now())
-  leftAt       DateTime?
-  placement    Int?
-  score        Int      @default(0)
-  result       GameParticipantResult?
+  joinedAt            DateTime                 @default(now())
+  leftAt              DateTime?
+  placement           Int?
+  score               Int                      @default(0)
+  result              GameParticipantResult?
   /// Generic combat/participation counters useful across many games.
-  kills        Int      @default(0)
-  deaths       Int      @default(0)
-  assists      Int      @default(0)
+  kills               Int                      @default(0)
+  deaths              Int                      @default(0)
+  assists             Int                      @default(0)
   /// Cached post-game carousel payload for this participant.
-  postGameSnapshot Json?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  session      GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  player       Player?     @relation(fields: [playerId], references: [id], onDelete: SetNull)
-  brawlerHero  BrawlerHero? @relation(fields: [brawlerHeroId], references: [id], onDelete: SetNull)
+  postGameSnapshot    Json?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  session             GameSession              @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  player              Player?                  @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  brawlerHero         BrawlerHero?             @relation(fields: [brawlerHeroId], references: [id], onDelete: SetNull)
   /// Event links (participant-centric)
-  actorEvents  GameEvent[] @relation("GameEventActor")
-  targetEvents GameEvent[] @relation("GameEventTarget")
+  actorEvents         GameEvent[]              @relation("GameEventActor")
+  targetEvents        GameEvent[]              @relation("GameEventTarget")
   /// 1:1 extensions
-  brawlerStats BrawlerParticipantStats?
-  wordStats    WordParticipantStats?
+  brawlerStats        BrawlerParticipantStats?
+  wordStats           WordParticipantStats?
+
+  @@unique([sessionId, playerId], map: "unique_player_per_session")
   @@index([sessionId])
   @@index([playerId, createdAt])
   @@index([sessionId, placement])
   @@index([sessionId, score])
   @@index([brawlerHeroId])
-  @@unique([sessionId, playerId], map: "unique_player_per_session")
 }
 
 model GameEvent {
-  id           String        @id @default(uuid())
-  sessionId    String
-  gameType     GameType
-  eventType    GameEventType
+  id                  String           @id @default(uuid())
+  sessionId           String
+  gameType            GameType
+  eventType           GameEventType
   /// Timestamp relative to match start, useful for deterministic ordering.
-  atMs         Int
+  atMs                Int
   actorParticipantId  String?
   targetParticipantId String?
-  payload      Json?
-  createdAt    DateTime @default(now())
-  session      GameSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  actor        GameParticipant? @relation("GameEventActor", fields: [actorParticipantId], references: [id], onDelete: SetNull)
-  target       GameParticipant? @relation("GameEventTarget", fields: [targetParticipantId], references: [id], onDelete: SetNull)
+  payload             Json?
+  createdAt           DateTime         @default(now())
+  session             GameSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  actor               GameParticipant? @relation("GameEventActor", fields: [actorParticipantId], references: [id], onDelete: SetNull)
+  target              GameParticipant? @relation("GameEventTarget", fields: [targetParticipantId], references: [id], onDelete: SetNull)
+
   @@index([sessionId, atMs])
   @@index([gameType, eventType, createdAt])
   @@index([actorParticipantId])
@@ -1655,23 +1658,24 @@ model GameEvent {
 }
 
 model PlayerGameStats {
-  playerId       String
-  gameType       GameType
-  matchesPlayed  Int      @default(0)
-  wins           Int      @default(0)
-  losses         Int      @default(0)
-  draws          Int      @default(0)
-  dnfs           Int      @default(0)
-  totalKills     Int      @default(0)
-  totalDeaths    Int      @default(0)
-  totalAssists   Int      @default(0)
-  totalScore     Int      @default(0)
-  bestPlacement  Int?
-  winRate        Float    @default(0)
-  firstPlayedAt  DateTime?
-  lastPlayedAt   DateTime?
-  updatedAt      DateTime @updatedAt
-  player         Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  playerId      String
+  gameType      GameType
+  matchesPlayed Int       @default(0)
+  wins          Int       @default(0)
+  losses        Int       @default(0)
+  draws         Int       @default(0)
+  dnfs          Int       @default(0)
+  totalKills    Int       @default(0)
+  totalDeaths   Int       @default(0)
+  totalAssists  Int       @default(0)
+  totalScore    Int       @default(0)
+  bestPlacement Int?
+  winRate       Float     @default(0)
+  firstPlayedAt DateTime?
+  lastPlayedAt  DateTime?
+  updatedAt     DateTime  @updatedAt
+  player        Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
   @@id([playerId, gameType])
   @@index([gameType, wins])
   @@index([gameType, winRate])
@@ -1679,33 +1683,34 @@ model PlayerGameStats {
 }
 
 model PlayerGameVenueStats {
-  playerId       String
-  venueId        String
-  gameType       GameType
-  matchesPlayed  Int      @default(0)
-  wins           Int      @default(0)
-  totalScore     Int      @default(0)
-  updatedAt      DateTime @updatedAt
-  player         Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  venue          Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  playerId      String
+  venueId       String
+  gameType      GameType
+  matchesPlayed Int      @default(0)
+  wins          Int      @default(0)
+  totalScore    Int      @default(0)
+  updatedAt     DateTime @updatedAt
+  player        Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  venue         Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
   @@id([playerId, venueId, gameType])
   @@index([venueId, gameType, wins])
   @@index([venueId, gameType, totalScore])
 }
 
 model BrawlerSession {
-  sessionId            String @id
-  chaosDurationMs      Int    @default(45000)
-  endgameDurationMs    Int    @default(15000)
-  suddenDeathMaxMs     Int    @default(15000)
-  respawnDelayMs       Int    @default(3000)
-  lavaStartsAtMs       Int    @default(45000)
-  platformsCollapseAtMs Int   @default(45000)
+  sessionId             String      @id
+  chaosDurationMs       Int         @default(45000)
+  endgameDurationMs     Int         @default(15000)
+  suddenDeathMaxMs      Int         @default(15000)
+  respawnDelayMs        Int         @default(3000)
+  lavaStartsAtMs        Int         @default(45000)
+  platformsCollapseAtMs Int         @default(45000)
   /// Optional seed for deterministic simulation/replay.
-  rngSeed              String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  session              GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  rngSeed               String?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  session               GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
 
 model BrawlerHero {
@@ -1723,15 +1728,15 @@ model BrawlerHero {
   /// Frame and animation metadata (frame size, fps, animation map, etc).
   spriteMeta       Json?
 
-  baseHp           Int
-  moveSpeed        Float
-  dashCooldownMs   Int
-  attackDamage     Int
-  attackKnockback  Float
+  baseHp          Int
+  moveSpeed       Float
+  dashCooldownMs  Int
+  attackDamage    Int
+  attackKnockback Float
 
-  version          Int      @default(1)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   gameParticipants GameParticipant[]
 
@@ -1740,18 +1745,19 @@ model BrawlerHero {
 }
 
 model BrawlerParticipantStats {
-  participantId        String @id
-  damageDealt          Int    @default(0)
-  damageTaken          Int    @default(0)
-  ringOuts             Int    @default(0)
-  falls                Int    @default(0)
-  respawns             Int    @default(0)
-  powerupsPicked       Int    @default(0)
-  powerupsUsed         Int    @default(0)
-  longestSurvivalMs    Int    @default(0)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  participant          GameParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  participantId     String          @id
+  damageDealt       Int             @default(0)
+  damageTaken       Int             @default(0)
+  ringOuts          Int             @default(0)
+  falls             Int             @default(0)
+  respawns          Int             @default(0)
+  powerupsPicked    Int             @default(0)
+  powerupsUsed      Int             @default(0)
+  longestSurvivalMs Int             @default(0)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  participant       GameParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
   @@index([damageDealt])
   @@index([ringOuts])
 }
@@ -1775,22 +1781,22 @@ enum BrawlerMatchQueueStatus {
 
 /// Global brawler matchmaking: casual/ranked bucket pairs any two waiting players (cross-venue).
 model BrawlerMatchQueueEntry {
-  id               String                 @id @default(uuid())
+  id               String                  @id @default(uuid())
   /// Null when an active subscriber queues from outside any venue (cross-venue matchmaking pool).
   venueId          String?
   playerId         String
-  ranked           Boolean                @default(false)
+  ranked           Boolean                 @default(false)
   brawlerHeroId    String?
   status           BrawlerMatchQueueStatus @default(WAITING)
   matchedSessionId String?
   /// When set, matchmaking pairs only entries with the same party.
   partyId          String?
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
 
-  venue  Venue?  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  venue  Venue? @relation(fields: [venueId], references: [id], onDelete: Cascade)
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  party  Party?  @relation(fields: [partyId], references: [id], onDelete: SetNull)
+  party  Party? @relation(fields: [partyId], references: [id], onDelete: SetNull)
 
   @@index([ranked, status, createdAt], map: "BrawlerMatchQueueEntry_bucket_idx")
   @@index([partyId, ranked, status, createdAt], map: "BrawlerMatchQueueEntry_party_bucket_idx")
@@ -1818,9 +1824,9 @@ model WordMatchQueueEntry {
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
 
-  venue  Venue?  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  venue  Venue? @relation(fields: [venueId], references: [id], onDelete: Cascade)
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  party  Party?  @relation(fields: [partyId], references: [id], onDelete: SetNull)
+  party  Party? @relation(fields: [partyId], references: [id], onDelete: SetNull)
 
   @@index([mode, difficulty, wordCount, language, category, ranked, status, createdAt], map: "WordMatchQueueEntry_bucket_idx")
   @@index([playerId, status], map: "WordMatchQueueEntry_player_status_idx")
@@ -1828,25 +1834,27 @@ model WordMatchQueueEntry {
 }
 
 model WordSession {
-  sessionId            String @id
-  roundCount           Int    @default(1)
-  language             String @default("en")
+  sessionId        String      @id
+  roundCount       Int         @default(1)
+  language         String      @default("en")
   /// Co-op: shared progress index into the ordered word list (server-authoritative).
-  sharedWordIndex      Int    @default(0)
+  sharedWordIndex  Int         @default(0)
   /// Co-op: count of words solved correctly (skips do not increment). Must equal deck size for a win.
-  wordsSolvedCount     Int    @default(0)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  session              GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  wordsSolvedCount Int         @default(0)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  session          GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
+
 model WordParticipantStats {
-  participantId        String @id
-  correctAnswers       Int    @default(0)
-  wrongAnswers         Int    @default(0)
-  streakBest           Int    @default(0)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  participant          GameParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  participantId  String          @id
+  correctAnswers Int             @default(0)
+  wrongAnswers   Int             @default(0)
+  streakBest     Int             @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  participant    GameParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
   @@index([correctAnswers])
 }
 
@@ -1862,4 +1870,19 @@ model PlayerPlatformQuestClaim {
 
   @@id([playerId, questKey, periodKey])
   @@index([playerId, periodKey])
+}
+
+/// Tombstone written when a player deletes their account.
+///
+/// Every `me/*` endpoint provisions through `findOrCreateByEmail`, and a Clerk
+/// JWT stays valid for a short while after its user is deleted. Without this
+/// record, one in-flight request re-creates the row the user just erased.
+model DeletedAccount {
+  /// The normalized identity used for lookups — either the real email claim or
+  /// `<clerkUserId>@clerk.local`.
+  email       String   @id
+  clerkUserId String?
+  deletedAt   DateTime @default(now())
+
+  @@index([deletedAt])
 }

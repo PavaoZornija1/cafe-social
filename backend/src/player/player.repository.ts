@@ -52,6 +52,23 @@ export class PlayerRepository {
     return this.prisma.player.delete({ where: { id } });
   }
 
+  /** Records that this identity deleted its account (see DeletedAccount). */
+  recordDeletedAccount(email: string, clerkUserId: string | null) {
+    return this.prisma.deletedAccount.upsert({
+      where: { email },
+      create: { email, clerkUserId, deletedAt: new Date() },
+      update: { clerkUserId, deletedAt: new Date() },
+    });
+  }
+
+  findDeletedAccount(email: string) {
+    return this.prisma.deletedAccount.findUnique({ where: { email } });
+  }
+
+  async clearDeletedAccount(email: string): Promise<void> {
+    await this.prisma.deletedAccount.deleteMany({ where: { email } });
+  }
+
   async getSummary(playerId: string): Promise<{
     completedChallenges: number;
     venuesUnlocked: number;
