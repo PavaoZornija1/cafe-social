@@ -144,6 +144,22 @@ against the sandbox, so there is no charge and no real card involved.
 > challenges, reporting and blocking other players, language switching between
 > English, German, Spanish and Croatian, and account deletion.
 >
+> **Where to find content reporting and blocking.** Both mechanisms Apple asked
+> about are in the build; the exact taps are:
+>
+> - **Report a player:** Venues tab → open any partner café (for example
+>   "Caffeine Lab") → **Full leaderboard** → the flag icon to the right of any
+>   player who is not you → choose a reason → Submit. Reporting is deliberately
+>   scoped to a venue's leaderboard, so the icon appears there rather than on the
+>   City, Country or Global boards.
+> - **Block a player:** Friends tab → **Block** on any incoming friend request
+>   (next to Accept), or on any existing friend under **My friends**. Blocked
+>   players cannot friend you or appear in your social lists, and are listed under
+>   **Blocked players** in the same screen, where they can be unblocked.
+>
+> Both are also reachable from a venue's "who's here" list when the device is
+> inside a partner café.
+>
 > No sample files are required.
 
 ## Item 4 — External services, tools and platforms
