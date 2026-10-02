@@ -37,7 +37,7 @@ Start the recording **before** launching the app. One take, roughly 6 minutes.
 | 2 | **Account registration** | Sign up with a fresh email → enter the emailed code → verify. **Write the username down.** |
 | 3 | Typical flow | bottom tabs: Home, Venues, Play, Leaderboards, Friends, Rewards |
 | 4 | **User-generated content + reporting** | Venues → **Kafić Avlija** → **Open leaderboard** → flag icon next to any player who is not you |
-| 5 | **Accessing paid content** | Me → gear → Subscription → Get Cafe Social Pro. **Show the two tiers, then back out. Do not tap buy.** |
+| 5 | **Accessing paid content** | Me → gear → Subscription → Get Cafe Social Pro → **tap Purchase and complete it**. TestFlight transacts in the sandbox, so nothing is charged. Then show a Play screen that was locked before |
 | 6 | **Login** | Settings → sign out → sign in as `pzornija+appreview@gmail.com` |
 | 7 | **Blocking** — setup | As the demo account: Friends → add by username → send a request to the throwaway from step 2 |
 | 8 | **Login** again + **Blocking** | Sign out → sign back in as the throwaway → Friends → the incoming request from the demo account has **Block** right next to Accept → tap it → confirm |
@@ -56,53 +56,37 @@ between is what makes the block demonstrable at all.
   has players on its board — which is why the venue is named above.
 - **Block needs a second account.** It renders only on an incoming friend request
   or an existing friend row. A fresh account has neither, hence steps 7–8.
-- **Never tap buy.** The purchase still fails with error 23 and the failure must
-  not appear on camera. Show the paywall, back out.
+- **Registration must use an address that does not already exist.** The first
+  attempt failed on camera with "That email address is taken" because
+  `pzornija@gmail.com` is already a player. Use `pzornija+rec1@gmail.com` or
+  similar — plus-addressing still lands in your inbox, so you can read the
+  verification code without leaving the recording.
 - **Do not use `pzornija+appreview@gmail.com` for step 9.** The reviewer needs it.
 - Upload to a stable URL (unlisted YouTube, iCloud, Dropbox) and put the link in
   the reply.
 
 ---
 
-## Why the purchase cannot be recorded yet
+## Status of the in-app purchase
 
-Attempting it on a device returns RevenueCat **error 23** (`CONFIGURATION_ERROR`).
-That is not a bug in our setup. Every link in the chain was verified against the
-live APIs on 2026-09-27, not assumed:
+**Resolved on 2026-10-02.** The paywall now loads live prices from StoreKit
+($4.99 and $34.99, matching the configured US prices), which proves products are
+being returned. Earlier this reliably failed with RevenueCat error 23.
 
-| Check | Result |
-|---|---|
-| RevenueCat App Store app bundle id | `com.cafesocial.app` — matches `app.config.js` for `APP_ENV=production` |
-| iOS publishable key in EAS `production` | `appl_mSQAPDNH…` — matches the only key on the App Store app |
-| Shared-key override (`EXPO_PUBLIC_REVENUECAT_API_KEY`) | not set, so the iOS key wins in `nativeApiKey()` |
-| App Store Connect API key | valid — list-apps and subscriptions-info permissions both pass |
-| App Store subscriptions (in-app) key | valid |
-| Current offering `default` | `$rc_monthly` and `$rc_annual`, each carrying the App Store product |
-| Entitlement | `Cafe Social Pro` — exactly matches `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID`, both products attached |
-| Product status as Apple reports it | **`READY_TO_SUBMIT`** — never been through review |
+The cause was the **Paid Applications Agreement**, and only that. It went Active
+on 2026-09-27 and took several days to propagate. An earlier note here claimed
+the subscriptions also had to be *submitted for review* before StoreKit would
+serve them — **that was wrong**. Both are still `READY_TO_SUBMIT` at Apple and
+they fetch fine.
 
-The last row is the cause. Apple will not serve a first app's subscriptions to
-StoreKit until they have been submitted for review with a version, and the Paid
-Applications Agreement only went Active today — its propagation is separately
-slow.
+Everything else was verified clean against the live APIs and never was the
+problem: bundle id `com.cafesocial.app`, the `appl_` publishable key, both App
+Store Connect keys, the current offering, and the `Cafe Social Pro` entitlement
+identifier.
 
-**This resolves itself the moment the submission goes in**, because subscriptions
-under review are purchasable in the reviewer's sandbox. So the sequence is:
-
-1. Record items 1–6 and 8, skipping the purchase.
-2. Reply with the recording and items 2–6, including the paragraph below.
-3. Submit — the draft submission already contains the build, the subscription
-   group and both subscriptions, so Apple's “configured and submitted alongside
-   the app” instruction is satisfied.
-
-Paragraph to include in the reply:
-
-> The two Cafe Social Pro subscriptions are submitted for review alongside this
-> build, so they become purchasable in the sandbox as soon as review begins. They
-> were not purchasable while the app sat in Ready for Review, which is why the
-> recording shows the paywall rather than a completed transaction. If you have any
-> difficulty completing the test purchase, please let us know and we will provide
-> a second account with the subscription already granted.
+So the purchase **can** be filmed, and should be — it is the single best answer
+to Apple's "accessing paid content" item. TestFlight builds always transact
+against the sandbox, so there is no charge and no real card involved.
 
 ---
 
