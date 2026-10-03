@@ -60,7 +60,14 @@ Partner venues get their own dashboard: challenges, perks, offers and visit anal
 CAFE SOCIAL PRO
 Pro removes the location requirement, so you can play word games and the Brawler arena from anywhere, not just inside a partner cafe. It also unlocks parties of up to 200 members, removes the daily play limit, and lets you discover other subscribers remotely.
 
-Includes a 7-day free trial. Subscriptions renew automatically until cancelled; you can manage or cancel at any time in Settings or in your Google Play account.
+SUBSCRIPTION DETAILS
+Cafe Social Pro is an auto-renewing subscription:
+• Monthly — EUR 4.99 per month
+• Yearly — EUR 34.99 per year
+Both include a 7-day free trial for new subscribers. Payment is charged to your Google Play account at confirmation of purchase, and renews automatically for the same period and price unless cancelled at least 24 hours before the end of the current period. Manage or cancel at any time in Settings or in your Google Play account.
+
+Terms of Use: https://partner.cafe-social.com/terms
+Privacy Policy: https://partner.cafe-social.com/privacy
 
 PRIVACY
 Location is used only to detect when you are inside a partner cafe, so venue games and challenges can unlock. It is never used for advertising, and there is no continuous background tracking. You control notifications and visibility in Settings.
@@ -77,6 +84,11 @@ https://partner.cafe-social.com/delete-account
 - **Hyphen bullets → `•`.** Play renders plain text; bullet characters survive,
   leading hyphens read as dashes.
 - **Added the account-deletion URL.** Play looks for it, and it now exists.
+- **Added the subscription terms block and a Terms of Use link.** The App Store
+  rejected the iOS submission under Guideline 3.1.2 on 2026-10-03 for exactly this:
+  an app with auto-renewable subscriptions must carry a functional Terms of Use link
+  in the product-page metadata. Play enforces the same thing. **Use our own terms
+  URL here** — Apple's `stdeula` link must never appear in a Play listing.
 - **Kept the Brawler claim.** Verified against `brawler.service.ts:1039` —
   subscribers genuinely queue from anywhere, so "word games and the Brawler
   arena from anywhere" is accurate.
