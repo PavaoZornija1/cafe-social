@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { playerRequestContext } from './player/player-request-context';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { HealthController } from './health.controller';
@@ -81,6 +82,10 @@ import { PartnerApplicationModule } from './partner-application/partner-applicat
   controllers: [HealthController],
   providers: [],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(playerRequestContext.middleware).forRoutes('*');
+  }
+}
 
 

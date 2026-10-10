@@ -7,6 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { Player, Prisma } from '@prisma/client';
+import { playerRequestContext } from './player-request-context';
 import { CreatePlayerDto } from './dto/create-player.dto';
 import { UpdatePlayerDto } from './dto/update-player.dto';
 import { UpdateMeSettingsDto } from './dto/update-me-settings.dto';
@@ -50,8 +51,14 @@ export class PlayerService {
   }
 
   async findOrCreateByEmail(email: string): Promise<Player> {
-    const existing = await this.players.findByEmail(email);
-    if (existing) return this.ensureMemberQrToken(existing);
+    return playerRequestContext.resolve(email, async () => {
+      const existing = await this.players.findByEmail(email);
+      if (existing) return this.ensureMemberQrToken(existing);
+      return this.provisionPlayer(email);
+    });
+  }
+
+  private async provisionPlayer(email: string): Promise<Player> {
 
     await this.assertNotJustDeleted(email);
 
@@ -147,26 +154,54 @@ export class PlayerService {
       venueName: string;
     }[];
   }> {
-    const player = await this.findOrCreateByEmail(email);
-    const { completedChallenges, venuesUnlocked } =
-      await this.players.getSummary(player.id);
-
-    const venueXpSum = await this.venueStats.sumVenueXpForPlayer(player.id);
-    const totalXp = venueXpSum + player.bonusXp;
+    type SummaryRow = Player & {
+      completedChallenges: bigint;
+      venuesUnlocked: bigint;
+      venueXpSum: bigint | null;
+      subscriptionActiveValue: boolean | null;
+      subscriptionExpiresAt: Date | null;
+    };
+    const rows = await this.prisma.$queryRaw<SummaryRow[]>`
+      SELECT p.*,
+        (SELECT COUNT(*) FROM "ChallengeProgress" c WHERE c."playerId" = p.id AND c."completedAt" IS NOT NULL) AS "completedChallenges",
+        (SELECT COUNT(*) FROM "PlayerVenue" v WHERE v."playerId" = p.id) AS "venuesUnlocked",
+        (SELECT SUM(v."venueXp") FROM "PlayerVenueStats" v WHERE v."playerId" = p.id) AS "venueXpSum",
+        s.active AS "subscriptionActiveValue", s."expiresAt" AS "subscriptionExpiresAt"
+      FROM "Player" p LEFT JOIN "Subscription" s ON s."playerId" = p.id
+      WHERE p.email = ${email}
+    `;
+    const row = rows[0];
+    const playerRow = row && (() => {
+      const { completedChallenges, venuesUnlocked, venueXpSum,
+        subscriptionActiveValue, subscriptionExpiresAt, ...player } = row;
+      return player;
+    })();
+    // Missing accounts and legacy QR tokens retain their provisioning/repair writes.
+    // Ordinary existing accounts need only this statement and the staff join below.
+    const player = await playerRequestContext.resolve(email, () =>
+      playerRow ? this.ensureMemberQrToken(playerRow) : this.provisionPlayer(email),
+    );
+    const completedChallenges = Number(row?.completedChallenges ?? 0);
+    const venuesUnlocked = Number(row?.venuesUnlocked ?? 0);
+    const totalXp = Number(row?.venueXpSum ?? 0) + player.bonusXp;
     const { tierLabel, nextTierXpThreshold, nextTierName } =
       await this.platformRewards.computeTierProgress(totalXp);
-
-    const subscription = await this.prisma.subscription.findUnique({
-      where: { playerId: player.id },
-    });
-    const subscriptionActive = this.computeSubscriptionRowActive(subscription);
-
-    const staffRows = await this.prisma.venueStaff.findMany({
-      where: { playerId: player.id },
-      include: { venue: { select: { id: true, name: true } } },
-      orderBy: { updatedAt: 'desc' },
-      take: 50,
-    });
+    const subscriptionActive = this.computeSubscriptionRowActive(
+      row?.subscriptionActiveValue == null ? null : {
+        active: row.subscriptionActiveValue,
+        expiresAt: row.subscriptionExpiresAt,
+      },
+    );
+    const staffRows = await this.prisma.$queryRaw<{
+      venueId: string;
+      role: 'EMPLOYEE' | 'MANAGER' | 'OWNER';
+      venueName: string;
+    }[]>`
+      SELECT v.id AS "venueId", s.role, v.name AS "venueName"
+      FROM "VenueStaff" s JOIN "Venue" v ON v.id = s."venueId"
+      WHERE s."playerId" = ${player.id}
+      ORDER BY s."updatedAt" DESC LIMIT 50
+    `;
 
     return {
       playerId: player.id,
@@ -187,11 +222,7 @@ export class PlayerService {
       subscriptionActive,
       onboardingPlayerCompletedAt: player.onboardingPlayerCompletedAt?.toISOString() ?? null,
       onboardingStaffCompletedAt: player.onboardingStaffCompletedAt?.toISOString() ?? null,
-      staffVenues: staffRows.map((row) => ({
-        venueId: row.venue.id,
-        role: row.role,
-        venueName: row.venue.name,
-      })),
+      staffVenues: staffRows,
     };
   }
 
@@ -529,6 +560,7 @@ export class PlayerService {
     email: string,
     clerkUserId: string,
   ): Promise<{ ok: true }> {
+    playerRequestContext.invalidate(email);
     const player = await this.players.findByEmail(email);
     if (player) {
       await this.players.deleteById(player.id);
