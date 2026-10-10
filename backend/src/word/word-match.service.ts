@@ -1,4 +1,10 @@
 import {
+  acquireQueueBotLock,
+  QUEUE_BOT_FILL_LOCK,
+  WORD_BOT_TURN_LOCK,
+} from '../queue-bot/queue-bot-lock';
+import { QUEUE_BOT_WAITING_EVENT } from '../queue-bot/queue-bot.events';
+import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
@@ -1422,7 +1428,7 @@ export class WordMatchService {
       data: { status: WordMatchQueueStatus.CANCELLED },
     });
 
-    await this.prisma.wordMatchQueueEntry.create({
+    const queued = await this.prisma.wordMatchQueueEntry.create({
       data: {
         venueId: vId,
         playerId: player.id,
@@ -1435,6 +1441,14 @@ export class WordMatchService {
         ranked,
       },
     });
+
+    if (!ranked && !partyId) {
+      this.events.emit(QUEUE_BOT_WAITING_EVENT, {
+        game: 'word',
+        id: queued.id,
+        createdAt: queued.createdAt,
+      });
+    }
 
     await this.tryMatchWordQueueBucket(
       modeEnum,
@@ -1513,6 +1527,7 @@ export class WordMatchService {
   async tryFillWordQueueWithBot(queueEntryId: string): Promise<string | null> {
     let createdSessionId: string | null = null;
     await this.prisma.$transaction(async (tx) => {
+      await acquireQueueBotLock(tx, QUEUE_BOT_FILL_LOCK);
       const row = await tx.wordMatchQueueEntry.findUnique({
         where: { id: queueEntryId },
       });
@@ -1616,6 +1631,7 @@ export class WordMatchService {
     kind: 'correct' | 'pass',
   ): Promise<{ done: boolean; sessionFinished?: boolean }> {
     const result = await this.prisma.$transaction(async (tx) => {
+      await acquireQueueBotLock(tx, WORD_BOT_TURN_LOCK);
       const session = await tx.gameSession.findUnique({
         where: { id: sessionId },
         include: { wordSession: true, participants: true },
@@ -1731,6 +1747,7 @@ export class WordMatchService {
     kind: 'correct' | 'wrong',
   ): Promise<{ finished: boolean }> {
     const result = await this.prisma.$transaction(async (tx) => {
+      await acquireQueueBotLock(tx, WORD_BOT_TURN_LOCK);
       const session = await tx.gameSession.findUnique({
         where: { id: sessionId },
         include: { wordSession: true, participants: true },

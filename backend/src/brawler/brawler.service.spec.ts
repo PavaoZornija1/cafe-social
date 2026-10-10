@@ -1,3 +1,5 @@
+import { QueueBotLockBusyError, QUEUE_BOT_FILL_LOCK } from '../queue-bot/queue-bot-lock';
+import { QUEUE_BOT_WAITING_EVENT } from '../queue-bot/queue-bot.events';
 // See word-match.service.spec.ts for context — venue helpers transitively import `@turf/turf`
 // which depends on the ESM-only `kdbush`; we stub them here and inject test doubles below.
 jest.mock('../venue/venue.service', () => ({ VenueService: class VenueService {} }));
@@ -17,6 +19,7 @@ import {
 import { BrawlerService } from './brawler.service';
 
 type PrismaDouble = {
+  $queryRawUnsafe: jest.Mock;
   $transaction: <T>(fn: (tx: PrismaDouble) => Promise<T>) => Promise<T>;
   brawlerMatchQueueEntry: {
     updateMany: jest.Mock;
@@ -39,6 +42,7 @@ type PrismaDouble = {
 function buildPrismaDouble(): PrismaDouble {
   const base: PrismaDouble = {
     $transaction: async (fn) => fn(base),
+    $queryRawUnsafe: jest.fn().mockResolvedValue([{ ok: true }]),
     brawlerMatchQueueEntry: {
       updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       create: jest.fn(),
@@ -199,6 +203,7 @@ function buildService(opts: {
     svc,
     prisma,
     brawlerRepo,
+    events,
     players,
     brawlerLive,
     subscriptions,
@@ -240,10 +245,15 @@ describe('BrawlerService.enqueueVenueBrawlerMatch', () => {
   it('cancels any existing WAITING row before creating a fresh one', async () => {
     const prisma = buildPrismaDouble();
     prisma.brawlerMatchQueueEntry.findFirst = jest.fn().mockResolvedValue(null);
-    prisma.brawlerMatchQueueEntry.create = jest.fn().mockResolvedValue({ id: 'q-new' });
-    const { svc } = buildService({ prisma, isSubscriber: true });
+    prisma.brawlerMatchQueueEntry.create = jest.fn().mockResolvedValue({
+      id: 'q-new', createdAt: new Date('2026-10-10T00:00:00Z'),
+    });
+    const { svc, events } = buildService({ prisma, isSubscriber: true });
 
     await svc.enqueueVenueBrawlerMatch('alice@x', { ...baseDto, venueId: undefined });
+    expect(events.emit).toHaveBeenCalledWith(QUEUE_BOT_WAITING_EVENT, {
+      game: 'brawler', id: 'q-new', createdAt: new Date('2026-10-10T00:00:00Z'),
+    });
 
     expect(prisma.brawlerMatchQueueEntry.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -268,6 +278,31 @@ describe('BrawlerService.enqueueVenueBrawlerMatch', () => {
 });
 
 describe('BrawlerService.tryFillBrawlerQueueWithBot (casual-only)', () => {
+  it('acquires the fill lock in the existing mutation transaction and skips work on contention', async () => {
+    const prisma = buildPrismaDouble();
+    const transaction = jest.spyOn(prisma, '$transaction');
+    prisma.$queryRawUnsafe.mockResolvedValue([{ ok: false }]);
+    const { svc } = buildService({ prisma });
+    await expect(svc.tryFillBrawlerQueueWithBot('q1')).rejects.toBeInstanceOf(QueueBotLockBusyError);
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.$queryRawUnsafe).toHaveBeenCalledWith(
+      'SELECT pg_try_advisory_xact_lock($1::integer, $2::integer) AS ok',
+      ...QUEUE_BOT_FILL_LOCK,
+    );
+    expect(prisma.brawlerMatchQueueEntry.findUnique).not.toHaveBeenCalled();
+    expect(prisma.gameSession.create).not.toHaveBeenCalled();
+  });
+
+  it('preserves the existing exclusion of party-queued entries', async () => {
+    const prisma = buildPrismaDouble();
+    prisma.brawlerMatchQueueEntry.findUnique.mockResolvedValue({
+      id: 'q-party', status: 'WAITING', ranked: false, partyId: 'party-1',
+    });
+    const { svc } = buildService({ prisma });
+    await expect(svc.tryFillBrawlerQueueWithBot('q-party')).resolves.toBeNull();
+    expect(prisma.gameSession.create).not.toHaveBeenCalled();
+  });
+
   it('returns null and does not create a session for ranked queue rows', async () => {
     const prisma = buildPrismaDouble();
     prisma.brawlerMatchQueueEntry.findUnique = jest.fn().mockResolvedValue({
@@ -447,7 +482,7 @@ describe('BrawlerService ranked / membership gates', () => {
     prisma.brawlerMatchQueueEntry.findFirst = jest.fn().mockResolvedValue(null);
     prisma.brawlerMatchQueueEntry.create = jest.fn().mockResolvedValue({ id: 'q-ranked' });
     prisma.brawlerMatchQueueEntry.findMany = jest.fn().mockResolvedValue([]);
-    const { svc } = buildService({ prisma, isSubscriber: true });
+    const { svc, events } = buildService({ prisma, isSubscriber: true });
 
     await svc.enqueueVenueBrawlerMatch('alice@x', {
       venueId: 'venue-1',
@@ -457,6 +492,7 @@ describe('BrawlerService ranked / membership gates', () => {
       ranked: true,
     });
 
+    expect(events.emit).not.toHaveBeenCalledWith(QUEUE_BOT_WAITING_EVENT, expect.anything());
     expect(prisma.brawlerMatchQueueEntry.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({

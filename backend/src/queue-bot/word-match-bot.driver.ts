@@ -1,9 +1,18 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { GameSessionStatus, GameType } from '@prisma/client';
 import { Interval } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
-import { WordMatchService, type WordMatchConfig } from '../word/word-match.service';
+import {
+  WordMatchService,
+  type WordMatchConfig,
+} from '../word/word-match.service';
 import { getQueueBotConfig, jitterAround } from './queue-bot-config';
+import { QueueBotLockBusyError } from './queue-bot-lock';
 
 type BotState = {
   botParticipantId: string;
@@ -12,17 +21,17 @@ type BotState = {
   nextActionAt: number;
 };
 
-/** Advisory lock so only one process drives bot ticks in multi-instance deploys. */
-const BOT_TICK_LOCK_K1 = 58_294_138;
-const BOT_TICK_LOCK_K2 = 92_837_462;
-
 /**
  * Drives queue-filled word bot opponents server-side (co-op passes / guesses; versus guesses).
  */
 @Injectable()
-export class WordMatchBotDriver implements OnModuleInit {
+export class WordMatchBotDriver implements OnModuleInit, OnModuleDestroy {
   private readonly log = new Logger(WordMatchBotDriver.name);
   private readonly pending = new Map<string, BotState>();
+  private timer?: ReturnType<typeof setInterval>;
+  private ticking = false;
+  private recovering = false;
+  private destroyed = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -30,10 +39,26 @@ export class WordMatchBotDriver implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
+    await this.recoverActiveSessions();
+  }
+
+  onModuleDestroy(): void {
+    this.destroyed = true;
+    if (this.timer) clearInterval(this.timer);
+    this.timer = undefined;
+    this.pending.clear();
+  }
+
+  @Interval(5 * 60_000)
+  async recoverActiveSessions(): Promise<void> {
+    if (this.recovering || this.destroyed) return;
+    this.recovering = true;
     try {
       await this.rehydrateActiveSessions();
     } catch (e) {
       this.log.warn(`word bot rehydrate failed: ${(e as Error).message}`);
+    } finally {
+      this.recovering = false;
     }
   }
 
@@ -52,7 +77,7 @@ export class WordMatchBotDriver implements OnModuleInit {
         status: GameSessionStatus.ACTIVE,
         participants: { some: { isBot: true, leftAt: null } },
       },
-      include: { participants: true, wordSession: true },
+      select: { id: true },
     });
     let n = 0;
     for (const session of sessions) {
@@ -66,7 +91,7 @@ export class WordMatchBotDriver implements OnModuleInit {
 
   /** Start pacing bot actions after the session is ACTIVE. */
   async register(sessionId: string): Promise<void> {
-    if (this.pending.has(sessionId)) return;
+    if (this.destroyed || this.pending.has(sessionId)) return;
 
     const session = await this.prisma.gameSession.findUnique({
       where: { id: sessionId },
@@ -84,32 +109,52 @@ export class WordMatchBotDriver implements OnModuleInit {
     const qCfg = getQueueBotConfig();
     const diff = cfgJson.difficulty ?? 'normal';
     const mean =
-      qCfg.meanThinkMs[diff as keyof typeof qCfg.meanThinkMs] ?? qCfg.meanThinkMs.normal;
+      qCfg.meanThinkMs[diff as keyof typeof qCfg.meanThinkMs] ??
+      qCfg.meanThinkMs.normal;
 
+    if (this.destroyed || this.pending.has(sessionId)) return;
+    const thinkMs = jitterAround(mean, qCfg.jitterPct);
     this.pending.set(sessionId, {
       botParticipantId: bot.id,
       mode,
       difficulty: diff,
-      nextActionAt: Date.now() + jitterAround(mean, qCfg.jitterPct),
+      nextActionAt: Date.now() + thinkMs,
     });
+    this.startTimer();
   }
 
-  @Interval(1000)
-  async tick(): Promise<void> {
-    const acquired = await this.tryAcquireTickLock();
-    if (!acquired) return;
+  private startTimer(): void {
+    if (this.timer || this.destroyed) return;
+    this.timer = setInterval(
+      () => void this.tick(),
+      getQueueBotConfig().wordBotTickMs,
+    );
+    this.timer.unref();
+  }
 
+  async tick(): Promise<void> {
+    if (this.ticking || this.destroyed || this.pending.size === 0) return;
+    if (
+      ![...this.pending.values()].some(
+        (state) => state.nextActionAt <= Date.now(),
+      )
+    )
+      return;
+    this.ticking = true;
     try {
-      // Pick up sessions registered on another instance (or after restart) before pacing.
-      await this.rehydrateActiveSessions();
-      if (this.pending.size === 0) return;
-      await this.tickLocked();
+      await this.tickSessions();
+    } catch (e) {
+      this.log.warn(`word bot tick failed: ${(e as Error).message}`);
     } finally {
-      await this.releaseTickLock();
+      this.ticking = false;
+      if (this.pending.size === 0 && this.timer) {
+        clearInterval(this.timer);
+        this.timer = undefined;
+      }
     }
   }
 
-  private async tickLocked(): Promise<void> {
+  private async tickSessions(): Promise<void> {
     const now = Date.now();
     const qCfg = getQueueBotConfig();
 
@@ -166,6 +211,10 @@ export class WordMatchBotDriver implements OnModuleInit {
         }
       } catch (e) {
         this.log.debug(`word bot tick ${sessionId}: ${(e as Error).message}`);
+        if (e instanceof QueueBotLockBusyError) {
+          state.nextActionAt = Date.now() + 5000;
+          continue;
+        }
         this.pending.delete(sessionId);
         continue;
       }
@@ -180,32 +229,6 @@ export class WordMatchBotDriver implements OnModuleInit {
       }
 
       state.nextActionAt = Date.now() + jitterAround(mean, qCfg.jitterPct);
-    }
-  }
-
-  private async tryAcquireTickLock(): Promise<boolean> {
-    try {
-      const rows = await this.prisma.$queryRawUnsafe<Array<{ ok: boolean }>>(
-        'SELECT pg_try_advisory_lock($1::integer, $2::integer) AS ok',
-        BOT_TICK_LOCK_K1,
-        BOT_TICK_LOCK_K2,
-      );
-      return Boolean(rows[0]?.ok);
-    } catch {
-      // Local/unit tests without raw SQL — allow tick to run.
-      return true;
-    }
-  }
-
-  private async releaseTickLock(): Promise<void> {
-    try {
-      await this.prisma.$executeRawUnsafe(
-        'SELECT pg_advisory_unlock($1::integer, $2::integer)',
-        BOT_TICK_LOCK_K1,
-        BOT_TICK_LOCK_K2,
-      );
-    } catch {
-      /* ignore */
     }
   }
 }

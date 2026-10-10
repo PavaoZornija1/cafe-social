@@ -1,3 +1,5 @@
+import { QueueBotLockBusyError, QUEUE_BOT_FILL_LOCK, WORD_BOT_TURN_LOCK } from '../queue-bot/queue-bot-lock';
+import { QUEUE_BOT_WAITING_EVENT } from '../queue-bot/queue-bot.events';
 // Stub the venue module before loading WordMatchService — its real imports pull `@turf/turf` →
 // `kdbush` (ESM-only), which Jest's CJS transform can't parse. We never invoke the real instances
 // here; they're injected as test doubles in the service factory below.
@@ -20,6 +22,7 @@ import {
 import { WordMatchService } from './word-match.service';
 
 type PrismaDouble = {
+  $queryRawUnsafe: jest.Mock;
   $transaction: <T>(fn: (tx: PrismaDouble) => Promise<T>) => Promise<T>;
   wordMatchQueueEntry: {
     updateMany: jest.Mock;
@@ -53,6 +56,7 @@ type PrismaDouble = {
 function buildPrismaDouble(): PrismaDouble {
   const base: PrismaDouble = {
     $transaction: async (fn) => fn(base),
+    $queryRawUnsafe: jest.fn().mockResolvedValue([{ ok: true }]),
     wordMatchQueueEntry: {
       updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       create: jest.fn(),
@@ -190,11 +194,16 @@ describe('WordMatchService.enqueueVenueWordMatch', () => {
   });
 
   it('cancels any in-flight WAITING row before enqueuing the new one', async () => {
-    const { svc, prisma } = buildService();
+    const { svc, prisma, events } = buildService();
     prisma.wordMatchQueueEntry.findFirst = jest.fn().mockResolvedValue(null);
-    prisma.wordMatchQueueEntry.create = jest.fn().mockResolvedValue({ id: 'q-new' });
+    prisma.wordMatchQueueEntry.create = jest.fn().mockResolvedValue({
+      id: 'q-new', createdAt: new Date('2026-10-10T00:00:00Z'),
+    });
 
     await svc.enqueueVenueWordMatch('alice@x', baseDto);
+    expect(events.emit).toHaveBeenCalledWith(QUEUE_BOT_WAITING_EVENT, {
+      game: 'word', id: 'q-new', createdAt: new Date('2026-10-10T00:00:00Z'),
+    });
 
     expect(prisma.wordMatchQueueEntry.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -220,7 +229,9 @@ describe('WordMatchService.enqueueVenueWordMatch', () => {
   it('allows queuing without a venue when subscriber is active', async () => {
     const { svc, prisma, venues } = buildService({ isSubscriber: true });
     prisma.wordMatchQueueEntry.findFirst = jest.fn().mockResolvedValue(null);
-    prisma.wordMatchQueueEntry.create = jest.fn().mockResolvedValue({ id: 'q-new' });
+    prisma.wordMatchQueueEntry.create = jest.fn().mockResolvedValue({
+      id: 'q-new', createdAt: new Date('2026-10-10T00:00:00Z'),
+    });
 
     await svc.enqueueVenueWordMatch('alice@x', { ...baseDto, venueId: undefined });
 
@@ -235,6 +246,31 @@ describe('WordMatchService.enqueueVenueWordMatch', () => {
 });
 
 describe('WordMatchService.tryFillWordQueueWithBot (casual-only)', () => {
+  it('acquires the fill lock in the existing mutation transaction and skips work on contention', async () => {
+    const prisma = buildPrismaDouble();
+    const transaction = jest.spyOn(prisma, '$transaction');
+    prisma.$queryRawUnsafe.mockResolvedValue([{ ok: false }]);
+    const { svc } = buildService({ prisma });
+    await expect(svc.tryFillWordQueueWithBot('q1')).rejects.toBeInstanceOf(QueueBotLockBusyError);
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.$queryRawUnsafe).toHaveBeenCalledWith(
+      'SELECT pg_try_advisory_xact_lock($1::integer, $2::integer) AS ok',
+      ...QUEUE_BOT_FILL_LOCK,
+    );
+    expect(prisma.wordMatchQueueEntry.findUnique).not.toHaveBeenCalled();
+    expect(prisma.gameSession.create).not.toHaveBeenCalled();
+  });
+
+  it('preserves the existing exclusion of party-queued entries', async () => {
+    const prisma = buildPrismaDouble();
+    prisma.wordMatchQueueEntry.findUnique.mockResolvedValue({
+      id: 'q-party', status: 'WAITING', ranked: false, partyId: 'party-1',
+    });
+    const { svc } = buildService({ prisma });
+    await expect(svc.tryFillWordQueueWithBot('q-party')).resolves.toBeNull();
+    expect(prisma.gameSession.create).not.toHaveBeenCalled();
+  });
+
   it('returns null without creating a session for ranked queue rows', async () => {
     const prisma = buildPrismaDouble();
     prisma.wordMatchQueueEntry.findUnique = jest.fn().mockResolvedValue({
@@ -512,4 +548,23 @@ describe('WordMatchService.versusPass', () => {
       }),
     );
   });
+});
+
+
+describe('WordMatchService bot turn locks', () => {
+  it.each(['executeWordMatchBotCoopTurn', 'executeWordMatchBotVersusTurn'] as const)(
+    '%s refuses concurrent mutation using only its existing transaction', async (method) => {
+      const prisma = buildPrismaDouble();
+      const transaction = jest.spyOn(prisma, '$transaction');
+      prisma.$queryRawUnsafe.mockResolvedValue([{ ok: false }]);
+      const { svc } = buildService({ prisma });
+      await expect(svc[method]('s1', 'bot1', 'correct')).rejects.toBeInstanceOf(QueueBotLockBusyError);
+      expect(transaction).toHaveBeenCalledTimes(1);
+      expect(prisma.$queryRawUnsafe).toHaveBeenCalledWith(
+        'SELECT pg_try_advisory_xact_lock($1::integer, $2::integer) AS ok',
+        ...WORD_BOT_TURN_LOCK,
+      );
+      expect(prisma.gameSession.findUnique).not.toHaveBeenCalled();
+    },
+  );
 });

@@ -1,4 +1,9 @@
 import {
+  acquireQueueBotLock,
+  QUEUE_BOT_FILL_LOCK,
+} from '../queue-bot/queue-bot-lock';
+import { QUEUE_BOT_WAITING_EVENT } from '../queue-bot/queue-bot.events';
+import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
@@ -1050,7 +1055,7 @@ export class BrawlerService {
       data: { status: BrawlerMatchQueueStatus.CANCELLED },
     });
 
-    await this.prisma.brawlerMatchQueueEntry.create({
+    const queued = await this.prisma.brawlerMatchQueueEntry.create({
       data: {
         venueId: vId,
         playerId: player.id,
@@ -1059,6 +1064,14 @@ export class BrawlerService {
         brawlerHeroId: heroId,
       },
     });
+
+    if (!ranked && !partyId) {
+      this.events.emit(QUEUE_BOT_WAITING_EVENT, {
+        game: 'brawler',
+        id: queued.id,
+        createdAt: queued.createdAt,
+      });
+    }
 
     await this.tryMatchBrawlerQueueBucket(ranked);
 
@@ -1200,6 +1213,7 @@ export class BrawlerService {
     let createdSessionId: string | null = null;
     const powerups = await this.powerupConfigRows();
     await this.prisma.$transaction(async (tx) => {
+      await acquireQueueBotLock(tx, QUEUE_BOT_FILL_LOCK);
       const row = await tx.brawlerMatchQueueEntry.findUnique({
         where: { id: queueEntryId },
       });
