@@ -126,7 +126,7 @@ export default function ScanFriendQrScreen({ navigation }: Props) {
                 style={({ pressed }) => [styles.permBtn, pressed && styles.pressed]}
                 onPress={() => void requestPermission()}
               >
-                <Text style={styles.permBtnText}>{t('qr.allowCamera')}</Text>
+                <Text style={styles.permBtnText}>{t('qr.cameraContinue')}</Text>
               </Pressable>
             ) : null}
           </View>

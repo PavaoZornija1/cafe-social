@@ -211,7 +211,7 @@ export default function QrScanScreen({ navigation, route }: Props) {
                       onPress={() => void requestPermission()}
                     >
                       <Ionicons name="camera" size={16} color={colors.textInverse} />
-                      <Text style={styles.permBtnText}>{t('qr.allowCamera')}</Text>
+                      <Text style={styles.permBtnText}>{t('qr.cameraContinue')}</Text>
                     </Pressable>
                   ) : null}
                 </View>

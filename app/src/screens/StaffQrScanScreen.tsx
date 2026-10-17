@@ -259,7 +259,7 @@ function StaffQrScanBody({ navigation, route }: Props) {
                   style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
                   onPress={() => void requestPermission()}
                 >
-                  <Text style={styles.primaryBtnText}>{t('qr.allowCamera')}</Text>
+                  <Text style={styles.primaryBtnText}>{t('qr.cameraContinue')}</Text>
                 </Pressable>
               ) : null}
             </View>
