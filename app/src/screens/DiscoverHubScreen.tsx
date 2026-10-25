@@ -1,4 +1,5 @@
 import { useAuth } from '@clerk/expo';
+import PlayerSafetyActions from '../components/PlayerSafetyActions';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -269,7 +270,9 @@ export default function DiscoverHubScreen({ navigation }: Props) {
                   subscribers.slice(0, 12).map((p) => (
                     <View key={p.id} style={styles.subscriberRow}>
                       <Ionicons name="person-outline" size={16} color={colors.textSecondary} />
-                      <Text style={styles.subscriberName}>{p.username}</Text>
+                      <Text style={styles.subscriberName} numberOfLines={1}>{p.username}</Text>
+                      <PlayerSafetyActions playerId={p.id} username={p.username}
+                        onBlocked={() => setSubscribers((current) => current.filter((person) => person.id !== p.id))} />
                     </View>
                   ))
                 )}
@@ -510,6 +513,8 @@ function createStyles(colors: AppColors) {
       borderColor: colors.border,
     },
     subscriberName: {
+      flex: 1,
+      minWidth: 0,
       color: colors.text,
       fontWeight: '700',
       fontSize: 15,

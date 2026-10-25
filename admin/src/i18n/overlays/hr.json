@@ -544,5 +544,14 @@
       "title": "Zauzmi stol, pokreni sobu",
       "body": "Pokrenite igru riječi u aplikaciji i podijelite kod sobe — savršeno za opušteno popodne."
     }
+  },
+  "playerReports": {
+    "title": "Prijave igrača",
+    "lead": "Pregled prijava na razini platforme. Prijave lokala ostaju osoblju lokala.",
+    "empty": "Nema otvorenih prijava.",
+    "note": "Poruka prijavitelju (neobavezno)",
+    "dismiss": "Zatvori prijavu",
+    "reset": "Promijeni uvredljivo ime i zatvori",
+    "resetConfirm": "Zamijeniti {{username}} neutralnim imenom i zatvoriti prijavu?"
   }
 }

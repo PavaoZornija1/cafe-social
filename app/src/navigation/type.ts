@@ -73,7 +73,7 @@ export type RootStackParamList = {
     PerkWallet: undefined;
     PeopleHere: { venueId: string; venueName?: string };
     ReportPlayer: {
-        venueId: string;
+        venueId?: string;
         venueName?: string;
         reportedPlayerId: string;
         reportedUsername: string;

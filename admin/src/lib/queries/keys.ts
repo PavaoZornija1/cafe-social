@@ -7,6 +7,7 @@ export const queryKeys = {
     me: ["portal", "me"] as const,
   },
   admin: {
+    playerReports: ["admin", "player-reports"] as const,
     dashboardMetrics: ["admin", "dashboard", "metrics"] as const,
     organizations: ["admin", "organizations"] as const,
     organizationsList: (p: AdminOrganizationsListParams) =>

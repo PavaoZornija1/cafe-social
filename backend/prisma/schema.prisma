@@ -667,7 +667,7 @@ model PlayerBlock {
 /// Append-only moderation audit (appeals, bans, reports) for venue staff / owners.
 model VenueModerationAuditLog {
   id            String   @id @default(uuid())
-  venueId       String
+  venueId       String?
   actorPlayerId String?
   action        String
   entityType    String
@@ -675,7 +675,7 @@ model VenueModerationAuditLog {
   metadata      Json?
   createdAt     DateTime @default(now())
 
-  venue Venue   @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  venue Venue?  @relation(fields: [venueId], references: [id], onDelete: Cascade)
   actor Player? @relation(fields: [actorPlayerId], references: [id], onDelete: SetNull)
 
   @@index([venueId, createdAt])
@@ -806,7 +806,7 @@ model VenueFunnelEvent {
 
 model VenuePlayerReport {
   id                      String    @id @default(uuid())
-  venueId                 String
+  venueId                 String?
   reporterId              String
   reportedPlayerId        String
   reason                  String
@@ -817,7 +817,7 @@ model VenuePlayerReport {
   /// Optional short message visible to the reporter when status becomes dismissed.
   dismissalNoteToReporter String?
 
-  venue          Venue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  venue          Venue? @relation(fields: [venueId], references: [id], onDelete: Cascade)
   reporter       Player @relation("VenueReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
   reportedPlayer Player @relation("VenueReportTarget", fields: [reportedPlayerId], references: [id], onDelete: Cascade)
 

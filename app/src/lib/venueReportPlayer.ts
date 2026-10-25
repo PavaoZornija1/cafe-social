@@ -6,14 +6,14 @@ export type ReportPlayerBody = {
   note?: string | null;
 };
 
-/** Staff receive reports in the partner portal; duplicate reports are rate-limited server-side. */
+/** Venue staff or platform moderators review reports; duplicates are rate-limited server-side. */
 export function reportPlayerAtVenue(
   token: string,
-  venueId: string,
+  venueId: string | undefined,
   body: ReportPlayerBody,
 ): Promise<{ id: string }> {
   return apiPost<{ id: string }>(
-    `/venue-context/${encodeURIComponent(venueId)}/report-player`,
+    venueId ? `/venue-context/${encodeURIComponent(venueId)}/report-player` : '/venue-context/report-player',
     {
       reportedPlayerId: body.reportedPlayerId,
       reason: body.reason.trim(),

@@ -24,13 +24,13 @@ type Props = NativeStackScreenProps<RootStackParamList, 'MyVenueReports'>;
 
 type FiledReportRow = {
   id: string;
-  venueId: string;
+  venueId: string | null;
   status: string;
   reason: string;
   createdAt: string;
   dismissedAt: string | null;
   dismissalNoteToReporter: string | null;
-  venue: { name: string };
+  venue: { name: string } | null;
 };
 
 export default function MyVenueReportsScreen({ navigation }: Props) {
@@ -144,7 +144,7 @@ export default function MyVenueReportsScreen({ navigation }: Props) {
             return (
               <View key={r.id} style={styles.card}>
                 <View style={styles.cardHeader}>
-                  <Text style={styles.venueName}>{r.venue.name}</Text>
+                  <Text style={styles.venueName}>{r.venue?.name ?? 'Cafe Social'}</Text>
                   <View style={[styles.statusPill, isOpen ? styles.statusOpen : styles.statusClosed]}>
                     <Text style={[styles.statusText, isOpen ? styles.statusOpenText : styles.statusClosedText]}>
                       {statusLabel(r.status)}

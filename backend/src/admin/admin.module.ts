@@ -16,6 +16,7 @@ import { AdminVenueTypeController } from './admin-venue-type.controller';
 import { AdminNudgeTemplateController } from './admin-nudge-template.controller';
 import { AdminVenueNudgeController } from './admin-venue-nudge.controller';
 import { AdminDashboardController } from './admin-dashboard.controller';
+import { AdminPlayerReportController } from './admin-player-report.controller';
 import { AdminPlatformAutomatedRewardController } from './admin-platform-automated-reward.controller';
 import { PlatformSuperAdminGuard } from '../auth/platform-super-admin.guard';
 import { AdminCmsAccessService } from './admin-cms-access.service';
@@ -33,6 +34,7 @@ import { AdminCmsGuard } from './admin-cms.guard';
   controllers: [
     AdminVenueController,
     AdminDashboardController,
+    AdminPlayerReportController,
     AdminOrganizationController,
     AdminVenueStaffController,
     AdminWordController,

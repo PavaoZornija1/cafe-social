@@ -70,3 +70,20 @@ this restore command at the running production database.
 The default application URL is `https://cafe-social.com/partners#apply`.
 `NEXT_PUBLIC_LANDING_PARTNERS_APPLY_URL` can override it at portal build time.
 Local development can set this explicitly to `http://localhost:3001/partners#apply`.
+
+## Player moderation
+
+Players can report and block strangers on all leaderboard scopes, the people-here
+screen, and subscriber discovery. Friends and incoming requests expose the same
+actions. Blocking removes the player from the current view; authenticated
+leaderboard reads exclude both directions of a block before ranking limits.
+
+Venue reports stay in that venue's staff tools. Reports outside a venue go to
+the platform-only **Player reports** queue at `/player-reports` in the portal.
+Check the queue daily. Super admins can close a report with a message to the
+reporter, or replace an abusive username with a neutral generated name and
+close it. Both actions record the operator in the moderation audit log. Further
+account abuse should be reviewed through the Clerk account controls as well.
+
+New mobile controls need a new mobile build. Publishing backend or portal changes
+does not add those controls to the build already waiting for Apple review.

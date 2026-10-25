@@ -633,5 +633,14 @@
       "title": "Grab a table, start a room",
       "body": "Host a word match from the app and share the room code — perfect for a slow afternoon."
     }
+  },
+  "playerReports": {
+    "title": "Player reports",
+    "lead": "Review platform-wide reports. Venue reports remain with venue staff.",
+    "empty": "No open platform reports.",
+    "note": "Message to the reporter (optional)",
+    "dismiss": "Close report",
+    "reset": "Reset abusive username and close",
+    "resetConfirm": "Replace {{username}} with a neutral member name and close this report?"
   }
 }

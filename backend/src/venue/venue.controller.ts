@@ -11,6 +11,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
 import { PlatformSuperAdminGuard } from '../auth/platform-super-admin.guard';
 import { VenueService } from './venue.service';
 import { CreateVenueDto } from './dto/create-venue.dto';
@@ -64,9 +66,10 @@ export class VenueController {
   }
 
   @Get('leaderboard/xp/global')
-  globalXpLeaderboard(@Query('limit') limit?: string) {
+  @UseGuards(OptionalJwtAuthGuard)
+  async globalXpLeaderboard(@CurrentUser() user: unknown, @Query('limit') limit?: string) {
     const n = limit ? Number(limit) : 50;
-    return this.venueService.globalXpLeaderboard(Number.isFinite(n) ? n : 50);
+    return this.venueService.globalXpLeaderboard(Number.isFinite(n) ? n : 50, await this.venueService.hiddenLeaderboardPlayerIds(user));
   }
 
   /**
@@ -94,7 +97,9 @@ export class VenueController {
   }
 
   @Get('leaderboard/xp/country/:country')
-  countryXpLeaderboard(
+  @UseGuards(OptionalJwtAuthGuard)
+  async countryXpLeaderboard(
+    @CurrentUser() user: unknown,
     @Param('country') country: string,
     @Query('limit') limit?: string,
   ) {
@@ -102,11 +107,14 @@ export class VenueController {
     return this.venueService.countryXpLeaderboard(
       country,
       Number.isFinite(n) ? n : 50,
+      await this.venueService.hiddenLeaderboardPlayerIds(user),
     );
   }
 
   @Get('leaderboard/xp/city')
-  cityXpLeaderboard(
+  @UseGuards(OptionalJwtAuthGuard)
+  async cityXpLeaderboard(
+    @CurrentUser() user: unknown,
     @Query('city') city?: string,
     @Query('country') country?: string,
     @Query('limit') limit?: string,
@@ -119,12 +127,14 @@ export class VenueController {
       city,
       country,
       Number.isFinite(n) ? n : 50,
+      await this.venueService.hiddenLeaderboardPlayerIds(user),
     );
   }
 
   @Get(':id/leaderboard/xp')
-  venueXpLeaderboard(@Param('id') id: string) {
-    return this.venueService.venueXpLeaderboard(id);
+  @UseGuards(OptionalJwtAuthGuard)
+  async venueXpLeaderboard(@CurrentUser() user: unknown, @Param('id') id: string) {
+    return this.venueService.venueXpLeaderboard(id, 50, await this.venueService.hiddenLeaderboardPlayerIds(user));
   }
 
   /** No auth — safe public card for Home / deep links. */
@@ -151,4 +161,3 @@ export class VenueController {
     return this.venueService.remove(id);
   }
 }
-

@@ -544,5 +544,14 @@
       "title": "Tisch reservieren, Raum starten",
       "body": "Starten Sie ein Wortspiel in der App und teilen Sie den Raumcode — perfekt für einen gemütlichen Nachmittag."
     }
+  },
+  "playerReports": {
+    "title": "Spielermeldungen",
+    "lead": "Plattformweite Meldungen prüfen. Lokale Meldungen bleiben beim Personal.",
+    "empty": "Keine offenen Plattformmeldungen.",
+    "note": "Nachricht an die meldende Person (optional)",
+    "dismiss": "Meldung schließen",
+    "reset": "Unangemessenen Namen zurücksetzen und schließen",
+    "resetConfirm": "{{username}} durch einen neutralen Mitgliedsnamen ersetzen und die Meldung schließen?"
   }
 }

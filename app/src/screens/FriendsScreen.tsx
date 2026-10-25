@@ -24,6 +24,7 @@ import type {
 import { useFriendsInboxBadge } from '../context/FriendsInboxBadgeContext';
 import { useSocialFriendsQuery } from '../query';
 import FriendAvatarRow from '../components/friends/FriendAvatarRow';
+import PlayerSafetyActions from '../components/PlayerSafetyActions';
 import { PrimaryButton } from '../components/ui';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
@@ -148,32 +149,6 @@ export default function FriendsScreen({ navigation }: Props) {
     } catch (e) {
       Alert.alert(t('common.error'), (e as Error).message ?? '');
     }
-  };
-
-  const blockPlayer = (playerId: string, username: string) => {
-    Alert.alert(
-      t('friends.blockTitle'),
-      t('friends.blockConfirm', { username }),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('friends.block'),
-          style: 'destructive',
-          onPress: () => {
-            void (async () => {
-              const token = await getTokenRef.current();
-              if (!token) return;
-              try {
-                await apiPost(`/players/me/blocks/${encodeURIComponent(playerId)}`, {}, token);
-                await load();
-              } catch (e) {
-                Alert.alert(t('common.error'), (e as Error).message ?? t('friends.blockFailed'));
-              }
-            })();
-          },
-        },
-      ],
-    );
   };
 
   const unblockPlayer = (playerId: string) => {
@@ -374,12 +349,7 @@ export default function FriendsScreen({ navigation }: Props) {
                     >
                       <Text style={styles.acceptBtnText}>{t('friends.accept')}</Text>
                     </Pressable>
-                    <Pressable
-                      style={styles.blockBtn}
-                      onPress={() => blockPlayer(r.id, r.username)}
-                    >
-                      <Text style={styles.blockBtnText}>{t('friends.block')}</Text>
-                    </Pressable>
+                    <PlayerSafetyActions playerId={r.id} username={r.username} onBlocked={() => { void friendsQuery.refetch(); void refreshPendingCount(); }} />
                   </View>
                 </View>
               );
@@ -398,12 +368,7 @@ export default function FriendsScreen({ navigation }: Props) {
                 colors={colors}
                 username={f.username}
                 trailing={
-                  <Pressable
-                    style={styles.blockBtnSmall}
-                    onPress={() => blockPlayer(f.id, f.username)}
-                  >
-                    <Text style={styles.blockBtnTextSmall}>{t('friends.block')}</Text>
-                  </Pressable>
+                  <PlayerSafetyActions playerId={f.id} username={f.username} onBlocked={() => { void friendsQuery.refetch(); void refreshPendingCount(); }} />
                 }
               />
             ))

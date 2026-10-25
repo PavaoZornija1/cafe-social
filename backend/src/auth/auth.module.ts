@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { OptionalJwtAuthGuard } from './optional-jwt-auth.guard';
 import { JwtValidationService } from './jwt-validation.service';
 import { ClerkPartnerInviteService } from './clerk-partner-invite.service';
 import { ClerkUserService } from './clerk-user.service';
@@ -12,6 +13,7 @@ import { PrismaModule } from '../prisma/prisma.module';
   providers: [
     JwtValidationService,
     JwtAuthGuard,
+    OptionalJwtAuthGuard,
     ClerkPartnerInviteService,
     ClerkUserService,
     BackgroundTokenService,
@@ -20,6 +22,7 @@ import { PrismaModule } from '../prisma/prisma.module';
   exports: [
     JwtValidationService,
     JwtAuthGuard,
+    OptionalJwtAuthGuard,
     ClerkPartnerInviteService,
     ClerkUserService,
     BackgroundTokenService,
@@ -27,4 +30,3 @@ import { PrismaModule } from '../prisma/prisma.module';
   ],
 })
 export class AuthModule {}
-

@@ -544,5 +544,14 @@
       "title": "Mesa y sala",
       "body": "Organiza una partida desde la app y comparte el código de sala — perfecto para una tarde tranquila."
     }
+  },
+  "playerReports": {
+    "title": "Denuncias de jugadores",
+    "lead": "Revisa denuncias de toda la plataforma. Las denuncias de locales las gestiona su personal.",
+    "empty": "No hay denuncias abiertas.",
+    "note": "Mensaje para quien denunció (opcional)",
+    "dismiss": "Cerrar denuncia",
+    "reset": "Restablecer nombre ofensivo y cerrar",
+    "resetConfirm": "¿Reemplazar {{username}} por un nombre neutral y cerrar la denuncia?"
   }
 }

@@ -262,6 +262,9 @@ function PortalNavLinks({
           >
             {t("admin.shell.partnerApplications")}
           </NavLink>
+          <NavLink href="/player-reports" active={Boolean(pathname?.startsWith("/player-reports"))} icon="partner" onNavigate={onNavigate}>
+            {t("admin.playerReports.title")}
+          </NavLink>
           <NavLink
             href="/venues"
             active={

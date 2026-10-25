@@ -104,3 +104,19 @@ describe('request player resolution', () => {
     expect(f.players.create).not.toHaveBeenCalled();
   });
 });
+
+it('keeps report history readable by older builds when a report has no venue', async () => {
+  const rows = [
+    { id: 'platform', venueId: null, venue: null },
+    { id: 'venue', venueId: 'v1', venue: { name: 'Cafe' } },
+  ];
+  const prisma = { venuePlayerReport: { findMany: jest.fn().mockResolvedValue(rows) } };
+  const service = new PlayerService({} as never, {} as never, prisma as never,
+    {} as never, {} as never);
+  await expect(service.listMyFiledVenueReports('reporter')).resolves.toEqual([
+    { ...rows[0], venue: { name: 'Cafe Social' } }, rows[1],
+  ]);
+  expect(prisma.venuePlayerReport.findMany).toHaveBeenCalledWith(
+    expect.objectContaining({ where: { reporterId: 'reporter' } }),
+  );
+});

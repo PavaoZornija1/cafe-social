@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
 import type { RootStackParamList } from '../navigation/type';
+import PlayerSafetyActions from '../components/PlayerSafetyActions';
 import { apiGet, apiPost } from '../lib/api';
 import type { MeSummaryDto } from '../lib/meSummary';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -322,21 +323,8 @@ export default function PeopleHereScreen({ navigation, route }: Props) {
                       )}
                     </Pressable>
                   )}
-                  <Pressable
-                    style={({ pressed }) => [styles.reportBtn, pressed && styles.pressed]}
-                    onPress={() =>
-                      navigation.navigate('ReportPlayer', {
-                        venueId,
-                        venueName,
-                        reportedPlayerId: item.id,
-                        reportedUsername: item.username,
-                      })
-                    }
-                    accessibilityRole="button"
-                    accessibilityLabel={t('peopleHere.report')}
-                  >
-                    <Text style={styles.reportBtnText}>{t('peopleHere.report')}</Text>
-                  </Pressable>
+                  <PlayerSafetyActions playerId={item.id} username={item.username} venueId={venueId} venueName={venueName}
+                    onBlocked={() => setPeople((current) => current.filter((person) => person.id !== item.id))} />
                 </View>
               ) : null}
             </View>

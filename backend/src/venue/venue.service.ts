@@ -17,6 +17,8 @@ import { haversineKm } from '../lib/haversine-km';
 import type { Polygon as GeoJsonPolygon } from 'geojson';
 import { loadPublicVenueOffersForVenue } from './venue-offer-public.util';
 import { normalizeProximityAlertRadiusMeters, PROXIMITY_ALERT_RADIUS_DEFAULT } from '../lib/proximity-alert-radius';
+import { normalizeUserEmail } from '../auth/user-email.util';
+import { hiddenOpponentIdsForViewer } from '../social/hidden-opponents.util';
 
 @Injectable()
 export class VenueService {
@@ -612,13 +614,13 @@ export class VenueService {
   }
 
   /** Per-venue XP leaderboard (stored `PlayerVenueStats`). */
-  async venueXpLeaderboard(venueId: string, limit = 50) {
+  async venueXpLeaderboard(venueId: string, limit = 50, hidden: string[] = []) {
     const venue = await this.findOne(venueId);
     if (venue.locked) {
       throw new NotFoundException('Venue not found');
     }
     return this.prisma.playerVenueStats.findMany({
-      where: { venueId },
+      where: { venueId, playerId: { notIn: hidden } },
       orderBy: { venueXp: 'desc' },
       take: Math.min(Math.max(limit, 1), 100),
       include: {
@@ -631,8 +633,17 @@ export class VenueService {
     return Math.min(Math.max(limit ?? 50, 1), 100);
   }
 
+  async hiddenLeaderboardPlayerIds(user: unknown): Promise<string[]> {
+    const email = normalizeUserEmail(user);
+    if (!email) return [];
+    const viewer = await this.prisma.player.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } }, select: { id: true },
+    });
+    return viewer ? [...await hiddenOpponentIdsForViewer(this.prisma, viewer.id)] : [];
+  }
+
   /** Sum of `venueXp` across all venues per player (global ladder). */
-  async globalXpLeaderboard(limit = 50) {
+  async globalXpLeaderboard(limit = 50, hidden: string[] = []) {
     const take = this.clampLeaderboardLimit(limit);
     const rows = await this.prisma.$queryRaw<
       { playerId: string; totalXp: number; username: string }[]
@@ -640,6 +651,7 @@ export class VenueService {
       SELECT p.id AS "playerId", SUM(pvs."venueXp")::int AS "totalXp", p.username AS "username"
       FROM "PlayerVenueStats" pvs
       INNER JOIN "Player" p ON p.id = pvs."playerId"
+      WHERE p.id NOT IN (${Prisma.join(['', ...hidden])})
       GROUP BY p.id, p.username
       ORDER BY "totalXp" DESC
       LIMIT ${take}
@@ -651,7 +663,7 @@ export class VenueService {
   }
 
   /** Sum of venue XP for venues in a given country (ISO-style code, e.g. BA). */
-  async countryXpLeaderboard(country: string, limit = 50) {
+  async countryXpLeaderboard(country: string, limit = 50, hidden: string[] = []) {
     const take = this.clampLeaderboardLimit(limit);
     const c = country.trim().toUpperCase();
     if (!c || c.length > 3) {
@@ -665,6 +677,7 @@ export class VenueService {
       INNER JOIN "Venue" v ON v.id = pvs."venueId"
       INNER JOIN "Player" p ON p.id = pvs."playerId"
       WHERE TRIM(UPPER(v.country)) = ${c}
+        AND p.id NOT IN (${Prisma.join(['', ...hidden])})
       GROUP BY p.id, p.username
       ORDER BY "totalXp" DESC
       LIMIT ${take}
@@ -676,7 +689,7 @@ export class VenueService {
   }
 
   /** Sum of venue XP for venues in a city + country (case-insensitive city match). */
-  async cityXpLeaderboard(city: string, country: string, limit = 50) {
+  async cityXpLeaderboard(city: string, country: string, limit = 50, hidden: string[] = []) {
     const take = this.clampLeaderboardLimit(limit);
     const cityNorm = city.trim().toLowerCase();
     const c = country.trim().toUpperCase();
@@ -692,6 +705,7 @@ export class VenueService {
       INNER JOIN "Player" p ON p.id = pvs."playerId"
       WHERE LOWER(TRIM(COALESCE(v.city, ''))) = ${cityNorm}
         AND TRIM(UPPER(v.country)) = ${c}
+        AND p.id NOT IN (${Prisma.join(['', ...hidden])})
       GROUP BY p.id, p.username
       ORDER BY "totalXp" DESC
       LIMIT ${take}
@@ -702,4 +716,3 @@ export class VenueService {
     }));
   }
 }
-

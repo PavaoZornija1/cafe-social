@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '../navigation/type';
 import { apiGet } from '../lib/api';
 import { fetchDetectedVenue } from '../lib/venueDetectClient';
+import PlayerSafetyActions from '../components/PlayerSafetyActions';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { AppColors } from '../theme/colors';
 import { radii, spacing } from '../theme/tokens';
@@ -353,8 +354,7 @@ export default function LeaderboardScreen({ navigation, route }: Props) {
         }
         renderItem={({ item, index }) => {
           const isMe = meId != null && item.player.id === meId;
-          const canReport =
-            scope === 'venue' && Boolean(venueId) && meId != null && !isMe;
+          const canReport = meId != null && !isMe;
           const medal = rankMedal(index);
           const accent = rankAccentColor(index, colors);
 
@@ -378,21 +378,10 @@ export default function LeaderboardScreen({ navigation, route }: Props) {
                   {t('venueHub.leaderboardXp', { xp: item.venueXp })}
                 </Text>
                 {canReport ? (
-                  <Pressable
-                    onPress={() =>
-                      navigation.navigate('ReportPlayer', {
-                        venueId: venueId!,
-                        venueName: venueName ?? undefined,
-                        reportedPlayerId: item.player.id,
-                        reportedUsername: item.player.username,
-                      })
-                    }
-                    style={({ pressed }) => [styles.reportTap, pressed && styles.pressed]}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('leaderboard.report')}
-                  >
-                    <Text style={styles.reportTapText}>{t('leaderboard.report')}</Text>
-                  </Pressable>
+                  <PlayerSafetyActions playerId={item.player.id} username={item.player.username}
+                    venueId={scope === 'venue' ? venueId ?? undefined : undefined}
+                    venueName={scope === 'venue' ? venueName ?? undefined : undefined}
+                    onBlocked={() => setRows((current) => current.filter((row) => row.player.id !== item.player.id))} />
                 ) : null}
               </View>
             </View>

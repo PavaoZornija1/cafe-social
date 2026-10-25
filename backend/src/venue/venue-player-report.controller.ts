@@ -22,6 +22,17 @@ export class VenuePlayerReportController {
     private readonly moderation: VenueModerationService,
   ) {}
 
+  @Post('report-player')
+  async reportPlayerGlobally(@CurrentUser() user: unknown, @Body() dto: ReportPlayerDto) {
+    const email = normalizeUserEmail(user);
+    if (!email) throw new UnauthorizedException('Missing user email');
+    const reporter = await this.players.findOrCreateByEmail(email);
+    return this.moderation.createReport({
+      venueId: null, reporterId: reporter.id, reportedPlayerId: dto.reportedPlayerId,
+      reason: dto.reason, note: dto.note ?? null,
+    });
+  }
+
   @Post(':venueId/report-player')
   async reportPlayer(
     @CurrentUser() user: unknown,

@@ -464,8 +464,8 @@ export class PlayerService {
   }
 
   /** Reports this player filed (status + optional note from staff). */
-  listMyFiledVenueReports(playerId: string) {
-    return this.prisma.venuePlayerReport.findMany({
+  async listMyFiledVenueReports(playerId: string) {
+    const reports = await this.prisma.venuePlayerReport.findMany({
       where: { reporterId: playerId },
       orderBy: { createdAt: 'desc' },
       take: 40,
@@ -480,6 +480,8 @@ export class PlayerService {
         venue: { select: { name: true } },
       },
     });
+    // Older mobile builds expect a venue name even for platform reports.
+    return reports.map((report) => ({ ...report, venue: report.venue ?? { name: 'Cafe Social' } }));
   }
 
   async addPlayerBlock(blockerId: string, blockedId: string): Promise<void> {
@@ -574,4 +576,3 @@ export class PlayerService {
   }
 
 }
-

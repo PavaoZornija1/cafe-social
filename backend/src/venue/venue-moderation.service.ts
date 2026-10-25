@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
 import { VenueStaffNotificationService } from '../notification/venue-staff-notification.service';
@@ -38,7 +39,7 @@ export class VenueModerationService {
   private static readonly MAX_REPORTS_GLOBAL_PER_DAY_PER_REPORTER = 50;
 
   private async writeAudit(params: {
-    venueId: string;
+    venueId: string | null;
     actorPlayerId: string | null;
     action: string;
     entityType: string;
@@ -58,7 +59,7 @@ export class VenueModerationService {
   }
 
   async createReport(params: {
-    venueId: string;
+    venueId: string | null;
     reporterId: string;
     reportedPlayerId: string;
     reason: string;
@@ -66,6 +67,14 @@ export class VenueModerationService {
   }): Promise<{ id: string }> {
     if (params.reporterId === params.reportedPlayerId) {
       throw new BadRequestException('Cannot report yourself');
+    }
+    if (
+      !(await this.prisma.player.findUnique({
+        where: { id: params.reportedPlayerId },
+        select: { id: true },
+      }))
+    ) {
+      throw new NotFoundException('Player not found');
     }
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const dup = await this.prisma.venuePlayerReport.findFirst({
@@ -78,7 +87,7 @@ export class VenueModerationService {
     });
     if (dup) {
       throw new BadRequestException(
-        'You already reported this player at this venue in the last 24 hours',
+        'You already reported this player here in the last 24 hours',
       );
     }
     const recentCount = await this.prisma.venuePlayerReport.count({
@@ -125,6 +134,62 @@ export class VenueModerationService {
         reporter: { select: { id: true, username: true, email: true } },
         reportedPlayer: { select: { id: true, username: true, email: true } },
       },
+    });
+  }
+
+  listPlatformReports() {
+    return this.prisma.venuePlayerReport.findMany({
+      where: { venueId: null, status: 'open' },
+      orderBy: { createdAt: 'asc' },
+      take: 200,
+      include: {
+        reporter: { select: { id: true, username: true } },
+        reportedPlayer: { select: { id: true, username: true } },
+      },
+    });
+  }
+
+  async resolvePlatformReport(
+    reportId: string,
+    actorPlayerId: string,
+    resetUsername: boolean,
+    note?: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const report = await tx.venuePlayerReport.findFirst({
+        where: { id: reportId, venueId: null, status: 'open' },
+      });
+      if (!report)
+        throw new NotFoundException('Open platform report not found');
+      const claimed = await tx.venuePlayerReport.updateMany({
+        where: { id: reportId, venueId: null, status: 'open' },
+        data: {
+          status: 'dismissed',
+          dismissedAt: new Date(),
+          dismissalNoteToReporter: note?.trim() || null,
+        },
+      });
+      if (!claimed.count)
+        throw new NotFoundException('Open platform report not found');
+      if (resetUsername) {
+        await tx.player.update({
+          where: { id: report.reportedPlayerId },
+          data: {
+            username: `member_${randomUUID().replace(/-/g, '').slice(0, 16)}`,
+          },
+        });
+      }
+      await tx.venueModerationAuditLog.create({
+        data: {
+          venueId: null,
+          actorPlayerId,
+          action: resetUsername ? 'report_username_reset' : 'report_dismissed',
+          entityType: 'platform_report',
+          entityId: reportId,
+          metadata: { reportedPlayerId: report.reportedPlayerId },
+        },
+      });
+      return { ok: true };
     });
   }
 
