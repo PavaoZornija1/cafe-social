@@ -5,6 +5,7 @@
 **/.env
 !**/.env.example
 deploy/oracle/.env
+deploy/oracle/.recovery/
 *.pem
 *.key
 !**/certs/*.key

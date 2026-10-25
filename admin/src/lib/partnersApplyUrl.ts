@@ -2,7 +2,7 @@
 export function partnersApplyUrl(): string {
   const fromEnv = process.env.NEXT_PUBLIC_LANDING_PARTNERS_APPLY_URL?.trim();
   if (fromEnv) return fromEnv;
-  return "http://localhost:3001/partners#apply";
+  return "https://cafe-social.com/partners#apply";
 }
 
 export function redirectToPartnersApply(): void {

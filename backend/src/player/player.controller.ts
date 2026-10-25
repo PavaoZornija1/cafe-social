@@ -16,8 +16,6 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { normalizeUserEmail } from '../auth/user-email.util';
 import { PlayerService } from './player.service';
-import { CreatePlayerDto } from './dto/create-player.dto';
-import { UpdatePlayerDto } from './dto/update-player.dto';
 import { UpdateMeSettingsDto } from './dto/update-me-settings.dto';
 import { UpdateMeOnboardingDto } from './dto/update-me-onboarding.dto';
 import { RegisterExpoPushTokenDto } from './dto/register-expo-push-token.dto';
@@ -27,6 +25,7 @@ import { VenueModerationService } from '../venue/venue-moderation.service';
 import { BackgroundTokenService } from '../auth/background-token.service';
 
 @Controller('players')
+@UseGuards(JwtAuthGuard)
 export class PlayerController {
   constructor(
     private readonly playerService: PlayerService,
@@ -39,17 +38,6 @@ export class PlayerController {
     return normalizeUserEmail(user);
   }
 
-  @Post()
-  create(@Body() dto: CreatePlayerDto) {
-    return this.playerService.create(dto);
-  }
-
-  @Get()
-  findAll() {
-    return this.playerService.findAll();
-  }
-
-  @UseGuards(JwtAuthGuard)
   @Get('me/member-card')
   meMemberCard(@CurrentUser() user: unknown) {
     const email = this.normalizeEmail(user);
@@ -57,7 +45,6 @@ export class PlayerController {
     return this.playerService.getMeMemberCard(email);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('me/summary')
   meSummary(@CurrentUser() user: unknown) {
     const email = this.normalizeEmail(user);
@@ -65,7 +52,6 @@ export class PlayerController {
     return this.playerService.getMeSummary(email);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('me/engagement')
   meEngagement(
     @CurrentUser() user: unknown,
@@ -76,7 +62,6 @@ export class PlayerController {
     return this.playerService.getMeEngagement(email, venueId?.trim() || undefined);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('me/perk-redemptions')
   mePerkRedemptions(@CurrentUser() user: unknown) {
     const email = this.normalizeEmail(user);
@@ -84,7 +69,6 @@ export class PlayerController {
     return this.playerService.listMyPerkRedemptions(email);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('me/reward-claims')
   meRewardClaims(@CurrentUser() user: unknown) {
     const email = this.normalizeEmail(user);
@@ -92,7 +76,6 @@ export class PlayerController {
     return this.playerService.listMyRewardClaimsHub(email);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Patch('me/settings')
   meSettings(@CurrentUser() user: unknown, @Body() dto: UpdateMeSettingsDto) {
     const email = this.normalizeEmail(user);
@@ -100,7 +83,6 @@ export class PlayerController {
     return this.playerService.updateMeSettings(email, dto);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Patch('me/onboarding')
   meOnboarding(@CurrentUser() user: unknown, @Body() dto: UpdateMeOnboardingDto) {
     const email = this.normalizeEmail(user);
@@ -111,7 +93,6 @@ export class PlayerController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('me/push-token')
   async registerExpoPushToken(
     @CurrentUser() user: unknown,
@@ -124,7 +105,6 @@ export class PlayerController {
     return { ok: true };
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('me/ban-appeals')
   async listMyBanAppeals(@CurrentUser() user: unknown) {
     const email = this.normalizeEmail(user);
@@ -133,7 +113,6 @@ export class PlayerController {
     return this.playerService.listMyBanAppeals(player.id);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('me/ban-appeals')
   async createMyBanAppeal(
     @CurrentUser() user: unknown,
@@ -145,7 +124,6 @@ export class PlayerController {
     return this.venueModeration.createBanAppeal(player.id, dto.venueId, dto.message);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('me/venue-reports')
   async listMyVenueReports(@CurrentUser() user: unknown) {
     const email = this.normalizeEmail(user);
@@ -154,7 +132,6 @@ export class PlayerController {
     return this.playerService.listMyFiledVenueReports(player.id);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('me/blocks')
   async listMyBlocks(@CurrentUser() user: unknown) {
     const email = this.normalizeEmail(user);
@@ -163,7 +140,6 @@ export class PlayerController {
     return this.playerService.listBlockedPlayers(player.id);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('me/blocks/:blockedPlayerId')
   async addMyBlock(
     @CurrentUser() user: unknown,
@@ -176,7 +152,6 @@ export class PlayerController {
     return { ok: true as const };
   }
 
-  @UseGuards(JwtAuthGuard)
   @Delete('me/blocks/:blockedPlayerId')
   async removeMyBlock(
     @CurrentUser() user: unknown,
@@ -189,7 +164,6 @@ export class PlayerController {
     return { ok: true as const };
   }
 
-  @UseGuards(JwtAuthGuard)
   @Delete('me/push-token')
   async removeExpoPushToken(
     @CurrentUser() user: unknown,
@@ -210,7 +184,6 @@ export class PlayerController {
    * Long-lived token for OS geofence callbacks while the app is backgrounded/killed.
    * Replaces any previous background token for this player.
    */
-  @UseGuards(JwtAuthGuard)
   @Post('me/background-token')
   async issueBackgroundToken(@CurrentUser() user: unknown) {
     const email = this.normalizeEmail(user);
@@ -219,7 +192,6 @@ export class PlayerController {
     return this.backgroundTokens.issueForPlayer(p.id);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Delete('me/background-token')
   async revokeBackgroundToken(@CurrentUser() user: unknown) {
     const email = this.normalizeEmail(user);
@@ -230,7 +202,6 @@ export class PlayerController {
   }
 
   /** Permanently delete the signed-in player profile and Clerk auth user. */
-  @UseGuards(JwtAuthGuard)
   @Delete('me')
   async deleteMe(@CurrentUser() user: unknown) {
     const email = this.normalizeEmail(user);
@@ -243,14 +214,4 @@ export class PlayerController {
     return this.playerService.deleteMyAccount(email, clerkUserId);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.playerService.findOne(id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdatePlayerDto) {
-    return this.playerService.update(id, dto);
-  }
 }
-

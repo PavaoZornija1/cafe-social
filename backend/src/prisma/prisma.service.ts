@@ -10,6 +10,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     if (!connectionString) {
       throw new Error('DATABASE_URL is not set');
     }
+    if (
+      process.env.NODE_ENV === 'production' &&
+      new URL(connectionString).searchParams.get('sslmode') !== 'verify-full'
+    ) {
+      throw new Error('Production DATABASE_URL must use sslmode=verify-full');
+    }
 
     super({
       adapter: new PrismaPg({ connectionString }),
@@ -20,4 +26,3 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     await this.$connect();
   }
 }
-
